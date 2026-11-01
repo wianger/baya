@@ -704,11 +704,11 @@ class _SidebarCircleAction extends StatelessWidget {
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: SizedBox.square(
-          dimension: 44,
+          dimension: 48,
           child: IconButton(
             tooltip: tooltip,
             onPressed: onPressed,
-            icon: Icon(icon, size: 19, color: colors.muted2),
+            icon: Icon(icon, size: 22, color: colors.muted2),
           ),
         ),
       ),

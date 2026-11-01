@@ -426,7 +426,9 @@ void main() {
         'Pinyon Script',
       );
       // Claude-style footer: settings circle + primary New session pill.
-      expect(find.byKey(const Key('sidebar-settings')), findsOneWidget);
+      final settings = find.byKey(const Key('sidebar-settings'));
+      expect(settings, findsOneWidget);
+      expect(tester.getSize(settings), const Size(48, 48));
       expect(find.byKey(const Key('sidebar-new-session')), findsOneWidget);
       expect(find.text('New session'), findsOneWidget);
       // Search lives behind the header circle, not in an always-open field.
