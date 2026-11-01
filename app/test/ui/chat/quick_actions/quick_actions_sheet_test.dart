@@ -87,12 +87,14 @@ _openSheet(
   bool failCompact = false,
   bool failNewSession = false,
   ModelsCatalogue catalogue = const ModelsCatalogue(models: [], current: null),
+  bool loadCatalogue = false,
 }) async {
   final repo = _FakeRepo()
     ..failCompact = failCompact
     ..failNewSession = failNewSession
     ..catalogue = catalogue;
   final vm = QuickActionsViewModel(repo);
+  if (loadCatalogue) await vm.loadModels();
   final resetCalls = <int>[];
 
   await tester.pumpWidget(
@@ -139,7 +141,24 @@ void main() {
     },
   );
   testWidgets('thinking segment forwards level to repo', (tester) async {
-    final s = await _openSheet(tester);
+    const model = WireModel(
+      id: 'reasoning',
+      provider: 'pi',
+      name: 'Reasoning model',
+      reasoning: true,
+      contextWindow: 0,
+      thinkingLevels: [
+        ThinkingLevel.off,
+        ThinkingLevel.low,
+        ThinkingLevel.medium,
+        ThinkingLevel.high,
+      ],
+    );
+    final s = await _openSheet(
+      tester,
+      catalogue: const ModelsCatalogue(models: [model], current: model),
+      loadCatalogue: true,
+    );
     await tester.tap(find.byKey(const Key('qa-thinking-medium')));
     await tester.pumpAndSettle();
     expect(s.repo.thinking, ThinkingLevel.medium);
@@ -215,6 +234,30 @@ void main() {
     expect(find.text('Extra high'), findsNothing);
     expect(find.text('Minimal'), findsNothing);
     expect(find.text('Medium'), findsNothing);
+  });
+
+  testWidgets('model picker omits effort when the model has no choices', (
+    tester,
+  ) async {
+    const fixed = WireModel(
+      id: 'fixed',
+      provider: 'deepseek',
+      name: 'Fixed reasoning model',
+      reasoning: false,
+      contextWindow: 128000,
+      thinkingLevels: [],
+    );
+    await _openSheet(
+      tester,
+      catalogue: const ModelsCatalogue(models: [fixed], current: fixed),
+    );
+
+    await tester.tap(find.byKey(const Key('qa-model-row')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('model-picker-model')), findsOneWidget);
+    expect(find.byKey(const Key('model-picker-effort')), findsNothing);
+    expect(find.text('Not supported'), findsNothing);
   });
 
   testWidgets('model picker commits the selected model and closes', (

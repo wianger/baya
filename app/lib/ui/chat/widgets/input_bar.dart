@@ -49,6 +49,13 @@ class InputBar extends StatefulWidget {
   final List<AgentCommand> agentCommands;
   final bool agentCommandsLoading;
   final String? agentCommandsError;
+
+  /// Built-in command ids the active host explicitly cannot execute.
+  ///
+  /// The host reports this alongside agent commands. Keeping unavailable
+  /// entries out of the palette prevents a harmless but confusing round-trip
+  /// that ends in an "unsupported action" error.
+  final Set<String> hiddenSlashCommandIds;
   final VoidCallback? onStartAudio;
   final String agentLabel;
   final String modelLabel;
@@ -83,6 +90,7 @@ class InputBar extends StatefulWidget {
     this.agentCommands = const [],
     this.agentCommandsLoading = false,
     this.agentCommandsError,
+    this.hiddenSlashCommandIds = const {},
     this.onStartAudio,
     this.agentLabel = 'your agent',
     this.modelLabel = 'Session',
@@ -384,6 +392,7 @@ class _InputBarState extends State<InputBar> {
                       agentCommands: widget.agentCommands,
                       loading: widget.agentCommandsLoading,
                       error: widget.agentCommandsError,
+                      hiddenCommandIds: widget.hiddenSlashCommandIds,
                       onSelected: (id, raw) {
                         _controller.clear();
                         widget.onSlashCommand?.call(id, raw);
@@ -1128,6 +1137,7 @@ class _SlashPalette extends StatelessWidget {
     required this.agentCommands,
     required this.loading,
     required this.error,
+    required this.hiddenCommandIds,
     required this.onSelected,
   });
 
@@ -1135,6 +1145,7 @@ class _SlashPalette extends StatelessWidget {
   final List<AgentCommand> agentCommands;
   final bool loading;
   final String? error;
+  final Set<String> hiddenCommandIds;
   final void Function(String id, String raw) onSelected;
 
   static const _commands = [
@@ -1161,11 +1172,17 @@ class _SlashPalette extends StatelessWidget {
     final matches = _commands
         .where(
           (c) =>
-              normalized.isEmpty ||
-              c.id.startsWith(normalized) ||
-              c.label.toLowerCase().contains(normalized),
+              !hiddenCommandIds.contains(c.id) &&
+              (normalized.isEmpty ||
+                  c.id.startsWith(normalized) ||
+                  c.label.toLowerCase().contains(normalized)),
         )
         .toList();
+    final hiddenExactCommand = _commands.any(
+      (command) =>
+          hiddenCommandIds.contains(command.id) &&
+          (normalized.isEmpty || command.id.startsWith(normalized)),
+    );
     final agentMatches = agentCommands
         .where(
           (command) =>
@@ -1266,22 +1283,24 @@ class _SlashPalette extends StatelessWidget {
                       ),
                     ),
                   ),
-                Divider(height: 1, color: colors.border),
-                ListTile(
-                  dense: true,
-                  leading: Icon(
-                    LucideIcons.terminal,
-                    size: 17,
-                    color: colors.accent,
+                if (!hiddenExactCommand) ...[
+                  Divider(height: 1, color: colors.border),
+                  ListTile(
+                    dense: true,
+                    leading: Icon(
+                      LucideIcons.terminal,
+                      size: 17,
+                      color: colors.accent,
+                    ),
+                    title: Text(
+                      normalized.isEmpty
+                          ? 'Send a slash command to the agent'
+                          : 'Send /$normalized to the agent',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    onTap: () => onSelected('agent', '/$normalized'),
                   ),
-                  title: Text(
-                    normalized.isEmpty
-                        ? 'Send a slash command to the agent'
-                        : 'Send /$normalized to the agent',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  onTap: () => onSelected('agent', '/$normalized'),
-                ),
+                ],
               ],
             ),
           ),

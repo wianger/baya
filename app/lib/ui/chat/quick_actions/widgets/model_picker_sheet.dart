@@ -252,22 +252,20 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
                                     onTap: () =>
                                         setState(() => _editingModel = true),
                                   ),
-                                  const SizedBox(height: 6),
-                                  _PickerRow(
-                                    key: const Key('model-picker-effort'),
-                                    label: 'Effort',
-                                    value: effortLevels.isEmpty
-                                        ? 'Not supported'
-                                        : current == null ||
+                                  if (effortLevels.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    _PickerRow(
+                                      key: const Key('model-picker-effort'),
+                                      label: 'Effort',
+                                      value:
+                                          current == null ||
                                               !effortLevels.contains(current)
-                                        ? 'Default'
-                                        : _effortLabel(current),
-                                    onTap: effortLevels.isEmpty
-                                        ? null
-                                        : () => setState(
-                                            () => _editingEffort = true,
-                                          ),
-                                  ),
+                                          ? 'Default'
+                                          : _effortLabel(current),
+                                      onTap: () =>
+                                          setState(() => _editingEffort = true),
+                                    ),
+                                  ],
                                 ],
                               );
                             },

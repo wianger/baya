@@ -17,6 +17,7 @@ void main() {
     VoidCallback? onOpenQuickActions,
     void Function(String id, String raw)? onSlashCommand,
     List<AgentCommand> agentCommands = const [],
+    Set<String> hiddenSlashCommandIds = const {},
     VoidCallback? onStartAudio,
   }) {
     return tester.pumpWidget(
@@ -30,6 +31,7 @@ void main() {
             onOpenQuickActions: onOpenQuickActions,
             onSlashCommand: onSlashCommand,
             agentCommands: agentCommands,
+            hiddenSlashCommandIds: hiddenSlashCommandIds,
             onStartAudio: onStartAudio,
           ),
         ),
@@ -128,6 +130,23 @@ void main() {
 
     expect(selectedId, 'agent');
     expect(selectedRaw, '/browser');
+  });
+
+  testWidgets('slash palette omits host actions the agent cannot execute', (
+    tester,
+  ) async {
+    await pumpBar(
+      tester,
+      disabled: false,
+      streaming: false,
+      hiddenSlashCommandIds: const {'compact'},
+    );
+
+    await tester.enterText(find.byType(TextField), '/compact');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Compact context'), findsNothing);
+    expect(find.text('Send /compact to the agent'), findsNothing);
   });
 
   testWidgets('quick actions button stays available while typing', (

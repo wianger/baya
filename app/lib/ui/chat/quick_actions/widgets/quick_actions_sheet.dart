@@ -145,8 +145,7 @@ class _QuickActionsSheetBodyState extends State<QuickActionsSheetBody> {
     final state = vm.state;
     final busyAction = state is QuickActionsBusy ? state.action : null;
     final thinkingLevels =
-        vm.currentModel?.availableThinkingLevels ??
-        WireModel.legacyThinkingLevels;
+        vm.currentModel?.availableThinkingLevels ?? const <ThinkingLevel>[];
 
     return SafeArea(
       top: false,
@@ -167,17 +166,19 @@ class _QuickActionsSheetBodyState extends State<QuickActionsSheetBody> {
               busy: busyAction == ActionName.modelSet,
               onTap: () => _openModelPicker(vm),
             ),
-            const _Divider(),
-            _ThinkingRow(
-              current:
-                  vm.currentThinking != null &&
-                      thinkingLevels.contains(vm.currentThinking)
-                  ? vm.currentThinking
-                  : null,
-              levels: thinkingLevels,
-              busy: busyAction == ActionName.thinkingSet,
-              onPick: (level) => _onThinking(vm, level),
-            ),
+            if (thinkingLevels.isNotEmpty) ...[
+              const _Divider(),
+              _ThinkingRow(
+                current:
+                    vm.currentThinking != null &&
+                        thinkingLevels.contains(vm.currentThinking)
+                    ? vm.currentThinking
+                    : null,
+                levels: thinkingLevels,
+                busy: busyAction == ActionName.thinkingSet,
+                onPick: (level) => _onThinking(vm, level),
+              ),
+            ],
             const SizedBox(height: 18),
           ],
         ),

@@ -137,6 +137,12 @@ export class CodexSession {
           sender.send({
             type: "commands_list",
             in_reply_to: message.id,
+            supported_actions: [
+              "session_new",
+              "session_compact",
+              "model_set",
+              "thinking_set",
+            ],
             commands: [],
           });
           return;

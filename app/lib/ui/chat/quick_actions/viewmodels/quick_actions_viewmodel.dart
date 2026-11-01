@@ -99,25 +99,31 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
 
   Future<void> setThinking(ThinkingLevel level) async {
     final previous = state.currentThinking;
-    _emitIfAlive(QuickActionsBusy(
-      action: ActionName.thinkingSet,
-      currentThinking: level,
-      currentModel: state.currentModel,
-      currentModelName: state.currentModelName,
-    ));
-    try {
-      await _repo.setThinking(level);
-      _emitIfAlive(QuickActionsIdle(
+    _emitIfAlive(
+      QuickActionsBusy(
+        action: ActionName.thinkingSet,
         currentThinking: level,
         currentModel: state.currentModel,
         currentModelName: state.currentModelName,
-      ));
+      ),
+    );
+    try {
+      await _repo.setThinking(level);
+      _emitIfAlive(
+        QuickActionsIdle(
+          currentThinking: level,
+          currentModel: state.currentModel,
+          currentModelName: state.currentModelName,
+        ),
+      );
     } on ActionFailure catch (e) {
-      _emitIfAlive(QuickActionsIdle(
-        currentThinking: previous,
-        currentModel: state.currentModel,
-        currentModelName: state.currentModelName,
-      ));
+      _emitIfAlive(
+        QuickActionsIdle(
+          currentThinking: previous,
+          currentModel: state.currentModel,
+          currentModelName: state.currentModelName,
+        ),
+      );
       _errorController.add(e.message);
       rethrow;
     }
@@ -129,24 +135,30 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
   Future<ModelsCatalogue> loadModels({bool forceRefresh = false}) async {
     try {
       final catalogue = await _repo.listModels(forceRefresh: forceRefresh);
-      // Adopt the Pi's "current" answer; only overwrite when present so
-      // a stale cache entry (current=null) doesn't clobber a value we
-      // already learned via setModel.
-      if (catalogue.current != null) {
+      // A host can legitimately omit `current` while returning a valid
+      // catalogue (for example after an external model switch or an older
+      // adapter). Reconcile it with the structured model or the display name
+      // already carried by room metadata before deciding that effort is
+      // unavailable.
+      final current = _resolveCurrentModel(
+        catalogue,
+        knownModel: state.currentModel,
+        knownName: state.currentModelName,
+      );
+      if (current != null) {
         final nextThinking =
             state.currentThinking != null &&
-                catalogue.current!.availableThinkingLevels.contains(
-                  state.currentThinking,
-                )
+                current.availableThinkingLevels.contains(state.currentThinking)
             ? state.currentThinking
             : null;
         _emitIfAlive(
           QuickActionsIdle(
-            currentModel: catalogue.current,
-            currentModelName: catalogue.current?.name ?? state.currentModelName,
+            currentModel: current,
+            currentModelName: current.name,
             currentThinking: nextThinking,
           ),
         );
+        return ModelsCatalogue(models: catalogue.models, current: current);
       }
       return catalogue;
     } on ActionFailure catch (e) {
@@ -156,6 +168,35 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
   }
 
   // ---------------------------------------------------------------------------
+
+  static WireModel? _resolveCurrentModel(
+    ModelsCatalogue catalogue, {
+    required WireModel? knownModel,
+    required String? knownName,
+  }) {
+    if (catalogue.current != null) return catalogue.current;
+
+    if (knownModel != null) {
+      for (final model in catalogue.models) {
+        if (model.id == knownModel.id &&
+            model.provider == knownModel.provider) {
+          return model;
+        }
+      }
+    }
+
+    final names = <String>{
+      if (knownModel != null) knownModel.name.trim().toLowerCase(),
+      if (knownName != null) knownName.trim().toLowerCase(),
+    }..remove('');
+    for (final model in catalogue.models) {
+      if (names.contains(model.name.trim().toLowerCase()) ||
+          names.contains(model.id.trim().toLowerCase())) {
+        return model;
+      }
+    }
+    return null;
+  }
 
   /// Plan/28 Wave D — react to a room-meta snapshot. Adopts the
   /// thinking level (always — the relay is the source of truth) and
@@ -199,29 +240,32 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
     emit(next);
   }
 
-  Future<void> _runVoid(
-    ActionName action,
-    Future<void> Function() body,
-  ) async {
-    _emitIfAlive(QuickActionsBusy(
-      action: action,
-      currentThinking: state.currentThinking,
-      currentModel: state.currentModel,
-      currentModelName: state.currentModelName,
-    ));
+  Future<void> _runVoid(ActionName action, Future<void> Function() body) async {
+    _emitIfAlive(
+      QuickActionsBusy(
+        action: action,
+        currentThinking: state.currentThinking,
+        currentModel: state.currentModel,
+        currentModelName: state.currentModelName,
+      ),
+    );
     try {
       await body();
-      _emitIfAlive(QuickActionsIdle(
-        currentThinking: state.currentThinking,
-        currentModel: state.currentModel,
-        currentModelName: state.currentModelName,
-      ));
+      _emitIfAlive(
+        QuickActionsIdle(
+          currentThinking: state.currentThinking,
+          currentModel: state.currentModel,
+          currentModelName: state.currentModelName,
+        ),
+      );
     } on ActionFailure catch (e) {
-      _emitIfAlive(QuickActionsIdle(
-        currentThinking: state.currentThinking,
-        currentModel: state.currentModel,
-        currentModelName: state.currentModelName,
-      ));
+      _emitIfAlive(
+        QuickActionsIdle(
+          currentThinking: state.currentThinking,
+          currentModel: state.currentModel,
+          currentModelName: state.currentModelName,
+        ),
+      );
       _errorController.add(e.message);
       rethrow;
     }

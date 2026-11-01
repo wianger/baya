@@ -345,18 +345,21 @@ class _ContextRepository implements IContextUsageRepository {
 
 class _AgentCommands implements IAgentCommandsRepository {
   @override
-  Future<List<AgentCommand>> list() async => const [
-    AgentCommand(
-      name: 'review',
-      source: 'extension',
-      description: 'Review the current branch',
-    ),
-    AgentCommand(
-      name: 'browser',
-      source: 'skill',
-      description: 'Operate a browser',
-    ),
-  ];
+  Future<AgentCommandCatalog> list() async => const AgentCommandCatalog(
+    commands: [
+      AgentCommand(
+        name: 'review',
+        source: 'extension',
+        description: 'Review the current branch',
+      ),
+      AgentCommand(
+        name: 'browser',
+        source: 'skill',
+        description: 'Operate a browser',
+      ),
+    ],
+  );
+
   @override
   void dispose() {}
 }

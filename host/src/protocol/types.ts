@@ -370,6 +370,12 @@ export type ServerMessage =
   | {
       type: "commands_list";
       in_reply_to: string;
+      /**
+       * Typed actions accepted by this adapter. Optional for compatibility
+       * with hosts released before capability discovery; omission means the
+       * client must use its legacy command set.
+       */
+      supported_actions?: ActionName[];
       commands: Array<{
         name: string;
         description?: string;

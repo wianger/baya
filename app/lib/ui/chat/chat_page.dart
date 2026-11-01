@@ -525,6 +525,10 @@ class ChatPage extends StatelessWidget {
         !isPeerOffline &&
         !isPresenceOffline;
     final commandState = context.watch<AgentCommandsViewModel>().state;
+    final hiddenSlashCommands =
+        commandState.supportedActions?.contains('session_compact') == false
+        ? const {'compact'}
+        : const <String>{};
 
     return InputBar(
       key: const ValueKey('chat-floating-composer'),
@@ -556,6 +560,17 @@ class ChatPage extends StatelessWidget {
           case 'thinking':
             showQuickActionsSheet(context);
           case 'compact':
+            if (commandState.supportedActions?.contains('session_compact') ==
+                false) {
+              showBayaNotice(
+                context,
+                title: 'Compact unavailable',
+                message:
+                    'This agent manages its context automatically and does '
+                    'not expose manual compaction.',
+              );
+              return;
+            }
             showQuickActionsSheet(context, compactOnOpen: true);
           case 'context':
             showContextUsage(context);
@@ -577,6 +592,7 @@ class ChatPage extends StatelessWidget {
       agentCommands: commandState.commands,
       agentCommandsLoading: commandState.loading,
       agentCommandsError: commandState.error,
+      hiddenSlashCommandIds: hiddenSlashCommands,
       queuedMessages: isReady ? state.queuedMessages : const [],
       onSetQueued: vm.queueMessage,
       onClearQueued: vm.clearQueuedMessage,

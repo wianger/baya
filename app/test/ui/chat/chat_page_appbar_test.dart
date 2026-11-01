@@ -86,7 +86,7 @@ class _ContextRepository implements IContextUsageRepository {
 
 class _EmptyCommandsRepository implements IAgentCommandsRepository {
   @override
-  Future<List<AgentCommand>> list() async => const [];
+  Future<AgentCommandCatalog> list() async => const AgentCommandCatalog();
 
   @override
   void dispose() {}

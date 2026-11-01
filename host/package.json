@@ -1,6 +1,6 @@
 {
   "name": "@wianger/baya",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Independent local agent host for Baya. Connects Pi, Codex, and DeepSeek to the Baya mobile client.",
   "type": "module",
   "main": "dist/cli.js",
