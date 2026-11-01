@@ -381,7 +381,7 @@ class _InputBarState extends State<InputBar> {
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(11, 10, 10, 10),
+              padding: const EdgeInsets.fromLTRB(14, 12, 10, 9),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -412,47 +412,56 @@ class _InputBarState extends State<InputBar> {
                           ? () => widget.onClearQueued?.call(item.id)
                           : null,
                     ),
+                  TextField(
+                    focusNode: _focusNode,
+                    controller: _controller,
+                    enabled: canInteract,
+                    minLines: 1,
+                    maxLines: 6,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    style: context.typo.sansBody.copyWith(fontSize: 16),
+                    cursorColor: colors.accent,
+                    decoration: InputDecoration(
+                      hintText: widget.streaming
+                          ? 'Steer current response…'
+                          : (widget.voice != null ||
+                                widget.onStartAudio != null)
+                          ? 'Reply to ${widget.agentLabel} or hold to talk…'
+                          : 'Reply to ${widget.agentLabel}…',
+                      hintStyle: context.typo.sansBody.copyWith(
+                        color: colors.muted,
+                      ),
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 3,
+                      ),
+                    ),
+                  ),
+                  Divider(
+                    height: 13,
+                    thickness: 0.5,
+                    color: colors.border.withValues(alpha: 0.42),
+                  ),
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       _AttachButton(
                         enabled: attachEnabled,
                         onTap: widget.onOpenAttach,
                       ),
-                      const SizedBox(width: 7),
+                      const SizedBox(width: 4),
                       Expanded(
-                        child: TextField(
-                          focusNode: _focusNode,
-                          controller: _controller,
-                          enabled: canInteract,
-                          minLines: 1,
-                          maxLines: 6,
-                          keyboardType: TextInputType.multiline,
-                          textInputAction: TextInputAction.newline,
-                          style: context.typo.sansBody.copyWith(fontSize: 16),
-                          cursorColor: colors.accent,
-                          decoration: InputDecoration(
-                            hintText: widget.streaming
-                                ? 'Steer current response…'
-                                : (widget.voice != null ||
-                                      widget.onStartAudio != null)
-                                ? 'Reply to ${widget.agentLabel} or hold to talk…'
-                                : 'Reply to ${widget.agentLabel}…',
-                            hintStyle: context.typo.sansBody.copyWith(
-                              color: colors.muted,
-                            ),
-                            filled: false,
-                            isDense: true,
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            disabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            contentPadding: const EdgeInsets.fromLTRB(
-                              2,
-                              7,
-                              4,
-                              7,
-                            ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _QuickActionsButton(
+                            show: showQuickActions,
+                            onPressed: widget.onOpenQuickActions,
+                            label: widget.modelLabel,
                           ),
                         ),
                       ),
@@ -477,7 +486,7 @@ class _InputBarState extends State<InputBar> {
                           onVoiceLongPressEnd: _onVoiceEnd,
                           onVoiceTap: _onVoiceTap,
                         ),
-                        const SizedBox(width: 3),
+                        const SizedBox(width: 8),
                       ],
                       _ComposerActionButton(
                         key: const ValueKey('message-action'),
@@ -495,29 +504,10 @@ class _InputBarState extends State<InputBar> {
                         onVoiceTap: _onVoiceTap,
                       ),
                       if (showInlineStop) ...[
-                        const SizedBox(width: 3),
+                        const SizedBox(width: 8),
                         _InlineStopButton(onTap: widget.onCancel!),
                       ],
                     ],
-                  ),
-                  AnimatedSize(
-                    duration: MediaQuery.disableAnimationsOf(context)
-                        ? Duration.zero
-                        : BayaMotion.standard,
-                    curve: BayaMotion.enter,
-                    alignment: Alignment.topCenter,
-                    child: showQuickActions
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 7),
-                            child: Center(
-                              child: _QuickActionsButton(
-                                show: true,
-                                onPressed: widget.onOpenQuickActions,
-                                label: widget.modelLabel,
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
                   ),
                 ],
               ),
