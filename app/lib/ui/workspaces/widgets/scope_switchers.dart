@@ -264,12 +264,12 @@ class WorkspaceSwitcher extends StatelessWidget {
               child: SafeArea(
                 child: Padding(
                   key: const Key('workspace-switcher-sheet'),
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
+                        padding: const EdgeInsets.fromLTRB(8, 0, 16, 0),
                         child: _SwitcherSheetHeader(
                           title: 'Switch workspace',
                           onAdd: enabled && onCreate != null
@@ -559,18 +559,10 @@ class _EmptyWorkspaceList extends StatelessWidget {
               fontSize: 12,
             ),
           ),
-          trailing: Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: colors.selection,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              LucideIcons.plus,
-              size: 17,
-              color: onCreate == null ? colors.muted : colors.accent,
-            ),
+          trailing: Icon(
+            LucideIcons.chevronRight,
+            size: 18,
+            color: onCreate == null ? colors.muted : colors.muted2,
           ),
         ),
       ),

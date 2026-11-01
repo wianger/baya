@@ -10,6 +10,7 @@ import 'package:app/ui/workspaces/widgets/scope_switchers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../support/phone_controls.dart';
@@ -209,7 +210,7 @@ void main() {
     final workspaceAdd = find.byKey(const Key('workspace-add'));
     expect(
       tester.getRect(workspaceSheet).right - tester.getRect(workspaceAdd).right,
-      greaterThanOrEqualTo(20),
+      greaterThanOrEqualTo(28),
     );
 
     await tester.tap(find.byKey(const Key('workspace-add')));
@@ -259,9 +260,7 @@ void main() {
 
     expect(
       find.descendant(
-        of: find.byKey(
-          const ValueKey('workspace-choice-pc:workspace:release'),
-        ),
+        of: find.byKey(const ValueKey('workspace-choice-pc:workspace:release')),
         matching: find.text('release'),
       ),
       findsOneWidget,
@@ -330,6 +329,12 @@ void main() {
     final emptyRow = find.byKey(const Key('workspace-empty-create'));
     expect(sheet, findsOneWidget);
     expect(emptyRow, findsOneWidget);
+    expect(find.byIcon(LucideIcons.plus), findsOneWidget);
+    expect(
+      tester.getRect(sheet).right -
+          tester.getRect(find.byKey(const Key('workspace-add'))).right,
+      greaterThanOrEqualTo(28),
+    );
     expect(
       find.descendant(of: sheet, matching: find.text('No workspaces yet')),
       findsOneWidget,
