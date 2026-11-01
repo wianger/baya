@@ -105,33 +105,45 @@ class AppColors extends ThemeExtension<AppColors> {
   // fills; high-contrast surfaces opt out of translucency in
   // BayaGlassSurface.
   bool get _isDark => bg.computeLuminance() < 0.2;
-  Color get glassFill => inputFill.withValues(alpha: _isDark ? 0.42 : 0.30);
+  //
+  // These are fully opaque pigments. BayaGlassSurface applies the final alpha
+  // once, per material role. Keeping alpha out of the pigment avoids the
+  // compounded, muddy layers that made earlier glass look like gray plastic.
+  Color get glassFill =>
+      _isDark ? const Color(0xFF68717D) : const Color(0xFFFFFFFF);
   Color get glassFillStrong =>
-      inputFill.withValues(alpha: _isDark ? 0.58 : 0.48);
-  Color get glassTint => _isDark
-      ? const Color(0xFF60717E).withValues(alpha: 0.48)
-      : const Color(0xFFD5E7EC).withValues(alpha: 0.48);
-  Color get glassEdge => text.withValues(alpha: _isDark ? 0.26 : 0.14);
+      _isDark ? const Color(0xFF89929E) : const Color(0xFFFFFFFF);
+  Color get glassTint =>
+      _isDark ? const Color(0xFF171A20) : const Color(0xFFF4F7FA);
+  Color get glassEdge =>
+      const Color(0xFFFFFFFF).withValues(alpha: _isDark ? 0.20 : 0.70);
+  Color get glassShade =>
+      const Color(0xFF000000).withValues(alpha: _isDark ? 0.32 : 0.11);
   Color get glassHighlight =>
-      const Color(0xFFFFFFFF).withValues(alpha: _isDark ? 0.34 : 0.88);
+      const Color(0xFFFFFFFF).withValues(alpha: _isDark ? 0.16 : 0.72);
   Color get glassShadow =>
-      const Color(0xFF000000).withValues(alpha: _isDark ? 0.48 : 0.15);
+      const Color(0xFF000000).withValues(alpha: _isDark ? 0.30 : 0.10);
   Color get glassContactShadow =>
-      const Color(0xFF000000).withValues(alpha: _isDark ? 0.30 : 0.07);
+      const Color(0xFF000000).withValues(alpha: _isDark ? 0.12 : 0.035);
   Color get glassInnerShadow =>
-      const Color(0xFF12202A).withValues(alpha: _isDark ? 0.28 : 0.10);
-  Color get glassCool => working.withValues(alpha: _isDark ? 0.32 : 0.26);
-  Color get glassWarm => warning.withValues(alpha: _isDark ? 0.22 : 0.18);
-  Color get selection => accent.withValues(alpha: _isDark ? 0.16 : 0.11);
+      const Color(0xFF000000).withValues(alpha: _isDark ? 0.10 : 0.025);
+  Color get glassCool => _isDark
+      ? const Color(0xFF586D8A).withValues(alpha: 0.14)
+      : const Color(0xFFC9DBF2).withValues(alpha: 0.24);
+  Color get glassWarm => _isDark
+      ? const Color(0xFF8F7566).withValues(alpha: 0.09)
+      : const Color(0xFFF0DECB).withValues(alpha: 0.17);
+  Color get selection => accent.withValues(alpha: _isDark ? 0.13 : 0.085);
   Color get quietFill => surface.withValues(alpha: _isDark ? 0.72 : 0.84);
-  Color get backdropAccent => accent.withValues(alpha: _isDark ? 0.24 : 0.18);
-  Color get backdropWarmth => warning.withValues(alpha: _isDark ? 0.12 : 0.13);
+  Color get backdropAccent =>
+      const Color(0xFF5E70A0).withValues(alpha: _isDark ? 0.11 : 0.18);
+  Color get backdropWarmth => glassWarm;
 
   /// True-black canvas with elevated graphite groups.
   static const AppColors dark = AppColors(
-    bg: Color(0xFF000000),
-    surface: Color(0xFF1C1C1E),
-    border: Color(0xFF3A3A3C),
+    bg: Color(0xFF0B0C0F),
+    surface: Color(0xFF202228),
+    border: Color(0xFF45474E),
     text: Color(0xFFF5F5F7),
     muted: Color(0xFF98989F),
     muted2: Color(0xFFC7C7CC),
@@ -142,13 +154,13 @@ class AppColors extends ThemeExtension<AppColors> {
     error: Color(0xFFFF453A),
     warning: Color(0xFFFF9F0A),
     working: Color(0xFF64D2FF),
-    codeBg: Color(0xFF1C1C1E),
+    codeBg: Color(0xFF17191E),
     userBubble: Color(0xFF0A84FF),
     onUserBubble: Color(0xFFFFFFFF),
-    modelBadgeBg: Color(0xFF2C2C2E),
-    modelBadgeBorder: Color(0xFF48484A),
+    modelBadgeBg: Color(0xFF2B2D33),
+    modelBadgeBorder: Color(0xFF4B4E55),
     denyBorder: Color(0x66FF453A),
-    inputFill: Color(0xFF1C1C1E),
+    inputFill: Color(0xFF202228),
   );
 
   /// Grouped iOS canvas with white control surfaces.

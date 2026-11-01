@@ -59,10 +59,7 @@ void main() {
 
     final assistantCopy = find.byKey(const Key('assistant-copy'));
     expect(assistantCopy, findsOneWidget);
-    expect(
-      find.descendant(of: assistantCopy, matching: find.text('Copy')),
-      findsOneWidget,
-    );
+    expect(find.byTooltip('Copy'), findsOneWidget);
   });
 
   testWidgets('working turn shows a loading row at the newest position', (

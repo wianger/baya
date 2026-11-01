@@ -208,6 +208,15 @@ class ChatPage extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (working) ...[
+                        const SizedBox(width: 1),
+                        Icon(
+                          LucideIcons.pause,
+                          size: 10.5,
+                          color: colors.working,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
                       Flexible(
                         child: Text(
                           device,
@@ -961,7 +970,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
               controller: _controller,
               shrinkWrap: true,
               reverse: true,
-              padding: EdgeInsets.fromLTRB(18, 94, 18, bottomPad),
+              padding: EdgeInsets.fromLTRB(16, 94, 16, bottomPad),
               itemCount: itemCount,
               separatorBuilder: (context, idx) {
                 // Tight gap when adjacent to a tool-run card; normal gap
@@ -979,7 +988,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                 }
 
                 final tight = isTool(idx) || isTool(idx + 1);
-                return SizedBox(height: tight ? 7 : 18);
+                return SizedBox(height: tight ? 7 : 20);
               },
               itemBuilder: (_, i) {
                 // `reverse: true` makes index 0 the newest row. Stable keys
@@ -1077,18 +1086,22 @@ class _ChatMessageListState extends State<ChatMessageList> {
                     scale: _showLatest ? 1 : .84,
                     duration: BayaMotion.standard,
                     curve: BayaMotion.spring,
-                    child: BayaGlassSurface(
-                      radius: 21,
+                    child: Material(
+                      color: Colors.black.withValues(alpha: .76),
+                      shape: const CircleBorder(),
+                      elevation: 8,
+                      shadowColor: Colors.black.withValues(alpha: .28),
+                      clipBehavior: Clip.antiAlias,
                       child: SizedBox.square(
                         dimension: 42,
                         child: IconButton(
                           key: const Key('jump-to-latest'),
                           tooltip: 'Jump to latest',
                           onPressed: _jumpToLatest,
-                          icon: Icon(
+                          icon: const Icon(
                             LucideIcons.arrowDown,
                             size: 19,
-                            color: context.colors.text,
+                            color: Colors.white,
                           ),
                         ),
                       ),

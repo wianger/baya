@@ -17,6 +17,7 @@ void main() {
     VoidCallback? onOpenQuickActions,
     void Function(String id, String raw)? onSlashCommand,
     List<AgentCommand> agentCommands = const [],
+    VoidCallback? onStartAudio,
   }) {
     return tester.pumpWidget(
       MaterialApp(
@@ -29,34 +30,20 @@ void main() {
             onOpenQuickActions: onOpenQuickActions,
             onSlashCommand: onSlashCommand,
             agentCommands: agentCommands,
+            onStartAudio: onStartAudio,
           ),
         ),
       ),
     );
   }
 
-  // Plan/28 — the quick-actions button is wrapped in a SizeTransition that
-  // animates it in/out. When "hidden" the widget STAYS MOUNTED and only
-  // collapses to zero width (it never leaves the tree), so `findsNothing` is
-  // the wrong assertion. Instead: still present, but collapsed to width 0
-  // (and therefore not tappable).
+  // The model selector now occupies a centred second row, like Claude's
+  // mobile composer. It leaves the tree when unavailable so the compact
+  // single-row composer has no empty vertical band.
   final quickActionsKey = find.byKey(const Key('input-bar-quick-actions'));
 
   void expectCollapsed(WidgetTester tester) {
-    expect(
-      quickActionsKey,
-      findsOneWidget,
-      reason: 'stays mounted — SizeTransition collapses size, not the tree',
-    );
-    final sizeTransition = find.ancestor(
-      of: quickActionsKey,
-      matching: find.byType(SizeTransition),
-    );
-    expect(
-      tester.getSize(sizeTransition).width,
-      0,
-      reason: 'collapsed to zero width when hidden',
-    );
+    expect(quickActionsKey, findsNothing);
   }
 
   void expectExpanded(WidgetTester tester) {
@@ -80,6 +67,7 @@ void main() {
       disabled: false,
       streaming: false,
       onOpenQuickActions: () {},
+      onStartAudio: () {},
     );
     await tester.pumpAndSettle();
     expectExpanded(tester);
@@ -150,11 +138,43 @@ void main() {
       disabled: false,
       streaming: false,
       onOpenQuickActions: () {},
+      onStartAudio: () {},
     );
     await tester.enterText(find.byType(TextField), 'hello');
     // Model/thinking stay reachable while a draft is present.
     await tester.pumpAndSettle();
     expectExpanded(tester);
+  });
+
+  testWidgets('composer uses attach, reply, actions and a centered model row', (
+    tester,
+  ) async {
+    await pumpBar(
+      tester,
+      disabled: false,
+      streaming: false,
+      onOpenQuickActions: () {},
+      onStartAudio: () {},
+    );
+    await tester.pumpAndSettle();
+
+    final attach = tester.getRect(find.byKey(const Key('input-bar-attach')));
+    final field = tester.getRect(find.byType(TextField));
+    final voice = tester.getRect(find.byKey(const Key('input-bar-voice')));
+    final send = tester.getRect(find.byKey(const Key('input-bar-action')));
+    final model = tester.getRect(quickActionsKey);
+
+    expect(attach.right, lessThan(field.left));
+    expect(field.right, lessThanOrEqualTo(voice.left));
+    expect(voice.right, lessThan(send.left));
+    expect(model.top, greaterThan(field.bottom));
+    expect(
+      model.center.dx,
+      closeTo(
+        tester.view.physicalSize.width / tester.view.devicePixelRatio / 2,
+        2,
+      ),
+    );
   });
 
   testWidgets('quick actions button hides (collapses) when disabled', (

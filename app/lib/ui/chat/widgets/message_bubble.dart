@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app/data/voice/read_aloud_controller.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/chat/widgets/image_bubble.dart';
@@ -235,9 +236,11 @@ class AssistantBubble extends StatelessWidget {
   }
 }
 
-/// Inline copy footer shown under the last assistant segment of a turn.
-/// Rendered as a labelled row instead of a lone floating icon so the action
-/// reads as belonging to the reply above it.
+/// Compact action row shown under the final assistant segment of a turn.
+///
+/// Claude's mobile transcript keeps these controls quiet and icon-led. The
+/// label remains available to screen readers and tooltips, while the visual
+/// footprint stays small enough not to interrupt the reading rhythm.
 class _CopyRow extends StatefulWidget {
   const _CopyRow({required this.text});
 
@@ -271,50 +274,113 @@ class _CopyRowState extends State<_CopyRow> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final tint = _copied ? colors.accent : colors.muted2;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: BayaGlassSurface(
-        role: BayaGlassRole.control,
-        radius: 18,
-        elevated: false,
-        child: Material(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
           color: Colors.transparent,
-          shape: const StadiumBorder(),
+          shape: const CircleBorder(),
           clipBehavior: Clip.antiAlias,
-          child: InkWell(
+          child: IconButton(
             key: const Key('assistant-copy'),
-            onTap: _copy,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedSwitcher(
-                    duration: BayaMotion.fast,
-                    switchInCurve: BayaMotion.enter,
-                    switchOutCurve: BayaMotion.exit,
-                    child: Icon(
-                      _copied ? LucideIcons.check : LucideIcons.copy,
-                      key: ValueKey(_copied),
-                      size: 14,
-                      color: tint,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _copied ? 'Copied' : 'Copy',
-                    style: context.typo.sansBody.copyWith(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: tint,
-                    ),
-                  ),
-                ],
+            tooltip: _copied ? 'Copied' : 'Copy',
+            onPressed: _copy,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            padding: EdgeInsets.zero,
+            icon: AnimatedSwitcher(
+              duration: BayaMotion.fast,
+              switchInCurve: BayaMotion.enter,
+              switchOutCurve: BayaMotion.exit,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(scale: animation, child: child),
+              ),
+              child: Icon(
+                _copied ? LucideIcons.check : LucideIcons.copy,
+                key: ValueKey(_copied),
+                size: 15,
+                color: tint,
               ),
             ),
           ),
         ),
-      ),
+        _ReadAloudButton(text: widget.text),
+      ],
     );
+  }
+}
+
+class _ReadAloudButton extends StatefulWidget {
+  const _ReadAloudButton({required this.text});
+
+  final String text;
+
+  @override
+  State<_ReadAloudButton> createState() => _ReadAloudButtonState();
+}
+
+class _ReadAloudButtonState extends State<_ReadAloudButton> {
+  Future<void> _toggle() async {
+    final text = _speechText(widget.text);
+    if (text.isEmpty) return;
+    await ReadAloudController.instance.toggle(
+      owner: this,
+      text: text,
+      language: _languageFor(text),
+    );
+  }
+
+  @override
+  void dispose() {
+    unawaited(ReadAloudController.instance.stopFor(this));
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final readAloud = ReadAloudController.instance;
+    return ListenableBuilder(
+      listenable: readAloud,
+      builder: (context, _) {
+        final speaking = readAloud.isSpeakingFor(this);
+        return Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: IconButton(
+            key: const Key('assistant-speak'),
+            tooltip: speaking ? 'Stop reading' : 'Read aloud',
+            onPressed: _toggle,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            padding: EdgeInsets.zero,
+            icon: AnimatedSwitcher(
+              duration: BayaMotion.fast,
+              switchInCurve: BayaMotion.enter,
+              switchOutCurve: BayaMotion.exit,
+              child: Icon(
+                speaking ? LucideIcons.volumeX : LucideIcons.volume2,
+                key: ValueKey(speaking),
+                size: 15,
+                color: speaking ? colors.accent : colors.muted2,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static String _speechText(String markdown) => markdown
+      .replaceAll(RegExp(r'```[\s\S]*?```'), ' code block ')
+      .replaceAll(RegExp(r'[`*_>#~-]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  static String _languageFor(String text) {
+    final hasCjk = RegExp(r'[\u3400-\u9fff]').hasMatch(text);
+    return hasCjk ? 'zh-CN' : 'en-US';
   }
 }

@@ -55,60 +55,60 @@ class BayaGlassSurface extends StatelessWidget {
       shadowOffset,
     ) = switch (role) {
       BayaGlassRole.navigation => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.60 : 0.52),
-        colors.glassFill.withValues(alpha: dark ? 0.38 : 0.30),
-        colors.glassTint.withValues(alpha: dark ? 0.60 : 0.54),
-        42.0,
-        46.0,
-        12.0,
-      ),
-      BayaGlassRole.card => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.56 : 0.46),
-        colors.glassFill.withValues(alpha: dark ? 0.34 : 0.26),
-        colors.glassTint.withValues(alpha: dark ? 0.52 : 0.46),
-        32.0,
-        32.0,
-        9.0,
-      ),
-      BayaGlassRole.control => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.52 : 0.40),
-        colors.glassFill.withValues(alpha: dark ? 0.31 : 0.22),
-        colors.glassTint.withValues(alpha: dark ? 0.46 : 0.38),
-        24.0,
-        22.0,
+        colors.glassFillStrong.withValues(alpha: dark ? 0.28 : 0.56),
+        colors.glassFill.withValues(alpha: dark ? 0.18 : 0.42),
+        colors.glassTint.withValues(alpha: dark ? 0.20 : 0.26),
+        26.0,
+        18.0,
         5.0,
       ),
-      BayaGlassRole.content => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.54 : 0.43),
-        colors.glassFill.withValues(alpha: dark ? 0.33 : 0.24),
-        colors.glassTint.withValues(alpha: dark ? 0.50 : 0.43),
-        28.0,
-        26.0,
+      BayaGlassRole.card => (
+        colors.glassFillStrong.withValues(alpha: dark ? 0.19 : 0.46),
+        colors.glassFill.withValues(alpha: dark ? 0.11 : 0.30),
+        colors.glassTint.withValues(alpha: dark ? 0.14 : 0.18),
+        20.0,
+        16.0,
+        4.0,
+      ),
+      BayaGlassRole.control => (
+        colors.glassFillStrong.withValues(alpha: dark ? 0.23 : 0.48),
+        colors.glassFill.withValues(alpha: dark ? 0.13 : 0.32),
+        colors.glassTint.withValues(alpha: dark ? 0.17 : 0.20),
+        14.0,
         7.0,
+        2.0,
+      ),
+      BayaGlassRole.content => (
+        colors.glassFillStrong.withValues(alpha: dark ? 0.13 : 0.38),
+        colors.glassFill.withValues(alpha: dark ? 0.08 : 0.24),
+        colors.glassTint.withValues(alpha: dark ? 0.11 : 0.15),
+        16.0,
+        10.0,
+        3.0,
       ),
       BayaGlassRole.user => (
-        colors.userBubble.withValues(alpha: dark ? 0.72 : 0.76),
-        colors.userBubble.withValues(alpha: dark ? 0.48 : 0.58),
-        colors.userBubble.withValues(alpha: dark ? 0.55 : 0.60),
-        24.0,
+        colors.userBubble.withValues(alpha: dark ? 0.94 : 0.95),
+        colors.userBubble.withValues(alpha: dark ? 0.86 : 0.90),
+        colors.userBubble.withValues(alpha: dark ? 0.90 : 0.93),
+        14.0,
+        12.0,
+        3.0,
+      ),
+      BayaGlassRole.overlay => (
+        colors.glassFillStrong.withValues(alpha: dark ? 0.34 : 0.62),
+        colors.glassFill.withValues(alpha: dark ? 0.22 : 0.46),
+        colors.glassTint.withValues(alpha: dark ? 0.27 : 0.30),
+        30.0,
         24.0,
         6.0,
       ),
-      BayaGlassRole.overlay => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.68 : 0.64),
-        colors.glassFill.withValues(alpha: dark ? 0.46 : 0.43),
-        colors.glassTint.withValues(alpha: dark ? 0.66 : 0.62),
-        44.0,
-        44.0,
-        12.0,
-      ),
       BayaGlassRole.brand => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.60 : 0.56),
-        colors.glassFill.withValues(alpha: dark ? 0.36 : 0.32),
-        colors.glassTint.withValues(alpha: dark ? 0.58 : 0.56),
-        30.0,
-        38.0,
-        10.0,
+        colors.glassFillStrong.withValues(alpha: dark ? 0.24 : 0.52),
+        colors.glassFill.withValues(alpha: dark ? 0.14 : 0.34),
+        colors.glassTint.withValues(alpha: dark ? 0.18 : 0.22),
+        22.0,
+        14.0,
+        4.0,
       ),
     };
     final surface = DecoratedBox(
@@ -125,13 +125,8 @@ class BayaGlassSurface extends StatelessWidget {
             : LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                stops: const [0, 0.24, 0.62, 1],
-                colors: [
-                  topFill,
-                  tint,
-                  Color.alphaBlend(bottomFill, tint),
-                  bottomFill,
-                ],
+                stops: const [0, 0.48, 1],
+                colors: [topFill, tint, bottomFill],
               ),
         borderRadius: corners,
         border: Border.all(
@@ -143,7 +138,7 @@ class BayaGlassSurface extends StatelessWidget {
           width: highContrast
               ? 1.2
               : emphasized
-              ? 1
+              ? 0.9
               : 0.7,
         ),
       ),
@@ -156,16 +151,16 @@ class BayaGlassSurface extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: corners,
                     gradient: RadialGradient(
-                      center: const Alignment(-0.72, -1.08),
-                      radius: 1.22,
+                      center: const Alignment(-0.68, -1.05),
+                      radius: 1.32,
                       colors: [
                         colors.glassHighlight,
                         colors.glassHighlight.withValues(
-                          alpha: colors.glassHighlight.a * 0.22,
+                          alpha: colors.glassHighlight.a * 0.30,
                         ),
                         colors.glassHighlight.withValues(alpha: 0),
                       ],
-                      stops: const [0, 0.36, 1],
+                      stops: const [0, 0.34, 1],
                     ),
                   ),
                 ),
@@ -181,11 +176,13 @@ class BayaGlassSurface extends StatelessWidget {
                       begin: const Alignment(-1, -1),
                       end: const Alignment(0.15, 0.8),
                       colors: [
-                        colors.glassHighlight.withValues(alpha: 0.30),
-                        colors.glassHighlight.withValues(alpha: 0.02),
+                        colors.glassHighlight.withValues(
+                          alpha: colors.glassHighlight.a * 0.16,
+                        ),
+                        colors.glassHighlight.withValues(alpha: 0.005),
                         colors.glassHighlight.withValues(alpha: 0),
                       ],
-                      stops: const [0, 0.24, 0.62],
+                      stops: const [0, 0.22, 0.58],
                     ),
                   ),
                 ),
@@ -221,9 +218,9 @@ class BayaGlassSurface extends StatelessWidget {
                       begin: Alignment.topRight,
                       end: Alignment.bottomLeft,
                       colors: [
-                        colors.glassCool.withValues(alpha: dark ? 0.32 : 0.36),
+                        colors.glassCool.withValues(alpha: dark ? 0.16 : 0.12),
                         colors.glassCool.withValues(alpha: 0),
-                        colors.glassWarm.withValues(alpha: dark ? 0.16 : 0.24),
+                        colors.glassWarm.withValues(alpha: dark ? 0.11 : 0.10),
                       ],
                       stops: const [0, 0.52, 1],
                     ),
@@ -261,7 +258,7 @@ class BayaGlassSurface extends StatelessWidget {
                   painter: _BayaGlassRimPainter(
                     corners: corners.resolve(Directionality.of(context)),
                     highlight: colors.glassHighlight,
-                    shade: colors.glassEdge,
+                    shade: colors.glassShade,
                     accent: resolvedEmphasisColor,
                     emphasized: emphasized,
                   ),
@@ -279,7 +276,6 @@ class BayaGlassSurface extends StatelessWidget {
                 BoxShadow(
                   color: colors.glassShadow,
                   blurRadius: shadowBlur,
-                  spreadRadius: 1,
                   offset: Offset(0, shadowOffset),
                 ),
                 BoxShadow(
@@ -415,30 +411,39 @@ class _BayaGlassRimPainter extends CustomPainter {
     final rrect = corners.toRRect(rimRect);
     final rimPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = emphasized ? 1.25 : 1
+      ..strokeWidth = emphasized ? 1 : 0.8
       ..isAntiAlias = true
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
           highlight,
-          highlight.withValues(alpha: highlight.a * 0.25),
-          emphasized ? accent.withValues(alpha: 0.55) : shade,
-          highlight.withValues(alpha: highlight.a * 0.45),
+          highlight.withValues(alpha: highlight.a * 0.34),
+          emphasized ? accent.withValues(alpha: 0.58) : shade,
+          highlight.withValues(alpha: highlight.a * 0.52),
         ],
         stops: const [0, 0.36, 0.72, 1],
       ).createShader(rect);
     canvas.drawRRect(rrect, rimPaint);
 
-    final topSheen = RRect.fromRectAndRadius(
-      Rect.fromLTWH(size.width * 0.16, 0.9, size.width * 0.58, 1.1),
-      const Radius.circular(1),
-    );
-    canvas.drawRRect(
-      topSheen,
-      Paint()
-        ..color = highlight.withValues(alpha: highlight.a * 0.72)
-        ..isAntiAlias = true,
+    final sheen = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.7
+      ..isAntiAlias = true
+      ..shader = LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [
+          highlight.withValues(alpha: 0),
+          highlight,
+          highlight.withValues(alpha: 0),
+        ],
+        stops: const [0.08, 0.46, 0.88],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, 1.2));
+    canvas.drawLine(
+      Offset(corners.topLeft.x + 8, 0.8),
+      Offset(size.width - 8, 0.8),
+      sheen,
     );
   }
 

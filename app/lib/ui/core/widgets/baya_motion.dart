@@ -94,6 +94,7 @@ class BayaBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: translucent ? Colors.transparent : colors.bg,
@@ -103,13 +104,13 @@ class BayaBackdrop extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
+                  Color.lerp(colors.bg, colors.glassCool, dark ? 0.10 : 0.18)!,
+                  Color.lerp(colors.bg, colors.surface, dark ? 0.16 : 0.20)!,
                   colors.bg,
-                  Color.alphaBlend(colors.glassCool, colors.bg),
-                  Color.alphaBlend(colors.backdropAccent, colors.bg),
-                  Color.alphaBlend(colors.backdropWarmth, colors.bg),
+                  Color.lerp(colors.bg, colors.glassWarm, dark ? 0.08 : 0.12)!,
                   colors.bg,
                 ],
-                stops: const [0, 0.28, 0.58, 0.82, 1],
+                stops: const [0, 0.24, 0.56, 0.82, 1],
               ),
       ),
       child: Material(
@@ -118,10 +119,10 @@ class BayaBackdrop extends StatelessWidget {
           fit: StackFit.passthrough,
           children: [
             Positioned(
-              top: -210,
-              right: -170,
-              width: 500,
-              height: 500,
+              top: -300,
+              right: -250,
+              width: 680,
+              height: 620,
               child: IgnorePointer(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -139,9 +140,9 @@ class BayaBackdrop extends StatelessWidget {
             ),
             Positioned(
               top: 120,
-              left: -240,
-              width: 520,
-              height: 520,
+              left: -330,
+              width: 620,
+              height: 560,
               child: IgnorePointer(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -158,10 +159,10 @@ class BayaBackdrop extends StatelessWidget {
               ),
             ),
             Positioned(
-              bottom: -260,
-              left: -170,
-              width: 560,
-              height: 560,
+              bottom: -330,
+              left: -180,
+              width: 620,
+              height: 620,
               child: IgnorePointer(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -170,6 +171,26 @@ class BayaBackdrop extends StatelessWidget {
                       colors: [
                         colors.backdropWarmth,
                         colors.backdropWarmth.withValues(alpha: 0),
+                      ],
+                      stops: const [0, 1],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 180,
+              right: -340,
+              width: 520,
+              height: 520,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        colors.backdropAccent,
+                        colors.backdropAccent.withValues(alpha: 0),
                       ],
                       stops: const [0, 1],
                     ),

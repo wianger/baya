@@ -50,7 +50,7 @@ void main() {
     expect(find.byType(SelectionArea), findsOneWidget);
   });
 
-  testWidgets('the copy footer is a labelled row, not a bare icon', (
+  testWidgets('the copy footer is a compact labelled icon action', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -62,7 +62,9 @@ void main() {
     );
     await tester.pump();
     expect(find.byKey(const Key('assistant-copy')), findsOneWidget);
-    expect(find.text('Copy'), findsOneWidget);
+    expect(find.byTooltip('Copy'), findsOneWidget);
+    expect(find.byKey(const Key('assistant-speak')), findsOneWidget);
+    expect(find.byTooltip('Read aloud'), findsOneWidget);
   });
 
   testWidgets('showCopy=false hides the copy footer', (tester) async {
@@ -78,6 +80,7 @@ void main() {
     );
     await tester.pump();
     expect(find.byKey(const Key('assistant-copy')), findsNothing);
+    expect(find.byKey(const Key('assistant-speak')), findsNothing);
   });
 
   testWidgets('UserBubble text is selectable (copyable)', (tester) async {
