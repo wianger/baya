@@ -26,6 +26,7 @@ import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/chat_page.dart';
 import 'package:app/ui/chat/commands/viewmodels/agent_commands_viewmodel.dart';
+import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
 import 'package:app/ui/chat/viewmodels/chat_viewmodel.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:flutter/material.dart';
@@ -116,6 +117,7 @@ void main() {
       final prefs = Preferences(_FakeSecureStorage()); // no selected peer
       final actions = ActionsRepository(conn);
       final vm = ChatViewModel(read, sync, conn, prefs, _FakeStorage());
+      final quickActions = QuickActionsViewModel(actions);
       final voice = VoiceInputViewModel(_FakeSpeech());
       final attach = AttachmentViewModel(_FakePicker(), actions);
       final sel = SessionSelection();
@@ -126,6 +128,9 @@ void main() {
           home: MultiProvider(
             providers: [
               ChangeNotifierProvider<ChatViewModel>.value(value: vm),
+              ChangeNotifierProvider<QuickActionsViewModel>.value(
+                value: quickActions,
+              ),
               ChangeNotifierProvider<ContextUsageViewModel>.value(value: usage),
               ChangeNotifierProvider<VoiceInputViewModel>.value(value: voice),
               ChangeNotifierProvider<AttachmentViewModel>.value(value: attach),
@@ -215,6 +220,7 @@ void main() {
       // before addTearDown; conn's watchdog must be cancelled here).
       await tester.pumpWidget(const SizedBox());
       vm.dispose();
+      quickActions.dispose();
       usage.dispose();
       attach.dispose();
       voice.dispose();
@@ -238,6 +244,7 @@ void main() {
       final prefs = Preferences(_FakeSecureStorage());
       final actions = ActionsRepository(conn);
       final vm = ChatViewModel(read, sync, conn, prefs, _FakeStorage());
+      final quickActions = QuickActionsViewModel(actions);
       final voice = VoiceInputViewModel(_FakeSpeech());
       final attach = AttachmentViewModel(_FakePicker(), actions);
       final sel = SessionSelection();
@@ -250,6 +257,9 @@ void main() {
             home: MultiProvider(
               providers: [
                 ChangeNotifierProvider<ChatViewModel>.value(value: vm),
+                ChangeNotifierProvider<QuickActionsViewModel>.value(
+                  value: quickActions,
+                ),
                 ChangeNotifierProvider<ContextUsageViewModel>.value(
                   value: usage,
                 ),
@@ -288,6 +298,7 @@ void main() {
 
       await tester.pumpWidget(const SizedBox());
       vm.dispose();
+      quickActions.dispose();
       usage.dispose();
       attach.dispose();
       voice.dispose();

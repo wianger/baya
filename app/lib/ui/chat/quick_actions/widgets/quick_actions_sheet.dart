@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:app/config/dependencies.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -30,6 +29,7 @@ Future<void> showQuickActionsSheet(
 }) {
   final messenger = ScaffoldMessenger.of(context);
   final chat = context.read<ChatViewModel>();
+  final quickActions = context.read<QuickActionsViewModel>();
   // Captured to auto-close the sheet if the tablet's selected session changes
   // out from under it (the sheet lives on the detail-pane navigator).
   final selection = context.read<SessionSelection>();
@@ -49,8 +49,8 @@ Future<void> showQuickActionsSheet(
         elevated: false,
         child: DismissOnSessionChange(
           selection: selection,
-          child: ChangeNotifierProvider<QuickActionsViewModel>(
-            create: (_) => injector.get<QuickActionsViewModel>(),
+          child: ChangeNotifierProvider<QuickActionsViewModel>.value(
+            value: quickActions,
             child: QuickActionsSheetBody(
               messenger: messenger,
               onSessionReset: chat.clearActiveSession,

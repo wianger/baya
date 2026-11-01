@@ -1,4 +1,3 @@
-import 'package:app/config/dependencies.dart';
 import 'package:app/data/actions/actions_repository.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
@@ -14,7 +13,7 @@ import 'package:provider/provider.dart';
 /// sheet. The composer's model button uses this so one tap lands directly on
 /// the Claude-style model list.
 Future<void> showStandaloneModelPicker(BuildContext context) {
-  final vm = injector.get<QuickActionsViewModel>();
+  final vm = context.read<QuickActionsViewModel>();
   final errorContext = context;
   return showModelPickerSheet(
     context,

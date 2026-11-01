@@ -9,6 +9,7 @@ import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/commands/viewmodels/agent_commands_viewmodel.dart';
 import 'package:app/ui/chat/chat_page.dart';
+import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
 import 'package:app/ui/chat/viewmodels/chat_viewmodel.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -316,6 +317,7 @@ GoRouter buildRouter(
             providers: [
               ViewmodelProvider<HomeViewModel>(),
               ViewmodelProvider<ChatViewModel>(),
+              ViewmodelProvider<QuickActionsViewModel>(),
               ViewmodelProvider<AgentCommandsViewModel>(),
               ViewmodelProvider<ContextUsageViewModel>(),
               ViewmodelProvider<VoiceInputViewModel>(),

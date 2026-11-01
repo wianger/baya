@@ -81,7 +81,8 @@ class _FakeRepo implements IActionsRepository {
 
 /// Opens the real sheet body over a host Scaffold. Returns the fake repo and
 /// a list appended to by the `onSessionReset` callback.
-Future<({_FakeRepo repo, List<int> resetCalls})> _openSheet(
+Future<({_FakeRepo repo, QuickActionsViewModel vm, List<int> resetCalls})>
+_openSheet(
   WidgetTester tester, {
   bool failCompact = false,
   bool failNewSession = false,
@@ -124,7 +125,7 @@ Future<({_FakeRepo repo, List<int> resetCalls})> _openSheet(
   );
   await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
-  return (repo: repo, resetCalls: resetCalls);
+  return (repo: repo, vm: vm, resetCalls: resetCalls);
 }
 
 void main() {
@@ -203,6 +204,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Reasoning effort'), findsOneWidget);
     expect(find.text('Extra high'), findsOneWidget);
+  });
+
+  testWidgets('model picker commits the selected model and closes', (
+    tester,
+  ) async {
+    const opus = WireModel(
+      id: 'opus',
+      provider: 'anthropic',
+      name: 'Opus 5.5',
+      reasoning: true,
+      contextWindow: 200000,
+    );
+    const haiku = WireModel(
+      id: 'haiku',
+      provider: 'anthropic',
+      name: 'Haiku 5.5',
+      reasoning: false,
+      contextWindow: 64000,
+    );
+    final s = await _openSheet(
+      tester,
+      catalogue: const ModelsCatalogue(models: [opus, haiku], current: opus),
+    );
+
+    await tester.tap(find.byKey(const Key('qa-model-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('model-picker-model')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Haiku 5.5'));
+    await tester.pumpAndSettle();
+
+    expect(s.repo.modelArg?.provider, 'anthropic');
+    expect(s.repo.modelArg?.id, 'haiku');
+    expect(s.vm.currentModelName, 'Haiku 5.5');
+    expect(find.byKey(const Key('model-picker-sheet')), findsNothing);
   });
 
   testWidgets('model picker refreshes a transient empty catalogue', (

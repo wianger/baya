@@ -17,6 +17,7 @@ import 'package:app/ui/workspaces/workspace_navigation.dart';
 import 'package:app/ui/chat/widgets/thinking_block.dart';
 import 'package:app/ui/chat/context/widgets/context_usage_button.dart';
 import 'package:app/ui/chat/context/widgets/context_usage_sheet.dart';
+import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
 import 'package:app/ui/chat/quick_actions/widgets/quick_actions_sheet.dart';
 import 'package:app/ui/chat/quick_actions/widgets/model_picker_sheet.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
@@ -77,6 +78,7 @@ class ChatPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<ChatViewModel>();
+    final quickActions = context.watch<QuickActionsViewModel>();
     final state = vm.state;
 
     final scaffold = Scaffold(
@@ -90,7 +92,7 @@ class ChatPage extends StatelessWidget {
                 ? _RevokedBanner(onRePair: () => context.go('/pair'))
                 : null,
             body: _buildBody(context, state, vm),
-            composer: _buildInput(context, state, vm),
+            composer: _buildInput(context, state, vm, quickActions),
           ),
         ),
       ),
@@ -482,7 +484,12 @@ class ChatPage extends StatelessWidget {
     };
   }
 
-  Widget _buildInput(BuildContext context, ChatState state, ChatViewModel vm) {
+  Widget _buildInput(
+    BuildContext context,
+    ChatState state,
+    ChatViewModel vm,
+    QuickActionsViewModel quickActions,
+  ) {
     final isReady = state is ChatReady;
     final isOffline = isReady && state.isOffline;
     final isRevoked = isReady && state.pairingRevoked;
@@ -512,7 +519,8 @@ class ChatPage extends StatelessWidget {
       agentLabel: workspaceAgentLabelForRoom(
         vm.activeRoom?.name ?? initialTitle,
       ),
-      modelLabel: vm.activeRoom?.model ?? 'Model',
+      modelLabel:
+          quickActions.currentModelName ?? vm.activeRoom?.model ?? 'Model',
       disabled:
           !isReady ||
           isOffline ||

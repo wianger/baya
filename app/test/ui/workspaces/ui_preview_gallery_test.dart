@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:app/data/actions/actions_repository.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/domain/contracts/agent_commands_repository.dart';
 import 'package:app/domain/session_state.dart';
@@ -28,6 +29,7 @@ import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/chat_page.dart';
 import 'package:app/ui/chat/commands/viewmodels/agent_commands_viewmodel.dart';
+import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
 import 'package:app/ui/chat/states/chat_state.dart';
 import 'package:app/ui/chat/viewmodels/chat_viewmodel.dart';
 import 'package:app/ui/chat/widgets/message_bubble.dart';
@@ -376,6 +378,18 @@ class _NoUrlOpener implements UrlOpener {
   Future<bool> open(String url) async => true;
 }
 
+class _PreviewActions implements IActionsRepository {
+  @override
+  ActiveRoomMeta get activeRoomMeta => const ActiveRoomMeta();
+
+  @override
+  Stream<ActiveRoomMeta> get activeRoomMetaStream =>
+      const Stream<ActiveRoomMeta>.empty();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   final output = Platform.environment['REMOTE_PI_PREVIEW_DIR'];
   testWidgets(
@@ -425,6 +439,7 @@ void main() {
       );
       final contextVm = ContextUsageViewModel(_ContextRepository());
       final commands = AgentCommandsViewModel(_AgentCommands());
+      final quickActions = QuickActionsViewModel(_PreviewActions());
       final updates = UpdateBannerViewModel(
         _NoUpdateChecker(),
         _NoDismissedUpdateStore(),
@@ -473,6 +488,9 @@ void main() {
           providers: [
             ChangeNotifierProvider<HomeViewModel>.value(value: home),
             ChangeNotifierProvider<ChatViewModel>.value(value: chat),
+            ChangeNotifierProvider<QuickActionsViewModel>.value(
+              value: quickActions,
+            ),
             ChangeNotifierProvider<ContextUsageViewModel>.value(
               value: contextVm,
             ),
@@ -741,6 +759,9 @@ void main() {
         MultiProvider(
           providers: [
             ChangeNotifierProvider<ChatViewModel>.value(value: chat),
+            ChangeNotifierProvider<QuickActionsViewModel>.value(
+              value: quickActions,
+            ),
             ChangeNotifierProvider<ContextUsageViewModel>.value(
               value: contextVm,
             ),
@@ -974,6 +995,9 @@ void main() {
         MultiProvider(
           providers: [
             ChangeNotifierProvider<ChatViewModel>.value(value: chat),
+            ChangeNotifierProvider<QuickActionsViewModel>.value(
+              value: quickActions,
+            ),
             ChangeNotifierProvider<ContextUsageViewModel>.value(
               value: contextVm,
             ),
@@ -1031,6 +1055,7 @@ void main() {
         newSession,
         contextVm,
         commands,
+        quickActions,
         updates,
       ]) {
         notifier.dispose();
