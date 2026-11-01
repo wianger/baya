@@ -1,15 +1,35 @@
 import { PairingService } from "../pairing/service.js";
 import type { ClientMessage, ServerMessage } from "../protocol/types.js";
-import { roomIdFor } from "../rooms.js";
+import { roomIdFor, sessionKeyForId } from "../rooms.js";
 import type { PeerChannel } from "../transport/peer_channel.js";
 import { OwnerRelayHost } from "../transport/owner_host.js";
 import { packageVersion } from "../runtime/version.js";
-import type { BayaSessionRecord } from "../session/registry.js";
+import { listSessions, type BayaSessionRecord } from "../session/registry.js";
 import type { AgentAdapter } from "../adapters/types.js";
 import { handleWorkspaceRequest, type OpenWorkspace } from "../workspace/service.js";
 
 export function roomIdForBayaSession(session: Pick<BayaSessionRecord, "id" | "cwd" | "agent">): string {
   return roomIdFor(session.cwd, `${session.agent}:${session.id}`);
+}
+
+/**
+ * Session inventory is a property of the resident Baya host, not of whichever
+ * agent happens to run in the current room. Keeping it here prevents agent
+ * adapters from drifting and accidentally surfacing a transport-level
+ * inventory request as a chat error.
+ */
+export function sessionInventoryResponse(
+  inReplyTo: string,
+  sessions: ReadonlyArray<Pick<BayaSessionRecord, "id">> = listSessions(),
+  scannedAt = Date.now(),
+): Extract<ServerMessage, { type: "sessions_inventory" }> {
+  return {
+    type: "sessions_inventory",
+    in_reply_to: inReplyTo,
+    session_keys: sessions.map((session) => sessionKeyForId(session.id)),
+    scanned_at: scannedAt,
+    complete: true,
+  };
 }
 
 export class ManagedSessionHost {
@@ -81,6 +101,10 @@ export class ManagedSessionHost {
         message.type === "session_file_read"
       ) {
         await handleWorkspaceRequest(sender, message, this.record.cwd, this.openWorkspace);
+        return;
+      }
+      if (message.type === "sessions_inventory") {
+        sender.send(sessionInventoryResponse(message.id));
         return;
       }
       await this.adapter.handle(sender, message);
