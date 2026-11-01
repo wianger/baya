@@ -24,6 +24,7 @@ Future<T?> showBayaTopRightPopover<T>({
   required Widget child,
   Rect? origin,
   double width = 280,
+  double surfaceRadius = 24,
 }) {
   final media = MediaQuery.of(context);
   final reduceMotion = media.disableAnimations;
@@ -48,6 +49,7 @@ Future<T?> showBayaTopRightPopover<T>({
       animation: animation,
       origin: resolvedOrigin,
       requestedWidth: width,
+      surfaceRadius: surfaceRadius,
       reduceMotion: reduceMotion,
       child: child,
     ),
@@ -60,6 +62,7 @@ class _BayaTopRightMorph extends StatelessWidget {
     required this.animation,
     required this.origin,
     required this.requestedWidth,
+    required this.surfaceRadius,
     required this.reduceMotion,
     required this.child,
   });
@@ -67,6 +70,7 @@ class _BayaTopRightMorph extends StatelessWidget {
   final Animation<double> animation;
   final Rect origin;
   final double requestedWidth;
+  final double surfaceRadius;
   final bool reduceMotion;
   final Widget child;
 
@@ -100,16 +104,19 @@ class _BayaTopRightMorph extends StatelessWidget {
     final content = reduceMotion
         ? const AlwaysStoppedAnimation<double>(1)
         : TweenSequence<double>([
-            TweenSequenceItem(tween: ConstantTween<double>(0), weight: 18),
+            TweenSequenceItem(tween: ConstantTween<double>(0), weight: 8),
             TweenSequenceItem(
               tween: Tween<double>(
                 begin: 0,
                 end: 1,
               ).chain(CurveTween(curve: BayaMotion.enter)),
-              weight: 38,
+              weight: 32,
             ),
-            TweenSequenceItem(tween: ConstantTween<double>(1), weight: 44),
+            TweenSequenceItem(tween: ConstantTween<double>(1), weight: 60),
           ]).animate(animation);
+    final contentSurfaceScale = reduceMotion
+        ? const AlwaysStoppedAnimation<double>(1)
+        : geometry;
 
     return Material(
       type: MaterialType.transparency,
@@ -126,11 +133,15 @@ class _BayaTopRightMorph extends StatelessWidget {
                 animation: geometry,
                 child: BayaSurfaceContentMotion(
                   animation: content,
+                  surfaceScale: contentSurfaceScale,
                   child: child,
                 ),
                 builder: (context, child) {
                   final progress = reduceMotion ? 1.0 : geometry.value;
                   final scale = startScale + (1 - startScale) * progress;
+                  final radius =
+                      surfaceRadius +
+                      (targetWidth / 2 - surfaceRadius) * (1 - progress);
                   final offset = Offset(
                     (origin.right - targetRight) * (1 - progress),
                     (origin.top - targetTop) * (1 - progress),
@@ -144,7 +155,11 @@ class _BayaTopRightMorph extends StatelessWidget {
                           key: const ValueKey('baya-top-right-morph-transform'),
                           alignment: Alignment.topRight,
                           scale: scale,
-                          child: child,
+                          child: ClipRRect(
+                            key: const ValueKey('baya-top-right-morph-clip'),
+                            borderRadius: BorderRadius.circular(radius),
+                            child: child,
+                          ),
                         ),
                       ),
                     ),

@@ -74,12 +74,31 @@ void main() {
       final contentOpacity = find.byKey(
         const Key('baya-surface-content-opacity'),
       );
+      final contentScale = find.byKey(const Key('baya-surface-content-scale'));
+      final morphClip = find.byKey(const Key('baya-top-right-morph-clip'));
       final startRect = tester.getRect(popover);
       expect(
         tester.widget<Opacity>(contentOpacity).opacity,
         lessThan(0.02),
         reason:
             'the glass leads while the contents remain hidden at the origin',
+      );
+      expect(startRect.right, closeTo(triggerRect.right, 1));
+      expect(
+        tester.widget<Transform>(contentScale).transform.getMaxScaleOnAxis(),
+        greaterThan(1),
+        reason: 'content keeps its final type size while the glass expands',
+      );
+      final startRadius = tester
+          .widget<ClipRRect>(morphClip)
+          .borderRadius
+          .resolve(TextDirection.ltr)
+          .topLeft
+          .x;
+      expect(
+        startRadius,
+        greaterThan(100),
+        reason: 'the surface starts as a circular button-sized mask',
       );
       await tester.pump(const Duration(milliseconds: 190));
       final middleRect = tester.getRect(popover);
@@ -102,6 +121,19 @@ void main() {
       expect(popoverRect.right, closeTo(screenWidth - 12, 0.5));
       expect(popoverRect.center.dy, lessThan(screenHeight * .5));
       expect(tester.widget<Opacity>(contentOpacity).opacity, 1);
+      expect(
+        tester.widget<Transform>(contentScale).transform.getMaxScaleOnAxis(),
+        closeTo(1, .01),
+      );
+      expect(
+        tester
+            .widget<ClipRRect>(morphClip)
+            .borderRadius
+            .resolve(TextDirection.ltr)
+            .topLeft
+            .x,
+        closeTo(24, .01),
+      );
     },
   );
 

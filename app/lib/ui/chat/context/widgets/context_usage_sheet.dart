@@ -4,6 +4,7 @@ import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_top_right_popover.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../states/context_usage_state.dart';
 import '../viewmodels/context_usage_viewmodel.dart';
 
@@ -14,6 +15,7 @@ Future<void> showContextUsage(BuildContext context, {Rect? origin}) async {
     context: context,
     origin: origin,
     width: 328,
+    surfaceRadius: 24,
     child: KeyedSubtree(
       key: const Key('context-usage-popover'),
       child: ChangeNotifierProvider.value(

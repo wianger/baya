@@ -7,13 +7,13 @@ abstract final class BayaMotion {
   static const fast = Duration(milliseconds: 140);
   static const standard = Duration(milliseconds: 240);
   static const emphasized = Duration(milliseconds: 380);
-  static const morph = Duration(milliseconds: 440);
+  static const morph = Duration(milliseconds: 300);
   static const scroll = Duration(milliseconds: 420);
 
   static const enter = Cubic(0.22, 1, 0.36, 1);
   static const exit = Cubic(0.4, 0, 1, 1);
   static const spring = Cubic(0.16, 1, 0.3, 1);
-  static const morphSettle = Cubic(0.16, 1.015, 0.28, 1);
+  static const morphSettle = Cubic(0.18, 0.94, 0.24, 1);
 }
 
 /// Lets a morphing popover keep its glass material visible while its contents
@@ -22,14 +22,18 @@ class BayaSurfaceContentMotion extends InheritedWidget {
   const BayaSurfaceContentMotion({
     super.key,
     required this.animation,
+    this.surfaceScale,
     required super.child,
   });
 
   final Animation<double> animation;
+  final Animation<double>? surfaceScale;
 
-  static Animation<double>? maybeOf(BuildContext context) => context
-      .dependOnInheritedWidgetOfExactType<BayaSurfaceContentMotion>()
-      ?.animation;
+  static BayaSurfaceContentMotion? surfaceOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<BayaSurfaceContentMotion>();
+
+  static Animation<double>? maybeOf(BuildContext context) =>
+      surfaceOf(context)?.animation;
 
   @override
   bool updateShouldNotify(BayaSurfaceContentMotion oldWidget) =>

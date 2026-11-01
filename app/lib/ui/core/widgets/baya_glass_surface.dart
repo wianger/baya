@@ -45,7 +45,7 @@ class BayaGlassSurface extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final corners = borderRadius ?? BorderRadius.circular(radius);
     final resolvedEmphasisColor = emphasisColor ?? colors.accent;
-    final contentMotion = BayaSurfaceContentMotion.maybeOf(context);
+    final contentMotion = BayaSurfaceContentMotion.surfaceOf(context);
     final (
       topFill,
       bottomFill,
@@ -235,12 +235,22 @@ class BayaGlassSurface extends StatelessWidget {
             Padding(padding: padding, child: child)
           else
             AnimatedBuilder(
-              animation: contentMotion,
+              animation: Listenable.merge([
+                contentMotion.animation,
+                ?contentMotion.surfaceScale,
+              ]),
               child: Padding(padding: padding, child: child),
-              builder: (context, child) => Opacity(
-                key: const ValueKey('baya-surface-content-opacity'),
-                opacity: contentMotion.value.clamp(0.0, 1.0),
-                child: child,
+              builder: (context, child) => Transform.scale(
+                key: const ValueKey('baya-surface-content-scale'),
+                scale: contentMotion.surfaceScale == null
+                    ? 1
+                    : 1 / contentMotion.surfaceScale!.value.clamp(0.01, 1.0),
+                alignment: Alignment.topRight,
+                child: Opacity(
+                  key: const ValueKey('baya-surface-content-opacity'),
+                  opacity: contentMotion.animation.value.clamp(0.0, 1.0),
+                  child: child,
+                ),
               ),
             ),
           if (!highContrast)

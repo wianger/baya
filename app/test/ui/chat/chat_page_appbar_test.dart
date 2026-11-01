@@ -174,6 +174,22 @@ void main() {
       final actionTrigger = find.byTooltip('Session actions');
       final actionTriggerRect = tester.getRect(actionTrigger);
       await tester.tap(actionTrigger);
+      await tester.pump();
+      final openingPopover = find.byKey(const Key('session-actions-popover'));
+      expect(openingPopover, findsOneWidget);
+      final openingRect = tester.getRect(openingPopover);
+      expect(openingRect.right, closeTo(actionTriggerRect.right, 1));
+      expect(openingRect.width, lessThan(actionTriggerRect.width + 2));
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(
+        tester
+            .widget<Transform>(
+              find.byKey(const Key('baya-surface-content-scale')),
+            )
+            .transform
+            .getMaxScaleOnAxis(),
+        greaterThan(1),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Files'), findsOneWidget);
       expect(find.text('Rename'), findsOneWidget);

@@ -251,15 +251,15 @@ class ChatPage extends StatelessWidget {
                         : 0,
                   ),
                   // Both header actions morph into the same anchored popover.
-                  Builder(
-                    builder: (actionContext) => IconButton(
+                  _HeaderActionAnchor(
+                    builder: (origin) => IconButton(
                       key: const Key('chat-actions'),
                       tooltip: 'Session actions',
                       onPressed: () => _openSessionActions(
                         context,
                         vm,
                         displayName,
-                        origin: bayaRectOf(actionContext),
+                        origin: origin(),
                       ),
                       icon: Icon(
                         LucideIcons.ellipsis,
@@ -287,6 +287,7 @@ class ChatPage extends StatelessWidget {
       context: context,
       origin: origin,
       width: 224,
+      surfaceRadius: 22,
       child: KeyedSubtree(
         key: const Key('session-actions-popover'),
         child: BayaGlassSurface(
@@ -644,6 +645,32 @@ class ChatPage extends StatelessWidget {
       if (m is UserMsg) return m.text.substring(0, m.text.length.clamp(0, 32));
     }
     return kAppName;
+  }
+}
+
+/// Provides the exact square bounds of a header action at press time.
+class _HeaderActionAnchor extends StatefulWidget {
+  const _HeaderActionAnchor({required this.builder});
+
+  final Widget Function(Rect? Function() origin) builder;
+
+  @override
+  State<_HeaderActionAnchor> createState() => _HeaderActionAnchorState();
+}
+
+class _HeaderActionAnchorState extends State<_HeaderActionAnchor> {
+  final GlobalKey _boundsKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      key: _boundsKey,
+      dimension: 48,
+      child: widget.builder(() {
+        final anchor = _boundsKey.currentContext;
+        return anchor == null ? null : bayaRectOf(anchor);
+      }),
+    );
   }
 }
 
