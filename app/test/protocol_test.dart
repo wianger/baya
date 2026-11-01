@@ -589,7 +589,7 @@ void main() {
       expect(evt.image?.data, 'QUJD');
     });
 
-    test('WireModel.vision roundtrips and defaults to false', () {
+    test('WireModel capabilities roundtrip and provide safe defaults', () {
       const m = WireModel(
         id: 'claude-opus-4-7',
         name: 'Claude Opus 4.7',
@@ -597,9 +597,17 @@ void main() {
         reasoning: true,
         contextWindow: 200000,
         vision: true,
+        thinkingLevels: [
+          ThinkingLevel.off,
+          ThinkingLevel.low,
+          ThinkingLevel.high,
+          ThinkingLevel.max,
+          ThinkingLevel.ultra,
+        ],
       );
       final back = WireModel.fromJson(m.toJson());
       expect(back.vision, isTrue);
+      expect(back.thinkingLevels, m.thinkingLevels);
       expect(back, m);
 
       final noVision = WireModel.fromJson({
@@ -610,6 +618,24 @@ void main() {
         'context_window': 1,
       });
       expect(noVision.vision, isFalse);
+      expect(noVision.thinkingLevels, isNull);
+      expect(noVision.availableThinkingLevels, isEmpty);
+
+      final legacy = WireModel.fromJson({
+        'id': 'legacy',
+        'name': 'Legacy',
+        'provider': 'pi',
+        'reasoning': true,
+        'context_window': 1,
+      });
+      expect(legacy.availableThinkingLevels, const [
+        ThinkingLevel.off,
+        ThinkingLevel.minimal,
+        ThinkingLevel.low,
+        ThinkingLevel.medium,
+        ThinkingLevel.high,
+        ThinkingLevel.xhigh,
+      ]);
     });
   });
 }

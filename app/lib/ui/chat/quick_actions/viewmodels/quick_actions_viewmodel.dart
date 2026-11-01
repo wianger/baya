@@ -60,26 +60,38 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
     // picker row reflects the tap before the round-trip resolves.
     final previous = state.currentModel;
     final previousName = state.currentModelName;
-    _emitIfAlive(QuickActionsBusy(
-      action: ActionName.modelSet,
-      currentModel: model,
-      currentModelName: model.name,
-      currentThinking: state.currentThinking,
-    ));
-    try {
-      await _repo.setModel(model.provider, model.id);
-      _emitIfAlive(QuickActionsIdle(
+    final previousThinking = state.currentThinking;
+    final nextThinking =
+        previousThinking != null &&
+            model.availableThinkingLevels.contains(previousThinking)
+        ? previousThinking
+        : null;
+    _emitIfAlive(
+      QuickActionsBusy(
+        action: ActionName.modelSet,
         currentModel: model,
         currentModelName: model.name,
-        currentThinking: state.currentThinking,
-      ));
+        currentThinking: nextThinking,
+      ),
+    );
+    try {
+      await _repo.setModel(model.provider, model.id);
+      _emitIfAlive(
+        QuickActionsIdle(
+          currentModel: model,
+          currentModelName: model.name,
+          currentThinking: nextThinking,
+        ),
+      );
     } on ActionFailure catch (e) {
       // Revert optimistic highlight on failure.
-      _emitIfAlive(QuickActionsIdle(
-        currentModel: previous,
-        currentModelName: previousName,
-        currentThinking: state.currentThinking,
-      ));
+      _emitIfAlive(
+        QuickActionsIdle(
+          currentModel: previous,
+          currentModelName: previousName,
+          currentThinking: previousThinking,
+        ),
+      );
       _errorController.add(e.message);
       rethrow;
     }
@@ -121,11 +133,20 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
       // a stale cache entry (current=null) doesn't clobber a value we
       // already learned via setModel.
       if (catalogue.current != null) {
-        _emitIfAlive(QuickActionsIdle(
-          currentModel: catalogue.current,
-          currentModelName: catalogue.current?.name ?? state.currentModelName,
-          currentThinking: state.currentThinking,
-        ));
+        final nextThinking =
+            state.currentThinking != null &&
+                catalogue.current!.availableThinkingLevels.contains(
+                  state.currentThinking,
+                )
+            ? state.currentThinking
+            : null;
+        _emitIfAlive(
+          QuickActionsIdle(
+            currentModel: catalogue.current,
+            currentModelName: catalogue.current?.name ?? state.currentModelName,
+            currentThinking: nextThinking,
+          ),
+        );
       }
       return catalogue;
     } on ActionFailure catch (e) {

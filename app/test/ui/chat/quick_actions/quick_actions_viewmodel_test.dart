@@ -118,6 +118,30 @@ void main() {
       vm.dispose();
     });
 
+    test('setModel clears an effort unsupported by the new model', () async {
+      final repo = _FakeActionsRepository();
+      final vm = QuickActionsViewModel(repo);
+      await vm.setThinking(ThinkingLevel.medium);
+      const m = WireModel(
+        id: 'gpt-5.6-sol',
+        name: 'GPT-5.6 Sol',
+        provider: 'codex',
+        reasoning: true,
+        contextWindow: 0,
+        thinkingLevels: [
+          ThinkingLevel.low,
+          ThinkingLevel.high,
+          ThinkingLevel.max,
+        ],
+      );
+
+      await vm.setModel(m);
+
+      expect(vm.currentModel, m);
+      expect(vm.currentThinking, isNull);
+      vm.dispose();
+    });
+
     test('loadModels adopts the current model from the catalogue', () async {
       final repo = _FakeActionsRepository();
       const opus = WireModel(
@@ -134,6 +158,37 @@ void main() {
       expect(vm.currentModel, opus);
       vm.dispose();
     });
+
+    test(
+      'loadModels clears an effort unsupported by the reported current model',
+      () async {
+        final repo = _FakeActionsRepository();
+        const codex = WireModel(
+          id: 'gpt-6.1-sol',
+          name: 'GPT-6.1-Sol',
+          provider: 'codex',
+          reasoning: true,
+          contextWindow: 0,
+          thinkingLevels: [
+            ThinkingLevel.low,
+            ThinkingLevel.medium,
+            ThinkingLevel.high,
+            ThinkingLevel.xhigh,
+            ThinkingLevel.max,
+            ThinkingLevel.ultra,
+          ],
+        );
+        repo.catalogue = const ModelsCatalogue(models: [codex], current: codex);
+        final vm = QuickActionsViewModel(repo);
+        await vm.setThinking(ThinkingLevel.off);
+
+        await vm.loadModels();
+
+        expect(vm.currentModel, codex);
+        expect(vm.currentThinking, isNull);
+        vm.dispose();
+      },
+    );
   });
 
   group('QuickActionsViewModel — failure paths', () {

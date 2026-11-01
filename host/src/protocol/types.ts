@@ -409,14 +409,12 @@ export type ActionName =
  * protocol owns its own enum and we don't leak SDK-internal types onto
  * the app's network surface.
  *
- * Note: `"xhigh"` is only honored by select model families — the SDK uses
- * each `Model.thinkingLevelMap` to decide if the requested level is
- * supported, falling back to a sensible neighbour when not. The app
- * surfaces all 6 buttons but can grey out unsupported ones using the
- * model's metadata if the picker fetches it later.
+ * Providers support different subsets. `WireModel.thinking_levels` carries
+ * the canonical levels advertised by the selected model so the app never
+ * offers an effort that the harness will reject.
  */
 export type ThinkingLevel =
-  | "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+  | "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
 
 /**
  * Plan/28 — Wire shape for one model entry in the app's model picker.
@@ -437,6 +435,9 @@ export interface WireModel {
    *  in the SDK). Useful so the app can decide whether the thinking
    *  segmented control should be enabled when this model is selected. */
   reasoning: boolean;
+  /** Canonical effort levels supported by this model, in SDK order.
+   * Omitted by older hosts; an empty array means no effort selector. */
+  thinking_levels?: ThinkingLevel[];
   /** Context window in tokens, for display in the picker subtitle. */
   context_window: number;
   /** Plan/30: true when the model accepts image input (SDK `Model.input`

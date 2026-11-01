@@ -182,6 +182,9 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
                         ? _EffortList(
                             key: const ValueKey('model-effort-list'),
                             current: vm.currentThinking,
+                            levels:
+                                vm.currentModel?.availableThinkingLevels ??
+                                const <ThinkingLevel>[],
                             onPick: _onPickEffort,
                           )
                         : FutureBuilder<ModelsCatalogue>(
@@ -208,6 +211,9 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
                               }
                               final current = vm.currentThinking;
                               final selected = catalogue.current;
+                              final effortLevels =
+                                  selected?.availableThinkingLevels ??
+                                  const <ThinkingLevel>[];
                               // Level 2: the full model list.
                               if (_editingModel) {
                                 return ListView(
@@ -250,11 +256,17 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
                                   _PickerRow(
                                     key: const Key('model-picker-effort'),
                                     label: 'Effort',
-                                    value: current == null
-                                        ? 'Not reported'
+                                    value: effortLevels.isEmpty
+                                        ? 'Not supported'
+                                        : current == null ||
+                                              !effortLevels.contains(current)
+                                        ? 'Default'
                                         : _effortLabel(current),
-                                    onTap: () =>
-                                        setState(() => _editingEffort = true),
+                                    onTap: effortLevels.isEmpty
+                                        ? null
+                                        : () => setState(
+                                            () => _editingEffort = true,
+                                          ),
                                   ),
                                 ],
                               );
@@ -277,6 +289,8 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
     ThinkingLevel.medium => 'Medium',
     ThinkingLevel.high => 'High',
     ThinkingLevel.xhigh => 'Extra high',
+    ThinkingLevel.max => 'Max',
+    ThinkingLevel.ultra => 'Ultra',
   };
 }
 
@@ -365,7 +379,7 @@ class _PickerRow extends StatelessWidget {
 
   final String label;
   final String value;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -399,11 +413,9 @@ class _PickerRow extends StatelessWidget {
               color: colors.muted,
             ),
           ),
-          trailing: Icon(
-            LucideIcons.chevronRight,
-            size: 18,
-            color: colors.muted,
-          ),
+          trailing: onTap == null
+              ? null
+              : Icon(LucideIcons.chevronRight, size: 18, color: colors.muted),
           onTap: onTap,
         ),
       ),
@@ -413,9 +425,15 @@ class _PickerRow extends StatelessWidget {
 
 /// Level-2 effort list.
 class _EffortList extends StatelessWidget {
-  const _EffortList({super.key, required this.current, required this.onPick});
+  const _EffortList({
+    super.key,
+    required this.current,
+    required this.levels,
+    required this.onPick,
+  });
 
   final ThinkingLevel? current;
+  final List<ThinkingLevel> levels;
   final ValueChanged<ThinkingLevel> onPick;
 
   @override
@@ -436,30 +454,24 @@ class _EffortList extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
-                for (
-                  var index = 0;
-                  index < ThinkingLevel.values.length;
-                  index++
-                ) ...[
+                for (var index = 0; index < levels.length; index++) ...[
                   ListTile(
                     key: ValueKey(
-                      'model-picker-effort-${_ModelPickerBodyState._effortLabel(ThinkingLevel.values[index])}',
+                      'model-picker-effort-${_ModelPickerBodyState._effortLabel(levels[index])}',
                     ),
                     title: Text(
-                      _ModelPickerBodyState._effortLabel(
-                        ThinkingLevel.values[index],
-                      ),
+                      _ModelPickerBodyState._effortLabel(levels[index]),
                     ),
-                    trailing: ThinkingLevel.values[index] == current
+                    trailing: levels[index] == current
                         ? Icon(
                             LucideIcons.check,
                             size: 19,
                             color: colors.accent,
                           )
                         : null,
-                    onTap: () => onPick(ThinkingLevel.values[index]),
+                    onTap: () => onPick(levels[index]),
                   ),
-                  if (index != ThinkingLevel.values.length - 1)
+                  if (index != levels.length - 1)
                     Divider(
                       height: 1,
                       indent: 18,

@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { spawnPlan } from "../process/spawn.js";
 import { historyFrames } from "../protocol/history.js";
+import { thinkingLevelsFromMap } from "../protocol/thinking.js";
 import type {
   ClientMessage,
   ExtensionUiRequestWire,
@@ -706,11 +707,16 @@ export class PiAdapter implements AgentAdapter {
     const models = array(data["models"]).flatMap((raw): WireModel[] => {
       const model = record(raw);
       if (typeof model["id"] !== "string") return [];
+      const reasoning = model["reasoning"] === true;
       return [{
         id: model["id"],
         name: stringValue(model["name"]) || model["id"],
         provider: stringValue(model["provider"]) || "pi",
-        reasoning: model["reasoning"] === true,
+        reasoning,
+        thinking_levels: thinkingLevelsFromMap(
+          model["thinkingLevelMap"],
+          reasoning,
+        ),
         context_window: numberValue(model["contextWindow"]),
         vision: array(model["input"]).includes("image"),
       }];
@@ -780,11 +786,16 @@ export class PiAdapter implements AgentAdapter {
   private modelFromState(state: JsonObject): WireModel | undefined {
     const model = record(state["model"]);
     if (typeof model["id"] !== "string") return undefined;
+    const reasoning = model["reasoning"] === true;
     return {
       id: model["id"],
       name: stringValue(model["name"]) || model["id"],
       provider: stringValue(model["provider"]) || "pi",
-      reasoning: model["reasoning"] === true,
+      reasoning,
+      thinking_levels: thinkingLevelsFromMap(
+        model["thinkingLevelMap"],
+        reasoning,
+      ),
       context_window: numberValue(model["contextWindow"]),
       vision: array(model["input"]).includes("image"),
     };

@@ -45,6 +45,16 @@ void main() {
         'id': 'r5',
         'level': 'xhigh',
       });
+      expect(ThinkingSet(id: 'r8', level: ThinkingLevel.max).toJson(), {
+        'type': 'thinking_set',
+        'id': 'r8',
+        'level': 'max',
+      });
+      expect(ThinkingSet(id: 'r9', level: ThinkingLevel.ultra).toJson(), {
+        'type': 'thinking_set',
+        'id': 'r9',
+        'level': 'ultra',
+      });
     });
 
     test('ListModels encodes as list_models', () {
@@ -63,7 +73,7 @@ void main() {
   });
 
   group('ThinkingLevel — wire round-trip', () {
-    test('all six values parse from their wire string', () {
+    test('all values parse from their wire string', () {
       const expected = [
         ('off', ThinkingLevel.off),
         ('minimal', ThinkingLevel.minimal),
@@ -71,6 +81,8 @@ void main() {
         ('medium', ThinkingLevel.medium),
         ('high', ThinkingLevel.high),
         ('xhigh', ThinkingLevel.xhigh),
+        ('max', ThinkingLevel.max),
+        ('ultra', ThinkingLevel.ultra),
       ];
       for (final (wire, level) in expected) {
         expect(ThinkingLevel.fromWire(wire), level);

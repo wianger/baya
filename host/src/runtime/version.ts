@@ -7,7 +7,9 @@ let cached: string | null = null;
 export function packageVersion(): string {
   if (cached) return cached;
   try {
-    const path = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+    // This module lives in both src/runtime and dist/runtime. In either
+    // layout the package manifest is two directories above it.
+    const path = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json");
     const value = JSON.parse(readFileSync(path, "utf8")) as { version?: unknown };
     cached = typeof value.version === "string" ? value.version : "2.0.0";
   } catch {

@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { sessionStatePath } from "../session/identity.js";
 import { contextUsageSnapshot } from "../context_usage.js";
 import { historyFrames } from "../protocol/history.js";
+import { thinkingLevelsFromOptions } from "../protocol/thinking.js";
 import type {
   ClientMessage,
   QueuedMessageItem,
@@ -800,16 +801,19 @@ export class DeepSeekSession {
   }
 
   private models(sender: PeerChannel, id: string): void {
-    const reasoning = this.configOptions.some(
+    const effortOption = this.configOptions.find(
       (entry) =>
         entry.category === "thought_level"
         || entry.id === "reasoning_effort",
     );
+    const thinkingLevels = thinkingLevelsFromOptions(effortOption?.options ?? []);
+    const reasoning = thinkingLevels.some((level) => level !== "off");
     const models: WireModel[] = this.modelChoices.map((choice) => ({
       id: choice.model,
       name: choice.name,
       provider: choice.provider || "deepseek",
       reasoning,
+      thinking_levels: thinkingLevels,
       context_window: 0,
       vision: this.supportsImages,
     }));
@@ -999,6 +1003,8 @@ function findThinkingValue(
     medium: ["medium", "med"],
     high: ["high"],
     xhigh: ["xhigh", "x-high", "extra high"],
+    max: ["max", "maximum"],
+    ultra: ["ultra"],
   };
   const wanted = aliases[level] ?? [level];
   for (const alias of wanted) {

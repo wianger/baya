@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { resolveSpawnTarget, spawnPlan } from "../process/spawn.js";
+import { packageVersion } from "../runtime/version.js";
 import { resolveDeepSeekExecutable } from "../workspace/dsh_executable.js";
 
 export type JsonObject = Record<string, unknown>;
@@ -126,7 +127,7 @@ export class DeepSeekClient extends EventEmitter<DeepSeekClientEvents> {
       clientInfo: {
         name: "baya",
         title: "Baya",
-        version: "2.0.0",
+        version: packageVersion(),
       },
     }, 120_000));
     if (initialized.protocolVersion !== 1) {

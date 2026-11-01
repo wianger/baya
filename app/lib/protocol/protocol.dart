@@ -610,17 +610,18 @@ enum ActionName {
   }
 }
 
-/// Plan/28 — Mirror of the SDK's `ThinkingLevel`. Six fixed values; the
-/// wire format is the lower-case string. `xhigh` is honored only by
-/// select models — the app surfaces every level and the SDK falls back
-/// when the active model doesn't support the requested one.
+/// Plan/28 — Mirror of the SDK's `ThinkingLevel`. The wire format is the
+/// lower-case string. Providers expose different subsets; model metadata in
+/// [WireModel.thinkingLevels] tells the picker which levels are meaningful.
 enum ThinkingLevel {
   off('off'),
   minimal('minimal'),
   low('low'),
   medium('medium'),
   high('high'),
-  xhigh('xhigh');
+  xhigh('xhigh'),
+  max('max'),
+  ultra('ultra');
 
   final String wire;
   const ThinkingLevel(this.wire);
@@ -650,6 +651,13 @@ class WireModel {
   /// thinking segmented control's enabled state on the picker side.
   final bool reasoning;
 
+  /// Canonical reasoning levels advertised by this model.
+  ///
+  /// `null` means the host is older and did not report a level list. In that
+  /// case the app keeps the pre-metadata fallback for reasoning models.
+  /// An empty list means the host explicitly reported no effort control.
+  final List<ThinkingLevel>? thinkingLevels;
+
   /// Context window in tokens — surfaced as picker subtitle.
   final int contextWindow;
 
@@ -665,6 +673,7 @@ class WireModel {
     required this.reasoning,
     required this.contextWindow,
     this.vision = false,
+    this.thinkingLevels,
   });
 
   factory WireModel.fromJson(Map<String, dynamic> j) => WireModel(
@@ -674,6 +683,13 @@ class WireModel {
     reasoning: (j['reasoning'] as bool?) ?? false,
     contextWindow: (j['context_window'] as num?)?.toInt() ?? 0,
     vision: (j['vision'] as bool?) ?? false,
+    thinkingLevels: j.containsKey('thinking_levels')
+        ? [
+            for (final value
+                in (j['thinking_levels'] as List<dynamic>? ?? const []))
+              ?ThinkingLevel.fromWire(value as String),
+          ]
+        : null,
   );
 
   Map<String, dynamic> toJson() => {
@@ -683,7 +699,24 @@ class WireModel {
     'reasoning': reasoning,
     'context_window': contextWindow,
     'vision': vision,
+    if (thinkingLevels != null)
+      'thinking_levels': [for (final level in thinkingLevels!) level.wire],
   };
+
+  /// Levels the picker should offer. Older hosts omitted the field, so keep
+  /// the previous fallback only for those responses.
+  List<ThinkingLevel> get availableThinkingLevels =>
+      thinkingLevels ??
+      (reasoning ? legacyThinkingLevels : const <ThinkingLevel>[]);
+
+  static const legacyThinkingLevels = [
+    ThinkingLevel.off,
+    ThinkingLevel.minimal,
+    ThinkingLevel.low,
+    ThinkingLevel.medium,
+    ThinkingLevel.high,
+    ThinkingLevel.xhigh,
+  ];
 
   @override
   bool operator ==(Object other) =>
@@ -693,11 +726,34 @@ class WireModel {
       other.name == name &&
       other.reasoning == reasoning &&
       other.contextWindow == contextWindow &&
-      other.vision == vision;
+      other.vision == vision &&
+      _sameThinkingLevels(other.thinkingLevels, thinkingLevels);
 
   @override
-  int get hashCode =>
-      Object.hash(id, provider, name, reasoning, contextWindow, vision);
+  int get hashCode => Object.hash(
+    id,
+    provider,
+    name,
+    reasoning,
+    contextWindow,
+    vision,
+    Object.hashAll(thinkingLevels ?? const <ThinkingLevel>[]),
+    thinkingLevels == null,
+  );
+
+  static bool _sameThinkingLevels(
+    List<ThinkingLevel>? left,
+    List<ThinkingLevel>? right,
+  ) {
+    if (identical(left, right)) return true;
+    if (left == null || right == null || left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) return false;
+    }
+    return true;
+  }
 }
 
 class SessionCompact extends ClientMessage {

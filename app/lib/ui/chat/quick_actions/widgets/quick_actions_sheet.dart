@@ -144,6 +144,9 @@ class _QuickActionsSheetBodyState extends State<QuickActionsSheetBody> {
     final vm = context.watch<QuickActionsViewModel>();
     final state = vm.state;
     final busyAction = state is QuickActionsBusy ? state.action : null;
+    final thinkingLevels =
+        vm.currentModel?.availableThinkingLevels ??
+        WireModel.legacyThinkingLevels;
 
     return SafeArea(
       top: false,
@@ -166,7 +169,12 @@ class _QuickActionsSheetBodyState extends State<QuickActionsSheetBody> {
             ),
             const _Divider(),
             _ThinkingRow(
-              current: vm.currentThinking,
+              current:
+                  vm.currentThinking != null &&
+                      thinkingLevels.contains(vm.currentThinking)
+                  ? vm.currentThinking
+                  : null,
+              levels: thinkingLevels,
               busy: busyAction == ActionName.thinkingSet,
               onPick: (level) => _onThinking(vm, level),
             ),
@@ -312,10 +320,12 @@ class _ModelRow extends StatelessWidget {
 
 class _ThinkingRow extends StatelessWidget {
   final ThinkingLevel? current;
+  final List<ThinkingLevel> levels;
   final bool busy;
   final ValueChanged<ThinkingLevel> onPick;
   const _ThinkingRow({
     required this.current,
+    required this.levels,
     required this.busy,
     required this.onPick,
   });
@@ -353,7 +363,22 @@ class _ThinkingRow extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _ThinkingSegmented(current: current, disabled: busy, onPick: onPick),
+          if (levels.isEmpty)
+            Text(
+              'This model has no configurable effort.',
+              style: TextStyle(
+                fontFamily: kMonoFamily,
+                fontSize: 11,
+                color: colors.muted,
+              ),
+            )
+          else
+            _ThinkingSegmented(
+              current: current,
+              levels: levels,
+              disabled: busy,
+              onPick: onPick,
+            ),
         ],
       ),
     );
@@ -362,16 +387,18 @@ class _ThinkingRow extends StatelessWidget {
 
 class _ThinkingSegmented extends StatelessWidget {
   final ThinkingLevel? current;
+  final List<ThinkingLevel> levels;
   final bool disabled;
   final ValueChanged<ThinkingLevel> onPick;
   const _ThinkingSegmented({
     required this.current,
+    required this.levels,
     required this.disabled,
     required this.onPick,
   });
 
   // Short label shown in the segmented buttons. Matches the SDK's
-  // ThinkingLevel order (off → xhigh).
+  // ThinkingLevel order (off -> ultra).
   static const _labels = <ThinkingLevel, String>{
     ThinkingLevel.off: 'off',
     ThinkingLevel.minimal: 'min',
@@ -379,6 +406,8 @@ class _ThinkingSegmented extends StatelessWidget {
     ThinkingLevel.medium: 'med',
     ThinkingLevel.high: 'high',
     ThinkingLevel.xhigh: 'x',
+    ThinkingLevel.max: 'max',
+    ThinkingLevel.ultra: 'ultra',
   };
 
   @override
@@ -390,7 +419,7 @@ class _ThinkingSegmented extends StatelessWidget {
       ),
       child: Row(
         children: [
-          for (final level in ThinkingLevel.values)
+          for (final level in levels)
             Expanded(
               child: _SegButton(
                 key: Key('qa-thinking-${level.wire}'),

@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { spawnPlan } from "../process/spawn.js";
+import { packageVersion } from "../runtime/version.js";
 
 export type JsonObject = Record<string, unknown>;
 export type RpcId = number | string;
@@ -49,7 +50,7 @@ export class CodexClient extends EventEmitter<CodexClientEvents> {
     child.on("error", (error) => this.lost(error));
     child.on("exit", (code) => this.lost(new Error(`Codex app-server stopped (${code ?? "signal"}).`)));
     await this.request("initialize", {
-      clientInfo: { name: "baya", title: "Baya", version: "2.0.0" },
+      clientInfo: { name: "baya", title: "Baya", version: packageVersion() },
       capabilities: { experimentalApi: true },
     });
     this.write({ method: "initialized", params: {} });

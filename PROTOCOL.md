@@ -184,8 +184,12 @@ thinking_set
 
 Responses are `models_list`, `commands_list`, `context_usage`, and
 `action_ok`/`action_error`. The current model is included in `models_list` when
-the adapter can identify it. Context usage contains `tokens`, `context_window`,
-and `percent`.
+the adapter can identify it. Each model entry includes `thinking_levels`, the
+canonical `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max`/`ultra` subset
+advertised by that provider. Pi derives it from `thinkingLevelMap`, Codex from
+`supportedReasoningEfforts`, and DeepSeek from its ACP thought-level option.
+The Android picker offers only those levels. Context usage contains `tokens`,
+`context_window`, and `percent`.
 
 The Pi adapter starts from Pi's documented RPC list and does not invent an SDK
 extension namespace.

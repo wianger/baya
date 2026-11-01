@@ -154,6 +154,13 @@ void main() {
       name: 'Opus 5.5',
       reasoning: true,
       contextWindow: 200000,
+      thinkingLevels: [
+        ThinkingLevel.off,
+        ThinkingLevel.low,
+        ThinkingLevel.high,
+        ThinkingLevel.max,
+        ThinkingLevel.ultra,
+      ],
     );
     const haiku = WireModel(
       id: 'haiku',
@@ -203,7 +210,11 @@ void main() {
     await tester.tap(find.byKey(const Key('model-picker-effort')));
     await tester.pumpAndSettle();
     expect(find.text('Reasoning effort'), findsOneWidget);
-    expect(find.text('Extra high'), findsOneWidget);
+    expect(find.text('Max'), findsOneWidget);
+    expect(find.text('Ultra'), findsOneWidget);
+    expect(find.text('Extra high'), findsNothing);
+    expect(find.text('Minimal'), findsNothing);
+    expect(find.text('Medium'), findsNothing);
   });
 
   testWidgets('model picker commits the selected model and closes', (

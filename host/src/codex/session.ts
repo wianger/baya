@@ -3,9 +3,10 @@ import { dirname, join } from "node:path";
 import { sessionStatePath } from "../session/identity.js";
 import { contextUsageSnapshot } from "../context_usage.js";
 import { historyFrames } from "../protocol/history.js";
+import { thinkingLevelsFromOptions } from "../protocol/thinking.js";
 import type {
   ClientMessage, ExtensionUiRequestWire, ServerMessage, SessionHistoryEvent,
-  QueuedMessageItem, WireModel,
+  QueuedMessageItem, ThinkingLevel, WireModel,
 } from "../protocol/types.js";
 import type { PeerChannel } from "../transport/peer_channel.js";
 import { CodexClient, object, type CodexServerRequest, type JsonObject } from "./client.js";
@@ -46,7 +47,8 @@ export class CodexSession {
   private text = "";
   private textItem = "";
   private model = "";
-  private thinking: string | undefined;
+  private thinking: ThinkingLevel | undefined;
+  private readonly modelThinkingLevels = new Map<string, ThinkingLevel[]>();
   private sendChain: Promise<void> = Promise.resolve();
   private readonly approvals = new Map<string, PendingApproval>();
   private readonly questions = new Map<string, CodexServerRequest>();
@@ -138,16 +140,26 @@ export class CodexSession {
             commands: [],
           });
           return;
-        case "model_set":
+        case "model_set": {
           if (this.busy) throw new Error("Wait for the current response before changing models.");
+          const supportedThinking = this.modelThinkingLevels.get(message.model_id);
+          if (this.thinking && supportedThinking &&
+              !supportedThinking.includes(this.thinking)) this.thinking = undefined;
           this.model = message.model_id;
           this.options.onModel?.(this.model);
           sender.send({ type: "action_ok", action: message.type, in_reply_to: message.id });
           return;
-        case "thinking_set":
-          this.thinking = message.level === "off" ? "none" : message.level;
+        }
+        case "thinking_set": {
+          const supportedThinking = this.modelThinkingLevels.get(this.model);
+          if (supportedThinking &&
+              !supportedThinking.includes(message.level)) {
+            throw new Error(`This Codex model does not support ${message.level} reasoning.`);
+          }
+          this.thinking = message.level;
           sender.send({ type: "action_ok", action: message.type, in_reply_to: message.id });
           return;
+        }
         case "session_new":
           await this.sendChain;
           if (this.busy) throw new Error("Stop the current response before starting a new conversation.");
@@ -252,7 +264,9 @@ export class CodexSession {
       const result = object(await this.client.request("turn/start", {
         threadId: this.threadId, input, clientUserMessageId: message.id,
         ...(this.model ? { model: this.model } : {}),
-        ...(this.thinking ? { effort: this.thinking } : {}),
+        ...(this.thinking
+          ? { effort: this.thinking === "off" ? "none" : this.thinking }
+          : {}),
       }));
       const turn = object(result.turn);
       this.turnId = typeof turn.id === "string" ? turn.id : null;
@@ -501,11 +515,21 @@ export class CodexSession {
   private async models(sender: PeerChannel, id: string): Promise<void> {
     const response = object(await this.client.request("model/list", { limit: 100 }));
     const models: WireModel[] = (Array.isArray(response.data) ? response.data : []).map(object)
-      .filter((entry) => entry.hidden !== true).map((entry) => ({
-        id: String(entry.model ?? entry.id), name: String(entry.displayName ?? entry.model ?? entry.id), provider: "codex",
-        reasoning: Array.isArray(entry.supportedReasoningEfforts) && entry.supportedReasoningEfforts.length > 0,
-        context_window: 0, vision: Array.isArray(entry.inputModalities) && entry.inputModalities.includes("image"),
-      }));
+      .filter((entry) => entry.hidden !== true).map((entry) => {
+        const thinkingLevels = thinkingLevelsFromOptions(
+          Array.isArray(entry.supportedReasoningEfforts)
+            ? entry.supportedReasoningEfforts
+            : [],
+        );
+        const id = String(entry.model ?? entry.id);
+        this.modelThinkingLevels.set(id, thinkingLevels);
+        return {
+          id, name: String(entry.displayName ?? entry.model ?? entry.id), provider: "codex",
+          reasoning: thinkingLevels.some((level) => level !== "off"),
+          thinking_levels: thinkingLevels,
+          context_window: 0, vision: Array.isArray(entry.inputModalities) && entry.inputModalities.includes("image"),
+        };
+      });
     const current = models.find((entry) => entry.id === this.model);
     sender.send({ type: "models_list", in_reply_to: id, models, ...(current ? { current } : {}) });
   }
