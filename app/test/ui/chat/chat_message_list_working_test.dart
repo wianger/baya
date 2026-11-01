@@ -57,8 +57,12 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byKey(const Key('assistant-copy')), findsOneWidget);
-    expect(find.text('Copy'), findsOneWidget);
+    final assistantCopy = find.byKey(const Key('assistant-copy'));
+    expect(assistantCopy, findsOneWidget);
+    expect(
+      find.descendant(of: assistantCopy, matching: find.text('Copy')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('working turn shows a loading row at the newest position', (

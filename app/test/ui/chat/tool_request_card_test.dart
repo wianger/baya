@@ -309,7 +309,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(const ToolRequestCard(tool: _codexFileChange)),
       );
-      expect(find.text('Edited files'), findsOneWidget);
+      expect(find.text('Edited file'), findsOneWidget);
       expect(find.text('app/lib/main.dart'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('tool-details-codex-change')));
       await tester.pump();

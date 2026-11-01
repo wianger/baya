@@ -22,17 +22,24 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 class ToolRequestCard extends StatefulWidget {
   final ToolEvent tool;
   final void Function(String toolCallId, ApproveDecision decision)? onDecide;
+  final bool initiallyExpanded;
 
-  const ToolRequestCard({super.key, required this.tool, this.onDecide});
+  const ToolRequestCard({
+    super.key,
+    required this.tool,
+    this.onDecide,
+    this.initiallyExpanded = false,
+  });
 
   @override
   State<ToolRequestCard> createState() => _ToolRequestCardState();
 }
 
 class _ToolRequestCardState extends State<ToolRequestCard> {
-  /// Cards start collapsed to a single readable row; tapping one reveals the
-  /// command, output and outcome. Real approvals always start open.
-  bool _expanded = false;
+  /// Standalone transcript cards start collapsed. The chat flow passes
+  /// `initiallyExpanded` for a lone call so its content is visible immediately;
+  /// real approvals always start open as well.
+  late bool _expanded = widget.initiallyExpanded;
   bool _outputExpanded = false;
   ToolEvent get tool => widget.tool;
   void Function(String, ApproveDecision)? get onDecide => widget.onDecide;
@@ -238,15 +245,13 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
   }
 
   IconData get _headerIcon {
-    if (ToolContent(tool).isCommand) return LucideIcons.terminal;
-    return switch (tool.tool.toLowerCase()) {
-      'read' => LucideIcons.fileText,
-      'edit' || 'write' || 'apply_patch' || 'filechange' => LucideIcons.filePen,
-      'web_search' || 'websearch' => LucideIcons.search,
-      final other when other.contains('message') || other.contains('agent') =>
-        LucideIcons.send,
-      _ => LucideIcons.wrench,
-    };
+    final content = ToolContent(tool);
+    if (content.isCommand) return LucideIcons.terminal;
+    if (content.isFileChange) return LucideIcons.filePen;
+    if (content.isRead) return LucideIcons.fileText;
+    if (content.isSearch) return LucideIcons.search;
+    if (content.isAgentMessage) return LucideIcons.send;
+    return LucideIcons.wrench;
   }
 
   bool get _running =>

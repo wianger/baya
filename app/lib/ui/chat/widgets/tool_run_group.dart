@@ -1,7 +1,9 @@
 import 'package:app/domain/session_state.dart';
+import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/widgets/baya_activity_card.dart';
 import 'package:app/ui/chat/widgets/tool_activity_details.dart';
 import 'package:app/ui/chat/widgets/tool_content.dart';
+import 'package:app/ui/chat/widgets/tool_request_card.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:flutter/material.dart';
@@ -12,9 +14,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// the Claude mobile pattern: one quiet row that opens a list of the actions,
 /// each of which expands into its command and result.
 class ToolRunGroup extends StatelessWidget {
-  const ToolRunGroup({super.key, required this.tools});
+  const ToolRunGroup({super.key, required this.tools, this.onDecide});
 
   final List<ToolEvent> tools;
+  final void Function(String toolCallId, ApproveDecision decision)? onDecide;
 
   bool _isCommand(ToolEvent tool) {
     return ToolContent(tool).isCommand;
@@ -49,19 +52,24 @@ class ToolRunGroup extends StatelessWidget {
   }
 
   IconData get _icon {
-    final name = tools.first.tool.toLowerCase();
     if (tools.every(_isCommand)) return LucideIcons.terminal;
-    if (ToolContent(tools.first).isFileChange) return LucideIcons.filePen;
-    if (ToolContent(tools.first).isAgentMessage) return LucideIcons.send;
-    if (name.contains('read')) return LucideIcons.fileText;
-    if (name.contains('search') || name.contains('grep')) {
-      return LucideIcons.search;
-    }
+    final content = ToolContent(tools.first);
+    if (content.isFileChange) return LucideIcons.filePen;
+    if (content.isRead) return LucideIcons.fileText;
+    if (content.isSearch) return LucideIcons.search;
+    if (content.isAgentMessage) return LucideIcons.send;
     return LucideIcons.wrench;
   }
 
   @override
   Widget build(BuildContext context) {
+    if (tools.length == 1) {
+      return ToolRequestCard(
+        tool: tools.single,
+        onDecide: onDecide,
+        initiallyExpanded: true,
+      );
+    }
     final colors = context.colors;
     return BayaActivityCard(
       disclosureKey: const Key('tool-run-group'),
@@ -205,13 +213,11 @@ class ToolRunGroup extends StatelessWidget {
 
   IconData _iconFor(ToolEvent tool) {
     if (_isCommand(tool)) return LucideIcons.terminal;
-    final name = tool.tool.toLowerCase();
-    if (ToolContent(tool).isFileChange) return LucideIcons.filePen;
-    if (ToolContent(tool).isAgentMessage) return LucideIcons.send;
-    if (name.contains('read')) return LucideIcons.fileText;
-    if (name.contains('search') || name.contains('grep')) {
-      return LucideIcons.search;
-    }
+    final content = ToolContent(tool);
+    if (content.isFileChange) return LucideIcons.filePen;
+    if (content.isRead) return LucideIcons.fileText;
+    if (content.isSearch) return LucideIcons.search;
+    if (content.isAgentMessage) return LucideIcons.send;
     return LucideIcons.wrench;
   }
 

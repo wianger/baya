@@ -73,7 +73,7 @@ class ToolActivityDetails extends StatelessWidget {
         ] else if (!content.isCommand && input != null) ...[
           _Section(
             key: const Key('tool-input'),
-            label: 'Input',
+            label: content.inputLabel,
             body: input,
             monospace: !content.usesProseDetails,
             maxHeight: resultMaxHeight,

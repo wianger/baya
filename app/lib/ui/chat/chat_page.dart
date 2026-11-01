@@ -1015,7 +1015,10 @@ class _ChatMessageListState extends State<ChatMessageList> {
                       offset: 5,
                       child: KeyedSubtree(
                         key: ValueKey('tool-run-${item.tools.first.id}'),
-                        child: ToolRunGroup(tools: item.tools),
+                        child: ToolRunGroup(
+                          tools: item.tools,
+                          onDecide: widget.onDecide,
+                        ),
                       ),
                     ),
                   );
@@ -1026,7 +1029,10 @@ class _ChatMessageListState extends State<ChatMessageList> {
                       offset: 5,
                       child: KeyedSubtree(
                         key: ValueKey('tool-run-${item.toolCallId}'),
-                        child: ToolRunGroup(tools: [item]),
+                        child: ToolRunGroup(
+                          tools: [item],
+                          onDecide: widget.onDecide,
+                        ),
                       ),
                     ),
                   );

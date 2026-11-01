@@ -190,7 +190,7 @@ void main() {
     expect(sheet.right, closeTo(378, .01));
   });
 
-  testWidgets('single tool details float away from screen edges', (
+  testWidgets('a lone tool keeps its readable content in the transcript', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -212,17 +212,13 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const Key('tool-run-group')));
-    await tester.pumpAndSettle();
-
-    final sheet = tester.getRect(
-      find.byKey(const ValueKey('activity-detail-sheet')),
-    );
-    expect(sheet.left, closeTo(12, .01));
-    expect(sheet.right, closeTo(378, .01));
+    expect(find.byKey(const ValueKey('activity-detail-sheet')), findsNothing);
+    expect(find.text('Ran command'), findsOneWidget);
+    expect(find.text('git status'), findsOneWidget);
+    expect(find.text('working tree clean'), findsOneWidget);
   });
 
-  testWidgets('a single tool opens its final detail without an extra chooser', (
+  testWidgets('a single tool exposes its final detail without an extra tap', (
     tester,
   ) async {
     const tool = ToolEvent(
@@ -240,9 +236,6 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const Key('tool-run-group')));
-    await tester.pumpAndSettle();
-
     expect(find.text('Command'), findsOneWidget);
     expect(
       find.descendant(
@@ -253,7 +246,7 @@ void main() {
     );
     expect(find.text('Result'), findsOneWidget);
     expect(find.text('working tree clean'), findsOneWidget);
-    expect(find.text('Completed'), findsOneWidget);
+    expect(find.byKey(const ValueKey('activity-detail-sheet')), findsNothing);
   });
 
   testWidgets('a single agent message keeps its meaningful title and icon', (
@@ -276,5 +269,35 @@ void main() {
     expect(find.text('Messaged agent'), findsOneWidget);
     expect(find.text('Used a tool'), findsNothing);
     expect(find.byIcon(LucideIcons.send), findsOneWidget);
+  });
+
+  testWidgets('a lone edit shows its path and semantic diff immediately', (
+    tester,
+  ) async {
+    const tool = ToolEvent(
+      id: 'edit-1',
+      toolCallId: 'edit-1',
+      tool: 'edit',
+      args: {
+        'path': 'lib/main.dart',
+        'edits': [
+          {'oldText': 'old title', 'newText': 'new title'},
+        ],
+      },
+      status: ToolEventStatus.completed,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildLightTheme(),
+        home: const Scaffold(body: ToolRunGroup(tools: [tool])),
+      ),
+    );
+
+    expect(find.text('Edited file'), findsOneWidget);
+    expect(find.textContaining('M lib/main.dart'), findsOneWidget);
+    expect(find.text('Changes'), findsOneWidget);
+    expect(find.textContaining('-old title'), findsOneWidget);
+    expect(find.textContaining('+new title'), findsOneWidget);
+    expect(find.textContaining('"oldText"'), findsNothing);
   });
 }
