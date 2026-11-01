@@ -74,12 +74,10 @@ class WelcomeStep extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 26),
-                FilledButton(
+                BayaGlassButton(
                   onPressed: onNext,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                  ),
-                  child: const Text('Get started'),
+                  label: const Text('Get started'),
+                  minimumSize: const Size.fromHeight(52),
                 ),
               ],
             ),

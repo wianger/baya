@@ -220,18 +220,9 @@ class _PasteQrSheetBodyState extends State<_PasteQrSheetBody> {
               ],
             ),
             const SizedBox(height: 12),
-            FilledButton(
+            BayaGlassButton(
               onPressed: _canSubmit ? _submit : null,
-              style: FilledButton.styleFrom(
-                backgroundColor: colors.accent,
-                foregroundColor: colors.onAccent,
-                disabledBackgroundColor: colors.border,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(6)),
-                ),
-              ),
-              child: const Text(
+              label: const Text(
                 'Pair',
                 style: TextStyle(
                   fontFamily: kMonoFamily,

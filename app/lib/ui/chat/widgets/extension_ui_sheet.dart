@@ -502,9 +502,9 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: FilledButton(
+                  child: BayaGlassButton(
                     onPressed: (_canSubmit && !_submitting) ? _submit : null,
-                    child: _submitting
+                    label: _submitting
                         ? const SizedBox(
                             width: 18,
                             height: 18,

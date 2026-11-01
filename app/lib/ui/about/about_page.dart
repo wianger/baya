@@ -166,8 +166,8 @@ class AboutPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     Center(
-                      child: FilledButton.tonalIcon(
-                        key: const Key('check-github-updates'),
+                      child: BayaGlassButton(
+                        buttonKey: const Key('check-github-updates'),
                         onPressed: updateState is UpdateCheckInProgress
                             ? null
                             : () => _check(context),
@@ -180,18 +180,12 @@ class AboutPage extends StatelessWidget {
                                 ),
                               )
                             : const Icon(LucideIcons.refreshCw, size: 18),
-                        label: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Text(
-                            updateState is UpdateCheckInProgress
-                                ? 'Checking GitHub…'
-                                : 'Check for updates',
-                          ),
+                        label: Text(
+                          updateState is UpdateCheckInProgress
+                              ? 'Checking GitHub…'
+                              : 'Check for updates',
                         ),
-                        style: FilledButton.styleFrom(
-                          shape: const StadiumBorder(),
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                        ),
+                        prominent: false,
                       ),
                     ),
                     if (updateState is UpdateBannerVisible) ...[
@@ -221,8 +215,8 @@ class AboutPage extends StatelessWidget {
                                 ),
                               ],
                               const SizedBox(height: 12),
-                              FilledButton.icon(
-                                key: const Key('download-github-apk'),
+                              BayaGlassButton(
+                                buttonKey: const Key('download-github-apk'),
                                 onPressed: () => _download(context),
                                 icon: const Icon(
                                   LucideIcons.download,

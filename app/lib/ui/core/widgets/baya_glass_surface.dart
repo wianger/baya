@@ -304,6 +304,84 @@ class BayaGlassSurface extends StatelessWidget {
   }
 }
 
+/// A primary action rendered on the shared frosted-glass material.
+///
+/// The internal [FilledButton] remains a real Material button so keyboard
+/// focus, semantics and widget-level tests keep working. Its fill is
+/// transparent so the surface owns the blur, rim light and press feedback.
+class BayaGlassButton extends StatelessWidget {
+  const BayaGlassButton({
+    super.key,
+    this.buttonKey,
+    required this.onPressed,
+    required this.label,
+    this.icon,
+    this.prominent = true,
+    this.minimumSize = const Size(44, 48),
+    this.padding = const EdgeInsets.symmetric(horizontal: 20),
+  });
+
+  final VoidCallback? onPressed;
+  final Key? buttonKey;
+  final Widget label;
+  final Widget? icon;
+  final bool prominent;
+  final Size minimumSize;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final enabled = onPressed != null;
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOutCubic,
+      opacity: enabled ? 1 : 0.58,
+      child: BayaGlassSurface(
+        role: BayaGlassRole.control,
+        radius: 28,
+        elevated: false,
+        emphasized: prominent && enabled,
+        child: FilledButton(
+          key: buttonKey,
+          onPressed: onPressed,
+          style: ButtonStyle(
+            minimumSize: WidgetStatePropertyAll(minimumSize),
+            padding: WidgetStatePropertyAll(padding),
+            backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) return colors.muted;
+              return prominent ? colors.accent : colors.text;
+            }),
+            overlayColor: WidgetStatePropertyAll(
+              colors.accent.withValues(alpha: 0.14),
+            ),
+            elevation: const WidgetStatePropertyAll(0),
+            shadowColor: const WidgetStatePropertyAll(Colors.transparent),
+            surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+            shape: const WidgetStatePropertyAll(StadiumBorder()),
+            animationDuration: const Duration(milliseconds: 180),
+          ),
+          child: icon == null
+              ? label
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconTheme.merge(
+                      data: const IconThemeData(size: 18),
+                      child: icon!,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(fit: FlexFit.loose, child: label),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BayaGlassRimPainter extends CustomPainter {
   const _BayaGlassRimPainter({
     required this.corners,

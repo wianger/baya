@@ -347,17 +347,15 @@ class _NewSessionPageState extends State<NewSessionPage> {
           role: BayaGlassRole.navigation,
           radius: 26,
           padding: const EdgeInsets.all(20),
-          child: FilledButton.icon(
+          child: BayaGlassButton(
             onPressed: state.canOpen ? _open : null,
             icon: const Icon(LucideIcons.plus, size: 18),
-            label: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Text(
-                state.opening
-                    ? 'Starting ${state.agent.label}…'
-                    : 'Open ${state.agent.label} here',
-              ),
+            label: Text(
+              state.opening
+                  ? 'Starting ${state.agent.label}…'
+                  : 'Open ${state.agent.label} here',
             ),
+            minimumSize: const Size.fromHeight(52),
           ),
         ),
       ],

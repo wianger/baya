@@ -154,15 +154,10 @@ class _NicknameSheetState extends State<_NicknameSheet> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: FilledButton(
-                      key: const Key('nickname-sheet-save'),
+                    child: BayaGlassButton(
+                      buttonKey: const Key('nickname-sheet-save'),
                       onPressed: _save,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.accent,
-                        foregroundColor: colors.onAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('Save'),
+                      label: const Text('Save'),
                     ),
                   ),
                 ],

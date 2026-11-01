@@ -327,9 +327,9 @@ class _ErrorView extends StatelessWidget {
                   ),
                   if (canRetry) ...[
                     const SizedBox(height: 22),
-                    FilledButton(
+                    BayaGlassButton(
                       onPressed: onRetry,
-                      child: const Text('Try again'),
+                      label: const Text('Try again'),
                     ),
                   ],
                 ],

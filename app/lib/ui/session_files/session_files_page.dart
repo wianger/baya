@@ -475,8 +475,7 @@ class _FileView extends StatelessWidget {
           _FileNotice(
             icon: LucideIcons.fileArchive,
             title: 'Binary file',
-            message:
-                'This file cannot be shown as text. Its size and modification date are available above.',
+            message: 'This file cannot be shown as text. Its size and modification date are available above.',
           )
         else if (content == null || content.isEmpty)
           const _FileNotice(
@@ -625,10 +624,11 @@ class _ErrorView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            FilledButton.tonalIcon(
+            BayaGlassButton(
               onPressed: onRetry,
               icon: const Icon(LucideIcons.refreshCw, size: 17),
               label: const Text('Try again'),
+              prominent: false,
             ),
           ],
         ),
@@ -663,9 +663,8 @@ IconData _fileIcon(String name) {
   if (RegExp(r'\.(md|mdx|txt|rst)$').hasMatch(lower)) {
     return LucideIcons.fileText;
   }
-  if (RegExp(
-    r'\.(dart|js|ts|tsx|jsx|py|go|rs|java|kt|swift|sh|ps1)$',
-  ).hasMatch(lower)) {
+  if (RegExp(r'\.(dart|js|ts|tsx|jsx|py|go|rs|java|kt|swift|sh|ps1)$')
+      .hasMatch(lower)) {
     return LucideIcons.code;
   }
   return LucideIcons.file;

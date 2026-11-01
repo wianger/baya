@@ -107,15 +107,9 @@ class RelayStep extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: FilledButton(
+                    child: BayaGlassButton(
                       onPressed: _canContinue ? onNext : null,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.accent,
-                        foregroundColor: colors.onAccent,
-                        disabledBackgroundColor: colors.border,
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                      child: const Text('Continue'),
+                      label: const Text('Continue'),
                     ),
                   ),
                 ],

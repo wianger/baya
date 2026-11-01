@@ -701,7 +701,7 @@ class _EmptyState extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 22),
-                    FilledButton.icon(
+                    BayaGlassButton(
                       onPressed: () => context.push('/pair'),
                       icon: const Icon(LucideIcons.scanQrCode, size: 18),
                       label: const Text('Pair computer'),

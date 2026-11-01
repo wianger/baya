@@ -84,8 +84,8 @@ class UpdateSettingsSection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              key: const Key('check-github-updates'),
+            BayaGlassButton(
+              buttonKey: const Key('check-github-updates'),
               onPressed: state is UpdateCheckInProgress
                   ? null
                   : () => _check(context),
@@ -101,6 +101,7 @@ class UpdateSettingsSection extends StatelessWidget {
                     ? 'Checking GitHub…'
                     : 'Check for updates',
               ),
+              prominent: false,
             ),
             if (state is UpdateBannerVisible) ...[
               const SizedBox(height: 12),
@@ -116,8 +117,8 @@ class UpdateSettingsSection extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              FilledButton.icon(
-                key: const Key('download-github-apk'),
+              BayaGlassButton(
+                buttonKey: const Key('download-github-apk'),
                 onPressed: () => _download(context),
                 icon: const Icon(Icons.download, size: 18),
                 label: const Text('Download APK'),

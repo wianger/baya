@@ -1,4 +1,5 @@
 import 'package:app/ui/core/branding/app_brand.dart';
+
 import 'dart:io' show Platform;
 
 import 'package:app/config/dependencies.dart';
@@ -123,22 +124,19 @@ class _SyncRequiredPageState extends State<SyncRequiredPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      FilledButton(
+                      BayaGlassButton(
                         onPressed: _checking ? null : _recheck,
-                        style: FilledButton.styleFrom(
-                          disabledBackgroundColor: colors.border,
-                          minimumSize: const Size.fromHeight(50),
-                        ),
-                        child: _checking
+                        label: _checking
                             ? SizedBox(
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
-                                  color: colors.onAccent,
+                                  color: colors.accent,
                                   strokeWidth: 2,
                                 ),
                               )
                             : const Text('Check again'),
+                        minimumSize: const Size.fromHeight(50),
                       ),
                       const SizedBox(height: 24),
                     ],

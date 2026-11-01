@@ -1159,14 +1159,7 @@ class _EmptyState extends StatelessWidget {
             ),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 22),
-              FilledButton(
-                onPressed: onAction,
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.accent,
-                  foregroundColor: colors.onAccent,
-                ),
-                child: Text(actionLabel!),
-              ),
+              BayaGlassButton(onPressed: onAction, label: Text(actionLabel!)),
             ],
           ],
         ),

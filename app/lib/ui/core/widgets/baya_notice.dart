@@ -75,16 +75,14 @@ Future<void> showBayaNotice(
                     ),
                   ],
                   const SizedBox(height: 20),
-                  FilledButton(
-                    key: const Key('baya-notice-confirm'),
+                  BayaGlassButton(
+                    buttonKey: const Key('baya-notice-confirm'),
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
                       onConfirm?.call();
                     },
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(46),
-                    ),
-                    child: Text(confirmLabel),
+                    label: Text(confirmLabel),
+                    minimumSize: const Size.fromHeight(46),
                   ),
                   if (secondaryLabel != null) ...[
                     const SizedBox(height: 8),

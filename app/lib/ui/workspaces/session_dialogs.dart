@@ -2,6 +2,7 @@ import 'package:app/pairing/storage.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_dialog.dart';
+import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:flutter/material.dart';
 
 /// Phone-local conversation rename. Empty input clears the override so the
@@ -188,9 +189,9 @@ class _NameDialogState extends State<_NameDialog> {
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
       ),
-      FilledButton(
+      BayaGlassButton(
         onPressed: () => Navigator.of(context).pop(_controller.text),
-        child: const Text('Save'),
+        label: const Text('Save'),
       ),
     ],
   );

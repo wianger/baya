@@ -217,14 +217,14 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
                           child: const Text('Deny'),
                         ),
                         const SizedBox(width: 10),
-                        FilledButton(
+                        BayaGlassButton(
                           onPressed: onDecide == null
                               ? null
                               : () => onDecide!(
                                   tool.toolCallId,
                                   ApproveDecision.allow,
                                 ),
-                          child: const Text('Allow once'),
+                          label: const Text('Allow once'),
                         ),
                       ],
                     ),

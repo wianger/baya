@@ -111,8 +111,7 @@ class SettingsPage extends StatelessWidget {
                         key: const Key('settings-about'),
                         icon: LucideIcons.info,
                         title: 'About',
-                        subtitle:
-                            'Version, updates and project links',
+                        subtitle: 'Version, updates and project links',
                         onTap: () => context.push('/about'),
                       ),
                     ),
@@ -251,19 +250,10 @@ class _RelaySettingsPageState extends State<RelaySettingsPage> {
               spacing: 10,
               runSpacing: 8,
               children: [
-                FilledButton(
-                  key: const Key('relay-save'),
+                BayaGlassButton(
+                  buttonKey: const Key('relay-save'),
                   onPressed: _save,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: colors.accent,
-                    foregroundColor: colors.onAccent,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                    shape: const StadiumBorder(),
-                  ),
-                  child: Text(
+                  label: Text(
                     'Save',
                     style: const TextStyle(
                       fontFamily: kMonoFamily,

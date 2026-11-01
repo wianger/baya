@@ -175,7 +175,7 @@ Future<void> showCreateWorkspace(BuildContext context) async {
                   ),
                 ),
                 const SizedBox(height: 18),
-                FilledButton.icon(
+                BayaGlassButton(
                   onPressed: name.text.trim().isEmpty
                       ? null
                       : () async {
@@ -188,10 +188,7 @@ Future<void> showCreateWorkspace(BuildContext context) async {
                           }
                         },
                   icon: const Icon(LucideIcons.layoutDashboard, size: 18),
-                  label: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 10),
-                    child: Text('Create workspace'),
-                  ),
+                  label: const Text('Create workspace'),
                 ),
               ],
             ),
@@ -654,20 +651,13 @@ class _SessionSidebarState extends State<SessionSidebar> {
                       },
                     ),
                     const Spacer(),
-                    FilledButton.icon(
-                      key: const Key('sidebar-new-session'),
+                    BayaGlassButton(
+                      buttonKey: const Key('sidebar-new-session'),
                       onPressed: vm.selectedWorkspace == null
                           ? null
                           : () => _startSession(context, close: widget.close),
                       icon: const Icon(LucideIcons.plus, size: 18),
-                      label: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('New session'),
-                      ),
-                      style: FilledButton.styleFrom(
-                        shape: const StadiumBorder(),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                      ),
+                      label: const Text('New session'),
                     ),
                   ],
                 ),
@@ -1054,14 +1044,10 @@ class _NoDeviceOverview extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  FilledButton.icon(
+                  BayaGlassButton(
                     onPressed: () => context.push('/pair'),
                     icon: const Icon(LucideIcons.scanLine, size: 18),
-                    label: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 11),
-                      child: Text('Pair computer'),
-                    ),
-                    style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                    label: const Text('Pair computer'),
                   ),
                 ],
               ),
