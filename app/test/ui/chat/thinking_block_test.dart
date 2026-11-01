@@ -35,20 +35,14 @@ void main() {
         findsOneWidget,
       );
       expect(find.byKey(const ValueKey('thinking-copy')), findsOneWidget);
-      final surface = find.byKey(
-        const ValueKey('thinking-content-surface'),
-      );
+      final surface = find.byKey(const ValueKey('thinking-content-surface'));
       final surfaceRect = tester.getRect(surface);
       final copyRect = tester.getRect(
         find.byKey(const ValueKey('thinking-copy')),
       );
-      expect(
-        surfaceRect.contains(copyRect.topLeft) &&
-            surfaceRect.contains(copyRect.bottomRight),
-        isTrue,
-      );
+      expect(surfaceRect.overlaps(copyRect), isFalse);
+      expect(copyRect.bottom, lessThanOrEqualTo(surfaceRect.top));
       expect(copyRect.center.dx, greaterThan(surfaceRect.center.dx));
-      expect(copyRect.top, lessThan(surfaceRect.top + 40));
       await tester.tap(find.byTooltip('Close'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));

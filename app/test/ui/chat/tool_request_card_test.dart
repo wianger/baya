@@ -2,6 +2,7 @@ import 'package:app/domain/session_state.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/widgets/tool_request_card.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -188,6 +189,15 @@ void main() {
     expect(commandCopy, findsOneWidget);
     expect(resultCopy, findsOneWidget);
 
+    final commandSurface = find.descendant(
+      of: find.byKey(const Key('tool-command')),
+      matching: find.byType(BayaGlassSurface),
+    );
+    final commandCopyRect = tester.getRect(commandCopy);
+    final commandSurfaceRect = tester.getRect(commandSurface);
+    expect(commandSurfaceRect.overlaps(commandCopyRect), isFalse);
+    expect(commandCopyRect.bottom, lessThanOrEqualTo(commandSurfaceRect.top));
+
     await tester.tap(
       find.descendant(of: commandCopy, matching: find.text('Copy')),
     );
@@ -293,7 +303,7 @@ void main() {
       );
     });
 
-    testWidgets('Codex file changes avoid raw JSON and keep copy inside', (
+    testWidgets('Codex file changes avoid raw JSON and keep copy outside', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -320,26 +330,17 @@ void main() {
       final body = find
           .descendant(
             of: find.byKey(const Key('tool-changes')),
-            matching: find.byType(Container),
+            matching: find.byType(BayaGlassSurface),
           )
           .first;
       final bodyRect = tester.getRect(body);
       final copyRect = tester.getRect(copy);
-      expect(
-        bodyRect.contains(copyRect.topLeft) &&
-            bodyRect.contains(copyRect.bottomRight),
-        isTrue,
-        reason: 'The copy action belongs inside the framed changes body.',
-      );
+      expect(bodyRect.overlaps(copyRect), isFalse);
+      expect(copyRect.bottom, lessThanOrEqualTo(bodyRect.top));
       expect(
         copyRect.center.dx,
         greaterThan(bodyRect.center.dx),
-        reason: 'The copy action belongs at the top-right of the framed body.',
-      );
-      expect(
-        copyRect.top,
-        lessThan(bodyRect.top + 40),
-        reason: 'The copy action belongs at the top-right of the framed body.',
+        reason: 'The copy action belongs above the right edge of the body.',
       );
     });
 

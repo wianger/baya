@@ -252,15 +252,30 @@ class _Section extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: context.typo.sansBody.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: tone == _SectionTone.error ? colors.error : colors.muted,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: context.typo.sansBody.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: tone == _SectionTone.error
+                      ? colors.error
+                      : colors.muted,
+                ),
+              ),
+            ),
+            if (body.trim().isNotEmpty)
+              BayaCopyButton(
+                key: copyKey,
+                text: body,
+                color: tone == _SectionTone.error ? colors.error : null,
+              ),
+          ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 2),
         Container(
           width: double.infinity,
           color: Colors.transparent,
@@ -274,16 +289,6 @@ class _Section extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (body.trim().isNotEmpty)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: BayaCopyButton(
-                      key: copyKey,
-                      text: body,
-                      color: tone == _SectionTone.error ? colors.error : null,
-                    ),
-                  ),
-                const SizedBox(height: 2),
                 if (maxHeight == null)
                   text
                 else

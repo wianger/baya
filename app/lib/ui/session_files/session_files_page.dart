@@ -484,31 +484,39 @@ class _FileView extends StatelessWidget {
             message: 'There is no text content to display.',
           )
         else
-          BayaGlassSurface(
-            key: const ValueKey('session-file-content-surface'),
-            role: BayaGlassRole.content,
-            radius: 18,
-            elevated: false,
-            padding: const EdgeInsets.all(15),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: BayaCopyButton(
-                    text: content,
-                    tooltip: 'Copy contents',
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Preview',
+                      style: context.typo.sansBody.copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: context.colors.muted,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                SelectableText(
+                  BayaCopyButton(text: content, tooltip: 'Copy contents'),
+                ],
+              ),
+              const SizedBox(height: 2),
+              BayaGlassSurface(
+                key: const ValueKey('session-file-content-surface'),
+                role: BayaGlassRole.content,
+                radius: 18,
+                elevated: false,
+                padding: const EdgeInsets.all(15),
+                child: SelectableText(
                   content,
                   key: const ValueKey('session-file-content'),
                   style: context.typo.mono.copyWith(fontSize: 12, height: 1.55),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         if (file.truncated && !file.binary)
           Padding(

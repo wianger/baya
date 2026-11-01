@@ -76,13 +76,9 @@ void main() {
     );
     final surfaceRect = tester.getRect(contentSurface);
     final copyRect = tester.getRect(find.text('Copy contents'));
-    expect(
-      surfaceRect.contains(copyRect.topLeft) &&
-          surfaceRect.contains(copyRect.bottomRight),
-      isTrue,
-    );
+    expect(surfaceRect.overlaps(copyRect), isFalse);
+    expect(copyRect.bottom, lessThanOrEqualTo(surfaceRect.top));
     expect(copyRect.center.dx, greaterThan(surfaceRect.center.dx));
-    expect(copyRect.top, lessThan(surfaceRect.top + 40));
     expect(find.byTooltip('Back to directory'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());

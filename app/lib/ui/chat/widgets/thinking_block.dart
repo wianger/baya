@@ -56,15 +56,22 @@ class _ThinkingDetail extends StatelessWidget {
       key: const ValueKey('thinking-detail'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Reasoning',
-          style: context.typo.sansBody.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: colors.muted,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Reasoning',
+                style: context.typo.sansBody.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: colors.muted,
+                ),
+              ),
+            ),
+            BayaCopyButton(key: const ValueKey('thinking-copy'), text: text),
+          ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 2),
         BayaGlassSurface(
           key: const ValueKey('thinking-content-surface'),
           role: BayaGlassRole.content,
@@ -75,14 +82,6 @@ class _ThinkingDetail extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: BayaCopyButton(
-                  key: const ValueKey('thinking-copy'),
-                  text: text,
-                ),
-              ),
-              const SizedBox(height: 2),
               SelectableText(
                 text,
                 key: const ValueKey('thinking-detail-text'),
