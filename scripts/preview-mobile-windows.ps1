@@ -10,9 +10,17 @@ $ErrorActionPreference = 'Stop'
 $flutter = Join-Path $flutterRoot 'bin\flutter.bat'
 if (-not (Test-Path -LiteralPath $flutter)) { throw 'Install Flutter with Scoop first.' }
 $source = (Resolve-Path -LiteralPath $SourceApp).ProviderPath
-$buildApp = Join-Path $BuildRoot 'app'
-if ([IO.Path]::GetFullPath($source).TrimEnd('\') -eq [IO.Path]::GetFullPath($buildApp).TrimEnd('\')) {
+$buildRootPath = [IO.Path]::GetFullPath($BuildRoot).TrimEnd('\')
+$buildApp = [IO.Path]::GetFullPath((Join-Path $BuildRoot 'app')).TrimEnd('\')
+if ([IO.Path]::GetFullPath($source).TrimEnd('\') -eq $buildApp) {
     throw 'Source and build snapshot must be different directories.'
+}
+$buildAppPrefix = "$buildRootPath$([IO.Path]::DirectorySeparatorChar)"
+if (-not $buildApp.StartsWith($buildAppPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Build snapshot must stay inside BuildRoot.'
+}
+if (Test-Path -LiteralPath $buildApp) {
+    Remove-Item -LiteralPath $buildApp -Recurse -Force
 }
 New-Item -ItemType Directory -Path $buildApp -Force | Out-Null
 & robocopy $source $buildApp /E /XD .dart_tool build .gradle /XF local.properties key.properties /NFL /NDL /NJH /NJS /NP
