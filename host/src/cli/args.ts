@@ -5,10 +5,15 @@ export interface ParsedArgs {
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
+  if (argv[0] === "help" || argv.includes("--help") || argv.includes("-h")) {
+    return {
+      command: "help",
+      positionals: [],
+      flags: new Map(),
+    };
+  }
   const first = argv[0];
   const standalone =
-    first === "--help" ||
-    first === "-h" ||
     first === "--version" ||
     first === "-v";
   const command = standalone

@@ -17,7 +17,9 @@ describe("CLI argument parsing", () => {
       positionals: [],
       flags: new Map(),
     });
-    expect(parseArgs(["--help"]).command).toBe("--help");
+    expect(parseArgs(["--help"]).command).toBe("help");
+    expect(parseArgs(["start", "--help"]).command).toBe("help");
+    expect(parseArgs(["new", "-h"]).command).toBe("help");
   });
 
   test("parses inline and separated flags without consuming the subcommand path", () => {
