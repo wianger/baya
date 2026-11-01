@@ -4,12 +4,13 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 
-/// Shared Apple-style frosted surfaces used across navigation, content and
-/// modal layers.
+/// Semantic material used by navigation, controls and content.
 ///
-/// Each role changes blur strength, tint and elevation without changing the
-/// semantic palette. High-contrast mode deliberately falls back to an opaque
-/// semantic fill because translucency can hide focus rings and text.
+/// Frosting belongs to the functional layer that floats above content. Only
+/// navigation, compact controls and elevated overlays receive a backdrop blur;
+/// cards, message content, user bubbles and brand tiles use quiet opaque
+/// surfaces. This keeps reading surfaces crisp and lets hierarchy come from
+/// spacing, fill and typography rather than repeated glass effects.
 enum BayaGlassRole { navigation, card, control, content, user, overlay, brand }
 
 class BayaGlassSurface extends StatelessWidget {
@@ -46,6 +47,11 @@ class BayaGlassSurface extends StatelessWidget {
     final corners = borderRadius ?? BorderRadius.circular(radius);
     final resolvedEmphasisColor = emphasisColor ?? colors.accent;
     final contentMotion = BayaSurfaceContentMotion.surfaceOf(context);
+    final usesBlur =
+        !highContrast &&
+        (role == BayaGlassRole.navigation ||
+            role == BayaGlassRole.control ||
+            (role == BayaGlassRole.overlay && elevated));
     final (
       topFill,
       bottomFill,
@@ -55,60 +61,60 @@ class BayaGlassSurface extends StatelessWidget {
       shadowOffset,
     ) = switch (role) {
       BayaGlassRole.navigation => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.28 : 0.56),
-        colors.glassFill.withValues(alpha: dark ? 0.18 : 0.42),
-        colors.glassTint.withValues(alpha: dark ? 0.20 : 0.26),
-        26.0,
-        18.0,
-        5.0,
-      ),
-      BayaGlassRole.card => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.19 : 0.46),
-        colors.glassFill.withValues(alpha: dark ? 0.11 : 0.30),
-        colors.glassTint.withValues(alpha: dark ? 0.14 : 0.18),
-        20.0,
-        16.0,
+        colors.glassFillStrong.withValues(alpha: dark ? 0.34 : 0.60),
+        colors.glassFill.withValues(alpha: dark ? 0.22 : 0.44),
+        colors.glassTint.withValues(alpha: dark ? 0.22 : 0.24),
+        24.0,
+        14.0,
         4.0,
       ),
+      BayaGlassRole.card => (
+        colors.surface,
+        colors.surface,
+        colors.surface,
+        0.0,
+        10.0,
+        2.0,
+      ),
       BayaGlassRole.control => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.23 : 0.48),
-        colors.glassFill.withValues(alpha: dark ? 0.13 : 0.32),
-        colors.glassTint.withValues(alpha: dark ? 0.17 : 0.20),
+        colors.glassFillStrong.withValues(alpha: dark ? 0.28 : 0.52),
+        colors.glassFill.withValues(alpha: dark ? 0.18 : 0.36),
+        colors.glassTint.withValues(alpha: dark ? 0.20 : 0.18),
         14.0,
-        7.0,
+        8.0,
         2.0,
       ),
       BayaGlassRole.content => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.13 : 0.38),
-        colors.glassFill.withValues(alpha: dark ? 0.08 : 0.24),
-        colors.glassTint.withValues(alpha: dark ? 0.11 : 0.15),
-        16.0,
-        10.0,
-        3.0,
+        colors.codeBg,
+        colors.codeBg,
+        colors.codeBg,
+        0.0,
+        0.0,
+        0.0,
       ),
       BayaGlassRole.user => (
-        colors.userBubble.withValues(alpha: dark ? 0.94 : 0.95),
-        colors.userBubble.withValues(alpha: dark ? 0.86 : 0.90),
-        colors.userBubble.withValues(alpha: dark ? 0.90 : 0.93),
-        14.0,
-        12.0,
-        3.0,
+        colors.userBubble,
+        colors.userBubble,
+        colors.userBubble,
+        0.0,
+        6.0,
+        2.0,
       ),
       BayaGlassRole.overlay => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.34 : 0.62),
-        colors.glassFill.withValues(alpha: dark ? 0.22 : 0.46),
-        colors.glassTint.withValues(alpha: dark ? 0.27 : 0.30),
+        colors.glassFillStrong.withValues(alpha: dark ? 0.38 : 0.64),
+        colors.glassFill.withValues(alpha: dark ? 0.25 : 0.48),
+        colors.glassTint.withValues(alpha: dark ? 0.26 : 0.28),
         30.0,
         24.0,
         6.0,
       ),
       BayaGlassRole.brand => (
-        colors.glassFillStrong.withValues(alpha: dark ? 0.24 : 0.52),
-        colors.glassFill.withValues(alpha: dark ? 0.14 : 0.34),
-        colors.glassTint.withValues(alpha: dark ? 0.18 : 0.22),
-        22.0,
-        14.0,
-        4.0,
+        colors.inputFill,
+        colors.inputFill,
+        colors.inputFill,
+        0.0,
+        12.0,
+        3.0,
       ),
     };
     final surface = DecoratedBox(
@@ -117,155 +123,111 @@ class BayaGlassSurface extends StatelessWidget {
             ? role == BayaGlassRole.user
                   ? colors.userBubble
                   : role == BayaGlassRole.content
-                  ? colors.surface
-                  : colors.inputFill
-            : null,
-        gradient: highContrast
+                  ? colors.codeBg
+                  : role == BayaGlassRole.brand
+                  ? colors.inputFill
+                  : colors.surface
+            : usesBlur
             ? null
-            : LinearGradient(
+            : role == BayaGlassRole.user
+            ? colors.userBubble
+            : role == BayaGlassRole.content
+            ? colors.codeBg
+            : role == BayaGlassRole.brand
+            ? colors.inputFill
+            : colors.surface,
+        gradient: usesBlur
+            ? LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 stops: const [0, 0.48, 1],
                 colors: [topFill, tint, bottomFill],
-              ),
+              )
+            : null,
         borderRadius: corners,
         border: Border.all(
           color: highContrast
               ? colors.muted2
               : emphasized
               ? resolvedEmphasisColor.withValues(alpha: 0.52)
-              : colors.glassEdge,
+              : usesBlur
+              ? colors.glassEdge
+              : role == BayaGlassRole.user
+              ? colors.userBubble
+              : colors.border.withValues(alpha: .52),
           width: highContrast
               ? 1.2
               : emphasized
               ? 0.9
-              : 0.7,
+              : usesBlur
+              ? 0.7
+              : 0.5,
         ),
       ),
-      child: Stack(
-        children: [
-          if (!highContrast)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: corners,
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.68, -1.05),
-                      radius: 1.32,
-                      colors: [
-                        colors.glassHighlight,
-                        colors.glassHighlight.withValues(
-                          alpha: colors.glassHighlight.a * 0.30,
-                        ),
-                        colors.glassHighlight.withValues(alpha: 0),
-                      ],
-                      stops: const [0, 0.34, 1],
+      child: Material(
+        type: MaterialType.transparency,
+        child: Stack(
+          children: [
+            if (usesBlur)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: corners,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          colors.glassHighlight.withValues(
+                            alpha: colors.glassHighlight.a * 0.20,
+                          ),
+                          colors.glassHighlight.withValues(alpha: 0),
+                        ],
+                        stops: const [0, 0.32],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          if (!highContrast)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: corners,
-                    gradient: LinearGradient(
-                      begin: const Alignment(-1, -1),
-                      end: const Alignment(0.15, 0.8),
-                      colors: [
-                        colors.glassHighlight.withValues(
-                          alpha: colors.glassHighlight.a * 0.16,
-                        ),
-                        colors.glassHighlight.withValues(alpha: 0.005),
-                        colors.glassHighlight.withValues(alpha: 0),
-                      ],
-                      stops: const [0, 0.22, 0.58],
+            if (contentMotion == null)
+              Padding(padding: padding, child: child)
+            else
+              AnimatedBuilder(
+                animation: Listenable.merge([
+                  contentMotion.animation,
+                  ?contentMotion.surfaceScale,
+                ]),
+                child: Padding(padding: padding, child: child),
+                builder: (context, child) => Transform.scale(
+                  key: const ValueKey('baya-surface-content-scale'),
+                  scale: contentMotion.surfaceScale == null
+                      ? 1
+                      : 1 / contentMotion.surfaceScale!.value.clamp(0.01, 1.0),
+                  alignment: Alignment.topRight,
+                  child: Opacity(
+                    key: const ValueKey('baya-surface-content-opacity'),
+                    opacity: contentMotion.animation.value.clamp(0.0, 1.0),
+                    child: child,
+                  ),
+                ),
+              ),
+            if (usesBlur)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    key: const ValueKey('baya-glass-rim'),
+                    painter: _BayaGlassRimPainter(
+                      corners: corners.resolve(Directionality.of(context)),
+                      highlight: colors.glassHighlight,
+                      shade: colors.glassShade,
+                      accent: resolvedEmphasisColor,
+                      emphasized: emphasized,
                     ),
                   ),
                 ),
               ),
-            ),
-          if (!highContrast)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: corners,
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        colors.glassInnerShadow.withValues(alpha: 0),
-                        colors.glassInnerShadow.withValues(alpha: 0),
-                        colors.glassInnerShadow,
-                      ],
-                      stops: const [0, 0.68, 1],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          if (!highContrast && role == BayaGlassRole.brand)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: corners,
-                    gradient: LinearGradient(
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                      colors: [
-                        colors.glassCool.withValues(alpha: dark ? 0.16 : 0.12),
-                        colors.glassCool.withValues(alpha: 0),
-                        colors.glassWarm.withValues(alpha: dark ? 0.11 : 0.10),
-                      ],
-                      stops: const [0, 0.52, 1],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          if (contentMotion == null)
-            Padding(padding: padding, child: child)
-          else
-            AnimatedBuilder(
-              animation: Listenable.merge([
-                contentMotion.animation,
-                ?contentMotion.surfaceScale,
-              ]),
-              child: Padding(padding: padding, child: child),
-              builder: (context, child) => Transform.scale(
-                key: const ValueKey('baya-surface-content-scale'),
-                scale: contentMotion.surfaceScale == null
-                    ? 1
-                    : 1 / contentMotion.surfaceScale!.value.clamp(0.01, 1.0),
-                alignment: Alignment.topRight,
-                child: Opacity(
-                  key: const ValueKey('baya-surface-content-opacity'),
-                  opacity: contentMotion.animation.value.clamp(0.0, 1.0),
-                  child: child,
-                ),
-              ),
-            ),
-          if (!highContrast)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  key: const ValueKey('baya-glass-rim'),
-                  painter: _BayaGlassRimPainter(
-                    corners: corners.resolve(Directionality.of(context)),
-                    highlight: colors.glassHighlight,
-                    shade: colors.glassShade,
-                    accent: resolvedEmphasisColor,
-                    emphasized: emphasized,
-                  ),
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
     return DecoratedBox(
@@ -278,12 +240,13 @@ class BayaGlassSurface extends StatelessWidget {
                   blurRadius: shadowBlur,
                   offset: Offset(0, shadowOffset),
                 ),
-                BoxShadow(
-                  color: colors.glassContactShadow,
-                  blurRadius: 4,
-                  spreadRadius: -1,
-                  offset: Offset(0, 1),
-                ),
+                if (usesBlur)
+                  BoxShadow(
+                    color: colors.glassContactShadow,
+                    blurRadius: 4,
+                    spreadRadius: -1,
+                    offset: const Offset(0, 1),
+                  ),
                 if (emphasized)
                   BoxShadow(
                     color: resolvedEmphasisColor.withValues(alpha: 0.12),
@@ -296,25 +259,26 @@ class BayaGlassSurface extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: corners,
-        child: highContrast
-            ? surface
-            : BackdropFilter(
+        child: usesBlur
+            ? BackdropFilter(
                 filter: ui.ImageFilter.blur(
                   sigmaX: blurSigma ?? sigma,
                   sigmaY: blurSigma ?? sigma,
                 ),
                 child: surface,
-              ),
+              )
+            : surface,
       ),
     );
   }
 }
 
-/// A primary action rendered on the shared frosted-glass material.
+/// A clear, two-tier action.
 ///
-/// The internal [FilledButton] remains a real Material button so keyboard
-/// focus, semantics and widget-level tests keep working. Its fill is
-/// transparent so the surface owns the blur, rim light and press feedback.
+/// Primary actions use the solid system accent. Secondary actions use a quiet
+/// neutral fill with a hairline edge. Both retain [FilledButton] semantics,
+/// focus behavior and platform hit targets without stacking another glass
+/// surface inside a glass sheet.
 class BayaGlassButton extends StatelessWidget {
   const BayaGlassButton({
     super.key,
@@ -343,28 +307,58 @@ class BayaGlassButton extends StatelessWidget {
       duration: const Duration(milliseconds: 160),
       curve: Curves.easeOutCubic,
       opacity: enabled ? 1 : 0.58,
-      child: BayaGlassSurface(
-        role: BayaGlassRole.control,
-        radius: 28,
-        elevated: false,
-        emphasized: prominent && enabled,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: prominent && enabled
+              ? [
+                  BoxShadow(
+                    color: colors.accent.withValues(alpha: .20),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
         child: FilledButton(
           key: buttonKey,
           onPressed: onPressed,
           style: ButtonStyle(
             minimumSize: WidgetStatePropertyAll(minimumSize),
             padding: WidgetStatePropertyAll(padding),
-            backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return prominent
+                    ? colors.accent.withValues(alpha: .34)
+                    : colors.inputFill.withValues(alpha: .62);
+              }
+              if (states.contains(WidgetState.pressed)) {
+                return prominent
+                    ? Color.lerp(colors.accent, colors.onAccent, .08)!
+                    : colors.border.withValues(alpha: .34);
+              }
+              return prominent ? colors.accent : colors.inputFill;
+            }),
             foregroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.disabled)) return colors.muted;
-              return prominent ? colors.accent : colors.text;
+              return prominent ? colors.onAccent : colors.text;
             }),
             overlayColor: WidgetStatePropertyAll(
-              colors.accent.withValues(alpha: 0.14),
+              (prominent ? colors.onAccent : colors.accent).withValues(
+                alpha: .10,
+              ),
             ),
             elevation: const WidgetStatePropertyAll(0),
             shadowColor: const WidgetStatePropertyAll(Colors.transparent),
             surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+            side: WidgetStatePropertyAll<BorderSide?>(
+              prominent
+                  ? BorderSide.none
+                  : BorderSide(
+                      color: colors.border.withValues(alpha: .58),
+                      width: .5,
+                    ),
+            ),
             shape: const WidgetStatePropertyAll(StadiumBorder()),
             animationDuration: const Duration(milliseconds: 180),
           ),

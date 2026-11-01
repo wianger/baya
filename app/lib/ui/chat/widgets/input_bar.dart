@@ -514,7 +514,7 @@ class _InputBarState extends State<InputBar> {
               Positioned.fill(
                 child: IgnorePointer(
                   child: BayaGlassSurface(
-                    role: BayaGlassRole.overlay,
+                    role: BayaGlassRole.content,
                     radius: 26,
                     elevated: false,
                     child: Center(
@@ -872,7 +872,7 @@ class _QuickActionsButtonState extends State<_QuickActionsButton>
           // A filled pill with a chip icon and a caret makes it read as the
           // model switcher rather than a stray label next to `+`.
           child: BayaGlassSurface(
-            role: BayaGlassRole.control,
+            role: BayaGlassRole.card,
             radius: 20,
             elevated: false,
             child: Material(

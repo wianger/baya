@@ -151,7 +151,7 @@ class ToolRunGroup extends StatelessWidget {
                     const SizedBox(height: 8),
                     Flexible(
                       child: BayaGlassSurface(
-                        role: BayaGlassRole.control,
+                        role: BayaGlassRole.content,
                         radius: 24,
                         elevated: false,
                         child: Material(

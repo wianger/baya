@@ -142,7 +142,7 @@ class DeviceSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return BayaGlassSurface(
-      role: BayaGlassRole.control,
+      role: BayaGlassRole.content,
       radius: 22,
       elevated: false,
       child: Material(
@@ -445,7 +445,7 @@ class WorkspaceSwitcher extends StatelessWidget {
         : labels[selected] ?? _name(selected!);
     final canOpen = enabled && hasDevice;
     return BayaGlassSurface(
-      role: BayaGlassRole.control,
+      role: BayaGlassRole.content,
       radius: 22,
       elevated: false,
       child: Material(
@@ -524,7 +524,7 @@ class _EmptyWorkspaceList extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return BayaGlassSurface(
-      role: BayaGlassRole.control,
+      role: BayaGlassRole.content,
       radius: 26,
       elevated: false,
       child: Material(

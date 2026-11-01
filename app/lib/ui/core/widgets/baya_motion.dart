@@ -79,8 +79,11 @@ class BayaReveal extends StatelessWidget {
   }
 }
 
-/// Atmospheric canvas behind translucent controls. The soft color fields give
-/// glass layers something to refract without competing with reading content.
+/// Quiet canvas behind the functional glass layer.
+///
+/// Content is the visual subject. A barely perceptible tonal transition keeps
+/// large screens from looking flat without introducing the colored glows and
+/// moving light fields that competed with text in earlier builds.
 class BayaBackdrop extends StatelessWidget {
   const BayaBackdrop({
     super.key,
@@ -94,114 +97,28 @@ class BayaBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: translucent ? Colors.transparent : colors.bg,
         gradient: translucent
             ? null
             : LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
                 colors: [
-                  Color.lerp(colors.bg, colors.glassCool, dark ? 0.10 : 0.18)!,
-                  Color.lerp(colors.bg, colors.surface, dark ? 0.16 : 0.20)!,
-                  colors.bg,
-                  Color.lerp(colors.bg, colors.glassWarm, dark ? 0.08 : 0.12)!,
+                  Color.lerp(
+                    colors.bg,
+                    colors.surface,
+                    Theme.of(context).brightness == Brightness.dark
+                        ? .035
+                        : .16,
+                  )!,
                   colors.bg,
                 ],
-                stops: const [0, 0.24, 0.56, 0.82, 1],
+                stops: const [0, .42],
               ),
       ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: Stack(
-          fit: StackFit.passthrough,
-          children: [
-            Positioned(
-              top: -300,
-              right: -250,
-              width: 680,
-              height: 620,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        colors.glassCool,
-                        colors.glassCool.withValues(alpha: 0),
-                      ],
-                      stops: const [0, 1],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 120,
-              left: -330,
-              width: 620,
-              height: 560,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        colors.backdropAccent,
-                        colors.backdropAccent.withValues(alpha: 0),
-                      ],
-                      stops: const [0, 1],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -330,
-              left: -180,
-              width: 620,
-              height: 620,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        colors.backdropWarmth,
-                        colors.backdropWarmth.withValues(alpha: 0),
-                      ],
-                      stops: const [0, 1],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 180,
-              right: -340,
-              width: 520,
-              height: 520,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        colors.backdropAccent,
-                        colors.backdropAccent.withValues(alpha: 0),
-                      ],
-                      stops: const [0, 1],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            child,
-          ],
-        ),
-      ),
+      child: Material(type: MaterialType.transparency, child: child),
     );
   }
 }

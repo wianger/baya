@@ -315,6 +315,7 @@ class _Header extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.only(left: 16),
               child: BayaGlassSurface(
+                role: BayaGlassRole.control,
                 radius: 22,
                 elevated: false,
                 child: SizedBox.square(
@@ -385,7 +386,7 @@ class _PickerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return BayaGlassSurface(
-      role: BayaGlassRole.control,
+      role: BayaGlassRole.content,
       radius: 22,
       elevated: false,
       child: Material(
@@ -445,7 +446,7 @@ class _EffortList extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
       children: [
         BayaGlassSurface(
-          role: BayaGlassRole.control,
+          role: BayaGlassRole.content,
           radius: 22,
           elevated: false,
           child: Material(
@@ -503,7 +504,7 @@ class _ModelList extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return BayaGlassSurface(
-      role: BayaGlassRole.control,
+      role: BayaGlassRole.content,
       radius: 26,
       elevated: false,
       child: Material(

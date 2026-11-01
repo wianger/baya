@@ -30,6 +30,7 @@ class HomeFilterTabs extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: BayaGlassSurface(
+        role: BayaGlassRole.control,
         radius: 15,
         elevated: false,
         child: Padding(

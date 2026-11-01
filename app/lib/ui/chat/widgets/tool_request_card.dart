@@ -93,7 +93,7 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
     final expanded = _expanded || _needsApproval;
     final preview = _needsApproval ? null : content.preview;
     return BayaGlassSurface(
-      role: BayaGlassRole.control,
+      role: BayaGlassRole.content,
       radius: 18,
       elevated: false,
       emphasized: _needsApproval,

@@ -469,10 +469,9 @@ class _SessionSidebarState extends State<SessionSidebar> {
         .where((item) => vm.displayNameOf(item).toLowerCase().contains(query))
         .toList();
     return BayaGlassSurface(
-      role: BayaGlassRole.navigation,
+      role: BayaGlassRole.card,
       radius: widget.close == null ? 0 : 28,
       elevated: false,
-      blurSigma: 34,
       child: Material(
         color: Colors.transparent,
         child: SafeArea(
@@ -793,7 +792,7 @@ class _SessionRow extends StatelessWidget {
       key: ValueKey('session-row-${item.peer.remoteEpk}-${item.room.roomId}'),
       selected: selected,
       selectedTileColor: colors.selection,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       leading: Padding(
         padding: const EdgeInsets.only(top: 3),
@@ -877,26 +876,20 @@ class _SessionRow extends StatelessWidget {
             ),
       onTap: onTap,
     );
-    final tile = BayaGlassSurface(
-      role: BayaGlassRole.control,
-      radius: 22,
-      elevated: false,
-      emphasized: selected,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(22),
-        clipBehavior: Clip.antiAlias,
-        child: listTile,
-      ),
+    final tile = Material(
+      color: selected ? colors.selection : Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: listTile,
     );
     return BayaReveal(
       offset: 5,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.only(bottom: 2),
         child: onDelete == null
             ? tile
             : ClipRRect(
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(18),
                 child: Dismissible(
                   key: ValueKey(
                     'session-delete-${item.peer.remoteEpk}-${item.room.roomId}',

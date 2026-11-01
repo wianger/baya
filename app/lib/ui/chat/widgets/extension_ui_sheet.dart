@@ -348,7 +348,7 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
       onTap: _submitting ? null : () => _toggle(q.id, o.value, multi),
       borderRadius: BorderRadius.circular(10),
       child: BayaGlassSurface(
-        role: BayaGlassRole.control,
+        role: BayaGlassRole.content,
         radius: 14,
         elevated: false,
         emphasized: selected,

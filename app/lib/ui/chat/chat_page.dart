@@ -170,6 +170,7 @@ class ChatPage extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: BayaGlassSurface(
+              role: BayaGlassRole.control,
               radius: 25,
               padding: EdgeInsets.zero,
               child: SizedBox.square(
@@ -248,6 +249,7 @@ class ChatPage extends StatelessWidget {
           Align(
             alignment: Alignment.centerRight,
             child: BayaGlassSurface(
+              role: BayaGlassRole.control,
               radius: 25,
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Row(
@@ -302,6 +304,7 @@ class ChatPage extends StatelessWidget {
       child: KeyedSubtree(
         key: const Key('session-actions-popover'),
         child: BayaGlassSurface(
+          role: BayaGlassRole.overlay,
           radius: 22,
           padding: const EdgeInsets.symmetric(vertical: 7),
           child: Column(
@@ -1193,7 +1196,7 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             BayaGlassSurface(
-              role: BayaGlassRole.control,
+              role: BayaGlassRole.content,
               radius: 36,
               elevated: false,
               child: SizedBox.square(

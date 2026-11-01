@@ -30,7 +30,7 @@ class BayaActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return BayaGlassSurface(
-      role: BayaGlassRole.control,
+      role: BayaGlassRole.content,
       radius: 18,
       elevated: false,
       child: Material(

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
@@ -24,7 +25,7 @@ class AgentPickerField extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = enabled && agents.isNotEmpty;
     return BayaGlassSurface(
-      role: BayaGlassRole.control,
+      role: BayaGlassRole.card,
       radius: 16,
       elevated: false,
       child: InkWell(

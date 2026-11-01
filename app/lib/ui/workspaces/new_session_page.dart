@@ -382,7 +382,7 @@ class _WorkspacePickerField extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = enabled && workspaces.isNotEmpty;
     return BayaGlassSurface(
-      role: BayaGlassRole.control,
+      role: BayaGlassRole.card,
       radius: 16,
       elevated: false,
       child: InkWell(

@@ -46,9 +46,12 @@ void main() {
     },
   );
 
-  testWidgets('every material role uses the shared backdrop blur', (
-    tester,
-  ) async {
+  testWidgets('only the functional layer uses backdrop blur', (tester) async {
+    const blurredRoles = {
+      BayaGlassRole.navigation,
+      BayaGlassRole.control,
+      BayaGlassRole.overlay,
+    };
     for (final role in BayaGlassRole.values) {
       await tester.pumpWidget(
         MaterialApp(
@@ -64,19 +67,43 @@ void main() {
         ),
       );
 
-      expect(find.byType(BackdropFilter), findsOneWidget, reason: '$role');
+      final usesBlur = blurredRoles.contains(role);
+      expect(
+        find.byType(BackdropFilter),
+        usesBlur ? findsOneWidget : findsNothing,
+        reason: '$role',
+      );
       expect(
         find.byKey(const ValueKey('baya-glass-rim')),
-        findsOneWidget,
+        usesBlur ? findsOneWidget : findsNothing,
         reason: '$role',
       );
       expect(tester.takeException(), isNull);
     }
   });
 
-  testWidgets('brand tile is rendered as glass instead of an opaque image', (
-    tester,
-  ) async {
+  testWidgets('non-elevated overlays are quiet opaque panels', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildLightTheme(),
+        home: const Scaffold(
+          body: Center(
+            child: BayaGlassSurface(
+              role: BayaGlassRole.overlay,
+              elevated: false,
+              child: SizedBox(width: 96, height: 48),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(find.byKey(const ValueKey('baya-glass-rim')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('brand tile uses a crisp opaque tile', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildDarkTheme(),
@@ -87,8 +114,8 @@ void main() {
     );
 
     expect(find.byType(BayaGlassSurface), findsOneWidget);
-    expect(find.byType(BackdropFilter), findsOneWidget);
-    expect(find.byKey(const ValueKey('baya-glass-rim')), findsOneWidget);
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(find.byKey(const ValueKey('baya-glass-rim')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -113,9 +140,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('glass action buttons use a transparent native button fill', (
-    tester,
-  ) async {
+  testWidgets('primary action buttons use a solid accent fill', (tester) async {
     var taps = 0;
     await tester.pumpWidget(
       MaterialApp(
@@ -136,40 +161,38 @@ void main() {
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
     expect(
       button.style!.backgroundColor!.resolve(<WidgetState>{}),
-      Colors.transparent,
+      buildLightTheme().extension<AppColors>()!.accent,
     );
-    expect(find.byType(BayaGlassSurface), findsOneWidget);
-    expect(find.byType(BackdropFilter), findsOneWidget);
-    expect(find.byKey(const ValueKey('baya-glass-rim')), findsOneWidget);
+    expect(find.byType(BayaGlassSurface), findsNothing);
+    expect(find.byType(BackdropFilter), findsNothing);
 
     await tester.tap(find.byKey(const Key('glass-button')));
     expect(taps, 1);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'disabled glass action buttons keep their frosted control surface',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: buildDarkTheme(),
-          home: const Scaffold(
-            body: Center(
-              child: BayaGlassButton(onPressed: null, label: Text('Save')),
-            ),
+  testWidgets('disabled action buttons retain an accessible solid surface', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildDarkTheme(),
+        home: const Scaffold(
+          body: Center(
+            child: BayaGlassButton(onPressed: null, label: Text('Save')),
           ),
         ),
-      );
+      ),
+    );
 
-      final button = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(button.onPressed, isNull);
-      expect(find.byType(BayaGlassSurface), findsOneWidget);
-      expect(find.byType(BackdropFilter), findsOneWidget);
-      expect(
-        tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
-        0.58,
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(button.onPressed, isNull);
+    expect(find.byType(BayaGlassSurface), findsNothing);
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(
+      tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+      0.58,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

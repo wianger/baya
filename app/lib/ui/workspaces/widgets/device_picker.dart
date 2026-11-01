@@ -28,7 +28,7 @@ class DevicePickerField extends StatelessWidget {
     final active = enabled && devices.isNotEmpty;
     final statusColor = selected.online ? colors.success : colors.muted;
     return BayaGlassSurface(
-      role: BayaGlassRole.control,
+      role: BayaGlassRole.card,
       radius: 16,
       elevated: false,
       child: InkWell(

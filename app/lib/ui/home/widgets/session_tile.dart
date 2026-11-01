@@ -73,7 +73,7 @@ class SessionTile extends StatelessWidget {
               : null,
         ),
         child: BayaGlassSurface(
-          role: BayaGlassRole.control,
+          role: BayaGlassRole.card,
           radius: 19,
           elevated: false,
           emphasized: isSelected,
