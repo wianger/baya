@@ -34,7 +34,7 @@ Build and link the CLI:
 cd host
 pnpm install --ignore-scripts
 pnpm build
-pnpm link --global
+pnpm add --global .
 baya doctor
 ```
 
