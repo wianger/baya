@@ -46,10 +46,17 @@ baya status
 baya pair
 ```
 
-On Windows, install the per-user logon task:
+On Windows, install the per-user login startup entry. This does not require
+administrator rights:
 
 ```powershell
 baya install-service
+```
+
+To remove it:
+
+```powershell
+baya uninstall-service
 ```
 
 The host stores its state in `%USERPROFILE%\.baya` (or `$BAYA_HOME` when set).

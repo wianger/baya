@@ -23,6 +23,10 @@ baya install-service
 baya uninstall-service
 ```
 
+`install-service` writes the `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+entry `BayaHost` and starts the host through a hidden PowerShell process. It
+does not require administrator rights.
+
 `baya` without a command starts the foreground host using the current folder.
 `baya start` detaches a resident host and writes logs to
 `$BAYA_HOME/logs/host.log`. The control socket is loopback-only and protected by
