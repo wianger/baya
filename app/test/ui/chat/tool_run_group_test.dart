@@ -150,6 +150,78 @@ void main() {
     expect(find.text('gh pr review 371 --comment'), findsOneWidget);
   });
 
+  testWidgets('the consecutive tool picker floats away from screen edges', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const tools = [
+      ToolEvent(
+        id: 'tool-1',
+        toolCallId: 'cmd-1',
+        tool: 'command',
+        args: {'command': 'git status'},
+        status: ToolEventStatus.completed,
+      ),
+      ToolEvent(
+        id: 'tool-2',
+        toolCallId: 'cmd-2',
+        tool: 'command',
+        args: {'command': 'git diff'},
+        status: ToolEventStatus.completed,
+      ),
+    ];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildLightTheme(),
+        home: const Scaffold(body: ToolRunGroup(tools: tools)),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('tool-run-group')));
+    await tester.pumpAndSettle();
+
+    final sheet = tester.getRect(
+      find.byKey(const ValueKey('tool-run-list-sheet')),
+    );
+    expect(sheet.left, closeTo(12, .01));
+    expect(sheet.right, closeTo(378, .01));
+  });
+
+  testWidgets('single tool details float away from screen edges', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const tool = ToolEvent(
+      id: 'tool-1',
+      toolCallId: 'cmd-1',
+      tool: 'command',
+      args: {'command': 'git status'},
+      result: 'working tree clean',
+      status: ToolEventStatus.completed,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildLightTheme(),
+        home: const Scaffold(body: ToolRunGroup(tools: [tool])),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('tool-run-group')));
+    await tester.pumpAndSettle();
+
+    final sheet = tester.getRect(
+      find.byKey(const ValueKey('activity-detail-sheet')),
+    );
+    expect(sheet.left, closeTo(12, .01));
+    expect(sheet.right, closeTo(378, .01));
+  });
+
   testWidgets('a single tool opens its final detail without an extra chooser', (
     tester,
   ) async {

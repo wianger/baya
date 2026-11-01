@@ -91,6 +91,45 @@ class BayaActivityCard extends StatelessWidget {
   }
 }
 
+/// Keeps content-heavy activity sheets visually detached from the screen edge.
+///
+/// The card behaves like a floating note on phones and stops growing beyond a
+/// readable width on tablets, while still respecting landscape safe areas.
+class BayaFloatingActivitySurface extends StatelessWidget {
+  const BayaFloatingActivitySurface({
+    super.key,
+    required this.child,
+    this.surfaceKey,
+  });
+
+  final Widget child;
+  final Key? surfaceKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        heightFactor: 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: SizedBox(
+            width: double.infinity,
+            child: BayaGlassSurface(
+              key: surfaceKey,
+              role: BayaGlassRole.overlay,
+              radius: 30,
+              elevated: false,
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Shared detail sheet framing for one agent activity item.
 Future<void> showBayaActivityDetailSheet(
   BuildContext context, {
@@ -108,10 +147,8 @@ Future<void> showBayaActivityDetailSheet(
     constraints: BoxConstraints(
       maxHeight: MediaQuery.sizeOf(context).height * .82,
     ),
-    builder: (sheetContext) => BayaGlassSurface(
-      role: BayaGlassRole.overlay,
-      radius: 34,
-      elevated: false,
+    builder: (sheetContext) => BayaFloatingActivitySurface(
+      surfaceKey: const ValueKey('activity-detail-sheet'),
       child: SafeArea(
         top: false,
         child: Padding(

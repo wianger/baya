@@ -94,10 +94,8 @@ class ToolRunGroup extends StatelessWidget {
       ),
       builder: (sheetContext) {
         final colors = sheetContext.colors;
-        return BayaGlassSurface(
-          role: BayaGlassRole.overlay,
-          radius: 34,
-          elevated: false,
+        return BayaFloatingActivitySurface(
+          surfaceKey: const ValueKey('tool-run-list-sheet'),
           child: SafeArea(
             top: false,
             child: ConstrainedBox(
