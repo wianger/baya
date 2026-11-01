@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/workspaces/new_session_page.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
@@ -50,6 +51,13 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Open Pi here'), findsOneWidget);
+      final openButton = find.byKey(const ValueKey('new-session-open-button'));
+      expect(openButton, findsOneWidget);
+      expect(
+        find.ancestor(of: openButton, matching: find.byType(BayaGlassSurface)),
+        findsNothing,
+        reason: 'the action button must not be wrapped in a second glass panel',
+      );
       expect(find.text('Device'), findsOneWidget);
       expect(find.text('Workspace'), findsOneWidget);
       expect(find.text('Default'), findsOneWidget);

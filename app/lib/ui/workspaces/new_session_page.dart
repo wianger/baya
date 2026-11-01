@@ -344,11 +344,10 @@ class _NewSessionPageState extends State<NewSessionPage> {
             ],
           ),
         ),
-        BayaGlassSurface(
-          role: BayaGlassRole.navigation,
-          radius: 26,
-          padding: const EdgeInsets.all(20),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: BayaGlassButton(
+            key: const ValueKey('new-session-open-button'),
             onPressed: state.canOpen ? _open : null,
             icon: const Icon(LucideIcons.plus, size: 18),
             label: Text(
