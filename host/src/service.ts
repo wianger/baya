@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { win32 } from "node:path";
 
 export const BAYA_RUN_KEY =
   "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
@@ -22,7 +22,7 @@ export function buildWindowsStartupCommand(input: {
     powerShellLiteral(input.cwd),
   ].join(" ");
   const encoded = Buffer.from(script, "utf16le").toString("base64");
-  const powershell = join(
+  const powershell = win32.join(
     input.systemRoot,
     "System32",
     "WindowsPowerShell",
