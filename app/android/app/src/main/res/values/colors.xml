@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sketch branding: white icon tile with graphite line work, so the
+         pre-Flutter window matches the launcher surface. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="launch_background">#FFFFFF</color>
+</resources>

@@ -1,0 +1,140 @@
+name: app
+description: "Baya mobile client for computers running the standalone Baya host."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+version: 1.2.52+62
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  lucide_icons_flutter: ^3.1.14+2
+  cryptography: ^2.7.0
+  mobile_scanner: ^7.4.3
+  flutter_secure_storage: ^11.2.0
+  web_socket_channel: ^3.0.1
+  go_router: ^14.0.0
+
+  # State management + DI
+  auto_injector: ^2.0.5
+  provider: ^6.1.2
+
+  # Local session cache (per-peer chat history)
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Owner-key persistence through Android Block Store. Local path dependency.
+  remote_pi_identity:
+    path: packages/remote_pi_identity
+
+  # HTTP client for relay mesh metadata and the GitHub release feed.
+  dio: ^5.7.0
+
+  # On-device speech-to-text for voice input.
+  speech_to_text: ^7.5.0
+
+  # Deep-link to Android settings when microphone permission is denied.
+  app_settings: ^9.0.1
+
+  # Image attachments compressed on device before upload.
+  image_picker: ^1.2.4
+  flutter_image_compress: ^2.5.1
+
+  # Markdown rendering and external links.
+  gpt_markdown: ^1.1.7
+  url_launcher: ^6.3.3
+
+  # Read the installed version for the Android update channel.
+  package_info_plus: ^10.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Plan 29 — deterministic virtual clock for the voice elapsed-timer /
+  # 60s-cap tests (no real waiting). Already resolved transitively; pinned
+  # here so the direct import in test/ is stable across upgrades.
+  fake_async: ^1.3.1
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^6.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/Geist/OFL.txt
+    - assets/fonts/GeistMono/OFL.txt
+    - assets/fonts/PinyonScript/OFL.txt
+    - assets/fonts/SourceSerif4/OFL.txt
+
+  # Unmodified upstream static fonts; sources and checksums in assets/fonts.
+  fonts:
+    - family: Geist
+      fonts:
+        - asset: assets/fonts/Geist/Geist-Regular.ttf
+        - asset: assets/fonts/Geist/Geist-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Geist/Geist-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Geist/Geist-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Geist/Geist-Italic.ttf
+          style: italic
+    - family: Pinyon Script
+      fonts:
+        - asset: assets/fonts/PinyonScript/PinyonScript-Regular.ttf
+    - family: Source Serif 4
+      fonts:
+        - asset: assets/fonts/SourceSerif4/SourceSerif4-Regular.ttf
+        - asset: assets/fonts/SourceSerif4/SourceSerif4-It.ttf
+          style: italic
+        - asset: assets/fonts/SourceSerif4/SourceSerif4-Semibold.ttf
+          weight: 600
+        - asset: assets/fonts/SourceSerif4/SourceSerif4-SemiboldIt.ttf
+          weight: 600
+          style: italic
+        - asset: assets/fonts/SourceSerif4/SourceSerif4-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/SourceSerif4/SourceSerif4-BoldIt.ttf
+          weight: 700
+          style: italic
+    - family: Geist Mono
+      fonts:
+        - asset: assets/fonts/GeistMono/GeistMono-Regular.ttf
+        - asset: assets/fonts/GeistMono/GeistMono-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/GeistMono/GeistMono-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/GeistMono/GeistMono-Italic.ttf
+          style: italic

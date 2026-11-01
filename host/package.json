@@ -1,0 +1,60 @@
+{
+  "name": "@wianger/baya",
+  "version": "2.0.0",
+  "description": "Independent local agent host for Baya. Connects Pi, Codex, and DeepSeek to the Baya mobile client.",
+  "type": "module",
+  "main": "dist/cli.js",
+  "types": "dist/cli.d.ts",
+  "bin": {
+    "baya": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "keywords": [
+    "baya",
+    "coding-agent",
+    "remote-control",
+    "pi",
+    "codex",
+    "deepseek",
+    "mobile"
+  ],
+  "author": "wianger",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wianger/baya.git",
+    "directory": "host"
+  },
+  "bugs": {
+    "url": "https://github.com/wianger/baya/issues"
+  },
+  "homepage": "https://github.com/wianger/baya",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.22.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "^1.3.0",
+    "@noble/ed25519": "^3.1.0",
+    "qrcode-terminal": "^0.12.0",
+    "ws": "^8.21.0"
+  }
+}

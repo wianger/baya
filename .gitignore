@@ -1,0 +1,37 @@
+# Secrets and local pairing state
+.env
+.env.*
+*.jks
+*.keystore
+key.properties
+identity.json
+peers.json
+pair-request.json
+.baya/
+
+# Node/TypeScript
+host/node_modules/
+host/dist/
+host/*.tsbuildinfo
+**/.pnpm-store/
+
+# Flutter/Android
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/android/.gradle/
+app/android/local.properties
+app/android/app/build/
+app/packages/**/.dart_tool/
+
+# Rust
+relay/target/
+
+# Tooling and operating-system files
+.idea/
+.vscode/
+*.log
+*.tmp
+Thumbs.db
+.DS_Store
