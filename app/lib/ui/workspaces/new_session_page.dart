@@ -6,6 +6,7 @@ import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
 import 'package:app/ui/workspaces/widgets/agent_picker.dart';
 import 'package:app/ui/workspaces/widgets/device_picker.dart';
+import 'package:app/ui/workspaces/widgets/workspace_scope_field.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -381,71 +382,38 @@ class _WorkspacePickerField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = enabled && workspaces.isNotEmpty;
-    return BayaGlassSurface(
-      role: BayaGlassRole.card,
-      radius: 16,
-      elevated: false,
-      child: InkWell(
-        key: const ValueKey('new-session-workspace-picker'),
-        borderRadius: BorderRadius.circular(16),
-        onTap: !active
-            ? null
-            : () async {
-                final choice = await showModalBottomSheet<WorkspaceGroup>(
-                  context: context,
-                  isScrollControlled: true,
-                  useSafeArea: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => BayaGlassSurface(
-                    role: BayaGlassRole.overlay,
-                    radius: 34,
-                    elevated: false,
-                    child: _WorkspacePickerSheet(
-                      workspaces: workspaces,
-                      selected: selected,
-                      computerLabel: computerLabel,
-                    ),
-                  ),
-                );
-                if (!context.mounted || choice == null) return;
-                onChanged(choice);
-              },
-        child: InputDecorator(
-          decoration: InputDecoration(
-            labelText: 'Workspace',
-            enabled: active,
-            filled: false,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                LucideIcons.layoutDashboard,
-                size: 20,
-                color: context.colors.muted2,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  selected?.label ??
-                      (active
-                          ? 'Choose a workspace'
-                          : 'No workspaces on this computer'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.typo.sansBody.copyWith(
-                    color: active ? context.colors.text : context.colors.muted,
-                  ),
-                ),
-              ),
-              Icon(
-                LucideIcons.chevronDown,
-                size: 18,
-                color: context.colors.muted,
-              ),
-            ],
-          ),
-        ),
+    return WorkspaceScopeField(
+      interactionKey: const ValueKey('new-session-workspace-picker'),
+      label: 'Workspace',
+      value:
+          selected?.label ??
+          (active ? 'Choose a workspace' : 'No workspaces on this computer'),
+      leading: Icon(
+        LucideIcons.layoutDashboard,
+        size: 20,
+        color: context.colors.muted2,
       ),
+      enabled: active,
+      onTap: () async {
+        final choice = await showModalBottomSheet<WorkspaceGroup>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => BayaGlassSurface(
+            role: BayaGlassRole.overlay,
+            radius: 34,
+            elevated: false,
+            child: _WorkspacePickerSheet(
+              workspaces: workspaces,
+              selected: selected,
+              computerLabel: computerLabel,
+            ),
+          ),
+        );
+        if (!context.mounted || choice == null) return;
+        onChanged(choice);
+      },
     );
   }
 }

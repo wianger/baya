@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/workspaces/widgets/workspace_scope_field.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -27,103 +28,57 @@ class DevicePickerField extends StatelessWidget {
     final colors = context.colors;
     final active = enabled && devices.isNotEmpty;
     final statusColor = selected.online ? colors.success : colors.muted;
-    return BayaGlassSurface(
-      role: BayaGlassRole.card,
-      radius: 16,
-      elevated: false,
-      child: InkWell(
-        key: const ValueKey('new-session-device-picker'),
-        borderRadius: BorderRadius.circular(16),
-        onTap: !active
-            ? null
-            : () async {
-                final choice = await showModalBottomSheet<String>(
-                  context: context,
-                  isScrollControlled: true,
-                  useSafeArea: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => BayaGlassSurface(
-                    role: BayaGlassRole.overlay,
-                    radius: 34,
-                    elevated: false,
-                    child: _DevicePickerSheet(
-                      devices: devices,
-                      selected: selected,
-                    ),
-                  ),
-                );
-                if (!context.mounted || choice == null) return;
-                onChanged(choice);
-              },
-        child: InputDecorator(
-          decoration: InputDecoration(
-            labelText: 'Device',
-            enabled: active,
-            filled: false,
+    final statusLabel = selected.online ? 'Ready' : 'Offline';
+    return WorkspaceScopeField(
+      interactionKey: const ValueKey('new-session-device-picker'),
+      label: 'Device',
+      value: selected.label,
+      supporting: Row(
+        key: const ValueKey('new-session-device-status'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: statusColor,
+              shape: BoxShape.circle,
+            ),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: colors.selection,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(
-                  LucideIcons.monitor,
-                  size: 19,
-                  color: active ? colors.accent : colors.muted,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      selected.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.typo.sansBody.copyWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: active ? colors.text : colors.muted,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          selected.online ? 'Ready' : 'Offline',
-                          style: context.typo.sansBody.copyWith(
-                            fontSize: 12,
-                            color: statusColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                LucideIcons.chevronDown,
-                size: 18,
-                color: active ? colors.muted2 : colors.muted,
-              ),
-            ],
+          const SizedBox(width: 6),
+          Text(
+            statusLabel,
+            style: context.typo.sansBody.copyWith(
+              fontSize: 11.5,
+              height: 1.15,
+              color: statusColor,
+            ),
           ),
-        ),
+        ],
       ),
+      supportingSemantics: statusLabel,
+      leading: Icon(
+        LucideIcons.monitor,
+        size: 19,
+        color: active ? colors.accent : colors.muted,
+      ),
+      enabled: active,
+      onTap: () async {
+        final choice = await showModalBottomSheet<String>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => BayaGlassSurface(
+            role: BayaGlassRole.overlay,
+            radius: 34,
+            elevated: false,
+            child: _DevicePickerSheet(devices: devices, selected: selected),
+          ),
+        );
+        if (!context.mounted || choice == null) return;
+        onChanged(choice);
+      },
     );
   }
 }

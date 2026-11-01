@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/workspaces/widgets/workspace_scope_field.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -24,68 +25,36 @@ class AgentPickerField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = enabled && agents.isNotEmpty;
-    return BayaGlassSurface(
-      role: BayaGlassRole.card,
-      radius: 16,
-      elevated: false,
-      child: InkWell(
-        key: const ValueKey('workspace-agent-picker'),
-        borderRadius: BorderRadius.circular(16),
-        onTap: !active
-            ? null
-            : () async {
-                final choice = await showModalBottomSheet<WorkspaceAgent>(
-                  context: context,
-                  isScrollControlled: true,
-                  useSafeArea: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => BayaGlassSurface(
-                    role: BayaGlassRole.overlay,
-                    radius: 34,
-                    elevated: false,
-                    child: _AgentPickerSheet(
-                      agents: agents,
-                      selected: selected,
-                      computerLabel: computerLabel,
-                    ),
-                  ),
-                );
-                if (!context.mounted || choice == null) return;
-                onChanged(choice);
-              },
-        child: InputDecorator(
-          decoration: InputDecoration(
-            labelText: 'Agent',
-            enabled: active,
-            filled: false,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                LucideIcons.terminal,
-                size: 20,
-                color: context.colors.muted2,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  selected?.label ?? 'Choose an agent',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.typo.sansBody.copyWith(
-                    color: active ? context.colors.text : context.colors.muted,
-                  ),
-                ),
-              ),
-              Icon(
-                LucideIcons.chevronDown,
-                size: 18,
-                color: context.colors.muted,
-              ),
-            ],
-          ),
-        ),
+    return WorkspaceScopeField(
+      interactionKey: const ValueKey('workspace-agent-picker'),
+      label: 'Agent',
+      value: selected?.label ?? 'Choose an agent',
+      leading: Icon(
+        LucideIcons.terminal,
+        size: 20,
+        color: context.colors.muted2,
       ),
+      enabled: active,
+      onTap: () async {
+        final choice = await showModalBottomSheet<WorkspaceAgent>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => BayaGlassSurface(
+            role: BayaGlassRole.overlay,
+            radius: 34,
+            elevated: false,
+            child: _AgentPickerSheet(
+              agents: agents,
+              selected: selected,
+              computerLabel: computerLabel,
+            ),
+          ),
+        );
+        if (!context.mounted || choice == null) return;
+        onChanged(choice);
+      },
     );
   }
 }
