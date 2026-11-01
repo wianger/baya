@@ -30,9 +30,9 @@ class AgentMarkdown extends StatelessWidget {
     final colors = context.colors;
     final typo = context.typo;
     final base = typo.reading.copyWith(
-      fontSize: 15.5,
-      height: 1.56,
-      letterSpacing: -0.14,
+      fontSize: 15,
+      height: 1.5,
+      letterSpacing: -0.11,
     );
     // A calm iOS reading rhythm: sans-serif prose, tight display headings and
     // generous line height. Heading scale stays restrained on a phone.
@@ -110,15 +110,15 @@ class AgentMarkdown extends StatelessWidget {
       // The package defaults to generous list indents. Apple's transcript
       // style keeps bullets compact and aligns their text with the prose.
       unOrderedListBuilder: (context, child, config) => UnorderedListView(
-        spacing: 7,
-        padding: 6,
-        bulletSize: 4,
+        spacing: 5,
+        padding: 8,
+        bulletSize: 3.5,
         bulletColor: colors.accent,
         child: child,
       ),
       orderedListBuilder: (context, no, child, config) => OrderedListView(
         no: no,
-        spacing: 7,
+        spacing: 5,
         padding: 3,
         style: base.copyWith(
           fontSize: 14,
@@ -411,8 +411,8 @@ class _AppleMarkdownTable extends StatelessWidget {
                                 field.data.trim(),
                                 textAlign: field.alignment,
                                 style: style.copyWith(
-                                  fontSize: 13.5,
-                                  height: 1.4,
+                                  fontSize: 13,
+                                  height: 1.35,
                                   fontWeight: row.isHeader
                                       ? FontWeight.w600
                                       : FontWeight.w400,

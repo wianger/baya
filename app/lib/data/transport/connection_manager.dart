@@ -1192,9 +1192,6 @@ class ConnectionManager extends Service {
       (msg) {
         // Real inbound — the Pi is alive and reachable. Safe to reset
         // both the ping miss counter and the retry backoff.
-        final wasMissed = _missedPings;
-        if (wasMissed > 0) {}
-        if (_retryAttempt != 0) {}
         _missedPings = 0;
         _retryAttempt = 0;
       },

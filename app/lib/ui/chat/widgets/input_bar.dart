@@ -425,7 +425,10 @@ class _InputBarState extends State<InputBar> {
                           decoration: InputDecoration(
                             hintText: widget.streaming
                                 ? 'Steer current response…'
-                                : 'Reply to ${widget.agentLabel} or hold to talk…',
+                                : (widget.voice != null ||
+                                      widget.onStartAudio != null)
+                                ? 'Reply to ${widget.agentLabel} or hold to talk…'
+                                : 'Reply to ${widget.agentLabel}…',
                             hintStyle: context.typo.sansBody.copyWith(
                               color: colors.muted,
                             ),

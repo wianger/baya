@@ -470,9 +470,9 @@ class ChatPage extends StatelessWidget {
                   .where(
                     (m) =>
                         m is! ToolEvent ||
-                        m.status == ToolEventStatus.pending &&
+                        (m.status == ToolEventStatus.pending &&
                             m.args is Map &&
-                            m.args['approval_required'] == true,
+                            m.args['approval_required'] == true),
                   )
                   .toList()
             : messages;

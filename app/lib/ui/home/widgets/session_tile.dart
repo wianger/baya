@@ -152,23 +152,33 @@ class _PresenceDot extends StatelessWidget {
         : isLive
         ? colors.success
         : colors.muted;
-    return AnimatedContainer(
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : BayaMotion.standard,
-      curve: BayaMotion.enter,
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-        border: Border.all(
-          color: colors.surface.withValues(alpha: 0.9),
-          width: 1.5,
+    final label = isWorking
+        ? 'Agent working'
+        : isReconnecting
+        ? 'Reconnecting'
+        : isLive
+        ? 'Online'
+        : 'Offline';
+    return Semantics(
+      label: label,
+      child: AnimatedContainer(
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : BayaMotion.standard,
+        curve: BayaMotion.enter,
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color,
+          border: Border.all(
+            color: colors.surface.withValues(alpha: 0.9),
+            width: 1.5,
+          ),
+          boxShadow: isWorking
+              ? [BoxShadow(color: color.withValues(alpha: 0.34), blurRadius: 8)]
+              : null,
         ),
-        boxShadow: isWorking
-            ? [BoxShadow(color: color.withValues(alpha: 0.34), blurRadius: 8)]
-            : null,
       ),
     );
   }

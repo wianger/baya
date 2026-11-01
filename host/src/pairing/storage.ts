@@ -571,8 +571,10 @@ export function addPeer(record: PeerRecord): Promise<void> {
     } else {
       peers.push(record);
     }
-    await mkdir(dirname(PEERS_PATH), { recursive: true });
-    await writeFile(PEERS_PATH, JSON.stringify({ peers }, null, 2));
+    await mkdir(dirname(PEERS_PATH), { recursive: true, mode: 0o700 });
+    await writeFile(PEERS_PATH, JSON.stringify({ peers }, null, 2), {
+      mode: 0o600,
+    });
     // A successful re-pair is a new storage provenance event even when the
     // record bytes happen to be identical.
     _invalidateOwnerSlot(record.remote_epk);
@@ -644,7 +646,7 @@ export function conditionalRemovePeer(
       (peer as { remote_epk?: unknown }).remote_epk !== remoteEpk,
     );
     if (filtered.length === peers.length) return { outcome: "not_found" };
-    await mkdir(dirname(PEERS_PATH), { recursive: true });
+    await mkdir(dirname(PEERS_PATH), { recursive: true, mode: 0o700 });
     // No await may intervene between the final token/authority checks and
     // synchronous write, preserving the lane's fail-closed commit boundary.
     if (_tokenForSlot(slot) !== expectedToken) return { outcome: "stale" };
@@ -653,7 +655,9 @@ export function conditionalRemovePeer(
       try { authorized = canCommit(); } catch { return { outcome: "no_authority" }; }
       if (!authorized) return { outcome: "no_authority" };
     }
-    writeFileSync(PEERS_PATH, JSON.stringify({ peers: filtered }, null, 2));
+    writeFileSync(PEERS_PATH, JSON.stringify({ peers: filtered }, null, 2), {
+      mode: 0o600,
+    });
     return { outcome: "removed", nextToken: _invalidateOwnerSlot(remoteEpk) };
   });
 }
@@ -680,10 +684,10 @@ export function removePeer(
       let authorized = false;
       try { authorized = canCommit(); } catch { return false; }
       if (!authorized) return false;
-      writeFileSync(PEERS_PATH, serialized);
+      writeFileSync(PEERS_PATH, serialized, { mode: 0o600 });
     } else {
       // Manual removals keep the established asynchronous storage behavior.
-      await writeFile(PEERS_PATH, serialized);
+      await writeFile(PEERS_PATH, serialized, { mode: 0o600 });
     }
     const removed = true;
     if (removed) _invalidateOwnerSlot(remoteEpk);
