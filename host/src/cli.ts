@@ -272,9 +272,10 @@ async function runForeground(args: ParsedArgs): Promise<void> {
     ...(name ? { name } : {}),
   });
   control = new ControlServer(manager, () => void shutdown());
+  // Before the control socket answers, so status knows where phones connect.
+  await startTailnet(manager, control);
   const info = await control.start();
   out(`[baya] Host ${info.pid} online; state ${BAYA_HOME}`);
-  await startTailnet(manager, control);
   if (control.direct && process.stdout.isTTY && (await listPeers()).length === 0) {
     out("", "No phone is paired yet. Scan this code with the Baya app:");
     await printPairingCode(manager.pair());
