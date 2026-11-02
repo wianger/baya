@@ -65,7 +65,7 @@ interface HostStatus {
   pid: number;
   version: string;
   started_at: number;
-  relay: { url: string; connected: boolean; hosted?: boolean };
+  relay: { url: string; connected: boolean };
   tailnet: string | null;
   sessions: SessionStatus[];
 }
@@ -175,9 +175,7 @@ async function printStatus(status: HostStatus): Promise<void> {
   out(
     ok(`Host running ${dim(`pid ${status.pid} · up ${duration(Date.now() - status.started_at)}`)}`),
     status.relay.connected
-      ? ok(
-          `Relay connected ${dim(status.relay.url)}${status.relay.hosted ? dim(" · served by this host") : ""}`,
-        )
+      ? ok(`Relay connected ${dim(status.relay.url)}`)
       : warn(`Relay not connected yet ${dim(status.relay.url)}`),
     peers.length > 0
       ? ok(`${peers.length} phone${peers.length === 1 ? "" : "s"} paired`)

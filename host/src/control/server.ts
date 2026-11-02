@@ -4,7 +4,6 @@ import { createServer, type Server, type Socket } from "node:net";
 import { dirname, join } from "node:path";
 import { BAYA_HOME, resolveRelayUrl } from "../config.ts";
 import type { BayaManager } from "../host/manager.ts";
-import { hubRunning } from "../hub/embedded.ts";
 import { packageVersion } from "../runtime/version.ts";
 import { relayHub } from "../transport/relay_hub.ts";
 import type { ControlInfo, ControlRequest, ControlResponse } from "./protocol.ts";
@@ -122,11 +121,7 @@ export class ControlServer {
           pid: process.pid,
           version: packageVersion(),
           started_at: this.startedAt,
-          relay: {
-            url: resolveRelayUrl().url,
-            connected: relayHub().connected,
-            hosted: hubRunning(),
-          },
+          relay: { url: resolveRelayUrl().url, connected: relayHub().connected },
           tailnet: this.tailnetName,
           sessions: this.manager.list(),
         };

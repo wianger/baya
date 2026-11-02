@@ -97,31 +97,20 @@ updates.
 
 ## Relay
 
-Phones and hosts meet at a relay, and every Baya host has one built in.
-When the relay address is local (`baya relay http://127.0.0.1:3000`), the
-first Baya on the machine to bind that port serves it and the others connect
-to it; if it exits, the next one takes over. With Tailscale, expose it once:
-
-```powershell
-tailscale serve --bg http://127.0.0.1:3000
-baya relay http://127.0.0.1:3000 --public https://<machine>.<tailnet>.ts.net
-```
-
-The phone then talks straight to your computer, with no relay service to run.
-
-For computers that are not on a tailnet with the phone, run the standalone
-relay in `relay/` on a reachable server:
+The default configuration uses the existing compatible public relay. For
+private infrastructure, build the included relay and point Baya at it:
 
 ```powershell
 docker build -t baya-relay relay
 docker run -d --name baya-relay -p 3000:3000 -v baya-data:/data baya-relay
-baya relay https://relay.example.com
+baya relay http://127.0.0.1:3000 --public https://relay.your-tailnet.ts.net
 ```
 
-Both speak the same protocol. Messages between the phone and the computer
-are end-to-end encrypted (X25519 + ChaCha20-Poly1305, keyed by the paired
-Ed25519 identities), so a relay only routes ciphertext and cannot forge
-messages. See [PROTOCOL.md](PROTOCOL.md#end-to-end-encryption-v1).
+Messages between the phone and the computer are end-to-end encrypted
+(X25519 + ChaCha20-Poly1305, keyed by the paired Ed25519 identities), so the
+relay only routes ciphertext and cannot forge messages. Update the host and
+the app together: each refuses unencrypted traffic. See
+[PROTOCOL.md](PROTOCOL.md#end-to-end-encryption-v1).
 
 ## Validation
 

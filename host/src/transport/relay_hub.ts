@@ -1,5 +1,4 @@
 import { resolveRelayUrl, toWebSocketUrl } from "../config.ts";
-import { serveHubIfFree } from "../hub/embedded.ts";
 import { getOrCreateEd25519Keypair } from "../pairing/storage.ts";
 import { RelayClient, type RoomMeta } from "./relay_client.ts";
 
@@ -143,14 +142,10 @@ class Connection {
     if (this.connecting || this.client || this.rooms.size === 0) return;
     this.connecting = true;
     const helloRoom = [...this.rooms][0]!;
-    const url = resolveRelayUrl().url;
     let client: RelayClient | null = null;
     try {
-      // A local relay address nobody holds: become the relay. Binding is the
-      // election — the port is exclusive even across Windows and WSL.
-      await serveHubIfFree(url);
       const identity = await getOrCreateEd25519Keypair();
-      client = new RelayClient(toWebSocketUrl(url), identity);
+      client = new RelayClient(toWebSocketUrl(resolveRelayUrl().url), identity);
       await client.connect({
         roomId: helloRoom,
         roomMeta: this.hub.entry(helloRoom)?.meta ?? metaFallback(helloRoom),
