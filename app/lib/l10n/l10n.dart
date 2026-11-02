@@ -22,3 +22,9 @@ AppLocalizations get appL10n {
       ? lookupAppLocalizations(locale)
       : _english;
 }
+
+extension SessionStatusLabel on AppLocalizations {
+  /// One label for a session's live state, used by every list and header.
+  String sessionStatus({required bool working, required bool online}) =>
+      working ? statusWorking : (online ? statusReady : statusOffline);
+}
