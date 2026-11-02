@@ -1,14 +1,16 @@
-import { PairingService } from "../pairing/service.js";
-import type { ClientMessage, ServerMessage } from "../protocol/types.js";
-import { roomIdFor, sessionKeyForId } from "../rooms.js";
-import type { PeerChannel } from "../transport/peer_channel.js";
-import { OwnerRelayHost } from "../transport/owner_host.js";
-import { packageVersion } from "../runtime/version.js";
-import { listSessions, type BayaSessionRecord } from "../session/registry.js";
-import type { AgentAdapter } from "../adapters/types.js";
-import { handleWorkspaceRequest, type OpenWorkspace } from "../workspace/service.js";
+import type { AgentAdapter } from "../adapters/types.ts";
+import { PairingService } from "../pairing/service.ts";
+import type { ClientMessage, ServerMessage } from "../protocol/types.ts";
+import { roomIdFor, sessionKeyForId } from "../rooms.ts";
+import { packageVersion } from "../runtime/version.ts";
+import { type BayaSessionRecord, listSessions } from "../session/registry.ts";
+import { OwnerRelayHost } from "../transport/owner_host.ts";
+import type { PeerChannel } from "../transport/peer_channel.ts";
+import { handleWorkspaceRequest, type OpenWorkspace } from "../workspace/service.ts";
 
-export function roomIdForBayaSession(session: Pick<BayaSessionRecord, "id" | "cwd" | "agent">): string {
+export function roomIdForBayaSession(
+  session: Pick<BayaSessionRecord, "id" | "cwd" | "agent">,
+): string {
   return roomIdFor(session.cwd, `${session.agent}:${session.id}`);
 }
 
@@ -40,11 +42,14 @@ export class ManagedSessionHost {
   private stopping = false;
   private busy = false;
 
-  constructor(
-    readonly record: BayaSessionRecord,
-    private readonly adapter: AgentAdapter,
-    private readonly openWorkspace: OpenWorkspace,
-  ) {
+  readonly record: BayaSessionRecord;
+  private readonly adapter: AgentAdapter;
+  private readonly openWorkspace: OpenWorkspace;
+
+  constructor(record: BayaSessionRecord, adapter: AgentAdapter, openWorkspace: OpenWorkspace) {
+    this.record = record;
+    this.adapter = adapter;
+    this.openWorkspace = openWorkspace;
     this.roomId = roomIdForBayaSession(record);
     this.relay = new OwnerRelayHost({
       roomId: this.roomId,

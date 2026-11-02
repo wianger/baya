@@ -1,13 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { connect } from "node:net";
-import { randomUUID } from "node:crypto";
-import type {
-  ControlCommand,
-  ControlInfo,
-  ControlRequest,
-  ControlResponse,
-} from "./protocol.js";
-import { controlInfoPath } from "./server.js";
+import type { ControlCommand, ControlInfo, ControlRequest, ControlResponse } from "./protocol.ts";
+import { controlInfoPath } from "./server.ts";
 
 export function readControlInfo(): ControlInfo | null {
   if (!existsSync(controlInfoPath())) return null;
@@ -17,7 +12,8 @@ export function readControlInfo(): ControlInfo | null {
       typeof value.port !== "number" ||
       typeof value.token !== "string" ||
       typeof value.pid !== "number"
-    ) return null;
+    )
+      return null;
     return {
       port: value.port,
       token: value.token,
@@ -50,7 +46,7 @@ export async function controlCall<T = unknown>(
       reject(new Error("Baya control request timed out."));
     }, timeoutMs);
     socket.setEncoding("utf8");
-    socket.on("connect", () => socket.write(JSON.stringify(request) + "\n"));
+    socket.on("connect", () => socket.write(`${JSON.stringify(request)}\n`));
     socket.on("data", (chunk: string) => {
       buffer += chunk;
       const newline = buffer.indexOf("\n");

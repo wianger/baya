@@ -43,6 +43,7 @@ class _FakeSecureStorage implements FlutterSecureStorage {
       _store[key] = value;
     }
   }
+
   @override
   Future<void> delete({
     required String key,
@@ -113,24 +114,27 @@ void main() {
       expect(bridge.currentOwnerPk, isNotNull);
     });
 
-    test('boot loads an existing identity even with a false pre-flight',
-        () async {
-      final id = await _freshIdentity();
-      final store = _FalsePreflightStore(InMemoryOwnerIdentityStore(initial: id));
-      final bridge = OwnerIdentityBridge(
-        store,
-        PairingStorage(_FakeSecureStorage()),
-      );
-
-      final result = await bridge.boot();
-
-      expect(result, isA<IdentityReady>());
-      expect((result as IdentityReady).generated, isFalse);
-      expect(bridge.currentOwnerPk, id.ownerPk);
-    });
-
     test(
-        'boot still gates when the real load/save path throws '
+      'boot loads an existing identity even with a false pre-flight',
+      () async {
+        final id = await _freshIdentity();
+        final store = _FalsePreflightStore(
+          InMemoryOwnerIdentityStore(initial: id),
+        );
+        final bridge = OwnerIdentityBridge(
+          store,
+          PairingStorage(_FakeSecureStorage()),
+        );
+
+        final result = await bridge.boot();
+
+        expect(result, isA<IdentityReady>());
+        expect((result as IdentityReady).generated, isFalse);
+        expect(bridge.currentOwnerPk, id.ownerPk);
+      },
+    );
+
+    test('boot still gates when the real load/save path throws '
         'SyncUnavailable (Android Block Store parity)', () async {
       final store = InMemoryOwnerIdentityStore(syncAvailable: false);
       final bridge = OwnerIdentityBridge(
@@ -146,8 +150,7 @@ void main() {
   });
 
   group('OwnerIdentityBridge.startWatching — initial emit race fix', () {
-    test(
-        'subscribing BEFORE boot() does NOT wipe peers (initial emit adopted '
+    test('subscribing BEFORE boot() does NOT wipe peers (initial emit adopted '
         'silently)', () async {
       // Reproduce the production race: router calls startWatching
       // fire-and-forget before boot() has populated _current. The
@@ -156,12 +159,14 @@ void main() {
       final id = await _freshIdentity();
       final store = InMemoryOwnerIdentityStore(initial: id);
       final storage = PairingStorage(_FakeSecureStorage());
-      await storage.savePeer(const PeerRecord(
-        remoteEpk: 'epk-precious',
-        sessionName: 'pi',
-        relayUrl: 'https://r',
-        pairedAt: '2026-05-15T10:30:00Z',
-      ));
+      await storage.savePeer(
+        const PeerRecord(
+          remoteEpk: 'epk-precious',
+          sessionName: 'pi',
+          relayUrl: 'https://r',
+          pairedAt: '2026-05-15T10:30:00Z',
+        ),
+      );
       final bridge = OwnerIdentityBridge(store, storage);
 
       var resetCalls = 0;
@@ -182,8 +187,7 @@ void main() {
       expect(resetCalls, 0);
     });
 
-    test(
-        'after the initial emit was adopted, a *different* owner_pk DOES '
+    test('after the initial emit was adopted, a *different* owner_pk DOES '
         'wipe + reset', () async {
       // Confirm the regression fix didn't soften the legitimate
       // "Owner key rotated via sync" path.
@@ -191,54 +195,68 @@ void main() {
       final second = await _freshIdentity();
       final store = InMemoryOwnerIdentityStore(initial: first);
       final storage = PairingStorage(_FakeSecureStorage());
-      await storage.savePeer(const PeerRecord(
-        remoteEpk: 'epk-old',
-        sessionName: 'pi',
-        relayUrl: 'https://r',
-        pairedAt: '2026-05-15T10:30:00Z',
-      ));
+      await storage.savePeer(
+        const PeerRecord(
+          remoteEpk: 'epk-old',
+          sessionName: 'pi',
+          relayUrl: 'https://r',
+          pairedAt: '2026-05-15T10:30:00Z',
+        ),
+      );
       final bridge = OwnerIdentityBridge(store, storage);
 
       final resetCompleter = Completer<void>();
-      bridge.startWatching(onReset: () async {
-        if (!resetCompleter.isCompleted) resetCompleter.complete();
-      });
+      bridge.startWatching(
+        onReset: () async {
+          if (!resetCompleter.isCompleted) resetCompleter.complete();
+        },
+      );
 
       // First emit (initial) — adopted silently.
       await store.save(first);
       await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(await storage.listPeers(), hasLength(1),
-          reason: 'initial emit must not wipe');
+      expect(
+        await storage.listPeers(),
+        hasLength(1),
+        reason: 'initial emit must not wipe',
+      );
 
       // Now a real key rotation — different bytes. wipeAll fires.
       await store.save(second);
       await resetCompleter.future.timeout(const Duration(seconds: 1));
-      expect(await storage.listPeers(), isEmpty,
-          reason: 'real key rotation must wipe');
+      expect(
+        await storage.listPeers(),
+        isEmpty,
+        reason: 'real key rotation must wipe',
+      );
     });
 
-    test('same-pk re-emit after adoption is a noop (no wipe, no reset)',
-        () async {
-      final id = await _freshIdentity();
-      final store = InMemoryOwnerIdentityStore(initial: id);
-      final storage = PairingStorage(_FakeSecureStorage());
-      await storage.savePeer(const PeerRecord(
-        remoteEpk: 'epk-stable',
-        sessionName: 'pi',
-        relayUrl: 'https://r',
-        pairedAt: '2026-05-15T10:30:00Z',
-      ));
-      final bridge = OwnerIdentityBridge(store, storage);
-      var resets = 0;
-      bridge.startWatching(onReset: () async => resets++);
+    test(
+      'same-pk re-emit after adoption is a noop (no wipe, no reset)',
+      () async {
+        final id = await _freshIdentity();
+        final store = InMemoryOwnerIdentityStore(initial: id);
+        final storage = PairingStorage(_FakeSecureStorage());
+        await storage.savePeer(
+          const PeerRecord(
+            remoteEpk: 'epk-stable',
+            sessionName: 'pi',
+            relayUrl: 'https://r',
+            pairedAt: '2026-05-15T10:30:00Z',
+          ),
+        );
+        final bridge = OwnerIdentityBridge(store, storage);
+        var resets = 0;
+        bridge.startWatching(onReset: () async => resets++);
 
-      await store.save(id); // initial-emit adoption
-      await store.save(id); // same-pk echo — must be ignored
-      await store.save(id);
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        await store.save(id); // initial-emit adoption
+        await store.save(id); // same-pk echo — must be ignored
+        await store.save(id);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      expect(await storage.listPeers(), hasLength(1));
-      expect(resets, 0);
-    });
+        expect(await storage.listPeers(), hasLength(1));
+        expect(resets, 0);
+      },
+    );
   });
 }

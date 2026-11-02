@@ -3,13 +3,9 @@ import type {
   SessionFilesRequest,
   WorkspaceReply,
   WorkspaceRequest,
-} from "../workspace/types.js";
+} from "../workspace/types.ts";
 
-export type PairErrorCode =
-  | "token_expired"
-  | "token_consumed"
-  | "token_unknown"
-  | "internal_error";
+export type PairErrorCode = "token_expired" | "token_consumed" | "token_unknown" | "internal_error";
 
 export type StreamingBehavior = "steer";
 
@@ -30,12 +26,7 @@ export type QueuedMessageItem = {
 // literal). pi-ask's richer schema (multi/preview/notes) rides in an optional
 // `ask` envelope; strict clients ignore it. Inert when pi-ask is absent.
 
-export type ExtensionUiMethod =
-  | "select"
-  | "confirm"
-  | "input"
-  | "editor"
-  | "notify";
+export type ExtensionUiMethod = "select" | "confirm" | "input" | "editor" | "notify";
 
 export type AskQuestionWireType = "single" | "multi" | "preview";
 
@@ -367,7 +358,14 @@ export type ServerMessage =
   // highlight the selected row without a second round-trip.
   | { type: "action_ok"; in_reply_to: string; action: ActionName }
   | { type: "action_error"; in_reply_to: string; action: ActionName; error: string }
-  | { type: "context_usage"; in_reply_to: string; tokens: number | null; context_window: number | null; percent: number | null; source: "pi" | "codex" | "deepseek" }
+  | {
+      type: "context_usage";
+      in_reply_to: string;
+      tokens: number | null;
+      context_window: number | null;
+      percent: number | null;
+      source: "pi" | "codex" | "deepseek";
+    }
   | { type: "models_list"; in_reply_to: string; models: WireModel[]; current?: WireModel }
   | {
       type: "commands_list";
@@ -416,7 +414,14 @@ export type ActionName =
  * offers an effort that the harness will reject.
  */
 export type ThinkingLevel =
-  | "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max"
+  | "ultra";
 
 /**
  * Plan/28 — Wire shape for one model entry in the app's model picker.

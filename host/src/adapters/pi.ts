@@ -1,18 +1,17 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { spawnPlan } from "../process/spawn.js";
-import { historyFrames } from "../protocol/history.js";
-import { thinkingLevelsFromMap } from "../protocol/thinking.js";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { spawnPlan } from "../process/spawn.ts";
+import { historyFrames } from "../protocol/history.ts";
+import { thinkingLevelsFromMap } from "../protocol/thinking.ts";
 import type {
   ClientMessage,
   ExtensionUiRequestWire,
-  ServerMessage,
   SessionHistoryEvent,
   Usage,
   WireImage,
   WireModel,
-} from "../protocol/types.js";
-import type { PeerChannel } from "../transport/peer_channel.js";
-import type { AgentAdapter, AdapterOptions } from "./types.js";
+} from "../protocol/types.ts";
+import type { PeerChannel } from "../transport/peer_channel.ts";
+import type { AdapterOptions, AgentAdapter } from "./types.ts";
 
 type JsonObject = Record<string, unknown>;
 type RpcId = string;
@@ -25,7 +24,7 @@ interface RpcPending {
 
 function record(value: unknown): JsonObject {
   return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? value as JsonObject
+    ? (value as JsonObject)
     : {};
 }
 
@@ -76,10 +75,12 @@ function imageWire(content: unknown): WireImage[] {
   return array(content).flatMap((block): WireImage[] => {
     const item = record(block);
     if (item["type"] !== "image") return [];
-    return [{
-      data: stringValue(item["data"]),
-      mime: stringValue(item["mimeType"]) || "image/jpeg",
-    }];
+    return [
+      {
+        data: stringValue(item["data"]),
+        mime: stringValue(item["mimeType"]) || "image/jpeg",
+      },
+    ];
   });
 }
 
@@ -93,16 +94,17 @@ class PiRpcClient {
   private sequence = 0;
   private closing = false;
   private readonly pending = new Map<RpcId, RpcPending>();
+  private readonly options: {
+    cwd: string;
+    name: string;
+    sessionId: string;
+    onEvent: (event: JsonObject) => void;
+    onClosed: (error: Error) => void;
+  };
 
-  constructor(
-    private readonly options: {
-      cwd: string;
-      name: string;
-      sessionId: string;
-      onEvent: (event: JsonObject) => void;
-      onClosed: (error: Error) => void;
-    },
-  ) {}
+  constructor(options: PiRpcClient["options"]) {
+    this.options = options;
+  }
 
   async start(): Promise<void> {
     if (this.child) return;
@@ -127,11 +129,7 @@ class PiRpcClient {
     });
   }
 
-  request(
-    type: string,
-    payload: JsonObject = {},
-    timeoutMs = 30_000,
-  ): Promise<unknown> {
+  request(type: string, payload: JsonObject = {}, timeoutMs = 30_000): Promise<unknown> {
     if (!this.child?.stdin.writable) {
       return Promise.reject(new Error("Pi RPC is not connected."));
     }
@@ -143,7 +141,7 @@ class PiRpcClient {
       }, timeoutMs);
       this.pending.set(id, { resolve, reject, timer });
       try {
-        this.child!.stdin.write(JSON.stringify({ id, type, ...payload }) + "\n");
+        this.child!.stdin.write(`${JSON.stringify({ id, type, ...payload })}\n`);
       } catch (error) {
         clearTimeout(timer);
         this.pending.delete(id);
@@ -154,7 +152,7 @@ class PiRpcClient {
 
   write(payload: JsonObject): void {
     if (!this.child?.stdin.writable) return;
-    this.child.stdin.write(JSON.stringify(payload) + "\n");
+    this.child.stdin.write(`${JSON.stringify(payload)}\n`);
   }
 
   close(): void {
@@ -248,15 +246,7 @@ export type RpcExtensionUiResponse =
  * Pi installation used interactively remains independent from Baya.
  */
 export function piSpawnArgs(options: PiSpawnOptions): string[] {
-  return [
-    "--mode",
-    "rpc",
-    "--approve",
-    "--session-id",
-    options.sessionId,
-    "--name",
-    options.name,
-  ];
+  return ["--mode", "rpc", "--approve", "--session-id", options.sessionId, "--name", options.name];
 }
 
 export function piExtensionUiResponse(
@@ -278,11 +268,7 @@ export function piExtensionUiResponse(
 
 export interface PiRpcPort {
   start(): Promise<void>;
-  request(
-    type: string,
-    payload?: Record<string, unknown>,
-    timeoutMs?: number,
-  ): Promise<unknown>;
+  request(type: string, payload?: Record<string, unknown>, timeoutMs?: number): Promise<unknown>;
   write(payload: Record<string, unknown>): void;
   close(): void;
 }
@@ -300,12 +286,14 @@ export class PiAdapter implements AgentAdapter {
   private model = "";
   private lastUsage: Usage | undefined;
 
-  constructor(
-    private readonly options: AdapterOptions,
-    rpc?: PiRpcPort,
-  ) {
+  private readonly options: AdapterOptions;
+
+  constructor(options: AdapterOptions, rpc?: PiRpcPort) {
+    this.options = options;
     this.nativeSessionId = options.nativeSessionId || crypto.randomUUID();
-    this.rpc = rpc ?? new PiRpcClient({
+    this.rpc =
+      rpc ??
+      new PiRpcClient({
         cwd: options.cwd,
         name: options.name,
         sessionId: this.nativeSessionId,
@@ -350,10 +338,12 @@ export class PiAdapter implements AgentAdapter {
           return;
         case "model_set":
           {
-            const model = this.modelFromState({ model: await this.rpc.request("set_model", {
-              provider: message.provider,
-              modelId: message.model_id,
-            }) });
+            const model = this.modelFromState({
+              model: await this.rpc.request("set_model", {
+                provider: message.provider,
+                modelId: message.model_id,
+              }),
+            });
             if (!model) throw new Error("Pi changed models but returned no model metadata.");
             this.model = model.name;
             this.options.onModel?.(this.model);
@@ -469,11 +459,19 @@ export class PiAdapter implements AgentAdapter {
     });
     let result: JsonObject;
     try {
-      result = record(await this.rpc.request("prompt", {
-        message: message.text,
-        ...(images.length ? { images } : {}),
-        ...(message.streaming_behavior ? { streamingBehavior: message.streaming_behavior } : {}),
-      }, 120_000));
+      result = record(
+        await this.rpc.request(
+          "prompt",
+          {
+            message: message.text,
+            ...(images.length ? { images } : {}),
+            ...(message.streaming_behavior
+              ? { streamingBehavior: message.streaming_behavior }
+              : {}),
+          },
+          120_000,
+        ),
+      );
     } catch (error) {
       // Every phone already saw the echo above and is showing "Working";
       // tell all of them, not just the sender, that the turn never started.
@@ -497,9 +495,7 @@ export class PiAdapter implements AgentAdapter {
       in_reply_to: requestId,
       session_started_at: this.sessionStartedAt,
       events: piHistoryEvents(array(data["messages"])),
-      streaming: this.currentText
-        ? { in_reply_to: this.userId, text: this.currentText }
-        : null,
+      streaming: this.currentText ? { in_reply_to: this.userId, text: this.currentText } : null,
       truncated: false,
     });
     for (const frame of frames) sender.send(frame);
@@ -662,9 +658,7 @@ export class PiAdapter implements AgentAdapter {
         id,
         method,
         title: stringValue(event["title"]),
-        ...(typeof event["placeholder"] === "string"
-          ? { placeholder: event["placeholder"] }
-          : {}),
+        ...(typeof event["placeholder"] === "string" ? { placeholder: event["placeholder"] } : {}),
       };
     }
     if (method === "editor") {
@@ -683,9 +677,7 @@ export class PiAdapter implements AgentAdapter {
         id,
         method,
         message: stringValue(event["message"]),
-        ...(type === "info" || type === "warning" || type === "error"
-          ? { notify_type: type }
-          : {}),
+        ...(type === "info" || type === "warning" || type === "error" ? { notify_type: type } : {}),
       };
     }
     return null;
@@ -713,18 +705,17 @@ export class PiAdapter implements AgentAdapter {
       const model = record(raw);
       if (typeof model["id"] !== "string") return [];
       const reasoning = model["reasoning"] === true;
-      return [{
-        id: model["id"],
-        name: stringValue(model["name"]) || model["id"],
-        provider: stringValue(model["provider"]) || "pi",
-        reasoning,
-        thinking_levels: thinkingLevelsFromMap(
-          model["thinkingLevelMap"],
+      return [
+        {
+          id: model["id"],
+          name: stringValue(model["name"]) || model["id"],
+          provider: stringValue(model["provider"]) || "pi",
           reasoning,
-        ),
-        context_window: numberValue(model["contextWindow"]),
-        vision: array(model["input"]).includes("image"),
-      }];
+          thinking_levels: thinkingLevelsFromMap(model["thinkingLevelMap"], reasoning),
+          context_window: numberValue(model["contextWindow"]),
+          vision: array(model["input"]).includes("image"),
+        },
+      ];
     });
     sender.send({
       type: "models_list",
@@ -736,27 +727,33 @@ export class PiAdapter implements AgentAdapter {
 
   private async commands(sender: PeerChannel, requestId: string): Promise<void> {
     const data = record(await this.rpc.request("get_commands", {}, 60_000));
-    const commands = array(data["commands"]).flatMap((raw): Array<{
-      name: string;
-      description?: string;
-      source: "extension" | "prompt" | "skill";
-    }> => {
-      const item = record(raw);
-      const source = item["source"];
-      if (
-        typeof item["name"] !== "string" ||
-        (source !== "extension" && source !== "prompt" && source !== "skill")
-      ) {
-        return [];
-      }
-      return [{
-        name: item["name"],
-        ...(typeof item["description"] === "string"
-          ? { description: item["description"] }
-          : {}),
-        source,
-      }];
-    });
+    const commands = array(data["commands"]).flatMap(
+      (
+        raw,
+      ): Array<{
+        name: string;
+        description?: string;
+        source: "extension" | "prompt" | "skill";
+      }> => {
+        const item = record(raw);
+        const source = item["source"];
+        if (
+          typeof item["name"] !== "string" ||
+          (source !== "extension" && source !== "prompt" && source !== "skill")
+        ) {
+          return [];
+        }
+        return [
+          {
+            name: item["name"],
+            ...(typeof item["description"] === "string"
+              ? { description: item["description"] }
+              : {}),
+            source,
+          },
+        ];
+      },
+    );
     sender.send({ type: "commands_list", in_reply_to: requestId, commands });
   }
 
@@ -797,10 +794,7 @@ export class PiAdapter implements AgentAdapter {
       name: stringValue(model["name"]) || model["id"],
       provider: stringValue(model["provider"]) || "pi",
       reasoning,
-      thinking_levels: thinkingLevelsFromMap(
-        model["thinkingLevelMap"],
-        reasoning,
-      ),
+      thinking_levels: thinkingLevelsFromMap(model["thinkingLevelMap"], reasoning),
       context_window: numberValue(model["contextWindow"]),
       vision: array(model["input"]).includes("image"),
     };

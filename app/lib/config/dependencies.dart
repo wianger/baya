@@ -1,18 +1,13 @@
 import 'dart:async';
-import 'package:app/domain/contracts/context_usage_repository.dart';
-import 'package:app/data/context/context_usage_repository.dart';
-import 'package:app/ui/chat/context/viewmodels/context_usage_viewmodel.dart';
 import 'dart:io' show Platform;
 
-import 'package:app/config/utils/injector.dart';
 import 'package:app/data/actions/actions_repository.dart';
 import 'package:app/data/commands/agent_commands_repository.dart';
-import 'package:app/data/workspaces/workspace_repository.dart';
-import 'package:app/domain/workspaces/workspace_repository.dart';
-import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
+import 'package:app/data/context/context_usage_repository.dart';
+import 'package:app/data/images/image_picker_service.dart';
+import 'package:app/data/local/boxes.dart';
 import 'package:app/data/mesh/mesh_client.dart';
 import 'package:app/data/mesh/mesh_sync_service.dart';
-import 'package:app/data/local/boxes.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/repositories/home_read_repository.dart';
 import 'package:app/data/repositories/session_read_repository.dart';
@@ -21,18 +16,17 @@ import 'package:app/data/sync/sync_service.dart';
 import 'package:app/data/transport/channel.dart'; // IChannel
 import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/data/transport/peer_channel.dart';
-import 'package:app/data/images/image_picker_service.dart';
 import 'package:app/data/transport/relay_config.dart';
 import 'package:app/data/transport/ws_transport.dart';
 import 'package:app/data/update/secure_dismissed_update_store.dart';
 import 'package:app/data/update/update_checker_impl.dart';
 import 'package:app/data/update/url_launcher_opener.dart';
 import 'package:app/data/voice/speech_service.dart';
-import 'package:app/domain/contracts/dismissed_update_store.dart';
+import 'package:app/data/workspaces/workspace_repository.dart';
 import 'package:app/domain/contracts/agent_commands_repository.dart';
-import 'package:app/domain/contracts/update_checker.dart';
-import 'package:app/domain/contracts/url_opener.dart';
+import 'package:app/domain/contracts/context_usage_repository.dart';
 import 'package:app/domain/session_files/session_files_repository.dart';
+import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/pair_request_flow.dart';
 import 'package:app/pairing/qr_scanner.dart';
@@ -40,6 +34,7 @@ import 'package:app/pairing/storage.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/commands/viewmodels/agent_commands_viewmodel.dart';
+import 'package:app/ui/chat/context/viewmodels/context_usage_viewmodel.dart';
 import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
 import 'package:app/ui/chat/viewmodels/chat_viewmodel.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
@@ -47,220 +42,134 @@ import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/onboarding/viewmodels/onboarding_viewmodel.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
-import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
+import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
+import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
+import 'package:baya_identity/baya_identity.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
-import 'package:baya_identity/baya_identity.dart';
 
-final _injector = CustomInjector();
-
-/// Direct injector access — only for bootstrap, tests, and deep-link handlers.
-CustomInjector get injector => _injector;
+/// The app's composition root.
+///
+/// Every dependency is a typed field, so wiring mistakes are compile errors
+/// rather than failed runtime lookups. `late final` keeps singletons lazy:
+/// each one is built the first time something reads it.
+late final AppServices services;
 
 Future<void> setupDependencies() async {
-  // Infrastructure singletons
-  _injector.addInstance<PairingStorage>(PairingStorage());
-
   final prefs = Preferences();
   await prefs.load();
-  _injector.addInstance<Preferences>(prefs);
-
-  // Local SSOT box facade (boxes already opened + runtime wiped in
-  // bootstrap before this runs).
-  _injector.addInstance<LocalBoxes>(LocalBoxes());
-
-  // Owner-key sync. The store talks to the native plugin
-  // (Google Block Store); the bridge sits
-  // between it and the rest of the app, owning boot + watch-for-reset.
-  final OwnerIdentityStore ownerStore = MethodChannelOwnerIdentityStore();
-  _injector.addInstance<OwnerIdentityStore>(ownerStore);
-  final ownerBridge = OwnerIdentityBridge(
-    ownerStore,
-    _injector.get<PairingStorage>(),
-  );
-  _injector.addInstance<OwnerIdentityBridge>(ownerBridge);
-
-  // mesh_versions HTTP client + sync service. Base URL is the
-  // user-configured relay verbatim (always http(s)://).
-  // No translation needed: the relay's `/mesh` endpoint shares host +
-  // port with the WebSocket.
-  final meshClient = MeshClient(baseUrlProvider: () => resolveRelayUrl(prefs));
-  _injector.addInstance<MeshClient>(meshClient);
-  final meshSync = MeshSyncService(
-    meshClient,
-    ownerBridge,
-    _injector.get<PairingStorage>(),
-  );
-  _injector.addInstance<MeshSyncService>(meshSync);
-  _injector.get<PairingStorage>().attachPeerMutationHook(() {
-    // ignore: unawaited_futures
-    meshSync.publish();
-  });
-
-  // ConnectionManager — factory function injected manually (function typedefs
-  // cannot be resolved by auto_injector via Type.new).
-  _injector.addService<ConnectionManager>(
-    () => ConnectionManager(
-      factory: _productionConnectionFactory,
-      storage: _injector.get<PairingStorage>(),
-    ),
-  );
-
-  // On-device speech-to-text. Singleton: it owns a broadcast
-  // sound-level stream that must survive across chat navigations; the
-  // injector disposes it at app teardown. VoiceInputViewModel never
-  // disposes it (it only stops/cancels sessions).
-  _injector.addService<SpeechService>(() => SpeechToTextService());
-
-  // Image picker + on-device JPEG compression. Stateless, no
-  // dispose hook needed.
-  _injector.addOther<IImagePickerService>(() => ImagePickerService());
-
-  // SSOT writer + read-only repos. SyncService is the SINGLE
-  // mutator of the message/index/runtime boxes; the read repos only watch.
-  _injector.addService<SyncService>(
-    () => SyncService(
-      _injector.get<ConnectionManager>(),
-      _injector.get<LocalBoxes>(),
-      isSessionHidden: _injector.get<Preferences>().isSessionHidden,
-    ),
-  );
-  _injector.addRepository<SessionReadRepository>(
-    () => SessionReadRepository(_injector.get<LocalBoxes>()),
-  );
-  _injector.addRepository<HomeReadRepository>(
-    () => HomeReadRepository(_injector.get<LocalBoxes>()),
-  );
-
-  // Repositories
-  _injector.addRepository<IActionsRepository>(
-    () => ActionsRepository(_injector.get<ConnectionManager>()),
-  );
-  _injector.addRepository<IAgentCommandsRepository>(
-    () => AgentCommandsRepository(_injector.get<ConnectionManager>()),
-  );
-
-  _injector.addOther<IContextUsageRepository>(
-    () => ContextUsageRepository(_injector.get<ConnectionManager>()),
-  );
-  _injector.addViewModel<ContextUsageViewModel>(
-    () => ContextUsageViewModel(_injector.get<IContextUsageRepository>()),
-  );
-
-  // ViewModels
-  _injector.addRepository<IWorkspaceRepository>(
-    () => WorkspaceRepository(
-      _injector.get<ConnectionManager>(),
-      _injector.get<PairingStorage>(),
-      _injector.get<Preferences>(),
-    ),
-  );
-  _injector.addRepository<ISessionFilesRepository>(
-    () => SessionFilesRepository(_injector.get<ConnectionManager>()),
-  );
-  _injector.addViewModel<NewSessionViewModel>(
-    () => NewSessionViewModel(_injector.get<IWorkspaceRepository>()),
-  );
-  _injector.addViewModel<SessionFilesViewModel>(
-    () => SessionFilesViewModel(_injector.get<ISessionFilesRepository>()),
-  );
-  _injector.addViewModel<ChatViewModel>(
-    () => ChatViewModel(
-      _injector.get<SessionReadRepository>(),
-      _injector.get<SyncService>(),
-      _injector.get<ConnectionManager>(),
-      _injector.get<Preferences>(),
-      _injector.get<PairingStorage>(),
-    ),
-  );
-  _injector.addViewModel<HomeViewModel>(
-    () => HomeViewModel(
-      _injector.get<PairingStorage>(),
-      _injector.get<Preferences>(),
-      _injector.get<ConnectionManager>(),
-      _injector.get<SyncService>(),
-      _injector.get<MeshSyncService>(),
-      _injector.get<IActionsRepository>(),
-    ),
-  );
-  _injector.addViewModel<SettingsViewModel>(
-    () => SettingsViewModel(
-      _injector.get<PairingStorage>(),
-      _injector.get<Preferences>(),
-      _injector.get<ConnectionManager>(),
-      _injector.get<MeshSyncService>(),
-    ),
-  );
-  _injector.addViewModel<PairingViewModel>(
-    () => PairingViewModel(
-      _injector.get<PairingStorage>(),
-      _productionPairingTransportFactory,
-      _injector.get<ConnectionManager>(),
-      _injector.get<Preferences>(),
-      _injector.get<OwnerIdentityBridge>(),
-    ),
-  );
-  _injector.addViewModel<OnboardingViewModel>(OnboardingViewModel.new);
-  _injector.addViewModel<QuickActionsViewModel>(
-    () => QuickActionsViewModel(_injector.get<IActionsRepository>()),
-  );
-  _injector.addViewModel<AgentCommandsViewModel>(
-    () => AgentCommandsViewModel(_injector.get<IAgentCommandsRepository>()),
-  );
-  // Voice input. New instance per chat mount; reuses the shared
-  // SpeechService singleton (which it stops/cancels but never disposes).
-  _injector.addViewModel<VoiceInputViewModel>(
-    () => VoiceInputViewModel(_injector.get<SpeechService>()),
-  );
-  // Image attachment. New instance per chat mount; resolves model
-  // vision via the shared ActionsRepository catalogue cache.
-  _injector.addViewModel<AttachmentViewModel>(
-    () => AttachmentViewModel(
-      _injector.get<IImagePickerService>(),
-      _injector.get<IActionsRepository>(),
-    ),
-  );
-
-  // Plan/tablet — app-global UI selection (which session the tablet's
-  // detail pane shows + which list tile is highlighted). Starts null so
-  // the app opens with no chat pre-selected.
-  _injector.addInstance<SessionSelection>(SessionSelection());
-
-  // Plan/tablet — shell layout state (zero-state collapse). Set by Home so
-  // the adaptive shell drops the split when there's nothing to list.
-  _injector.addInstance<ShellLayout>(ShellLayout());
-
-  // Android-only in-app update notice. The running version comes
-  // from package_info; the manifest fetch + gating live in the ViewModel
-  // (silent on any fetch failure). Stateless
-  // collaborators → addOther (lazy singleton, no dispose hook).
   final packageInfo = await PackageInfo.fromPlatform();
-  final appVersion = packageInfo.version;
-  _injector.addOther<UpdateChecker>(() => UpdateCheckerImpl());
-  _injector.addOther<DismissedUpdateStore>(() => SecureDismissedUpdateStore());
-  _injector.addOther<UrlOpener>(() => const UrlLauncherOpener());
-  _injector.addViewModel<UpdateBannerViewModel>(
-    () => UpdateBannerViewModel(
-      _injector.get<UpdateChecker>(),
-      _injector.get<DismissedUpdateStore>(),
-      _injector.get<UrlOpener>(),
-      currentVersion: appVersion,
-      // Only this fork's signed development APKs belong to this channel.
-      enabled: Platform.isAndroid,
-      currentBuildNumber: int.tryParse(packageInfo.buildNumber) ?? 0,
-    ),
+  services = AppServices._(prefs, packageInfo);
+  services.storage.attachPeerMutationHook(() {
+    // ignore: unawaited_futures
+    services.meshSync.publish();
+  });
+}
+
+final class AppServices {
+  AppServices._(this.prefs, this._packageInfo);
+
+  final Preferences prefs;
+  final PackageInfo _packageInfo;
+
+  // ── Infrastructure ────────────────────────────────────────────────────
+  late final storage = PairingStorage();
+  // Boxes are opened and the runtime box wiped in bootstrap before this.
+  late final boxes = LocalBoxes();
+  late final ownerBridge = OwnerIdentityBridge(
+    MethodChannelOwnerIdentityStore(),
+    storage,
+  );
+  // The relay's `/mesh` endpoint shares host and port with the WebSocket.
+  late final meshClient = MeshClient(
+    baseUrlProvider: () => resolveRelayUrl(prefs),
+  );
+  late final meshSync = MeshSyncService(meshClient, ownerBridge, storage);
+  late final connection = ConnectionManager(
+    factory: _productionConnectionFactory,
+    storage: storage,
+  );
+  // Owns a broadcast sound-level stream that outlives chat screens.
+  late final SpeechService speech = SpeechToTextService();
+  late final IImagePickerService imagePicker = ImagePickerService();
+
+  // ── Data ──────────────────────────────────────────────────────────────
+  /// The single writer of the message, index and runtime boxes.
+  late final sync = SyncService(
+    connection,
+    boxes,
+    isSessionHidden: prefs.isSessionHidden,
+  );
+  late final sessionReads = SessionReadRepository(boxes);
+  late final homeReads = HomeReadRepository(boxes);
+  late final IActionsRepository actions = ActionsRepository(connection);
+  late final IAgentCommandsRepository agentCommands = AgentCommandsRepository(
+    connection,
+  );
+  late final IContextUsageRepository contextUsage = ContextUsageRepository(
+    connection,
+  );
+  late final IWorkspaceRepository workspaces = WorkspaceRepository(
+    connection,
+    storage,
+    prefs,
+  );
+  late final ISessionFilesRepository sessionFiles = SessionFilesRepository(
+    connection,
   );
 
-  _injector.commit();
+  // ── App-wide UI state ─────────────────────────────────────────────────
+  /// The session the tablet detail pane shows; starts empty.
+  late final selection = SessionSelection();
+  late final shellLayout = ShellLayout();
+
+  // ── ViewModels: a new instance per screen ─────────────────────────────
+  late final Map<Type, ViewModel Function()> _viewModels = {
+    ContextUsageViewModel: () => ContextUsageViewModel(contextUsage),
+    NewSessionViewModel: () => NewSessionViewModel(workspaces),
+    SessionFilesViewModel: () => SessionFilesViewModel(sessionFiles),
+    ChatViewModel: () =>
+        ChatViewModel(sessionReads, sync, connection, prefs, storage),
+    HomeViewModel: () =>
+        HomeViewModel(storage, prefs, connection, sync, meshSync, actions),
+    SettingsViewModel: () =>
+        SettingsViewModel(storage, prefs, connection, meshSync),
+    PairingViewModel: () => PairingViewModel(
+      storage,
+      _productionPairingTransportFactory,
+      connection,
+      prefs,
+      ownerBridge,
+    ),
+    OnboardingViewModel: () => OnboardingViewModel(prefs),
+    QuickActionsViewModel: () => QuickActionsViewModel(actions),
+    AgentCommandsViewModel: () => AgentCommandsViewModel(agentCommands),
+    VoiceInputViewModel: () => VoiceInputViewModel(speech),
+    AttachmentViewModel: () => AttachmentViewModel(imagePicker, actions),
+    UpdateBannerViewModel: () => UpdateBannerViewModel(
+      UpdateCheckerImpl(),
+      SecureDismissedUpdateStore(),
+      const UrlLauncherOpener(),
+      currentVersion: _packageInfo.version,
+      currentBuildNumber: int.tryParse(_packageInfo.buildNumber) ?? 0,
+      enabled: Platform.isAndroid,
+    ),
+  };
+
+  T viewModel<T extends ViewModel>() => _viewModels[T]!() as T;
+
+  void dispose() {
+    sync.dispose();
+    connection.dispose();
+    speech.dispose();
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Production ConnectionFactory — used by ConnectionManager for reconnection.
-// Post-rollback: just open transport + wrap in PlainPeerChannel; Pi recognizes
-// the peer via peers.json (no per-reconnect handshake).
 // Owner-sk (synced via Block Store) is the
 // challenge-response key. OwnerIdentityBridge.boot() is the router's
 // responsibility; by the time this factory runs, the identity is loaded.
@@ -270,8 +179,7 @@ Future<IChannel> _productionConnectionFactory(
   PeerRecord peer,
   CancelToken cancel,
 ) async {
-  final bridge = injector.get<OwnerIdentityBridge>();
-  final ownerKey = await bridge.requireKeyPair();
+  final ownerKey = await services.ownerBridge.requireKeyPair();
   if (cancel.isCancelled) throw _CancelledError();
 
   // Defensive timeout: without this the
@@ -282,7 +190,7 @@ Future<IChannel> _productionConnectionFactory(
   // renders a "reconnecting" banner rather than an empty spinner.
   const wsConnectTimeout = Duration(seconds: 10);
   // One relay for every peer: the QR-adopted or Settings URL, else default.
-  final relayUrl = resolveRelayUrl(_injector.get<Preferences>());
+  final relayUrl = resolveRelayUrl(services.prefs);
   final transport =
       await WsTransport.connect(
         relayUrl: relayUrl,
@@ -325,13 +233,12 @@ class _CancelledError implements Exception {
   const _CancelledError();
 }
 
-void disposeDependencies() => _injector.dispose();
+void disposeDependencies() => services.dispose();
 
-/// Bridges auto_injector and provider: creates a `ChangeNotifierProvider` that
-/// asks the injector for a fresh `ViewModel<T>` instance on each route mount.
+/// A fresh `ViewModel<T>` from the composition root on each route mount.
 class ViewmodelProvider<T extends ViewModel> extends ChangeNotifierProvider<T> {
   ViewmodelProvider({super.key, super.child})
-    : super(create: (_) => _injector.get<T>());
+    : super(create: (_) => services.viewModel<T>());
 
   ViewmodelProvider.value({super.key, required super.value, super.child})
     : super.value();

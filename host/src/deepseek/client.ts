@@ -1,8 +1,8 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { resolveSpawnTarget, spawnPlan } from "../process/spawn.js";
-import { packageVersion } from "../runtime/version.js";
-import { resolveDeepSeekExecutable } from "../workspace/dsh_executable.js";
+import { resolveSpawnTarget } from "../process/spawn.ts";
+import { packageVersion } from "../runtime/version.ts";
+import { resolveDeepSeekExecutable } from "../workspace/dsh_executable.ts";
 
 export type JsonObject = Record<string, unknown>;
 export type RpcId = number | string;
@@ -33,7 +33,7 @@ export function deepSeekSpawnPlan(
   if (plat === "win32" && /\.(cmd|bat)$/i.test(target.command)) {
     const line = [
       `"${target.command}"`,
-      ...all.map((arg) => /[\s"]/.test(arg) ? `"${arg.replace(/"/g, '""')}"` : arg),
+      ...all.map((arg) => (/[\s"]/.test(arg) ? `"${arg.replace(/"/g, '""')}"` : arg)),
     ].join(" ");
     // `/s` strips the outer pair of quotes, leaving the quoted shim path plus
     // its arguments for cmd to run verbatim.
@@ -64,7 +64,7 @@ export interface DeepSeekStartResult {
 
 export function object(value: unknown): JsonObject {
   return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? value as JsonObject
+    ? (value as JsonObject)
     : {};
 }
 
@@ -75,28 +75,29 @@ export class DeepSeekClient extends EventEmitter<DeepSeekClientEvents> {
   private buffer = "";
   private closing = false;
   private started: DeepSeekStartResult | null = null;
-  private readonly pending = new Map<RpcId, {
-    resolve: (value: unknown) => void;
-    reject: (error: Error) => void;
-    timer: ReturnType<typeof setTimeout> | null;
-  }>();
+  private readonly pending = new Map<
+    RpcId,
+    {
+      resolve: (value: unknown) => void;
+      reject: (error: Error) => void;
+      timer: ReturnType<typeof setTimeout> | null;
+    }
+  >();
 
-  constructor(
-    private readonly cwd: string,
-    private executable =
-      process.env["BAYA_DSH_BIN"]?.trim() || "dsh",
-  ) {
+  private readonly cwd: string;
+  private executable: string;
+
+  constructor(cwd: string, executable = process.env["BAYA_DSH_BIN"]?.trim() || "dsh") {
     super();
+    this.cwd = cwd;
+    this.executable = executable;
   }
 
   async start(): Promise<DeepSeekStartResult> {
     if (this.child && this.started) return this.started;
     // `dsh` may live inside the DeepSeek Harness desktop bundle rather than on
     // PATH; resolve once so the spawned ACP host is the real executable.
-    if (
-      !process.env["BAYA_DSH_BIN"]?.trim() &&
-      this.executable === "dsh"
-    ) {
+    if (!process.env["BAYA_DSH_BIN"]?.trim() && this.executable === "dsh") {
       this.executable = await resolveDeepSeekExecutable();
     }
     const target = resolveSpawnTarget(this.executable);
@@ -115,44 +116,47 @@ export class DeepSeekClient extends EventEmitter<DeepSeekClientEvents> {
     // Harness logs and credentials stay on the computer. Stdout is protocol-only.
     child.stderr.on("data", (chunk: Buffer) => process.stderr.write(chunk));
     child.on("error", (error) => this.lost(error));
-    child.on("exit", (code) => this.lost(
-      new Error(`DeepSeek Harness stopped (${code ?? "signal"}).`),
-    ));
-    const initialized = object(await this.request("initialize", {
-      protocolVersion: 1,
-      clientCapabilities: {},
-      clientInfo: {
-        name: "baya",
-        title: "Baya",
-        version: packageVersion(),
-      },
-    }, 120_000));
-    if (initialized.protocolVersion !== 1) {
+    child.on("exit", (code) =>
+      this.lost(new Error(`DeepSeek Harness stopped (${code ?? "signal"}).`)),
+    );
+    const initialized = object(
+      await this.request(
+        "initialize",
+        {
+          protocolVersion: 1,
+          clientCapabilities: {},
+          clientInfo: {
+            name: "baya",
+            title: "Baya",
+            version: packageVersion(),
+          },
+        },
+        120_000,
+      ),
+    );
+    if (initialized["protocolVersion"] !== 1) {
       this.close();
       throw new Error(
-        `DeepSeek Harness uses unsupported ACP version ${String(initialized.protocolVersion)}.`,
+        `DeepSeek Harness uses unsupported ACP version ${String(initialized["protocolVersion"])}.`,
       );
     }
-    const capabilities = object(initialized.agentCapabilities);
-    const promptCapabilities = object(capabilities.promptCapabilities);
-    this.started = { supportsImages: promptCapabilities.image === true };
+    const capabilities = object(initialized["agentCapabilities"]);
+    const promptCapabilities = object(capabilities["promptCapabilities"]);
+    this.started = { supportsImages: promptCapabilities["image"] === true };
     return this.started;
   }
 
-  request(
-    method: string,
-    params: JsonObject = {},
-    timeoutMs = 120_000,
-  ): Promise<unknown> {
+  request(method: string, params: JsonObject = {}, timeoutMs = 120_000): Promise<unknown> {
     if (!this.child) return Promise.reject(new Error("DeepSeek Harness is not connected."));
     const id = ++this.sequence;
     return new Promise((resolve, reject) => {
-      const timer = timeoutMs > 0
-        ? setTimeout(() => {
-            this.pending.delete(id);
-            reject(new Error(`DeepSeek Harness did not answer ${method} in time.`));
-          }, timeoutMs)
-        : null;
+      const timer =
+        timeoutMs > 0
+          ? setTimeout(() => {
+              this.pending.delete(id);
+              reject(new Error(`DeepSeek Harness did not answer ${method} in time.`));
+            }, timeoutMs)
+          : null;
       this.pending.set(id, { resolve, reject, timer });
       try {
         this.write({ jsonrpc: "2.0", id, method, params });
@@ -198,10 +202,10 @@ export class DeepSeekClient extends EventEmitter<DeepSeekClientEvents> {
   }
 
   private write(message: JsonObject): void {
-    if (!this.child || !this.child.stdin.writable) {
+    if (!this.child?.stdin.writable) {
       throw new Error("DeepSeek Harness is not connected.");
     }
-    this.child.stdin.write(JSON.stringify(message) + "\n");
+    this.child.stdin.write(`${JSON.stringify(message)}\n`);
   }
 
   private receive(chunk: string): void {
@@ -223,28 +227,30 @@ export class DeepSeekClient extends EventEmitter<DeepSeekClientEvents> {
         this.lost(new Error("DeepSeek Harness sent invalid JSON on its protocol stream."));
         return;
       }
-      const id = frame.id;
-      if (typeof frame.method === "string") {
-        const params = object(frame.params);
+      const id = frame["id"];
+      if (typeof frame["method"] === "string") {
+        const params = object(frame["params"]);
         if (typeof id === "number" || typeof id === "string") {
-          this.emit("request", { id, method: frame.method, params });
+          this.emit("request", { id, method: frame["method"], params });
         } else {
-          this.emit("notification", frame.method, params);
+          this.emit("notification", frame["method"], params);
         }
       } else if (typeof id === "number" || typeof id === "string") {
         const pending = this.pending.get(id);
         if (!pending) continue;
         this.pending.delete(id);
         if (pending.timer) clearTimeout(pending.timer);
-        if (frame.error) {
-          const error = object(frame.error);
-          pending.reject(new Error(
-            typeof error.message === "string"
-              ? error.message
-              : "DeepSeek Harness request failed.",
-          ));
+        if (frame["error"]) {
+          const error = object(frame["error"]);
+          pending.reject(
+            new Error(
+              typeof error["message"] === "string"
+                ? error["message"]
+                : "DeepSeek Harness request failed.",
+            ),
+          );
         } else {
-          pending.resolve(frame.result);
+          pending.resolve(frame["result"]);
         }
       }
     }

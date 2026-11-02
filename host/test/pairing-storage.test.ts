@@ -70,9 +70,21 @@ describe("paired devices", () => {
   test("re-pairing replaces the same key in any base64 spelling", async () => {
     isolatedHome();
     const storage = await import("../src/pairing/storage.js");
-    await storage.addPeer({ name: "Pixel", remote_epk: PHONE_A.toString("base64url"), paired_at: "2026-01-01T00:00:00Z" });
-    await storage.addPeer({ name: "Pixel 10", remote_epk: PHONE_A.toString("base64"), paired_at: "2026-02-01T00:00:00Z" });
-    await storage.addPeer({ name: "Tablet", remote_epk: PHONE_B.toString("base64"), paired_at: "2026-02-01T00:00:00Z" });
+    await storage.addPeer({
+      name: "Pixel",
+      remote_epk: PHONE_A.toString("base64url"),
+      paired_at: "2026-01-01T00:00:00Z",
+    });
+    await storage.addPeer({
+      name: "Pixel 10",
+      remote_epk: PHONE_A.toString("base64"),
+      paired_at: "2026-02-01T00:00:00Z",
+    });
+    await storage.addPeer({
+      name: "Tablet",
+      remote_epk: PHONE_B.toString("base64"),
+      paired_at: "2026-02-01T00:00:00Z",
+    });
 
     const peers = await storage.listPeers();
     expect(peers.map((peer) => peer.name)).toEqual(["Pixel 10", "Tablet"]);
@@ -83,19 +95,33 @@ describe("paired devices", () => {
   test("unpair by name or key prefix", async () => {
     isolatedHome();
     const storage = await import("../src/pairing/storage.js");
-    await storage.addPeer({ name: "Pixel", remote_epk: PHONE_A.toString("base64"), paired_at: "x" });
-    await storage.addPeer({ name: "Tablet", remote_epk: PHONE_B.toString("base64"), paired_at: "x" });
+    await storage.addPeer({
+      name: "Pixel",
+      remote_epk: PHONE_A.toString("base64"),
+      paired_at: "x",
+    });
+    await storage.addPeer({
+      name: "Tablet",
+      remote_epk: PHONE_B.toString("base64"),
+      paired_at: "x",
+    });
 
     expect((await storage.removePeers("Pixel")).map((peer) => peer.name)).toEqual(["Pixel"]);
     expect(await storage.removePeers("nothing")).toEqual([]);
-    expect((await storage.removePeers(PHONE_B.toString("base64").slice(0, 8))).map((peer) => peer.name)).toEqual(["Tablet"]);
+    expect(
+      (await storage.removePeers(PHONE_B.toString("base64").slice(0, 8))).map((peer) => peer.name),
+    ).toEqual(["Tablet"]);
     expect(await storage.listPeers()).toEqual([]);
   });
 
   test("sees edits made by another process", async () => {
     const home = isolatedHome();
     const storage = await import("../src/pairing/storage.js");
-    await storage.addPeer({ name: "Pixel", remote_epk: PHONE_A.toString("base64"), paired_at: "x" });
+    await storage.addPeer({
+      name: "Pixel",
+      remote_epk: PHONE_A.toString("base64"),
+      paired_at: "x",
+    });
     expect(await storage.listPeers()).toHaveLength(1);
 
     const file = join(home, "peers.json");

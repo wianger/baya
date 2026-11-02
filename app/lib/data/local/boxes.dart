@@ -68,6 +68,5 @@ class LocalBoxes {
   static String msgsBoxName(String epk, String roomId) =>
       'msgs_${toAppEpk(epk)}__$roomId';
 
-  static String sessionKey(String epk, String roomId) =>
-      '$epk:$roomId';
+  static String sessionKey(String epk, String roomId) => '$epk:$roomId';
 }

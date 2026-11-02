@@ -2,7 +2,7 @@ import { constants } from "node:fs";
 import { access, stat } from "node:fs/promises";
 import { homedir, platform } from "node:os";
 import { join } from "node:path";
-import { findExecutable } from "./directories.js";
+import { findExecutable } from "./directories.ts";
 
 /**
  * The published `@deepseek-ai/dsh` CLI keeps `dsh` on PATH. The official
@@ -18,8 +18,7 @@ export function deepSeekDesktopCandidates(
   os: NodeJS.Platform = platform(),
 ): string[] {
   if (os === "win32") {
-    const localAppData = env["LOCALAPPDATA"]?.trim() ||
-      join(homedir(), "AppData", "Local");
+    const localAppData = env["LOCALAPPDATA"]?.trim() || join(homedir(), "AppData", "Local");
     return [
       join(
         localAppData,
@@ -34,9 +33,7 @@ export function deepSeekDesktopCandidates(
     ];
   }
   if (os === "darwin") {
-    return [
-      "/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh",
-    ];
+    return ["/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"];
   }
   return [
     join(
@@ -80,11 +77,8 @@ export async function resolveDeepSeekExecutable(
 }
 
 /** `true` when some runnable `dsh` (PATH or desktop bundle) exists. */
-export async function hasDeepSeekHarness(
-  env: NodeJS.ProcessEnv = process.env,
-): Promise<boolean> {
-  const override =
-    env["BAYA_DSH_BIN"]?.trim();
+export async function hasDeepSeekHarness(env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  const override = env["BAYA_DSH_BIN"]?.trim();
   if (override) return (await findExecutable(override)) !== null;
   if (await findExecutable("dsh")) return true;
   for (const candidate of deepSeekDesktopCandidates(env)) {

@@ -1,6 +1,6 @@
-import type { ClientMessage, ServerMessage } from "../protocol/types.js";
-import type { PeerChannel } from "../transport/peer_channel.js";
-import type { WorkspaceAgent } from "../workspace/types.js";
+import type { ClientMessage, ServerMessage } from "../protocol/types.ts";
+import type { PeerChannel } from "../transport/peer_channel.ts";
+import type { WorkspaceAgent } from "../workspace/types.ts";
 
 export interface AdapterOptions {
   cwd: string;

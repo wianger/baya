@@ -456,56 +456,53 @@ void main() {
       vm.dispose();
     });
 
-    test(
-      'complete inventory prunes only missing session-bound rooms from its peer',
-      () async {
-        final ch = _ControllableChannel();
-        final storage = _FakeStorage([_peerA, _peerB]);
-        final conn = ConnectionManager(
-          factory: (_, _) async => ch,
-          storage: storage,
-          emitDebounce: Duration.zero,
-        );
-        final prefs = Preferences(_FakeSecureStorage());
-        final vm = HomeViewModel(storage, prefs, conn);
-        await conn.connectTo(_peerA);
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+    test('complete inventory prunes only missing session-bound rooms from its peer', () async {
+      final ch = _ControllableChannel();
+      final storage = _FakeStorage([_peerA, _peerB]);
+      final conn = ConnectionManager(
+        factory: (_, _) async => ch,
+        storage: storage,
+        emitDebounce: Duration.zero,
+      );
+      final prefs = Preferences(_FakeSecureStorage());
+      final vm = HomeViewModel(storage, prefs, conn);
+      await conn.connectTo(_peerA);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        const kept = 'pi_AAAAAAAAAAAAAAAA_d_project';
-        const deleted = 'pi_BBBBBBBBBBBBBBBB_i_project';
-        const future = 'pi_CCCCCCCCCCCCCCCC_i_project';
-        const legacy = 'legacy-room';
-        ch.pushControl(
-          const RoomAnnounced(peer: 'epk_A', roomId: kept, startedAt: 100),
-        );
-        ch.pushControl(
-          const RoomAnnounced(peer: 'epk_A', roomId: deleted, startedAt: 100),
-        );
-        ch.pushControl(
-          const RoomAnnounced(peer: 'epk_A', roomId: future, startedAt: 300),
-        );
-        ch.pushControl(
-          const RoomAnnounced(peer: 'epk_A', roomId: legacy, startedAt: 100),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+      const kept = 'pi_AAAAAAAAAAAAAAAA_d_project';
+      const deleted = 'pi_BBBBBBBBBBBBBBBB_i_project';
+      const future = 'pi_CCCCCCCCCCCCCCCC_i_project';
+      const legacy = 'legacy-room';
+      ch.pushControl(
+        const RoomAnnounced(peer: 'epk_A', roomId: kept, startedAt: 100),
+      );
+      ch.pushControl(
+        const RoomAnnounced(peer: 'epk_A', roomId: deleted, startedAt: 100),
+      );
+      ch.pushControl(
+        const RoomAnnounced(peer: 'epk_A', roomId: future, startedAt: 300),
+      );
+      ch.pushControl(
+        const RoomAnnounced(peer: 'epk_A', roomId: legacy, startedAt: 100),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        final removed = await vm.reconcileSessionInventoryForPeer(
-          'epk_A',
-          sessionKeys: const {'AAAAAAAAAAAAAAAA'},
-          scannedAt: 200,
-        );
+      final removed = await vm.reconcileSessionInventoryForPeer(
+        'epk_A',
+        sessionKeys: const {'AAAAAAAAAAAAAAAA'},
+        scannedAt: 200,
+      );
 
-        expect(removed, 1);
-        expect(prefs.isSessionHidden('epk_A', deleted), isTrue);
-        expect(prefs.isSessionHidden('epk_A', kept), isFalse);
-        expect(prefs.isSessionHidden('epk_A', future), isFalse);
-        expect(prefs.isSessionHidden('epk_A', legacy), isFalse);
+      expect(removed, 1);
+      expect(prefs.isSessionHidden('epk_A', deleted), isTrue);
+      expect(prefs.isSessionHidden('epk_A', kept), isFalse);
+      expect(prefs.isSessionHidden('epk_A', future), isFalse);
+      expect(prefs.isSessionHidden('epk_A', legacy), isFalse);
 
-        vm.dispose();
-        await conn.disconnect();
-        conn.dispose();
-        prefs.dispose();
-      },
-    );
+      vm.dispose();
+      await conn.disconnect();
+      conn.dispose();
+      prefs.dispose();
+    });
   });
 }

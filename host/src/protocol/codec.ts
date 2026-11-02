@@ -1,4 +1,4 @@
-import type { ClientMessage, ServerMessage } from "./types.js";
+import type { ClientMessage, ServerMessage } from "./types.ts";
 
 const SERVER_TYPES = new Set<ServerMessage["type"]>([
   "pair_ok",
@@ -22,17 +22,17 @@ const SERVER_TYPES = new Set<ServerMessage["type"]>([
 ]);
 
 export class DecodeError extends Error {
-  constructor(
-    public readonly code: "invalid_message" | "unsupported_type",
-    message: string,
-  ) {
+  readonly code: "invalid_message" | "unsupported_type";
+
+  constructor(code: DecodeError["code"], message: string) {
     super(message);
+    this.code = code;
     this.name = "DecodeError";
   }
 }
 
 export function encodeClient(msg: ClientMessage): string {
-  return JSON.stringify(msg) + "\n";
+  return `${JSON.stringify(msg)}\n`;
 }
 
 export function decodeServer(line: string): ServerMessage {
@@ -45,11 +45,11 @@ export function decodeServer(line: string): ServerMessage {
   if (
     !obj ||
     typeof obj !== "object" ||
-    typeof (obj as Record<string, unknown>).type !== "string"
+    typeof (obj as Record<string, unknown>)["type"] !== "string"
   ) {
     throw new DecodeError("invalid_message", "missing 'type'");
   }
-  const t = (obj as Record<string, unknown>).type as string;
+  const t = (obj as Record<string, unknown>)["type"] as string;
   if (!SERVER_TYPES.has(t as ServerMessage["type"])) {
     throw new DecodeError("unsupported_type", `unknown type: ${t}`);
   }

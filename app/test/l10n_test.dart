@@ -8,8 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('every English string has a Chinese translation', () {
     Set<String> keys(String path) =>
-        (jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>)
-            .keys
+        (jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>).keys
             .where((k) => !k.startsWith('@'))
             .toSet();
     expect(keys('lib/l10n/app_zh.arb'), keys('lib/l10n/app_en.arb'));
@@ -35,8 +34,9 @@ void main() {
     expect(l10n.versionReady('1.3.0', '80'), '版本 1.3.0（80）已可下载。');
   });
 
-  testWidgets('without app localizations, widgets fall back to English',
-      (tester) async {
+  testWidgets('without app localizations, widgets fall back to English', (
+    tester,
+  ) async {
     late AppLocalizations l10n;
     await tester.pumpWidget(
       MaterialApp(

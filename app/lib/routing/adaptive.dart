@@ -65,9 +65,7 @@ class SessionSelection extends ChangeNotifier {
   /// Whether `(epk, roomId)` is the current selection.
   bool matches(String epk, String roomId) {
     final c = _current;
-    return c != null &&
-        c.epk == epk &&
-        c.roomId == roomId;
+    return c != null && c.epk == epk && c.roomId == roomId;
   }
 
   /// [device] and [online] are what the list already knows, so the chat app

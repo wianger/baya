@@ -139,7 +139,7 @@ void main() {
           'type': 'session_history',
           'in_reply_to': 'resume',
           'session_started_at': 1,
-          'events': [],
+          'events': <Object>[],
           'eos': true,
           'truncated': false,
           'streaming': {'in_reply_to': 'u', 'text': 'Hello'},
@@ -158,7 +158,7 @@ void main() {
           'type': 'session_history',
           'in_reply_to': 'idle',
           'session_started_at': 1,
-          'events': [],
+          'events': <Object>[],
           'eos': true,
           'truncated': false,
           'streaming': null,
@@ -801,7 +801,9 @@ void main() {
       await _settle();
       s.ch.push(AgentChunk(inReplyTo: 'u1', delta: 'let me check'));
       await _settle(); // 16ms flush settles into the streaming buffer
-      s.ch.push(ToolRequest(toolCallId: 'tc1', tool: 'Read', args: {}));
+      s.ch.push(
+        ToolRequest(toolCallId: 'tc1', tool: 'Read', args: <String, Object?>{}),
+      );
       await _settle();
       s.ch.push(ToolResult(toolCallId: 'tc1', result: {'ok': true}));
       await _settle();
@@ -836,7 +838,12 @@ void main() {
           events: const [
             UserInputEvt(ts: 1, id: 'u1', text: 'go'),
             AgentMessageEvt(ts: 2, inReplyTo: 'u1', text: 'let me check'),
-            ToolRequestEvt(ts: 3, toolCallId: 'tc1', tool: 'Read', args: {}),
+            ToolRequestEvt(
+              ts: 3,
+              toolCallId: 'tc1',
+              tool: 'Read',
+              args: <String, Object?>{},
+            ),
             ToolResultEvt(ts: 4, toolCallId: 'tc1', result: {'ok': true}),
             AgentMessageEvt(ts: 5, inReplyTo: 'u1', text: 'all done'),
           ],

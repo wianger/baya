@@ -60,7 +60,11 @@ export function x25519PublicFromEd25519(publicKey: Uint8Array): Buffer {
 }
 
 /** Shared ChaCha20-Poly1305 key for one (self, peer) pair. */
-export function deriveSessionKey(selfSeed: Uint8Array, selfPublic: Uint8Array, peerPublic: Uint8Array): Buffer {
+export function deriveSessionKey(
+  selfSeed: Uint8Array,
+  selfPublic: Uint8Array,
+  peerPublic: Uint8Array,
+): Buffer {
   const privateKey = createPrivateKey({
     key: Buffer.concat([PKCS8_X25519_PREFIX, x25519PrivateFromEd25519Seed(selfSeed)]),
     format: "der",
@@ -73,9 +77,10 @@ export function deriveSessionKey(selfSeed: Uint8Array, selfPublic: Uint8Array, p
   });
   const shared = diffieHellman({ privateKey, publicKey });
   if (shared.every((byte) => byte === 0)) throw new E2EError("Degenerate peer key.");
-  const [low, high] = Buffer.compare(Buffer.from(selfPublic), Buffer.from(peerPublic)) <= 0
-    ? [selfPublic, peerPublic]
-    : [peerPublic, selfPublic];
+  const [low, high] =
+    Buffer.compare(Buffer.from(selfPublic), Buffer.from(peerPublic)) <= 0
+      ? [selfPublic, peerPublic]
+      : [peerPublic, selfPublic];
   return Buffer.from(hkdfSync("sha256", shared, LABEL, Buffer.concat([low, high]), 32));
 }
 
@@ -175,7 +180,8 @@ function modInverse(value: bigint): bigint {
 
 function littleEndianToBigInt(bytes: Buffer): bigint {
   let value = 0n;
-  for (let index = bytes.length - 1; index >= 0; index--) value = (value << 8n) | BigInt(bytes[index]!);
+  for (let index = bytes.length - 1; index >= 0; index--)
+    value = (value << 8n) | BigInt(bytes[index]!);
   return value;
 }
 

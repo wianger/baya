@@ -46,7 +46,7 @@ export function loadConfig(): BayaConfig {
 export function saveConfig(patch: Partial<BayaConfig>): BayaConfig {
   const next = { ...loadConfig(), ...patch };
   mkdirSync(BAYA_HOME, { recursive: true, mode: 0o700 });
-  writeFileSync(configPath(), JSON.stringify(next, null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(configPath(), `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
   return next;
 }
 
@@ -82,7 +82,8 @@ export function validateRelayUrl(input: string): string {
   if (!parsed.hostname || parsed.username || parsed.password) {
     throw new Error("Relay URL must have a host and no embedded credentials.");
   }
-  parsed.protocol = parsed.protocol === "ws:" ? "http:" : parsed.protocol === "wss:" ? "https:" : parsed.protocol;
+  parsed.protocol =
+    parsed.protocol === "ws:" ? "http:" : parsed.protocol === "wss:" ? "https:" : parsed.protocol;
   parsed.hash = "";
   parsed.search = "";
   return parsed.toString().replace(/\/$/, "");

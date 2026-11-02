@@ -1,4 +1,4 @@
-import qrTerminal from "qrcode-terminal";
+import { renderUnicodeCompact } from "uqr";
 
 export interface PairingInvite {
   token: string;
@@ -27,7 +27,6 @@ export function buildQRUri(invite: PairingInvite): string {
 
 /** Prints the QR with Unicode half blocks so it fits a normal terminal. */
 export function displayQR(uri: string): void {
-  qrTerminal.generate(uri, { small: true }, (qrcode) => {
-    process.stdout.write(`\nScan with Baya on your phone:\n\n${qrcode}\n`);
-  });
+  const qrcode = renderUnicodeCompact(uri, { border: 2 });
+  process.stdout.write(`\nScan with Baya on your phone:\n\n${qrcode}\n`);
 }

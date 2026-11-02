@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { packageVersion } from "../src/runtime/version.js";
+import { packageVersion } from "../src/runtime/version.ts";
 
 describe("host package version", () => {
   it("reads the actual package manifest", () => {

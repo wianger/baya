@@ -2,7 +2,6 @@ import 'package:app/config/dependencies.dart';
 import 'package:app/data/mesh/mesh_sync_service.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/connection_manager.dart';
-import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/routing/adaptive.dart';
@@ -241,7 +240,7 @@ GoRouter buildRouter(
           final extra = st.extra;
           return ChangeNotifierProvider<NewSessionViewModel>(
             create: (_) => NewSessionViewModel(
-              injector.get<IWorkspaceRepository>(),
+              services.workspaces,
               launch: extra is NewSessionLaunch
                   ? extra
                   : const NewSessionLaunch(),

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
 import 'mesh_envelope.dart';
@@ -89,32 +89,20 @@ final class MeshPublishFailure extends MeshPublishResult {
 /// The base URL is resolved lazily via [baseUrlProvider] so a runtime
 /// change to `Preferences.relayUrl` propagates without re-creating the
 /// client. Status codes 200/304/400/403/404/409/413 are folded into
-/// the [MeshFetchResult] / [MeshPublishResult] sealed hierarchy; raw
-/// `DioException`s never escape.
+/// the [MeshFetchResult] / [MeshPublishResult] sealed hierarchy; network
+/// errors never escape.
 class MeshClient {
   /// Lazily resolved base URL — typically wraps `toHttpRelayUrl(
   /// resolveRelayUrl(prefs))`. Called on every request so a relay
   /// switch via Settings is picked up without re-injecting the client.
   final String Function() baseUrlProvider;
 
-  final Dio _dio;
+  final http.Client _client;
 
-  MeshClient({required this.baseUrlProvider, Dio? dio})
-      : _dio = dio ?? _defaultDio();
+  static const _timeout = Duration(seconds: 8);
 
-  static Dio _defaultDio() {
-    return Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 8),
-      sendTimeout: const Duration(seconds: 8),
-      receiveTimeout: const Duration(seconds: 8),
-      // We treat every non-2xx status manually — don't let dio throw.
-      validateStatus: (_) => true,
-      // Plain so an empty / non-JSON body on 4xx/5xx doesn't trip the
-      // built-in JSON parser into raising a DioException. We jsonDecode
-      // manually on the success branch.
-      responseType: ResponseType.plain,
-    ));
-  }
+  MeshClient({required this.baseUrlProvider, http.Client? client})
+    : _client = client ?? http.Client();
 
   /// Decode a response body string as JSON when present. Returns null
   /// when the body is empty or not a JSON object — callers fall back
@@ -125,7 +113,9 @@ class MeshClient {
       try {
         final parsed = jsonDecode(data);
         if (parsed is Map<String, Object?>) return parsed;
-      } catch (_) {/* fall through */}
+      } catch (_) {
+        /* fall through */
+      }
     }
     return null;
   }
@@ -143,7 +133,9 @@ class MeshClient {
 
   Uri _meshUri(String hash) {
     final base = baseUrlProvider();
-    final trimmed = base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+    final trimmed = base.endsWith('/')
+        ? base.substring(0, base.length - 1)
+        : base;
     return Uri.parse('$trimmed/mesh/$hash');
   }
 
@@ -153,17 +145,16 @@ class MeshClient {
   Future<MeshFetchResult> fetch(String hash, {int? since}) async {
     try {
       final uri = _meshUri(hash);
-      final response = await _dio.getUri<Object?>(
-        since == null ? uri : uri.replace(queryParameters: {'since': '$since'}),
-        options: Options(
-          // Plain so 4xx/5xx bodies don't trip dio's JSON parser.
-          responseType: ResponseType.plain,
-          validateStatus: (_) => true,
-        ),
-      );
+      final response = await _client
+          .get(
+            since == null
+                ? uri
+                : uri.replace(queryParameters: {'since': '$since'}),
+          )
+          .timeout(_timeout);
       switch (response.statusCode) {
         case 200:
-          final data = _decodeBody(response.data);
+          final data = _decodeBody(response.body);
           if (data == null) {
             return const MeshFetchFailure('200 OK body was not a JSON object');
           }
@@ -184,41 +175,30 @@ class MeshClient {
         case 404:
           return const MeshFetchNotFound();
         default:
-          return MeshFetchFailure(
-            'unexpected status ${response.statusCode}',
-          );
+          return MeshFetchFailure('unexpected status ${response.statusCode}');
       }
-    } on DioException catch (e) {
-      final status = e.response?.statusCode;
-      if (status != null) {
-        return MeshFetchFailure('unexpected status $status');
-      }
-      return MeshFetchFailure(e.message ?? 'network error');
     } catch (e) {
       return MeshFetchFailure(e.toString());
     }
   }
 
   /// `POST /mesh/<hash>` with `{blob, sig}` body.
-  Future<MeshPublishResult> publish(
-    String hash,
-    MeshEnvelope envelope,
-  ) async {
+  Future<MeshPublishResult> publish(String hash, MeshEnvelope envelope) async {
     try {
       final uri = _meshUri(hash);
-      final response = await _dio.postUri<Object?>(
-        uri,
-        data: jsonEncode(envelope.toJson()),
-        options: Options(
-          contentType: 'application/json',
-          headers: {'accept': 'application/json'},
-          responseType: ResponseType.plain,
-          validateStatus: (_) => true,
-        ),
-      );
+      final response = await _client
+          .post(
+            uri,
+            body: jsonEncode(envelope.toJson()),
+            headers: {
+              'content-type': 'application/json',
+              'accept': 'application/json',
+            },
+          )
+          .timeout(_timeout);
       switch (response.statusCode) {
         case 200:
-          final data = _decodeBody(response.data);
+          final data = _decodeBody(response.body);
           if (data == null) {
             return const MeshPublishFailure(
               '200 OK body was not a JSON object',
@@ -233,7 +213,7 @@ class MeshClient {
           }
           return MeshPublishOk(version: version, updatedAt: updatedAt);
         case 400:
-          return MeshPublishBadRequest(_extractMessage(response.data));
+          return MeshPublishBadRequest(_extractMessage(response.body));
         case 403:
           return const MeshPublishForbidden();
         case 409:
@@ -241,16 +221,8 @@ class MeshClient {
         case 413:
           return const MeshPublishTooLarge();
         default:
-          return MeshPublishFailure(
-            'unexpected status ${response.statusCode}',
-          );
+          return MeshPublishFailure('unexpected status ${response.statusCode}');
       }
-    } on DioException catch (e) {
-      final status = e.response?.statusCode;
-      if (status != null) {
-        return MeshPublishFailure('unexpected status $status');
-      }
-      return MeshPublishFailure(e.message ?? 'network error');
     } catch (e) {
       return MeshPublishFailure(e.toString());
     }

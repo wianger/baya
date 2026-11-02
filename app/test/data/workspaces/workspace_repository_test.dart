@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/channel.dart';
 import 'package:app/data/transport/connection_manager.dart';
@@ -46,7 +47,6 @@ class _Storage extends PairingStorage {
 }
 
 void main() {
-
   test(
     'cancel restores A after a late B connection and sends no browse on A',
     () async {

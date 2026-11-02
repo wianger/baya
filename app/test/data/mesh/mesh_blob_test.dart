@@ -10,11 +10,11 @@ Uint8List _bytes(int seed) =>
     Uint8List.fromList(List.generate(32, (i) => (i * 7 + seed) & 0xff));
 
 MeshBlob _blob({int v = 1, List<MeshMember> members = const []}) => MeshBlob(
-      version: v,
-      issuedAt: 1747958400000,
-      ownerPk: _bytes(1),
-      members: members,
-    );
+  version: v,
+  issuedAt: 1747958400000,
+  ownerPk: _bytes(1),
+  members: members,
+);
 
 void main() {
   group('MeshMember', () {
@@ -71,7 +71,8 @@ void main() {
       );
       final canon = utf8.decode(blob.toCanonicalBytes());
       // member object: keys must come as nickname, paired_at, relay_url, remote_epk
-      final memberMatch = RegExp(r'\{[^}]*"remote_epk"[^}]*\}').firstMatch(canon);
+      final memberMatch = RegExp(r'\{[^}]*"remote_epk"[^}]*\}')
+          .firstMatch(canon);
       expect(memberMatch, isNotNull);
       final obj = memberMatch!.group(0)!;
       final keyOrder = RegExp(r'"(nickname|paired_at|relay_url|remote_epk)"')
@@ -82,31 +83,25 @@ void main() {
     });
 
     test('toCanonicalBytes is deterministic across constructions', () {
-      final a = _blob(members: const [
-        MeshMember(
-          remoteEpk: 'epk-a',
-          relayUrl: 'wss://r',
-          pairedAt: 't',
-        ),
-      ]);
-      final b = _blob(members: const [
-        MeshMember(
-          remoteEpk: 'epk-a',
-          relayUrl: 'wss://r',
-          pairedAt: 't',
-        ),
-      ]);
+      final a = _blob(
+        members: const [
+          MeshMember(remoteEpk: 'epk-a', relayUrl: 'wss://r', pairedAt: 't'),
+        ],
+      );
+      final b = _blob(
+        members: const [
+          MeshMember(remoteEpk: 'epk-a', relayUrl: 'wss://r', pairedAt: 't'),
+        ],
+      );
       expect(a.toCanonicalBytes(), equals(b.toCanonicalBytes()));
     });
 
     test('toCanonicalBytes contains no whitespace', () {
-      final blob = _blob(members: const [
-        MeshMember(
-          remoteEpk: 'epk',
-          relayUrl: 'wss://r',
-          pairedAt: 't',
-        ),
-      ]);
+      final blob = _blob(
+        members: const [
+          MeshMember(remoteEpk: 'epk', relayUrl: 'wss://r', pairedAt: 't'),
+        ],
+      );
       final bytes = blob.toCanonicalBytes();
       for (final b in bytes) {
         expect(b, isNot(0x20), reason: 'space byte at offset');
@@ -116,19 +111,21 @@ void main() {
     });
 
     test('fromCanonicalBytes roundtrips', () {
-      final original = _blob(members: const [
-        MeshMember(
-          remoteEpk: 'epk-a',
-          relayUrl: 'wss://r',
-          pairedAt: '2026-05-15T10:30:00Z',
-          nickname: 'Mac',
-        ),
-        MeshMember(
-          remoteEpk: 'epk-b',
-          relayUrl: 'wss://r2',
-          pairedAt: '2026-05-16T10:30:00Z',
-        ),
-      ]);
+      final original = _blob(
+        members: const [
+          MeshMember(
+            remoteEpk: 'epk-a',
+            relayUrl: 'wss://r',
+            pairedAt: '2026-05-15T10:30:00Z',
+            nickname: 'Mac',
+          ),
+          MeshMember(
+            remoteEpk: 'epk-b',
+            relayUrl: 'wss://r2',
+            pairedAt: '2026-05-16T10:30:00Z',
+          ),
+        ],
+      );
       final parsed = MeshBlob.fromCanonicalBytes(original.toCanonicalBytes());
       expect(parsed.version, original.version);
       expect(parsed.issuedAt, original.issuedAt);
@@ -146,35 +143,35 @@ void main() {
     });
 
     test('fromCanonicalBytes rejects non-positive version', () {
-      final bytes = Uint8List.fromList(utf8.encode(
-        '{"issued_at":1,"members":[],"owner_pk":"AA==","version":0}',
-      ));
+      final bytes = Uint8List.fromList(
+        utf8.encode(
+          '{"issued_at":1,"members":[],"owner_pk":"AA==","version":0}',
+        ),
+      );
       expect(() => MeshBlob.fromCanonicalBytes(bytes), throwsFormatException);
     });
   });
 
   group('MeshBlob sign / verify', () {
-    test('signWith → verifyEnvelope roundtrips against the matching pk',
-        () async {
-      final ed = Ed25519();
-      final keyPair = await ed.newKeyPair();
-      final pub = await keyPair.extractPublicKey();
-      final blob = MeshBlob(
-        version: 7,
-        issuedAt: 1700000000000,
-        ownerPk: Uint8List.fromList(pub.bytes),
-        members: const [
-          MeshMember(
-            remoteEpk: 'epk',
-            relayUrl: 'wss://r',
-            pairedAt: 't',
-          ),
-        ],
-      );
-      final envelope = await blob.signWith(keyPair);
-      expect(envelope.blob, equals(blob.toCanonicalBytes()));
-      expect(await MeshBlob.verifyEnvelope(envelope), isTrue);
-    });
+    test(
+      'signWith → verifyEnvelope roundtrips against the matching pk',
+      () async {
+        final ed = Ed25519();
+        final keyPair = await ed.newKeyPair();
+        final pub = await keyPair.extractPublicKey();
+        final blob = MeshBlob(
+          version: 7,
+          issuedAt: 1700000000000,
+          ownerPk: Uint8List.fromList(pub.bytes),
+          members: const [
+            MeshMember(remoteEpk: 'epk', relayUrl: 'wss://r', pairedAt: 't'),
+          ],
+        );
+        final envelope = await blob.signWith(keyPair);
+        expect(envelope.blob, equals(blob.toCanonicalBytes()));
+        expect(await MeshBlob.verifyEnvelope(envelope), isTrue);
+      },
+    );
 
     test('verifyEnvelope rejects tampered blob', () async {
       final ed = Ed25519();

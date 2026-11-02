@@ -384,8 +384,7 @@ class SyncService extends Service {
 
   /// Only phone-local data is removed. The relay and computer are untouched.
   Future<void> removeCachedSession(String epk, String room) async {
-    if (_activeEpk == epk &&
-        _activeRoomId == room) {
+    if (_activeEpk == epk && _activeRoomId == room) {
       _syncDebounce?.cancel();
       _resetTurnState();
       _activeEpk = null;
@@ -491,8 +490,7 @@ class SyncService extends Service {
     // chat is still mounted underneath. Never write that room into this box.
     if (originEpk != null &&
         _activeEpk != null &&
-        _conn.activeRoomId !=
-            _activeRoomId) {
+        _conn.activeRoomId != _activeRoomId) {
       return;
     }
     if (originEpk != null &&

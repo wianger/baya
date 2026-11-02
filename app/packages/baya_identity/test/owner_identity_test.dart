@@ -10,20 +10,14 @@ void main() {
   group('OwnerIdentity', () {
     test('constructor rejects non-32B public key', () {
       expect(
-        () => OwnerIdentity(
-          ownerPk: Uint8List(16),
-          ownerSk: _bytes(0),
-        ),
+        () => OwnerIdentity(ownerPk: Uint8List(16), ownerSk: _bytes(0)),
         throwsArgumentError,
       );
     });
 
     test('constructor rejects non-32B private key', () {
       expect(
-        () => OwnerIdentity(
-          ownerPk: _bytes(0),
-          ownerSk: Uint8List(31),
-        ),
+        () => OwnerIdentity(ownerPk: _bytes(0), ownerSk: Uint8List(31)),
         throwsArgumentError,
       );
     });
@@ -57,10 +51,7 @@ void main() {
     });
 
     test('fromBlob rejects empty input', () {
-      expect(
-        () => OwnerIdentity.fromBlob(Uint8List(0)),
-        throwsFormatException,
-      );
+      expect(() => OwnerIdentity.fromBlob(Uint8List(0)), throwsFormatException);
     });
 
     test('equality + hashCode are value-based', () {

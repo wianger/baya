@@ -11,7 +11,6 @@
 
 import 'dart:convert';
 
-
 /// Convert an epk (possibly base64url from QR/storage) to base64 standard
 /// for wire frames the relay reads. Idempotent — already-standard epks
 /// pass through unchanged. Unparseable input returned as-is so we never
@@ -22,8 +21,7 @@ String toStandardB64(String b64) {
     final pad = (4 - b64.length % 4) % 4;
     final bytes = base64Url.decode(b64 + '=' * pad);
     final out = base64.encode(bytes);
-    if (out != b64) {
-    }
+    if (out != b64) {}
     return out;
   } catch (_) {
     return b64;

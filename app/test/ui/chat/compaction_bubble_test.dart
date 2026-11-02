@@ -29,10 +29,7 @@ void main() {
   });
 
   testWidgets('omits the token line when tokensBefore is null', (tester) async {
-    await pump(
-      tester,
-      const CompactionMsg(id: 'c2', summary: 'done'),
-    );
+    await pump(tester, const CompactionMsg(id: 'c2', summary: 'done'));
 
     expect(find.text('Context compacted'), findsOneWidget);
     expect(find.text('done'), findsOneWidget);

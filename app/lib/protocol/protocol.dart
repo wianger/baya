@@ -1276,7 +1276,7 @@ class QueuedMessageState extends ServerMessage {
     if (rawItems is List) {
       return QueuedMessageState(
         items: rawItems
-            .whereType<Map>()
+            .whereType<Map<Object?, Object?>>()
             .map((m) => QueuedMessageItem.fromJson(m.cast<String, dynamic>()))
             .where((item) => item.text.isNotEmpty)
             .toList(growable: false),
@@ -1680,7 +1680,7 @@ class CommandsList extends ServerMessage {
   factory CommandsList.fromJson(Map<String, dynamic> json) => CommandsList(
     inReplyTo: json['in_reply_to'] as String,
     commands: (json['commands'] as List<dynamic>? ?? const <dynamic>[])
-        .whereType<Map>()
+        .whereType<Map<Object?, Object?>>()
         .map(
           (entry) =>
               WireAgentCommand.fromJson(Map<String, dynamic>.from(entry)),
@@ -1820,7 +1820,7 @@ class AskQuestionWire {
     presentedType: AskQuestionWireType.fromWire(j['presentedType'] as String?),
     requestedType: AskQuestionWireType.fromWire(j['requestedType'] as String?),
     options: (j['options'] as List<dynamic>? ?? const <dynamic>[])
-        .whereType<Map>()
+        .whereType<Map<Object?, Object?>>()
         .map((m) => AskOptionWire.fromJson(m.cast<String, dynamic>()))
         .toList(growable: false),
   );
@@ -1851,7 +1851,7 @@ class AskEnrichmentWire {
         source: (j['source'] as String?) ?? 'tool',
         title: j['title'] as String?,
         questions: (j['questions'] as List<dynamic>? ?? const <dynamic>[])
-            .whereType<Map>()
+            .whereType<Map<Object?, Object?>>()
             .map((m) => AskQuestionWire.fromJson(m.cast<String, dynamic>()))
             .toList(growable: false),
       );

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui' as ui;
+
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/workspaces/new_session_page.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+
 import 'new_session_viewmodel_test.dart'
     show FakeWorkspaces, defaultLaunch, directory;
 
@@ -91,9 +93,8 @@ void main() {
                   .toImage();
           final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
           await Directory(previews).create(recursive: true);
-          await File(
-            '$previews/folder-phone.png',
-          ).writeAsBytes(bytes!.buffer.asUint8List());
+          await File('$previews/folder-phone.png')
+              .writeAsBytes(bytes!.buffer.asUint8List());
           image.dispose();
         });
       }

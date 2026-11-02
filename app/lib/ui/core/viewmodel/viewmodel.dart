@@ -7,9 +7,9 @@ import 'package:flutter/foundation.dart';
 /// (per `==`). Pair this with sealed classes in `ui/<feature>/states/` to model
 /// every screen state explicitly (e.g. `Loading`, `Ready`, `Error`).
 ///
-/// Pages should never instantiate a ViewModel directly — register it in
-/// `config/dependencies.dart` via `injector.addViewModel<T>(T.new)` and bind
-/// it on the route in `routing/router.dart` with `ViewmodelProvider<T>()`.
+/// Pages never build a ViewModel directly: add a factory to
+/// `AppServices` in `config/dependencies.dart` and bind it on the route with
+/// `ViewmodelProvider<T>()`.
 abstract class ViewModel<T extends Object> extends ChangeNotifier {
   ViewModel(this._state);
 

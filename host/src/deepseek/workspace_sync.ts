@@ -1,23 +1,8 @@
 import { randomUUID } from "node:crypto";
-import {
-  existsSync,
-  realpathSync,
-  statSync,
-} from "node:fs";
-import {
-  open,
-  readFile,
-  rename,
-  rm,
-} from "node:fs/promises";
+import { existsSync, realpathSync, statSync } from "node:fs";
+import { open, readFile, rename, rm } from "node:fs/promises";
 import { homedir } from "node:os";
-import {
-  basename,
-  dirname,
-  join,
-  parse,
-  resolve,
-} from "node:path";
+import { basename, dirname, join, parse, resolve } from "node:path";
 import WebSocket from "ws";
 
 const DEFAULT_INSPECTOR_PORT = 9230;
@@ -114,10 +99,7 @@ export async function syncDeepSeekWorkspaceFile(
   const canonicalCwd = canonicalDirectory(cwd);
   const path = workspaceDocumentPath(options.dshHome);
   const attempts = Math.max(1, options.fileAttempts ?? DEFAULT_FILE_ATTEMPTS);
-  const retryDelayMs = Math.max(
-    0,
-    options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS,
-  );
+  const retryDelayMs = Math.max(0, options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS);
 
   if (!existsSync(path)) {
     throw new Error(`DeepSeek workspace store does not exist: ${path}`);
@@ -143,13 +125,8 @@ export async function syncDeepSeekWorkspaceFile(
       }
 
       await writeWorkspaceDocument(path, raw, merged.document);
-      const verified = JSON.parse(
-        await readFile(path, "utf8"),
-      ) as WorkspaceDocument;
-      if (
-        verified.tables?.workspaces?.[merged.workspaceId]
-          ?.sessionIds?.includes(sessionId)
-      ) {
+      const verified = JSON.parse(await readFile(path, "utf8")) as WorkspaceDocument;
+      if (verified.tables?.workspaces?.[merged.workspaceId]?.sessionIds?.includes(sessionId)) {
         return {
           via: "file",
           workspaceId: merged.workspaceId,
@@ -182,15 +159,13 @@ export function mergeWorkspaceDocument(
   const workspaces = document.tables.workspaces;
   const owner = sessionOwner(document, sessionId);
   const existing = Object.entries(workspaces).find(([, record]) =>
-    samePath(record.path, canonicalCwd)
+    samePath(record.path, canonicalCwd),
   );
 
   if (existing) {
     const [workspaceId, record] = existing;
     if (owner !== undefined && owner !== workspaceId) {
-      throw new Error(
-        `DeepSeek session ${sessionId} already belongs to workspace ${owner}.`,
-      );
+      throw new Error(`DeepSeek session ${sessionId} already belongs to workspace ${owner}.`);
     }
     if (record.sessionIds.includes(sessionId)) {
       return {
@@ -213,9 +188,7 @@ export function mergeWorkspaceDocument(
   }
 
   if (owner !== undefined) {
-    throw new Error(
-      `DeepSeek session ${sessionId} already belongs to workspace ${owner}.`,
-    );
+    throw new Error(`DeepSeek session ${sessionId} already belongs to workspace ${owner}.`);
   }
 
   const workspaceId = randomUUID();
@@ -227,10 +200,7 @@ export function mergeWorkspaceDocument(
     createdAt: now,
     updatedAt: now,
   };
-  document.global.workspaceIds = [
-    workspaceId,
-    ...document.global.workspaceIds,
-  ];
+  document.global.workspaceIds = [workspaceId, ...document.global.workspaceIds];
   return {
     document,
     workspaceId,
@@ -240,12 +210,9 @@ export function mergeWorkspaceDocument(
   };
 }
 
-function sessionOwner(
-  document: WorkspaceDocument,
-  sessionId: string,
-): string | undefined {
-  return Object.entries(document.tables.workspaces).find(
-    ([, record]) => record.sessionIds.includes(sessionId),
+function sessionOwner(document: WorkspaceDocument, sessionId: string): string | undefined {
+  return Object.entries(document.tables.workspaces).find(([, record]) =>
+    record.sessionIds.includes(sessionId),
   )?.[0];
 }
 
@@ -257,17 +224,17 @@ function validateWorkspaceDocument(value: unknown): WorkspaceDocument {
   const global = value["global"];
   const tables = value["tables"];
   if (
-    !isObject(unit)
-    || unit["name"] !== "workspace"
-    || unit["version"] !== 2
-    || !isObject(global)
-    || global["initialized"] !== true
-    || global["pendingMutation"] !== undefined
-    || !isStringArray(global["workspaceIds"])
-    || !isStringArray(global["archivedSessionIds"])
-    || !isStringArray(global["pinnedSessionIds"])
-    || !isObject(tables)
-    || !isObject(tables["workspaces"])
+    !isObject(unit) ||
+    unit["name"] !== "workspace" ||
+    unit["version"] !== 2 ||
+    !isObject(global) ||
+    global["initialized"] !== true ||
+    global["pendingMutation"] !== undefined ||
+    !isStringArray(global["workspaceIds"]) ||
+    !isStringArray(global["archivedSessionIds"]) ||
+    !isStringArray(global["pinnedSessionIds"]) ||
+    !isObject(tables) ||
+    !isObject(tables["workspaces"])
   ) {
     throw new Error("DeepSeek workspace document has an unsupported shape.");
   }
@@ -277,23 +244,19 @@ function validateWorkspaceDocument(value: unknown): WorkspaceDocument {
   for (const workspaceId of workspaceIds) {
     const record = workspaces[workspaceId];
     if (
-      !isObject(record)
-      || typeof record["path"] !== "string"
-      || typeof record["title"] !== "string"
-      || !isStringArray(record["sessionIds"])
-      || typeof record["createdAt"] !== "string"
-      || typeof record["updatedAt"] !== "string"
+      !isObject(record) ||
+      typeof record["path"] !== "string" ||
+      typeof record["title"] !== "string" ||
+      !isStringArray(record["sessionIds"]) ||
+      typeof record["createdAt"] !== "string" ||
+      typeof record["updatedAt"] !== "string"
     ) {
-      throw new Error(
-        `DeepSeek workspace document has an invalid record for ${workspaceId}.`,
-      );
+      throw new Error(`DeepSeek workspace document has an invalid record for ${workspaceId}.`);
     }
   }
   for (const workspaceId of Object.keys(workspaces)) {
     if (!workspaceIds.includes(workspaceId)) {
-      throw new Error(
-        `DeepSeek workspace document contains orphan ${workspaceId}.`,
-      );
+      throw new Error(`DeepSeek workspace document contains orphan ${workspaceId}.`);
     }
   }
   return value as unknown as WorkspaceDocument;
@@ -304,15 +267,10 @@ async function trySyncViaInspector(
   sessionId: string,
   options: WorkspaceSyncOptions,
 ): Promise<WorkspaceSyncResult | undefined> {
-  const timeoutMs = Math.max(
-    100,
-    options.inspectorTimeoutMs ?? DEFAULT_INSPECTOR_TIMEOUT_MS,
-  );
-  const port = options.inspectorPort
-    ?? Number(
-      process.env["BAYA_DSH_INSPECTOR_PORT"]
-      || DEFAULT_INSPECTOR_PORT,
-    );
+  const timeoutMs = Math.max(100, options.inspectorTimeoutMs ?? DEFAULT_INSPECTOR_TIMEOUT_MS);
+  const port =
+    options.inspectorPort ??
+    Number(process.env["BAYA_DSH_INSPECTOR_PORT"] || DEFAULT_INSPECTOR_PORT);
   if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
     return undefined;
   }
@@ -322,20 +280,18 @@ async function trySyncViaInspector(
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) return undefined;
-    const targets = await response.json() as Array<{
+    const targets = (await response.json()) as Array<{
       title?: unknown;
       type?: unknown;
       webSocketDebuggerUrl?: unknown;
     }>;
-    const target = targets.find((entry) =>
-      entry.type === "page"
-      && entry.webSocketDebuggerUrl
-      && String(entry.title ?? "").includes("DeepSeek Harness Host")
+    const target = targets.find(
+      (entry) =>
+        entry.type === "page" &&
+        entry.webSocketDebuggerUrl &&
+        String(entry.title ?? "").includes("DeepSeek Harness Host"),
     );
-    if (
-      !target
-      || !isLocalInspectorTarget(target.webSocketDebuggerUrl, port)
-    ) {
+    if (!target || !isLocalInspectorTarget(target.webSocketDebuggerUrl, port)) {
       return undefined;
     }
 
@@ -366,19 +322,18 @@ async function trySyncViaInspector(
 }
 
 /** Only evaluate code in an inspector endpoint owned by the requested local port. */
-export function isLocalInspectorTarget(
-  raw: unknown,
-  expectedPort: number,
-): raw is string {
+export function isLocalInspectorTarget(raw: unknown, expectedPort: number): raw is string {
   if (typeof raw !== "string") return false;
   try {
     const url = new URL(raw);
     const host = url.hostname.toLowerCase();
-    return url.protocol === "ws:"
-      && (host === "127.0.0.1" || host === "localhost" || host === "::1" || host === "[::1]")
-      && Number(url.port) === expectedPort
-      && !url.username
-      && !url.password;
+    return (
+      url.protocol === "ws:" &&
+      (host === "127.0.0.1" || host === "localhost" || host === "::1" || host === "[::1]") &&
+      Number(url.port) === expectedPort &&
+      !url.username &&
+      !url.password
+    );
   } catch {
     return false;
   }
@@ -390,10 +345,7 @@ export function isLocalInspectorTarget(
  * required when the Desktop window already loaded its Session list before
  * ACP created the Session.
  */
-export function workspaceInspectorExpression(
-  cwd: string,
-  sessionId: string,
-): string {
+export function workspaceInspectorExpression(cwd: string, sessionId: string): string {
   return `(async () => {
     const cwd = ${JSON.stringify(cwd)};
     const sessionId = ${JSON.stringify(sessionId)};
@@ -469,15 +421,17 @@ async function evaluateInspectorExpression(
     };
     socket.on("message", onMessage);
     socket.on("error", onError);
-    socket.send(JSON.stringify({
-      id,
-      method: "Runtime.evaluate",
-      params: {
-        expression,
-        awaitPromise: true,
-        returnByValue: true,
-      },
-    }));
+    socket.send(
+      JSON.stringify({
+        id,
+        method: "Runtime.evaluate",
+        params: {
+          expression,
+          awaitPromise: true,
+          returnByValue: true,
+        },
+      }),
+    );
   });
   const message = await response;
   const envelope = message["result"];
@@ -488,10 +442,7 @@ async function evaluateInspectorExpression(
   return isObject(result) ? result["value"] : undefined;
 }
 
-async function waitForSocket(
-  socket: WebSocket,
-  timeoutMs: number,
-): Promise<void> {
+async function waitForSocket(socket: WebSocket, timeoutMs: number): Promise<void> {
   await new Promise<void>((resolvePromise, rejectPromise) => {
     const timer = setTimeout(() => {
       cleanup();
@@ -520,10 +471,7 @@ async function writeWorkspaceDocument(
   observedRaw: string,
   document: WorkspaceDocument,
 ): Promise<void> {
-  const temp = join(
-    dirname(path),
-    `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`,
-  );
+  const temp = join(dirname(path), `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`);
   try {
     const handle = await open(temp, "wx");
     try {
@@ -532,10 +480,8 @@ async function writeWorkspaceDocument(
     } finally {
       await handle.close();
     }
-    if (await readFile(path, "utf8") !== observedRaw) {
-      throw new Error(
-        "DeepSeek workspace store changed while preparing the update.",
-      );
+    if ((await readFile(path, "utf8")) !== observedRaw) {
+      throw new Error("DeepSeek workspace store changed while preparing the update.");
     }
     await rename(temp, path);
   } catch (error) {
@@ -546,9 +492,7 @@ async function writeWorkspaceDocument(
 
 function workspaceDocumentPath(dshHome?: string): string {
   return join(
-    dshHome
-      ?? process.env["DSH_HOME"]?.trim()
-      ?? join(homedir(), ".dsh"),
+    dshHome ?? process.env["DSH_HOME"]?.trim() ?? join(homedir(), ".dsh"),
     "storages",
     "workspace.json",
   );
@@ -571,8 +515,7 @@ function samePath(left: string, right: string): boolean {
 }
 
 function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value)
-    && value.every((entry) => typeof entry === "string");
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

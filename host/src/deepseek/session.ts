@@ -1,25 +1,20 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import type { AgentAdapter } from "../adapters/types.js";
-import { dirname, join } from "node:path";
-import { sessionStatePath } from "../session/identity.js";
-import { contextUsageSnapshot } from "../context_usage.js";
-import { historyFrames } from "../protocol/history.js";
-import { thinkingLevelsFromOptions } from "../protocol/thinking.js";
+import { dirname } from "node:path";
+import type { AgentAdapter } from "../adapters/types.ts";
+import { contextUsageSnapshot } from "../context_usage.ts";
+import { historyFrames } from "../protocol/history.ts";
+import { thinkingLevelsFromOptions } from "../protocol/thinking.ts";
 import type {
   ClientMessage,
   QueuedMessageItem,
   ServerMessage,
   SessionHistoryEvent,
   WireModel,
-} from "../protocol/types.js";
-import type { PeerChannel } from "../transport/peer_channel.js";
-import {
-  DeepSeekClient,
-  object,
-  type DeepSeekServerRequest,
-  type JsonObject,
-} from "./client.js";
-import { syncDeepSeekWorkspace } from "./workspace_sync.js";
+} from "../protocol/types.ts";
+import { sessionStatePath } from "../session/identity.ts";
+import type { PeerChannel } from "../transport/peer_channel.ts";
+import { DeepSeekClient, type DeepSeekServerRequest, type JsonObject, object } from "./client.ts";
+import { syncDeepSeekWorkspace } from "./workspace_sync.ts";
 
 type Client = Pick<
   DeepSeekClient,
@@ -94,7 +89,10 @@ export class DeepSeekSession implements AgentAdapter {
   private readonly queued = new Map<string, QueuedMessageItem>();
   private draining = false;
 
-  constructor(private readonly options: DeepSeekSessionOptions) {
+  private readonly options: DeepSeekSessionOptions;
+
+  constructor(options: DeepSeekSessionOptions) {
+    this.options = options;
     this.client = options.client ?? new DeepSeekClient(options.cwd);
     this.statePath = options.statePath ?? sessionStatePath(options.cwd, "deepseek", "");
     this.client.on("notification", (method, params) => this.notification(method, params));
@@ -112,28 +110,25 @@ export class DeepSeekSession implements AgentAdapter {
     if (existsSync(this.statePath)) {
       try {
         const saved = object(JSON.parse(readFileSync(this.statePath, "utf8")));
-        if (typeof saved.sessionId === "string" && saved.sessionId) {
-          const resumed = object(await this.client.request(
-            "session/resume",
-            { sessionId: saved.sessionId, cwd: this.options.cwd, mcpServers: [] },
-            120_000,
-          ));
-          this.sessionId = saved.sessionId;
-          this.startedAt = typeof saved.startedAt === "number"
-            ? saved.startedAt
-            : Date.now();
-          this.events = Array.isArray(saved.events)
-            ? saved.events as SessionHistoryEvent[]
+        if (typeof saved["sessionId"] === "string" && saved["sessionId"]) {
+          const resumed = object(
+            await this.client.request(
+              "session/resume",
+              { sessionId: saved["sessionId"], cwd: this.options.cwd, mcpServers: [] },
+              120_000,
+            ),
+          );
+          this.sessionId = saved["sessionId"];
+          this.startedAt = typeof saved["startedAt"] === "number" ? saved["startedAt"] : Date.now();
+          this.events = Array.isArray(saved["events"])
+            ? (saved["events"] as SessionHistoryEvent[])
             : [];
-          if (saved.contextUsage) {
-            const usage = object(saved.contextUsage);
-            this.contextUsage = contextUsageSnapshot(
-              usage.tokens,
-              usage.context_window,
-            );
+          if (saved["contextUsage"]) {
+            const usage = object(saved["contextUsage"]);
+            this.contextUsage = contextUsageSnapshot(usage["tokens"], usage["context_window"]);
           }
           this.repairInterruptedHistory();
-          this.updateConfigOptions(resumed.configOptions);
+          this.updateConfigOptions(resumed["configOptions"]);
         }
       } catch (error) {
         throw new Error(
@@ -239,9 +234,7 @@ export class DeepSeekSession implements AgentAdapter {
           });
           return;
         case "session_compact":
-          throw new Error(
-            "DeepSeek Harness does not expose context compaction through ACP.",
-          );
+          throw new Error("DeepSeek Harness does not expose context compaction through ACP.");
         case "queued_message_set":
           if (!message.text.trim()) {
             this.queued.delete(message.id);
@@ -262,21 +255,17 @@ export class DeepSeekSession implements AgentAdapter {
           this.broadcastQueue();
           return;
         case "extension_ui_response":
-          throw new Error(
-            "DeepSeek Harness does not expose interactive questions through ACP.",
-          );
+          throw new Error("DeepSeek Harness does not expose interactive questions through ACP.");
         default:
           throw new Error("This action is not supported by DeepSeek Harness.");
       }
     } catch (error) {
-      const detail = error instanceof Error
-        ? error.message
-        : "DeepSeek Harness request failed.";
+      const detail = error instanceof Error ? error.message : "DeepSeek Harness request failed.";
       if (
-        message.type === "model_set"
-        || message.type === "thinking_set"
-        || message.type === "session_new"
-        || message.type === "session_compact"
+        message.type === "model_set" ||
+        message.type === "thinking_set" ||
+        message.type === "session_new" ||
+        message.type === "session_compact"
       ) {
         sender.send({
           type: "action_error",
@@ -316,25 +305,19 @@ export class DeepSeekSession implements AgentAdapter {
     const previous = this.sessionId;
     if (previous) {
       try {
-        await this.client.request(
-          "session/close",
-          { sessionId: previous },
-          30_000,
-        );
+        await this.client.request("session/close", { sessionId: previous }, 30_000);
       } catch {
         // The new session can still be created if persistence refuses close.
       }
     }
-    const created = object(await this.client.request(
-      "session/new",
-      { cwd: this.options.cwd, mcpServers: [] },
-      120_000,
-    ));
-    if (typeof created.sessionId !== "string" || !created.sessionId) {
+    const created = object(
+      await this.client.request("session/new", { cwd: this.options.cwd, mcpServers: [] }, 120_000),
+    );
+    if (typeof created["sessionId"] !== "string" || !created["sessionId"]) {
       throw new Error("DeepSeek Harness did not return a session id.");
     }
     this.finishInteractions("The previous conversation ended.");
-    this.sessionId = created.sessionId;
+    this.sessionId = created["sessionId"];
     this.startedAt = Date.now();
     this.events = [];
     this.contextUsage = contextUsageSnapshot(null, null);
@@ -342,7 +325,7 @@ export class DeepSeekSession implements AgentAdapter {
     this.text = "";
     this.textItem = "";
     this.queued.clear();
-    this.updateConfigOptions(created.configOptions);
+    this.updateConfigOptions(created["configOptions"]);
     this.broadcastQueue();
     this.persist();
     await this.syncDesktopWorkspace();
@@ -369,19 +352,17 @@ export class DeepSeekSession implements AgentAdapter {
     this.echo(message);
     this.setBusy(true);
     try {
-      const response = object(await this.client.request(
-        "session/prompt",
-        { sessionId: this.sessionId, prompt },
-        0,
-      ));
-      if (response.stopReason === "refusal") {
+      const response = object(
+        await this.client.request("session/prompt", { sessionId: this.sessionId, prompt }, 0),
+      );
+      if (response["stopReason"] === "refusal") {
         this.options.broadcast({
           type: "error",
           in_reply_to: message.id,
           code: "deepseek_error",
           message: "DeepSeek refused this request.",
         });
-      } else if (response.stopReason === "max_tokens") {
+      } else if (response["stopReason"] === "max_tokens") {
         this.options.broadcast({
           type: "error",
           in_reply_to: message.id,
@@ -394,9 +375,10 @@ export class DeepSeekSession implements AgentAdapter {
         type: "error",
         in_reply_to: message.id,
         code: "deepseek_error",
-        message: error instanceof Error
-          ? error.message
-          : "DeepSeek Harness could not complete this response.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "DeepSeek Harness could not complete this response.",
       });
       throw error;
     } finally {
@@ -434,9 +416,9 @@ export class DeepSeekSession implements AgentAdapter {
 
   private notification(method: string, params: JsonObject): void {
     if (method !== "session/update") return;
-    if (params.sessionId !== this.sessionId) return;
-    const update = object(params.update);
-    const kind = update.sessionUpdate;
+    if (params["sessionId"] !== this.sessionId) return;
+    const update = object(params["update"]);
+    const kind = update["sessionUpdate"];
     if (kind === "agent_message_chunk") {
       this.agentMessageChunk(update);
     } else if (kind === "agent_thought_chunk") {
@@ -446,51 +428,48 @@ export class DeepSeekSession implements AgentAdapter {
     } else if (kind === "tool_call_update") {
       this.toolCallUpdate(update);
     } else if (kind === "usage_update") {
-      this.contextUsage = contextUsageSnapshot(update.used, update.size);
+      this.contextUsage = contextUsageSnapshot(update["used"], update["size"]);
       this.persist();
     } else if (kind === "config_option_update") {
-      this.updateConfigOptions(update.configOptions);
+      this.updateConfigOptions(update["configOptions"]);
       this.persist();
-    } else if (kind === "notice" && update.severity === "error") {
+    } else if (kind === "notice" && update["severity"] === "error") {
       this.options.broadcast({
         type: "error",
         ...(this.userId ? { in_reply_to: this.userId } : {}),
         code: "deepseek_error",
-        message: String(update.message ?? "DeepSeek Harness reported an error."),
+        message: String(update["message"] ?? "DeepSeek Harness reported an error."),
       });
     }
   }
 
   private agentMessageChunk(update: JsonObject): void {
-    const content = object(update.content);
-    if (content.type !== "text" || typeof content.text !== "string") return;
+    const content = object(update["content"]);
+    if (content["type"] !== "text" || typeof content["text"] !== "string") return;
     this.finishThinking();
-    const itemId = typeof update.messageId === "string" ? update.messageId : "message";
+    const itemId = typeof update["messageId"] === "string" ? update["messageId"] : "message";
     const prefix = this.textItem && this.textItem !== itemId && this.text ? "\n\n" : "";
     this.textItem = itemId;
-    this.text += prefix + content.text;
+    this.text += prefix + content["text"];
     this.options.broadcast({
       type: "agent_chunk",
       in_reply_to: this.userId ?? "deepseek",
-      delta: prefix + content.text,
+      delta: prefix + content["text"],
     });
   }
 
   private thoughtChunk(update: JsonObject): void {
-    const content = object(update.content);
-    if (content.type !== "text" || typeof content.text !== "string") return;
-    const messageId = typeof update.messageId === "string"
-      ? update.messageId
-      : "thought";
+    const content = object(update["content"]);
+    if (content["type"] !== "text" || typeof content["text"] !== "string") return;
+    const messageId = typeof update["messageId"] === "string" ? update["messageId"] : "thought";
     const key = `thinking_${messageId}`;
     const index = this.events.findIndex(
       (entry) => entry.type === "agent_thinking" && entry.id === key,
     );
     if (index < 0) this.flushText();
     const previous = index >= 0 ? this.events[index] : undefined;
-    const text = previous?.type === "agent_thinking"
-      ? previous.text + content.text
-      : content.text;
+    const text =
+      previous?.type === "agent_thinking" ? previous.text + content["text"] : content["text"];
     const event = {
       type: "agent_thinking" as const,
       id: key,
@@ -504,41 +483,38 @@ export class DeepSeekSession implements AgentAdapter {
   }
 
   private toolCall(update: JsonObject): void {
-    const id = String(update.toolCallId ?? "");
+    const id = String(update["toolCallId"] ?? "");
     if (!id) return;
-    const title = String(update.title ?? update.name ?? "tool");
-    const name = String(update.name ?? update.title ?? "tool");
+    const title = String(update["title"] ?? update["name"] ?? "tool");
+    const name = String(update["name"] ?? update["title"] ?? "tool");
     this.toolRequest(id, name, {
-      ...rawInputArgs(update.rawInput),
+      ...rawInputArgs(update["rawInput"]),
       title,
-      kind: update.kind,
+      kind: update["kind"],
     });
   }
 
   private toolCallUpdate(update: JsonObject): void {
-    const id = String(update.toolCallId ?? "");
+    const id = String(update["toolCallId"] ?? "");
     if (!id) return;
     const previous = this.toolItems.get(id);
-    const title = typeof update.title === "string"
-      ? update.title
-      : String(previous?.args.title ?? "");
-    const tool = String(update.name ?? previous?.tool ?? title ?? "tool");
+    const title =
+      typeof update["title"] === "string" ? update["title"] : String(previous?.args["title"] ?? "");
+    const tool = String(update["name"] ?? previous?.tool ?? title ?? "tool");
     const args: JsonObject = {
       ...previous?.args,
-      ...rawInputArgs(update.rawInput),
+      ...rawInputArgs(update["rawInput"]),
       ...(title ? { title } : {}),
-      ...(update.kind !== undefined ? { kind: update.kind } : {}),
+      ...(update["kind"] !== undefined ? { kind: update["kind"] } : {}),
     };
     this.toolRequest(id, tool, args);
-    const status = String(update.status ?? "");
+    const status = String(update["status"] ?? "");
     if (status === "completed" || status === "failed") {
       const result = toolResultValue(update);
       this.toolResult(
         id,
         status === "failed" ? undefined : result,
-        status === "failed"
-          ? toolFailureValue(update, result)
-          : undefined,
+        status === "failed" ? toolFailureValue(update, result) : undefined,
       );
     }
   }
@@ -583,10 +559,10 @@ export class DeepSeekSession implements AgentAdapter {
   }
 
   private thoughtOrTextOpen(): boolean {
-    return this.text.length > 0
-      || this.events.some(
-        (entry) => entry.type === "agent_thinking" && !entry.complete,
-      );
+    return (
+      this.text.length > 0 ||
+      this.events.some((entry) => entry.type === "agent_thinking" && !entry.complete)
+    );
   }
 
   private finishThinking(): void {
@@ -613,56 +589,50 @@ export class DeepSeekSession implements AgentAdapter {
 
   private historyTextId(): string {
     const hasSegment = this.events.some(
-      (entry) =>
-        entry.type === "agent_message"
-        && entry.in_reply_to === this.userId,
+      (entry) => entry.type === "agent_message" && entry.in_reply_to === this.userId,
     );
-    return hasSegment
-      ? `${this.userId}:segment:${this.events.length}`
-      : this.userId!;
+    return hasSegment ? `${this.userId}:segment:${this.events.length}` : this.userId!;
   }
 
   private serverRequest(request: DeepSeekServerRequest): void {
     if (
-      request.params.sessionId !== undefined
-      && request.params.sessionId !== this.sessionId
+      request.params["sessionId"] !== undefined &&
+      request.params["sessionId"] !== this.sessionId
     ) {
       this.client.rejectRequest(request.id, "Unknown session.");
       return;
     }
     if (request.method !== "session/request_permission") {
-      this.client.rejectRequest(
-        request.id,
-        `Unsupported ACP client request: ${request.method}`,
-      );
+      this.client.rejectRequest(request.id, `Unsupported ACP client request: ${request.method}`);
       return;
     }
-    const toolCall = object(request.params.toolCall);
-    const id = String(toolCall.toolCallId ?? "");
-    const options = Array.isArray(request.params.options)
-      ? request.params.options.map(object)
+    const toolCall = object(request.params["toolCall"]);
+    const id = String(toolCall["toolCallId"] ?? "");
+    const options = Array.isArray(request.params["options"])
+      ? request.params["options"].map(object)
       : [];
-    const allow = options.find((option) => option.kind === "allow_once");
-    const reject = options.find((option) => option.kind === "reject_once");
-    if (!id || typeof allow?.optionId !== "string" || typeof reject?.optionId !== "string") {
-      this.client.rejectRequest(
-        request.id,
-        "DeepSeek requested an unsupported permission choice.",
-      );
+    const allow = options.find((option) => option["kind"] === "allow_once");
+    const reject = options.find((option) => option["kind"] === "reject_once");
+    if (
+      !id ||
+      typeof allow?.["optionId"] !== "string" ||
+      typeof reject?.["optionId"] !== "string"
+    ) {
+      this.client.rejectRequest(request.id, "DeepSeek requested an unsupported permission choice.");
       return;
     }
     const existing = this.toolItems.get(id);
-    const tool = String(toolCall.name ?? existing?.tool ?? toolCall.title ?? "tool");
+    const tool = String(toolCall["name"] ?? existing?.tool ?? toolCall["title"] ?? "tool");
     this.toolRequest(id, tool, {
       ...existing?.args,
-      ...rawInputArgs(toolCall.rawInput),
-      ...(toolCall.title !== undefined ? { title: toolCall.title } : {}),
+      ...rawInputArgs(toolCall["rawInput"]),
+      ...(toolCall["title"] !== undefined ? { title: toolCall["title"] } : {}),
       approval_required: true,
     });
     this.permissions.set(id, {
       request,
-      allowOptionId: allow.optionId,
-      rejectOptionId: reject.optionId,
+      allowOptionId: allow["optionId"],
+      rejectOptionId: reject["optionId"],
     });
   }
 
@@ -672,9 +642,7 @@ export class DeepSeekSession implements AgentAdapter {
     this.client.respond(pending.request.id, {
       outcome: {
         outcome: "selected",
-        optionId: decision === "allow"
-          ? pending.allowOptionId
-          : pending.rejectOptionId,
+        optionId: decision === "allow" ? pending.allowOptionId : pending.rejectOptionId,
       },
     });
     this.permissions.delete(id);
@@ -703,17 +671,19 @@ export class DeepSeekSession implements AgentAdapter {
 
   private updateConfigOptions(raw: unknown): void {
     this.configOptions = Array.isArray(raw)
-      ? raw.map((entry) => {
-          const option = object(entry);
-          return {
-            id: String(option.id ?? ""),
-            name: String(option.name ?? option.id ?? ""),
-            type: String(option.type ?? ""),
-            currentValue: option.currentValue,
-            options: Array.isArray(option.options) ? option.options : [],
-            ...(typeof option.category === "string" ? { category: option.category } : {}),
-          };
-        }).filter((option) => option.id)
+      ? raw
+          .map((entry) => {
+            const option = object(entry);
+            return {
+              id: String(option["id"] ?? ""),
+              name: String(option["name"] ?? option["id"] ?? ""),
+              type: String(option["type"] ?? ""),
+              currentValue: option["currentValue"],
+              options: Array.isArray(option["options"]) ? option["options"] : [],
+              ...(typeof option["category"] === "string" ? { category: option["category"] } : {}),
+            };
+          })
+          .filter((option) => option.id)
       : [];
     this.modelChoices = [];
     const modelOption = this.configOptions.find(
@@ -721,9 +691,9 @@ export class DeepSeekSession implements AgentAdapter {
     );
     for (const entry of modelOption?.options ?? []) {
       const group = object(entry);
-      if (Array.isArray(group.options)) {
-        const provider = String(group.group ?? group.name ?? "");
-        for (const child of group.options) {
+      if (Array.isArray(group["options"])) {
+        const provider = String(group["group"] ?? group["name"] ?? "");
+        for (const child of group["options"]) {
           const choice = modelChoice(child, provider);
           if (choice) this.modelChoices.push(choice);
         }
@@ -742,11 +712,11 @@ export class DeepSeekSession implements AgentAdapter {
     );
     if (typeof option?.currentValue !== "string") return undefined;
     const parsed = parseModelValue(option.currentValue);
-    return this.modelChoices.find(
-      (choice) =>
-        choice.provider === parsed.provider
-        && choice.model === parsed.model,
-    ) ?? this.modelChoices.find((choice) => choice.value === option.currentValue);
+    return (
+      this.modelChoices.find(
+        (choice) => choice.provider === parsed.provider && choice.model === parsed.model,
+      ) ?? this.modelChoices.find((choice) => choice.value === option.currentValue)
+    );
   }
 
   private async setModel(modelId: string, provider: string): Promise<void> {
@@ -758,20 +728,17 @@ export class DeepSeekSession implements AgentAdapter {
     );
     if (!option) throw new Error("DeepSeek did not advertise a model selector.");
     const choice = this.modelChoices.find(
-      (entry) =>
-        entry.model === modelId
-        && (!provider || entry.provider === provider),
+      (entry) => entry.model === modelId && (!provider || entry.provider === provider),
     );
     if (!choice) throw new Error("Choose a model from the DeepSeek catalog.");
-    const changed = object(await this.client.request(
-      "session/set_config_option",
-      {
+    const changed = object(
+      await this.client.request("session/set_config_option", {
         sessionId: this.sessionId,
         configId: option.id,
         value: choice.value,
-      },
-    ));
-    this.updateConfigOptions(changed.configOptions);
+      }),
+    );
+    this.updateConfigOptions(changed["configOptions"]);
     this.persist();
   }
 
@@ -782,9 +749,7 @@ export class DeepSeekSession implements AgentAdapter {
       throw new Error("Wait for the current response before changing reasoning effort.");
     }
     const option = this.configOptions.find(
-      (entry) =>
-        entry.category === "thought_level"
-        || entry.id === "reasoning_effort",
+      (entry) => entry.category === "thought_level" || entry.id === "reasoning_effort",
     );
     if (!option) {
       if (level === "off") return;
@@ -794,19 +759,20 @@ export class DeepSeekSession implements AgentAdapter {
     if (value === undefined) {
       throw new Error(`This DeepSeek model does not support ${level} reasoning.`);
     }
-    const changed = object(await this.client.request(
-      "session/set_config_option",
-      { sessionId: this.sessionId, configId: option.id, value },
-    ));
-    this.updateConfigOptions(changed.configOptions);
+    const changed = object(
+      await this.client.request("session/set_config_option", {
+        sessionId: this.sessionId,
+        configId: option.id,
+        value,
+      }),
+    );
+    this.updateConfigOptions(changed["configOptions"]);
     this.persist();
   }
 
   private models(sender: PeerChannel, id: string): void {
     const effortOption = this.configOptions.find(
-      (entry) =>
-        entry.category === "thought_level"
-        || entry.id === "reasoning_effort",
+      (entry) => entry.category === "thought_level" || entry.id === "reasoning_effort",
     );
     const thinkingLevels = thinkingLevelsFromOptions(effortOption?.options ?? []);
     const reasoning = thinkingLevels.some((level) => level !== "off");
@@ -823,8 +789,7 @@ export class DeepSeekSession implements AgentAdapter {
     const selected = current
       ? models.find(
           (entry) =>
-            entry.id === current.model
-            && entry.provider === (current.provider || "deepseek"),
+            entry.id === current.model && entry.provider === (current.provider || "deepseek"),
         )
       : undefined;
     sender.send({
@@ -840,9 +805,7 @@ export class DeepSeekSession implements AgentAdapter {
       in_reply_to: id,
       session_started_at: this.startedAt,
       events: [...this.events],
-      streaming: this.busy && this.userId
-        ? { in_reply_to: this.userId, text: this.text }
-        : null,
+      streaming: this.busy && this.userId ? { in_reply_to: this.userId, text: this.text } : null,
       truncated: false,
     });
     for (const frame of frames) sender.send(frame);
@@ -911,19 +874,19 @@ export class DeepSeekSession implements AgentAdapter {
       type: "user_message",
       id: entry.id,
       text: entry.text,
-    }).catch((error: unknown) => {
-      this.options.broadcast({
-        type: "error",
-        code: "deepseek_error",
-        in_reply_to: entry.id,
-        message: error instanceof Error
-          ? error.message
-          : "Could not send queued message.",
+    })
+      .catch((error: unknown) => {
+        this.options.broadcast({
+          type: "error",
+          code: "deepseek_error",
+          in_reply_to: entry.id,
+          message: error instanceof Error ? error.message : "Could not send queued message.",
+        });
+      })
+      .finally(() => {
+        this.draining = false;
+        this.drainQueue();
       });
-    }).finally(() => {
-      this.draining = false;
-      this.drainQueue();
-    });
   }
 
   private setBusy(value: boolean): void {
@@ -934,10 +897,7 @@ export class DeepSeekSession implements AgentAdapter {
   private async syncDesktopWorkspace(): Promise<void> {
     if (!this.sessionId) return;
     try {
-      await (this.options.syncWorkspace ?? syncDeepSeekWorkspace)(
-        this.options.cwd,
-        this.sessionId,
-      );
+      await (this.options.syncWorkspace ?? syncDeepSeekWorkspace)(this.options.cwd, this.sessionId);
     } catch (error) {
       process.stderr.write(
         `[baya] DeepSeek workspace sync skipped: ${
@@ -956,7 +916,7 @@ export class DeepSeekSession implements AgentAdapter {
       contextUsage: this.contextUsage,
     };
     mkdirSync(dirname(this.statePath), { recursive: true, mode: 0o700 });
-    const temp = this.statePath + ".tmp";
+    const temp = `${this.statePath}.tmp`;
     writeFileSync(temp, JSON.stringify(saved), { mode: 0o600 });
     renameSync(temp, this.statePath);
   }
@@ -964,27 +924,21 @@ export class DeepSeekSession implements AgentAdapter {
 
 function modelChoice(raw: unknown, fallbackProvider: string): ModelChoice | null {
   const entry = object(raw);
-  if (typeof entry.value !== "string") return null;
-  const parsed = parseModelValue(entry.value);
+  if (typeof entry["value"] !== "string") return null;
+  const parsed = parseModelValue(entry["value"]);
   return {
-    value: entry.value,
+    value: entry["value"],
     provider: parsed.provider || fallbackProvider,
-    model: parsed.model || entry.value,
-    name: String(entry.name ?? parsed.model ?? entry.value),
-    ...(typeof entry.description === "string"
-      ? { description: entry.description }
-      : {}),
+    model: parsed.model || entry["value"],
+    name: String(entry["name"] ?? parsed.model ?? entry["value"]),
+    ...(typeof entry["description"] === "string" ? { description: entry["description"] } : {}),
   };
 }
 
 function parseModelValue(value: string): { provider: string; model: string } {
   try {
     const parsed = JSON.parse(value) as unknown;
-    if (
-      Array.isArray(parsed)
-      && typeof parsed[0] === "string"
-      && typeof parsed[1] === "string"
-    ) {
+    if (Array.isArray(parsed) && typeof parsed[0] === "string" && typeof parsed[1] === "string") {
       return { provider: parsed[0], model: parsed[1] };
     }
   } catch {
@@ -1010,27 +964,28 @@ function findThinkingValue(
   };
   const wanted = aliases[level] ?? [level];
   for (const alias of wanted) {
-    const match = options.find((entry) =>
-      String(entry.value ?? "").toLowerCase() === alias
-      || String(entry.name ?? "").toLowerCase() === alias
+    const match = options.find(
+      (entry) =>
+        String(entry["value"] ?? "").toLowerCase() === alias ||
+        String(entry["name"] ?? "").toLowerCase() === alias,
     );
-    if (typeof match?.value === "string") return match.value;
+    if (typeof match?.["value"] === "string") return match["value"];
   }
   return undefined;
 }
 
 function toolResultValue(update: JsonObject): unknown {
-  if (update.rawOutput !== undefined) return update.rawOutput;
-  const content = Array.isArray(update.content)
-    ? update.content.map(toolContentValue).filter((value) => value !== undefined)
+  if (update["rawOutput"] !== undefined) return update["rawOutput"];
+  const content = Array.isArray(update["content"])
+    ? update["content"].map(toolContentValue).filter((value) => value !== undefined)
     : [];
-  if (content.length === 0) return update.status;
+  if (content.length === 0) return update["status"];
   return content.length === 1 ? content[0] : content;
 }
 
 function toolFailureValue(update: JsonObject, result: unknown): string {
-  if (typeof update.rawOutput === "string" && update.rawOutput) {
-    return update.rawOutput;
+  if (typeof update["rawOutput"] === "string" && update["rawOutput"]) {
+    return update["rawOutput"];
   }
   if (typeof result === "string" && result) return result;
   return "DeepSeek tool execution failed.";
@@ -1038,9 +993,9 @@ function toolFailureValue(update: JsonObject, result: unknown): string {
 
 function toolContentValue(raw: unknown): unknown {
   const entry = object(raw);
-  if (entry.type === "content") {
-    const content = object(entry.content);
-    return content.text ?? entry.content;
+  if (entry["type"] === "content") {
+    const content = object(entry["content"]);
+    return content["text"] ?? entry["content"];
   }
   return entry;
 }

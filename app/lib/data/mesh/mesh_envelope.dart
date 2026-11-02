@@ -25,14 +25,14 @@ class MeshEnvelope {
   final Uint8List sig;
 
   MeshEnvelope({required Uint8List blob, required Uint8List sig})
-      : blob = Uint8List.fromList(blob),
-        sig = Uint8List.fromList(sig);
+    : blob = Uint8List.fromList(blob),
+      sig = Uint8List.fromList(sig);
 
   /// JSON shape used on the wire — `{blob, sig}` base64.
   Map<String, Object?> toJson() => {
-        'blob': base64.encode(blob),
-        'sig': base64.encode(sig),
-      };
+    'blob': base64.encode(blob),
+    'sig': base64.encode(sig),
+  };
 
   /// Parses a JSON map produced by [toJson]. The relay's GET response
   /// adds `version` and `updated_at` fields outside the envelope —
@@ -45,9 +45,6 @@ class MeshEnvelope {
         'MeshEnvelope: blob and sig must be base64 strings',
       );
     }
-    return MeshEnvelope(
-      blob: base64.decode(blob),
-      sig: base64.decode(sig),
-    );
+    return MeshEnvelope(blob: base64.decode(blob), sig: base64.decode(sig));
   }
 }

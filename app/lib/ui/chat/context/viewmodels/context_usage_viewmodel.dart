@@ -1,5 +1,6 @@
 import 'package:app/domain/contracts/context_usage_repository.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
+
 import '../states/context_usage_state.dart';
 
 class ContextUsageViewModel extends ViewModel<ContextUsageState> {

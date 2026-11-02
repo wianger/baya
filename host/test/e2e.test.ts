@@ -1,7 +1,7 @@
 import { createPrivateKey, createPublicKey } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { generateEd25519Keypair } from "../src/pairing/crypto.js";
+import { generateEd25519Keypair } from "../src/pairing/crypto.ts";
 import {
   deriveSessionKey,
   open,
@@ -9,7 +9,7 @@ import {
   seal,
   x25519PrivateFromEd25519Seed,
   x25519PublicFromEd25519,
-} from "../src/transport/e2e.js";
+} from "../src/transport/e2e.ts";
 
 const fixture = JSON.parse(
   readFileSync(new URL("../../.orchestration/contracts/e2e_v1.json", import.meta.url), "utf8"),
@@ -57,12 +57,23 @@ describe("sealed frames", () => {
   const key = b64(fixture.session_key);
 
   test("matches the shared cross-language fixture", () => {
-    expect(deriveSessionKey(b64(fixture.host_seed), b64(fixture.host_pk), b64(fixture.phone_pk))).toEqual(key);
-    expect(deriveSessionKey(b64(fixture.phone_seed), b64(fixture.phone_pk), b64(fixture.host_pk))).toEqual(key);
+    expect(
+      deriveSessionKey(b64(fixture.host_seed), b64(fixture.host_pk), b64(fixture.phone_pk)),
+    ).toEqual(key);
+    expect(
+      deriveSessionKey(b64(fixture.phone_seed), b64(fixture.phone_pk), b64(fixture.host_pk)),
+    ).toEqual(key);
     const p2h = open(key, "p2h", fixture.room, b64(fixture.p2h.box));
     expect(p2h.plaintext.toString()).toBe(fixture.p2h.plaintext);
     expect(p2h.sentAt).toBe(fixture.ts);
-    const h2p = seal(key, "h2p", fixture.room, Buffer.from(fixture.h2p.plaintext), fixture.ts, b64(fixture.h2p.box).subarray(2, 14));
+    const h2p = seal(
+      key,
+      "h2p",
+      fixture.room,
+      Buffer.from(fixture.h2p.plaintext),
+      fixture.ts,
+      b64(fixture.h2p.box).subarray(2, 14),
+    );
     expect(h2p.toString("base64")).toBe(fixture.h2p.box);
   });
 
@@ -74,7 +85,9 @@ describe("sealed frames", () => {
     tampered[20]! ^= 1;
     expect(() => open(key, "p2h", fixture.room, tampered)).toThrow(/authentication/);
     expect(() => open(Buffer.alloc(32), "p2h", fixture.room, box)).toThrow(/authentication/);
-    expect(() => open(key, "p2h", fixture.room, Buffer.from('{"type":"ping"}'))).toThrow(/Not an encrypted/);
+    expect(() => open(key, "p2h", fixture.room, Buffer.from('{"type":"ping"}'))).toThrow(
+      /Not an encrypted/,
+    );
   });
 
   test("the replay guard rejects stale and repeated frames", () => {

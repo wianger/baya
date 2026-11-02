@@ -27,8 +27,7 @@ const String kRelayUrlInvalidGeneric =
 /// Falls back to [kDefaultRelayUrl] when no user override is set.
 /// Always returns an `http(s)://` URL — caller is responsible for
 /// applying [toWsRelayUrl] when opening a WebSocket.
-String resolveRelayUrl(Preferences prefs) =>
-    prefs.relayUrl ?? kDefaultRelayUrl;
+String resolveRelayUrl(Preferences prefs) => prefs.relayUrl ?? kDefaultRelayUrl;
 
 /// Translates the canonical HTTP-form relay URL into the WebSocket
 /// form expected by the underlying transport. `https://` → `wss://`,

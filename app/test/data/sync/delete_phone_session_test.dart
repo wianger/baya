@@ -94,13 +94,7 @@ void main() {
     );
     final restoredPrefs = Preferences();
     await restoredPrefs.load();
-    expect(
-      restoredPrefs.isSessionHidden(
-        peer.remoteEpk,
-        peer.roomId!,
-      ),
-      isTrue,
-    );
+    expect(restoredPrefs.isSessionHidden(peer.remoteEpk, peer.roomId!), isTrue);
     expect(restoredPrefs.isCustomWorkspace(workspace), isFalse);
     final homeAfterRestart = HomeViewModel(storage, restoredPrefs, conn);
     final syncAfterRestart = SyncService(

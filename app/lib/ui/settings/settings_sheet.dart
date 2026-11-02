@@ -21,7 +21,7 @@ void openSettings(BuildContext context) {
 
 /// Presents [SettingsPage] (embedded variant) in a tall modal bottom sheet.
 /// The page reaches the same `SettingsViewModel` as the route via a fresh
-/// [ViewmodelProvider] (injector-backed), so behaviour is identical to the
+/// [ViewmodelProvider], so behaviour is identical to the
 /// pushed screen.
 Future<void> showSettingsSheet(BuildContext context) {
   return showModalBottomSheet<void>(

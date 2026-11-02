@@ -19,7 +19,7 @@ class SessionReadRepository extends Repository {
   /// snapshot on listen, then an updated list per row change.
   Stream<List<MessageRecord>> watchMessages(String epk, String roomId) {
     final byKey = <int, MessageRecord>{};
-    StreamSubscription? sub;
+    StreamSubscription<Object?>? sub;
     late final StreamController<List<MessageRecord>> controller;
     controller = StreamController<List<MessageRecord>>(
       onListen: () async {
@@ -59,7 +59,7 @@ class SessionReadRepository extends Repository {
           : const RuntimeRecord();
     }
 
-    StreamSubscription? sub;
+    StreamSubscription<Object?>? sub;
     late final StreamController<RuntimeRecord> controller;
     controller = StreamController<RuntimeRecord>(
       onListen: () {

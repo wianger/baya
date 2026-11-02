@@ -1,7 +1,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { BAYA_HOME, ensureBayaHome } from "../config.js";
+import { BAYA_HOME, ensureBayaHome } from "../config.ts";
 
 export interface PendingPairToken {
   token: string;
@@ -23,7 +23,7 @@ export function issuePendingPairToken(roomId: string, ttlMs = 600_000): PendingP
   };
   ensureBayaHome();
   mkdirSync(dirname(pendingPairPath()), { recursive: true, mode: 0o700 });
-  writeFileSync(pendingPairPath(), JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(pendingPairPath(), `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
   return value;
 }
 
@@ -35,7 +35,8 @@ export function readPendingPairToken(): PendingPairToken | null {
       typeof value.token !== "string" ||
       typeof value.room_id !== "string" ||
       typeof value.expires_at !== "number"
-    ) return null;
+    )
+      return null;
     return {
       token: value.token,
       room_id: value.room_id,
@@ -58,7 +59,7 @@ export function consumePendingPairToken(
   if (pending.consumed_at !== null) return "consumed";
   if (Date.now() > pending.expires_at) return "expired";
   pending.consumed_at = Date.now();
-  writeFileSync(pendingPairPath(), JSON.stringify(pending, null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(pendingPairPath(), `${JSON.stringify(pending, null, 2)}\n`, { mode: 0o600 });
   return "ok";
 }
 
@@ -70,7 +71,7 @@ export function clearPendingPairToken(): void {
     expires_at: 0,
     consumed_at: Date.now(),
   };
-  writeFileSync(pendingPairPath(), JSON.stringify(empty, null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(pendingPairPath(), `${JSON.stringify(empty, null, 2)}\n`, { mode: 0o600 });
 }
 
 /** Constant-time comparison so the relay cannot time its way to a token. */

@@ -288,7 +288,7 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
     return Icon(LucideIcons.check, size: 14, color: context.colors.muted);
   }
 
-  static String _stringArg(Map args, List<String> keys) {
+  static String _stringArg(Map<Object?, Object?> args, List<String> keys) {
     for (final key in keys) {
       final value = args[key];
       if (value is String) return value;

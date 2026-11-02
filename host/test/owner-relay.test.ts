@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { createServer, type AddressInfo } from "node:net";
+import { type AddressInfo, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -56,7 +56,9 @@ describe("end-to-end encryption through the relay", () => {
     const fromHost: Array<Record<string, string>> = [];
     server.on("connection", (socket) => {
       socket.once("message", () => {
-        socket.send(JSON.stringify({ type: "challenge", nonce: Buffer.alloc(32).toString("base64") }));
+        socket.send(
+          JSON.stringify({ type: "challenge", nonce: Buffer.alloc(32).toString("base64") }),
+        );
         socket.once("message", () => {
           toHost.push((line) => socket.send(line));
           socket.on("message", (raw) => fromHost.push(JSON.parse(String(raw))));
@@ -97,7 +99,9 @@ describe("end-to-end encryption through the relay", () => {
         toHost[0]!(JSON.stringify({ peer: phoneKey, room: "main", ct: ct.toString("base64") }));
 
       deliver(Buffer.from(JSON.stringify({ type: "ping", id: "plain" })));
-      deliver(e2e.seal(Buffer.alloc(32, 5), "p2h", "room1", Buffer.from('{"type":"ping","id":"forged"}')));
+      deliver(
+        e2e.seal(Buffer.alloc(32, 5), "p2h", "room1", Buffer.from('{"type":"ping","id":"forged"}')),
+      );
       const sealed = e2e.seal(key, "p2h", "room1", Buffer.from('{"type":"ping","id":"p1"}'));
       deliver(sealed);
       deliver(sealed); // replay

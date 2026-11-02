@@ -17,8 +17,7 @@ export interface StartupTarget {
   logDir: string;
 }
 
-export const BAYA_RUN_KEY =
-  "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+export const BAYA_RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 export const BAYA_RUN_VALUE = "BayaHost";
 export const SYSTEMD_UNIT = "baya.service";
 export const LAUNCHD_LABEL = "dev.baya.host";
@@ -27,8 +26,14 @@ export function installStartup(target: StartupTarget): string {
   switch (process.platform) {
     case "win32":
       run("reg.exe", [
-        "ADD", BAYA_RUN_KEY, "/V", BAYA_RUN_VALUE, "/T", "REG_SZ",
-        "/D", buildWindowsStartupCommand({
+        "ADD",
+        BAYA_RUN_KEY,
+        "/V",
+        BAYA_RUN_VALUE,
+        "/T",
+        "REG_SZ",
+        "/D",
+        buildWindowsStartupCommand({
           ...target,
           systemRoot: process.env["SystemRoot"] || "C:\\Windows",
         }),
@@ -41,8 +46,10 @@ export function installStartup(target: StartupTarget): string {
       writeFileSync(unit, buildSystemdUnit(target));
       run("systemctl", ["--user", "daemon-reload"]);
       run("systemctl", ["--user", "enable", "--now", SYSTEMD_UNIT]);
-      return `Installed and started ${SYSTEMD_UNIT} (systemd user unit). ` +
-        "Run `loginctl enable-linger` to keep it running while logged out.";
+      return (
+        `Installed and started ${SYSTEMD_UNIT} (systemd user unit). ` +
+        "Run `loginctl enable-linger` to keep it running while logged out."
+      );
     }
     case "darwin": {
       const plist = launchAgentPath();

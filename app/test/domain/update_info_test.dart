@@ -54,11 +54,12 @@ void main() {
 
     test('throws FormatException when version missing/empty', () {
       expect(
-        () => UpdateInfo.fromJson({'artifacts': const []}),
+        () => UpdateInfo.fromJson({'artifacts': const <Object>[]}),
         throwsFormatException,
       );
       expect(
-        () => UpdateInfo.fromJson({'version': '', 'artifacts': const []}),
+        () =>
+            UpdateInfo.fromJson({'version': '', 'artifacts': const <Object>[]}),
         throwsFormatException,
       );
     });

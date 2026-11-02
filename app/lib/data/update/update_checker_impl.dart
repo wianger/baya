@@ -3,43 +3,37 @@ import 'dart:convert';
 import 'package:app/domain/contracts/update_checker.dart';
 import 'package:app/domain/entities/update_info.dart';
 import 'package:app/domain/value_objects/semver.dart';
-import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
 
 /// Only this fork's signed Android development release channel is installable.
 class UpdateCheckerImpl implements UpdateChecker {
-  UpdateCheckerImpl({Dio? dio, Duration timeout = const Duration(seconds: 10)})
-    : _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              connectTimeout: timeout,
-              sendTimeout: timeout,
-              receiveTimeout: timeout,
-              validateStatus: (_) => true,
-              responseType: ResponseType.plain,
-            ),
-          );
+  UpdateCheckerImpl({
+    http.Client? client,
+    this.timeout = const Duration(seconds: 10),
+  }) : _client = client ?? http.Client();
 
   static const releasesUrl = 'https://github.com/wianger/baya/releases';
   static const apiUrl =
       'https://api.github.com/repos/wianger/baya/releases?per_page=100';
   static const apkName = 'Baya-Android.apk';
-  final Dio _dio;
+  final http.Client _client;
+  final Duration timeout;
 
   @override
   Future<UpdateInfo?> fetchLatest() async {
     try {
-      final response = await _dio.get<Object?>(
-        apiUrl,
-        options: Options(headers: {'Accept': 'application/vnd.github+json'}),
-      );
+      final response = await _client
+          .get(
+            Uri.parse(apiUrl),
+            headers: {'Accept': 'application/vnd.github+json'},
+          )
+          .timeout(timeout);
       if (response.statusCode != 200) return null;
-      final body = response.data;
-      return parseReleases(body is String ? jsonDecode(body) : body);
-    } on DioException {
-      return null;
+      return parseReleases(jsonDecode(response.body));
     } on FormatException {
       return null;
+    } catch (_) {
+      return null; // offline, timeout, TLS: best-effort by contract
     }
   }
 
@@ -67,9 +61,8 @@ class UpdateCheckerImpl implements UpdateChecker {
       if (release is! Map || release['draft'] != false) continue;
       final tag = release['tag_name'];
       if (tag is! String) continue;
-      final match = RegExp(
-        r'^android-dev-v(\d+\.\d+\.\d+)\+(\d+)$',
-      ).firstMatch(tag);
+      final match = RegExp(r'^android-dev-v(\d+\.\d+\.\d+)\+(\d+)$')
+          .firstMatch(tag);
       if (match == null) continue;
       final build = int.tryParse(match.group(2)!);
       final assets = release['assets'];

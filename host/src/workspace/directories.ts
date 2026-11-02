@@ -2,9 +2,9 @@ import { constants } from "node:fs";
 import { access, readdir, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, parse } from "node:path";
-import type { WorkspaceAgentInfo, WorkspaceDirectory } from "./types.js";
-import { workspaceAgents } from "./agents.js";
-import { hasDeepSeekHarness } from "./dsh_executable.js";
+import { workspaceAgents } from "./agents.ts";
+import { hasDeepSeekHarness } from "./dsh_executable.ts";
+import type { WorkspaceAgentInfo, WorkspaceDirectory } from "./types.ts";
 
 const MAX_DIRECTORIES = 300;
 
@@ -22,7 +22,7 @@ export async function findExecutable(name: string): Promise<string | null> {
     return executableAt(name);
   }
   const suffixes = process.platform === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
-  for (const directory of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
+  for (const directory of (process.env["PATH"] ?? "").split(delimiter).filter(Boolean)) {
     for (const suffix of suffixes) {
       const candidate = join(directory, name + suffix);
       const found = await executableAt(candidate);
@@ -40,21 +40,29 @@ export async function availableAgents(
    */
   probeDeepSeekHarness: () => Promise<boolean> = hasDeepSeekHarness,
 ): Promise<WorkspaceAgentInfo[]> {
-  return Promise.all(workspaceAgents.map(async ({ id, name, command, description }) => {
-    const override = id === "deepseek"
-      ? process.env["BAYA_DSH_BIN"]?.trim()
-      : undefined;
-    const onPath = await resolveExecutable(override || command) !== null;
-    const available = onPath ||
-      (id === "deepseek" && !override && await probeDeepSeekHarness());
-    return { id, name, description, available,
-      ...(!available ? { reason: `${name} is not installed on this computer.` } : {}) };
-  }));
+  return Promise.all(
+    workspaceAgents.map(async ({ id, name, command, description }) => {
+      const override = id === "deepseek" ? process.env["BAYA_DSH_BIN"]?.trim() : undefined;
+      const onPath = (await resolveExecutable(override || command)) !== null;
+      const available =
+        onPath || (id === "deepseek" && !override && (await probeDeepSeekHarness()));
+      return {
+        id,
+        name,
+        description,
+        available,
+        ...(!available ? { reason: `${name} is not installed on this computer.` } : {}),
+      };
+    }),
+  );
 }
 
 /** Only directories are returned; browsing never reads a file's contents. */
 export async function resolveDirectory(input?: string): Promise<string> {
-  if (input !== undefined && (typeof input !== "string" || input.length > 4096 || input.includes("\0"))) {
+  if (
+    input !== undefined &&
+    (typeof input !== "string" || input.length > 4096 || input.includes("\0"))
+  ) {
     throw new Error("Invalid folder path.");
   }
   let path = input?.trim() || homedir();
@@ -66,7 +74,10 @@ export async function resolveDirectory(input?: string): Promise<string> {
   return canonical;
 }
 
-export async function browseDirectory(input?: string, showHidden = false): Promise<WorkspaceDirectory> {
+export async function browseDirectory(
+  input?: string,
+  showHidden = false,
+): Promise<WorkspaceDirectory> {
   const path = await resolveDirectory(input);
   const entries = await readdir(path, { withFileTypes: true });
   const directories: WorkspaceDirectory["directories"] = [];
@@ -79,10 +90,14 @@ export async function browseDirectory(input?: string, showHidden = false): Promi
         if ((await stat(join(path, entry.name))).isDirectory()) {
           directories.push({ name: entry.name, path: join(path, entry.name) });
         }
-      } catch { /* Unreadable or dangling symlinks are not browse targets. */ }
+      } catch {
+        /* Unreadable or dangling symlinks are not browse targets. */
+      }
     }
   }
-  directories.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+  directories.sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }),
+  );
   const parent = dirname(path);
   const home = homedir();
   return {

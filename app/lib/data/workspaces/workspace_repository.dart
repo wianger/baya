@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'agent_catalog.dart';
 
 import 'package:app/data/preferences/preferences.dart';
@@ -201,7 +202,8 @@ class WorkspaceRepository extends IWorkspaceRepository {
         (id) => WorkspaceBrowse(id: id, path: path, showHidden: showHidden),
         generation,
       );
-      final directories = (data['directories'] as List).cast<Map>();
+      final directories = (data['directories'] as List)
+          .cast<Map<Object?, Object?>>();
       return WorkspaceDirectory(
         path: data['path'] as String,
         home: data['home'] as String,

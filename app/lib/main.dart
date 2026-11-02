@@ -1,12 +1,7 @@
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/config/dependencies.dart';
 import 'package:app/data/local/boxes.dart';
-import 'package:app/data/mesh/mesh_sync_service.dart';
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/sync/sync_service.dart';
-import 'package:app/data/transport/connection_manager.dart';
-import 'package:app/pairing/owner_identity_bridge.dart';
-import 'package:app/pairing/storage.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/routing/app_router.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -24,7 +19,7 @@ void main() async {
   await setupDependencies();
   // Eagerly construct the SSOT writer so it's consuming the channel from boot
   // (messages can arrive before the chat screen mounts).
-  injector.get<SyncService>();
+  services.sync;
   runApp(const RemotePiApp());
 }
 
@@ -37,11 +32,11 @@ class RemotePiApp extends StatefulWidget {
 
 class _RemotePiAppState extends State<RemotePiApp> with WidgetsBindingObserver {
   late final _router = buildRouter(
-    injector.get<PairingStorage>(),
-    injector.get<ConnectionManager>(),
-    injector.get<Preferences>(),
-    injector.get<OwnerIdentityBridge>(),
-    injector.get<MeshSyncService>(),
+    services.storage,
+    services.connection,
+    services.prefs,
+    services.ownerBridge,
+    services.meshSync,
   );
 
   @override
@@ -64,7 +59,7 @@ class _RemotePiAppState extends State<RemotePiApp> with WidgetsBindingObserver {
   /// boot path).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final meshSync = injector.get<MeshSyncService>();
+    final meshSync = services.meshSync;
     switch (state) {
       case AppLifecycleState.resumed:
         meshSync.startPolling();
@@ -82,17 +77,13 @@ class _RemotePiAppState extends State<RemotePiApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<Preferences>.value(
-          value: injector.get<Preferences>(),
-        ),
+        ChangeNotifierProvider<Preferences>.value(value: services.prefs),
         ChangeNotifierProvider<SessionSelection>.value(
-          value: injector.get<SessionSelection>(),
+          value: services.selection,
         ),
         // Shell layout state — lets the adaptive shell collapse the split
         // into a single centered pane on zero-state Home (no Pi / empty).
-        ChangeNotifierProvider<ShellLayout>.value(
-          value: injector.get<ShellLayout>(),
-        ),
+        ChangeNotifierProvider<ShellLayout>.value(value: services.shellLayout),
       ],
       // Theme is reactive: toggling the mode in Settings notifies
       // [Preferences] → this Consumer rebuilds → MaterialApp swaps theme.

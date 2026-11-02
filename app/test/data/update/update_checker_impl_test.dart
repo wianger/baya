@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'dart:convert';
+
 import 'package:app/data/update/update_checker_impl.dart';
-import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Map<String, Object?> release(
@@ -57,48 +60,27 @@ void main() {
     );
   });
   test(
-    'HTTP adapter uses GitHub releases API and handles network/status/JSON failures',
+    'HTTP client uses GitHub releases API and handles status/JSON failures',
     () async {
-      final dio = Dio();
-      var response = ResponseBody.fromString(
-        jsonEncode([release('1.2.1', 9)]),
-        200,
+      var status = 200;
+      var body = jsonEncode([release('1.2.1', 9)]);
+      final checker = UpdateCheckerImpl(
+        client: MockClient((request) async {
+          expect(request.url.toString(), UpdateCheckerImpl.apiUrl);
+          return http.Response(body, status);
+        }),
       );
-      dio.interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (options, handler) {
-            expect(options.uri.toString(), UpdateCheckerImpl.apiUrl);
-            handler.resolve(
-              Response(
-                requestOptions: options,
-                statusCode: response.statusCode,
-                data: response.statusCode == 200
-                    ? jsonEncode([release('1.2.1', 9)])
-                    : 'rate limit',
-              ),
-            );
-          },
-        ),
-      );
-      final checker = UpdateCheckerImpl(dio: dio);
       expect((await checker.fetchLatest())!.buildNumber, 9);
-      response = ResponseBody.fromString('rate limit', 403);
+      status = 403;
+      body = 'rate limit';
       expect(await checker.fetchLatest(), isNull);
-      dio.interceptors.clear();
-      dio.interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (options, handler) {
-            handler.resolve(
-              Response(
-                requestOptions: options,
-                statusCode: 200,
-                data: '<html>',
-              ),
-            );
-          },
-        ),
+      status = 200;
+      body = '<html>';
+      expect(await checker.fetchLatest(), isNull);
+      final offline = UpdateCheckerImpl(
+        client: MockClient((_) async => throw const SocketException('offline')),
       );
-      expect(await checker.fetchLatest(), isNull);
+      expect(await offline.fetchLatest(), isNull);
     },
   );
 }

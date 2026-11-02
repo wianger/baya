@@ -6,10 +6,8 @@ import 'package:baya_identity/baya_identity.dart';
 Uint8List _bytes(int seed) =>
     Uint8List.fromList(List.generate(32, (i) => (i * 7 + seed) & 0xff));
 
-OwnerIdentity _ident({int seed = 0}) => OwnerIdentity(
-      ownerPk: _bytes(seed + 1),
-      ownerSk: _bytes(seed + 2),
-    );
+OwnerIdentity _ident({int seed = 0}) =>
+    OwnerIdentity(ownerPk: _bytes(seed + 1), ownerSk: _bytes(seed + 2));
 
 void main() {
   group('InMemoryOwnerIdentityStore', () {

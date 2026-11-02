@@ -88,10 +88,15 @@ BAYA_ALLOW_FILE_IDENTITY=1
 
 ```powershell
 pnpm install --ignore-scripts
-pnpm typecheck
+pnpm dev -- status   # runs src/cli.ts directly; Node strips the types
+pnpm lint            # Biome: lint + format check (pnpm format to fix)
+pnpm typecheck       # src and tests
 pnpm test
-pnpm build
+pnpm build           # tsc emits dist/ for publishing
 ```
+
+The source is erasable TypeScript (`erasableSyntaxOnly`), imported with `.ts`
+extensions, so Node runs it without a build step or loader.
 
 The pnpm setup ignores native install scripts. The keyring package's prebuilt
 binaries are sufficient; use `--ignore-scripts` if a newer pnpm reports ignored

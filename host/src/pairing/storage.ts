@@ -1,12 +1,12 @@
 import { existsSync, statSync } from "node:fs";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { BAYA_HOME } from "../config.js";
+import { BAYA_HOME } from "../config.ts";
 import {
   canonicalizeEd25519PublicKey,
-  generateEd25519Keypair,
   type Ed25519Keypair,
-} from "./crypto.js";
+  generateEd25519Keypair,
+} from "./crypto.ts";
 
 /**
  * Host identity and paired-device storage.
@@ -242,7 +242,7 @@ export async function listPeers(): Promise<PeerRecord[]> {
 }
 
 async function writePeers(peers: PeerRecord[]): Promise<PeerRecord[]> {
-  await writePrivate(PEERS_FILE, JSON.stringify({ peers }, null, 2) + "\n");
+  await writePrivate(PEERS_FILE, `${JSON.stringify({ peers }, null, 2)}\n`);
   cache = null;
   return peers;
 }

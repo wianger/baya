@@ -1,13 +1,13 @@
 import { describe, expect, test } from "vitest";
 import {
   PiAdapter,
+  type PiRpcPort,
   piExtensionUiResponse,
   piHistoryEvents,
   piSpawnArgs,
-  type PiRpcPort,
-} from "../src/adapters/pi.js";
-import type { ServerMessage } from "../src/protocol/types.js";
-import type { PeerChannel } from "../src/transport/peer_channel.js";
+} from "../src/adapters/pi.ts";
+import type { ServerMessage } from "../src/protocol/types.ts";
+import type { PeerChannel } from "../src/transport/peer_channel.ts";
 
 class FakeRpc implements PiRpcPort {
   readonly requests: Array<{ type: string; payload?: Record<string, unknown> }> = [];
@@ -16,10 +16,7 @@ class FakeRpc implements PiRpcPort {
   async start(): Promise<void> {}
   close(): void {}
 
-  async request(
-    type: string,
-    payload?: Record<string, unknown>,
-  ): Promise<unknown> {
+  async request(type: string, payload?: Record<string, unknown>): Promise<unknown> {
     this.requests.push({ type, ...(payload ? { payload } : {}) });
     if (type === "get_state") {
       return {
@@ -68,13 +65,16 @@ describe("Pi standalone RPC adapter", () => {
   test("emits agent_done once at agent_settled, not at each assistant message", async () => {
     const broadcast: ServerMessage[] = [];
     const busy: boolean[] = [];
-    const adapter = new PiAdapter({
-      cwd: "C:\\work",
-      name: "Review",
-      sessionId: "baya-session",
-      broadcast: (message) => broadcast.push(message),
-      onBusy: (value) => busy.push(value),
-    }, new FakeRpc());
+    const adapter = new PiAdapter(
+      {
+        cwd: "C:\\work",
+        name: "Review",
+        sessionId: "baya-session",
+        broadcast: (message) => broadcast.push(message),
+        onBusy: (value) => busy.push(value),
+      },
+      new FakeRpc(),
+    );
     await adapter.start();
 
     adapter.receiveEvent({ type: "agent_start" });
@@ -126,29 +126,35 @@ describe("Pi standalone RPC adapter", () => {
   });
 
   test("translates extension responses to Pi's discriminated RPC shape", async () => {
-    expect(piExtensionUiResponse({
-      type: "extension_ui_response",
-      id: "confirm",
-      confirmed: false,
-    })).toEqual({
+    expect(
+      piExtensionUiResponse({
+        type: "extension_ui_response",
+        id: "confirm",
+        confirmed: false,
+      }),
+    ).toEqual({
       type: "extension_ui_response",
       id: "confirm",
       confirmed: false,
     });
-    expect(piExtensionUiResponse({
-      type: "extension_ui_response",
-      id: "select",
-      value: "Allow",
-    })).toEqual({
+    expect(
+      piExtensionUiResponse({
+        type: "extension_ui_response",
+        id: "select",
+        value: "Allow",
+      }),
+    ).toEqual({
       type: "extension_ui_response",
       id: "select",
       value: "Allow",
     });
-    expect(piExtensionUiResponse({
-      type: "extension_ui_response",
-      id: "cancel",
-      cancelled: true,
-    })).toEqual({
+    expect(
+      piExtensionUiResponse({
+        type: "extension_ui_response",
+        id: "cancel",
+        cancelled: true,
+      }),
+    ).toEqual({
       type: "extension_ui_response",
       id: "cancel",
       cancelled: true,
@@ -156,22 +162,27 @@ describe("Pi standalone RPC adapter", () => {
 
     const rpc = new FakeRpc();
     const sent: ServerMessage[] = [];
-    const adapter = new PiAdapter({
-      cwd: "C:\\work",
-      name: "Review",
-      sessionId: "baya-session",
-      broadcast: () => {},
-    }, rpc);
+    const adapter = new PiAdapter(
+      {
+        cwd: "C:\\work",
+        name: "Review",
+        sessionId: "baya-session",
+        broadcast: () => {},
+      },
+      rpc,
+    );
     await adapter.handle(sender(sent), {
       type: "extension_ui_response",
       id: "ask",
       confirmed: true,
     });
-    expect(rpc.writes).toEqual([{
-      type: "extension_ui_response",
-      id: "ask",
-      confirmed: true,
-    }]);
+    expect(rpc.writes).toEqual([
+      {
+        type: "extension_ui_response",
+        id: "ask",
+        confirmed: true,
+      },
+    ]);
   });
 
   test("a rejected prompt ends the turn on every phone", async () => {
@@ -182,12 +193,15 @@ describe("Pi standalone RPC adapter", () => {
     };
     const broadcast: ServerMessage[] = [];
     const sent: ServerMessage[] = [];
-    const adapter = new PiAdapter({
-      cwd: "C:\\work",
-      name: "Review",
-      sessionId: "baya-session",
-      broadcast: (message) => broadcast.push(message),
-    }, rpc);
+    const adapter = new PiAdapter(
+      {
+        cwd: "C:\\work",
+        name: "Review",
+        sessionId: "baya-session",
+        broadcast: (message) => broadcast.push(message),
+      },
+      rpc,
+    );
     await adapter.handle(sender(sent), { type: "user_message", id: "u1", text: "hi" });
     expect(sent).toEqual([]);
     expect(broadcast.map((message) => message.type)).toEqual(["user_message", "error"]);
@@ -197,12 +211,15 @@ describe("Pi standalone RPC adapter", () => {
   test("rejects a synthetic approve_tool prompt", async () => {
     const rpc = new FakeRpc();
     const sent: ServerMessage[] = [];
-    const adapter = new PiAdapter({
-      cwd: "C:\\work",
-      name: "Review",
-      sessionId: "baya-session",
-      broadcast: () => {},
-    }, rpc);
+    const adapter = new PiAdapter(
+      {
+        cwd: "C:\\work",
+        name: "Review",
+        sessionId: "baya-session",
+        broadcast: () => {},
+      },
+      rpc,
+    );
     await adapter.handle(sender(sent), {
       type: "approve_tool",
       id: "approve",
@@ -210,38 +227,43 @@ describe("Pi standalone RPC adapter", () => {
       decision: "allow",
     });
     expect(rpc.requests).toEqual([]);
-    expect(sent).toEqual([{
-      type: "error",
-      code: "unsupported_type",
-      in_reply_to: "approve",
-      message: "Pi RPC handles tool approval through its native extension prompt.",
-    }]);
+    expect(sent).toEqual([
+      {
+        type: "error",
+        code: "unsupported_type",
+        in_reply_to: "approve",
+        message: "Pi RPC handles tool approval through its native extension prompt.",
+      },
+    ]);
   });
 
   test("history preserves text and tool order and formats result content", () => {
-    const events = piHistoryEvents([
-      {
-        role: "user",
-        timestamp: 1,
-        content: [{ type: "text", text: "Inspect the file." }],
-      },
-      {
-        role: "assistant",
-        timestamp: 2,
-        usage: { input: 8, output: 2 },
-        content: [
-          { type: "thinking", thinking: "Find the file." },
-          { type: "text", text: "I will inspect it." },
-          { type: "toolCall", id: "tool-1", name: "read", arguments: { path: "a.ts" } },
-          { type: "text", text: "The file is valid." },
-        ],
-      },
-      {
-        role: "toolResult",
-        toolCallId: "tool-1",
-        content: [{ type: "text", text: "file contents" }],
-      },
-    ], () => 99);
+    const events = piHistoryEvents(
+      [
+        {
+          role: "user",
+          timestamp: 1,
+          content: [{ type: "text", text: "Inspect the file." }],
+        },
+        {
+          role: "assistant",
+          timestamp: 2,
+          usage: { input: 8, output: 2 },
+          content: [
+            { type: "thinking", thinking: "Find the file." },
+            { type: "text", text: "I will inspect it." },
+            { type: "toolCall", id: "tool-1", name: "read", arguments: { path: "a.ts" } },
+            { type: "text", text: "The file is valid." },
+          ],
+        },
+        {
+          role: "toolResult",
+          toolCallId: "tool-1",
+          content: [{ type: "text", text: "file contents" }],
+        },
+      ],
+      () => 99,
+    );
 
     expect(events.map((event) => event.type)).toEqual([
       "user_input",

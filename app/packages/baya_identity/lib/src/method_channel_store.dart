@@ -45,9 +45,9 @@ class MethodChannelOwnerIdentityStore implements OwnerIdentityStore {
 
   @override
   Stream<OwnerIdentity> watch() {
-    return _watch ??= _eventChannel
-        .receiveBroadcastStream()
-        .map<OwnerIdentity>((event) {
+    return _watch ??= _eventChannel.receiveBroadcastStream().map<OwnerIdentity>((
+      event,
+    ) {
       if (event is! Uint8List) {
         throw IdentityStoreError.platform(
           'invalid_event',
@@ -83,7 +83,9 @@ class MethodChannelOwnerIdentityStore implements OwnerIdentityStore {
   /// is off; anything else surfaces as a [PlatformFailure].
   IdentityStoreError _mapPlatformException(PlatformException e) {
     if (e.code == 'sync_unavailable') {
-      return IdentityStoreError.syncUnavailable(e.message ?? 'sync_unavailable');
+      return IdentityStoreError.syncUnavailable(
+        e.message ?? 'sync_unavailable',
+      );
     }
     return IdentityStoreError.platform(e.code, e.message ?? '');
   }

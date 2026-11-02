@@ -302,7 +302,10 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     final set = ch.sent.whereType<QueuedMessageSet>().last;
     expect(set.text, 'next queued');
-    expect((vm.state as ChatReady).queuedMessages.map((q) => q.text), contains('next queued'));
+    expect(
+      (vm.state as ChatReady).queuedMessages.map((q) => q.text),
+      contains('next queued'),
+    );
 
     vm.clearQueuedMessage('q1');
     await Future<void>.delayed(const Duration(milliseconds: 20));

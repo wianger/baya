@@ -24,6 +24,7 @@ final class SyncUnavailableResult extends OwnerIdentityBootResult {
 /// time; the private key stays on-disk to avoid keeping it in heap.
 final class IdentityReady extends OwnerIdentityBootResult {
   final OwnerIdentity identity;
+
   /// True when this run generated the keypair instead of loading it.
   /// Surfaced for telemetry / "fresh install" UX decisions.
   final bool generated;
@@ -158,8 +159,7 @@ class OwnerIdentityBridge extends ChangeNotifier {
       _current = incoming;
       await _pairing.wipeAll();
       await onReset();
-    }, onError: (Object e) {
-    });
+    }, onError: (Object e) {});
   }
 
   @override

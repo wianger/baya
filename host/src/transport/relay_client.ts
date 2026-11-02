@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import WebSocket from "ws";
-import { ed25519Sign } from "../pairing/crypto.js";
-import type { Ed25519Keypair } from "../pairing/crypto.js";
+import type { Ed25519Keypair } from "../pairing/crypto.ts";
+import { ed25519Sign } from "../pairing/crypto.ts";
 
 const AUTH_TIMEOUT_MS = 5_000;
 /** TCP + TLS + HTTP upgrade. Dropped packets must fail, not hang forever. */
@@ -16,7 +16,7 @@ const HANDSHAKE_TIMEOUT_MS = 10_000;
  * triggers and a background daemon sits "online" but dead after a few idle
  * hours. We force-close on timeout so `close` drives the caller's reconnect.
  */
-const LIVENESS_TIMEOUT_MS = 70_000;  // ~2.8 missed relay pings → confidently dead
+const LIVENESS_TIMEOUT_MS = 70_000; // ~2.8 missed relay pings → confidently dead
 const LIVENESS_CHECK_MS = 20_000;
 
 /** Relay control messages (sent/received during auth). */
@@ -26,8 +26,14 @@ interface HelloMsg {
   room_id?: string;
   room_meta?: RoomMeta;
 }
-interface ChallengeMsg { type: "challenge"; nonce: string }
-interface AuthMsg { type: "auth"; sig: string }
+interface ChallengeMsg {
+  type: "challenge";
+  nonce: string;
+}
+interface AuthMsg {
+  type: "auth";
+  sig: string;
+}
 
 export interface RoomMeta {
   name: string;
@@ -40,18 +46,6 @@ export interface RoomMeta {
 export interface ConnectOptions {
   roomId?: string;
   roomMeta?: RoomMeta;
-}
-
-/** Relay rejected hello because another peer already holds (pubkey, room_id). */
-export class RoomAlreadyOpenError extends Error {
-  constructor(public readonly roomId: string | undefined) {
-    super(
-      roomId
-        ? `relay rejected hello: room ${roomId} already open for this peer`
-        : "relay rejected hello: peer already connected",
-    );
-    this.name = "RoomAlreadyOpenError";
-  }
 }
 
 export interface RelayClientEvents {
@@ -82,11 +76,13 @@ export class RelayClient extends EventEmitter {
   private lastActivityAt = 0;
   private livenessTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(
-    private readonly url: string,
-    private readonly keypair: Ed25519Keypair,
-  ) {
+  private readonly url: string;
+  private readonly keypair: Ed25519Keypair;
+
+  constructor(url: string, keypair: Ed25519Keypair) {
     super();
+    this.url = url;
+    this.keypair = keypair;
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────
@@ -99,10 +95,6 @@ export class RelayClient extends EventEmitter {
    * with the same Ed25519 pubkey but different rooms (one pi-ext per cwd).
    * Omitting `roomId` is backward-compat with old relays (treated as the
    * default "main" room server-side).
-   *
-   * Throws `RoomAlreadyOpenError` if the relay rejects the hello because
-   * another peer already holds the (pubkey, room_id) tuple. Caller (e.g.
-   * `_cmdStart`) maps that to a clearer UI message.
    */
   async connect(options: ConnectOptions = {}): Promise<void> {
     return new Promise<void>((resolve, reject) => {
@@ -131,8 +123,12 @@ export class RelayClient extends EventEmitter {
           // relay's view of us alive). The relay ignores client pings rather
           // than ponging, so these inbound pings — not a ping/pong we initiate
           // — are our liveness signal.
-          ws.on("ping", () => { this.lastActivityAt = Date.now(); });
-          ws.on("pong", () => { this.lastActivityAt = Date.now(); });
+          ws.on("ping", () => {
+            this.lastActivityAt = Date.now();
+          });
+          ws.on("pong", () => {
+            this.lastActivityAt = Date.now();
+          });
 
           ws.on("close", () => {
             this._stopLiveness();
@@ -218,10 +214,9 @@ export class RelayClient extends EventEmitter {
     }
     if (challenge.type === "error") {
       const code = (challenge as { code?: string }).code ?? "";
-      if (code === "room_already_open") {
-        throw new RoomAlreadyOpenError(opts.roomId);
-      }
-      throw new Error(`relay rejected hello: ${code || (challenge as { message?: string }).message || "unknown"}`);
+      throw new Error(
+        `relay rejected hello: ${code || (challenge as { message?: string }).message || "unknown"}`,
+      );
     }
     if (challenge.type !== "challenge" || !(challenge as ChallengeMsg).nonce) {
       throw new Error(`relay auth_failed: expected challenge, got ${challengeRaw}`);
@@ -242,10 +237,7 @@ export class RelayClient extends EventEmitter {
   /** Waits for the next single WS message with a timeout. */
   private _nextMsg(ws: WebSocket): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error("relay auth timeout")),
-        AUTH_TIMEOUT_MS,
-      );
+      const timer = setTimeout(() => reject(new Error("relay auth timeout")), AUTH_TIMEOUT_MS);
       ws.once("message", (raw) => {
         clearTimeout(timer);
         resolve(Buffer.isBuffer(raw) ? raw.toString() : String(raw));

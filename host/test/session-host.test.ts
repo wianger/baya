@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { sessionInventoryResponse } from "../src/host/session_host.js";
-import { sessionKeyForId } from "../src/rooms.js";
+import { sessionInventoryResponse } from "../src/host/session_host.ts";
+import { sessionKeyForId } from "../src/rooms.ts";
 
 describe("managed host session inventory", () => {
   test("returns every registered Baya session as one complete snapshot", () => {
@@ -13,10 +13,7 @@ describe("managed host session inventory", () => {
     expect(response).toEqual({
       type: "sessions_inventory",
       in_reply_to: "inventory-request",
-      session_keys: [
-        sessionKeyForId("session-a"),
-        sessionKeyForId("session-b"),
-      ],
+      session_keys: [sessionKeyForId("session-a"), sessionKeyForId("session-b")],
       scanned_at: 42,
       complete: true,
     });

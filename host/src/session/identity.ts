@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { BAYA_HOME } from "../config.js";
-import type { WorkspaceAgent } from "../workspace/types.js";
+import { BAYA_HOME } from "../config.ts";
+import type { WorkspaceAgent } from "../workspace/types.ts";
 
 export function sessionStateKey(cwd: string, agent: WorkspaceAgent, name?: string): string {
   return createHash("sha256")

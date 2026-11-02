@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// [FlutterSecureStorage] key, next to pairing and preferences.
 class SecureDismissedUpdateStore implements DismissedUpdateStore {
   SecureDismissedUpdateStore([FlutterSecureStorage? store])
-      : _store = store ?? const FlutterSecureStorage();
+    : _store = store ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _store;
 

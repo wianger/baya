@@ -26,7 +26,7 @@ class _SyncRequiredPageState extends State<SyncRequiredPage> {
   Future<void> _recheck() async {
     if (_checking) return;
     setState(() => _checking = true);
-    final result = await injector.get<OwnerIdentityBridge>().boot();
+    final result = await services.ownerBridge.boot();
     if (!mounted) return;
     setState(() => _checking = false);
     if (result is! SyncUnavailableResult) {

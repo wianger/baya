@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /host
+    schedule: { interval: weekly }
+    groups:
+      host: { patterns: ["*"] }
+  - package-ecosystem: pub
+    directories: ["/app", "/app/packages/baya_identity"]
+    schedule: { interval: weekly }
+    groups:
+      app: { patterns: ["*"] }
+  - package-ecosystem: cargo
+    directory: /relay
+    schedule: { interval: weekly }
+    groups:
+      relay: { patterns: ["*"] }
+  - package-ecosystem: gradle
+    directory: /app/android
+    schedule: { interval: monthly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }

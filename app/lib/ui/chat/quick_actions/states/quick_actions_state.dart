@@ -10,6 +10,7 @@ import 'package:app/protocol/protocol.dart';
 sealed class QuickActionsState {
   final ThinkingLevel? currentThinking;
   final WireModel? currentModel;
+
   /// Display name from `room_meta.model`. Survives
   /// across picker opens and is shown in the bottom-sheet Model row
   /// when the structured [currentModel] hasn't been loaded yet (the

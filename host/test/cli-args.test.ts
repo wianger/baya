@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { parseArgs } from "../src/cli/args.js";
+import { parseArgs } from "../src/cli/args.ts";
 
 describe("CLI argument parsing", () => {
   test("defaults a commandless invocation to serve", () => {
@@ -23,17 +23,10 @@ describe("CLI argument parsing", () => {
   });
 
   test("parses inline and separated flags without consuming the subcommand path", () => {
-    expect(parseArgs([
-      "new",
-      "--agent=codex",
-      "C:\\work",
-      "--name",
-      "Review",
-      "--json",
-    ])).toEqual({
+    expect(parseArgs(["new", "--agent=codex", "C:\\work", "--name", "Review", "--json"])).toEqual({
       command: "new",
       positionals: ["C:\\work"],
-      flags: new Map([
+      flags: new Map<string, string | boolean>([
         ["agent", "codex"],
         ["name", "Review"],
         ["json", true],

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   ToolEvent command({
-    dynamic args = const {},
+    dynamic args = const <String, Object?>{},
     dynamic result,
     String? error,
     ToolEventStatus status = ToolEventStatus.completed,

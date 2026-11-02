@@ -1,9 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { BAYA_HOME, ensureBayaHome } from "../config.js";
-import type { WorkspaceAgent } from "../workspace/types.js";
+import { BAYA_HOME, ensureBayaHome } from "../config.ts";
+import type { WorkspaceAgent } from "../workspace/types.ts";
 
 export interface BayaSessionRecord {
   id: string;
@@ -20,7 +19,7 @@ interface RegistryDocument {
   sessions: BayaSessionRecord[];
 }
 
-let mutation: Promise<void> = Promise.resolve();
+const _mutation: Promise<void> = Promise.resolve();
 
 export function registryPath(): string {
   return join(BAYA_HOME, "sessions.json");
@@ -70,18 +69,21 @@ function parseRegistry(raw: unknown): RegistryDocument {
         typeof record["name"] !== "string" ||
         typeof record["cwd"] !== "string" ||
         !["pi", "codex", "deepseek"].includes(String(record["agent"]))
-      ) return [];
-      return [{
-        id: record["id"],
-        name: record["name"],
-        cwd: record["cwd"],
-        agent: record["agent"] as WorkspaceAgent,
-        created_at: typeof record["created_at"] === "number" ? record["created_at"] : Date.now(),
-        updated_at: typeof record["updated_at"] === "number" ? record["updated_at"] : Date.now(),
-        ...(typeof record["pi_session_id"] === "string"
-          ? { pi_session_id: record["pi_session_id"] }
-          : {}),
-      }];
+      )
+        return [];
+      return [
+        {
+          id: record["id"],
+          name: record["name"],
+          cwd: record["cwd"],
+          agent: record["agent"] as WorkspaceAgent,
+          created_at: typeof record["created_at"] === "number" ? record["created_at"] : Date.now(),
+          updated_at: typeof record["updated_at"] === "number" ? record["updated_at"] : Date.now(),
+          ...(typeof record["pi_session_id"] === "string"
+            ? { pi_session_id: record["pi_session_id"] }
+            : {}),
+        },
+      ];
     }),
   };
 }
@@ -103,7 +105,7 @@ export function listSessions(): BayaSessionRecord[] {
 function writeRegistry(document: RegistryDocument): void {
   ensureBayaHome();
   mkdirSync(dirname(registryPath()), { recursive: true, mode: 0o700 });
-  writeFileSync(registryPath(), JSON.stringify(document, null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(registryPath(), `${JSON.stringify(document, null, 2)}\n`, { mode: 0o600 });
 }
 
 export function addSession(input: {
@@ -155,8 +157,8 @@ export function removeSession(id: string): boolean {
 }
 
 export function findSession(idOrPrefix: string): BayaSessionRecord | null {
-  const matches = listSessions().filter((entry) =>
-    entry.id === idOrPrefix || entry.id.startsWith(idOrPrefix)
+  const matches = listSessions().filter(
+    (entry) => entry.id === idOrPrefix || entry.id.startsWith(idOrPrefix),
   );
   return matches.length === 1 ? matches[0]! : null;
 }

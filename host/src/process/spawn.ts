@@ -1,4 +1,4 @@
-import { execFileSync, type ChildProcess } from "node:child_process";
+import { type ChildProcess, execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
@@ -17,7 +17,7 @@ const WINDOWS_EXECUTABLE_EXTENSIONS = [".exe", ".cmd", ".bat", ".com"];
 function quotedWindowsCommand(command: string, args: string[]): string {
   return [
     `"${command.replace(/"/g, '""')}"`,
-    ...args.map((arg) => /[\s"]/u.test(arg) ? `"${arg.replace(/"/g, '""')}"` : arg),
+    ...args.map((arg) => (/[\s"]/u.test(arg) ? `"${arg.replace(/"/g, '""')}"` : arg)),
   ].join(" ");
 }
 
@@ -26,11 +26,7 @@ export function resolveExecutable(
   platform: NodeJS.Platform = process.platform,
 ): string {
   if (platform !== "win32") return executable;
-  if (
-    executable.includes("\\") ||
-    executable.includes("/") ||
-    /\.[a-z0-9]+$/iu.test(executable)
-  ) {
+  if (executable.includes("\\") || executable.includes("/") || /\.[a-z0-9]+$/iu.test(executable)) {
     return executable;
   }
   try {
@@ -38,11 +34,13 @@ export function resolveExecutable(
       .split(/\r?\n/u)
       .map((line) => line.trim())
       .filter(Boolean);
-    return matches.find((match) =>
-      WINDOWS_EXECUTABLE_EXTENSIONS.some((extension) =>
-        match.toLowerCase().endsWith(extension)
-      )
-    ) ?? matches[0] ?? executable;
+    return (
+      matches.find((match) =>
+        WINDOWS_EXECUTABLE_EXTENSIONS.some((extension) => match.toLowerCase().endsWith(extension)),
+      ) ??
+      matches[0] ??
+      executable
+    );
   } catch {
     return executable;
   }

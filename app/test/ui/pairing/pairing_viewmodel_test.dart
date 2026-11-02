@@ -246,8 +246,11 @@ void main() {
       expect(fakeRepo.adoptedChannel, isNotNull);
       expect(fakeRepo.adoptedPeer?.remoteEpk, isNotEmpty);
       expect(fakeRepo.disconnectCalls, 1);
-      expect(prefs.relayUrl, 'https://relay.example',
-          reason: 'the QR relay is adopted, no manual setup');
+      expect(
+        prefs.relayUrl,
+        'https://relay.example',
+        reason: 'the QR relay is adopted, no manual setup',
+      );
       expect(storage._saved.first.roomId, 'main');
 
       vm.dispose();

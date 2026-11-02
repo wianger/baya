@@ -1,6 +1,6 @@
-import { resolveRelayUrl, toWebSocketUrl } from "../config.js";
-import { getOrCreateEd25519Keypair } from "../pairing/storage.js";
-import { RelayClient, type RoomMeta } from "./relay_client.js";
+import { resolveRelayUrl, toWebSocketUrl } from "../config.ts";
+import { getOrCreateEd25519Keypair } from "../pairing/storage.ts";
+import { RelayClient, type RoomMeta } from "./relay_client.ts";
 
 const MAX_BACKOFF_MS = 30_000;
 
@@ -84,7 +84,11 @@ class Connection {
   /** Rooms sent in `room_open` that the relay has not confirmed yet. */
   private readonly pending = new Set<string>();
 
-  constructor(private readonly hub: RelayHub) {}
+  private readonly hub: RelayHub;
+
+  constructor(hub: RelayHub) {
+    this.hub = hub;
+  }
 
   get size(): number {
     return this.rooms.size;
@@ -133,7 +137,10 @@ class Connection {
     try {
       const identity = await getOrCreateEd25519Keypair();
       client = new RelayClient(toWebSocketUrl(resolveRelayUrl().url), identity);
-      await client.connect({ roomId: helloRoom, roomMeta: this.hub.entry(helloRoom)?.meta ?? metaFallback(helloRoom) });
+      await client.connect({
+        roomId: helloRoom,
+        roomMeta: this.hub.entry(helloRoom)?.meta ?? metaFallback(helloRoom),
+      });
     } catch (error) {
       client?.close();
       this.connecting = false;

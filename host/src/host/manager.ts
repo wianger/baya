@@ -1,23 +1,23 @@
-import type { AdapterOptions, AgentAdapter } from "../adapters/types.js";
-import { PiAdapter } from "../adapters/pi.js";
-import { CodexSession } from "../codex/session.js";
-import { loadConfig } from "../config.js";
-import { DeepSeekSession } from "../deepseek/session.js";
-import { issuePendingPairToken, type PendingPairToken } from "../pairing/token_store.js";
-import { sessionStatePath } from "../session/identity.js";
+import { PiAdapter } from "../adapters/pi.ts";
+import type { AdapterOptions, AgentAdapter } from "../adapters/types.ts";
+import { CodexSession } from "../codex/session.ts";
+import { loadConfig } from "../config.ts";
+import { DeepSeekSession } from "../deepseek/session.ts";
+import { issuePendingPairToken, type PendingPairToken } from "../pairing/token_store.ts";
+import { sessionStatePath } from "../session/identity.ts";
 import {
   addSession,
+  type BayaSessionRecord,
   defaultSessionName,
   findSession,
   listSessions,
   removeSession,
   updateSession,
-  type BayaSessionRecord,
-} from "../session/registry.js";
-import { workspaceAgentDefinition } from "../workspace/agents.js";
-import { availableAgents } from "../workspace/directories.js";
-import type { OpenedWorkspace, WorkspaceAgent } from "../workspace/types.js";
-import { ManagedSessionHost, roomIdForBayaSession } from "./session_host.js";
+} from "../session/registry.ts";
+import { workspaceAgentDefinition } from "../workspace/agents.ts";
+import { availableAgents } from "../workspace/directories.ts";
+import type { OpenedWorkspace, WorkspaceAgent } from "../workspace/types.ts";
+import { ManagedSessionHost, roomIdForBayaSession } from "./session_host.ts";
 
 /** Restart delays after an agent process exits unexpectedly. */
 const RESTART_DELAYS_MS = [1_000, 5_000, 15_000, 60_000];
@@ -104,7 +104,10 @@ export class BayaManager {
     return removeSession(record.id);
   }
 
-  pair(id?: string, ttlMs?: number): PendingPairToken & { session_id: string; session_name: string } {
+  pair(
+    id?: string,
+    ttlMs?: number,
+  ): PendingPairToken & { session_id: string; session_name: string } {
     const record = id ? findSession(id) : this.list().find((session) => session.online);
     if (!record) {
       throw new Error(id ? `No session matches "${id}".` : "No Baya session is online.");
@@ -179,7 +182,8 @@ export class BayaManager {
     const host = () => this.hosts.get(record.id);
     const shared = {
       cwd: record.cwd,
-      broadcast: (message: Parameters<AdapterOptions["broadcast"]>[0]) => host()?.broadcast(message),
+      broadcast: (message: Parameters<AdapterOptions["broadcast"]>[0]) =>
+        host()?.broadcast(message),
       onBusy: (busy: boolean) => host()?.setBusy(busy),
       onModel: (model: string) => host()?.setModel(model),
       onClosed: (error: Error) => this.onAgentExit(record, error),

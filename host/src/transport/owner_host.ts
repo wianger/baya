@@ -1,10 +1,10 @@
-import type { ClientMessage, ServerMessage } from "../protocol/types.js";
-import type { Ed25519Keypair } from "../pairing/crypto.js";
-import { getOrCreateEd25519Keypair, isPairedKey, listPeers } from "../pairing/storage.js";
-import { deriveSessionKey, isSealed, open, ReplayGuard, seal } from "./e2e.js";
-import type { RoomMeta } from "./relay_client.js";
-import { relayHub, type RelayHub, type RoomLink } from "./relay_hub.js";
-import type { PeerChannel } from "./peer_channel.js";
+import type { Ed25519Keypair } from "../pairing/crypto.ts";
+import { getOrCreateEd25519Keypair, isPairedKey, listPeers } from "../pairing/storage.ts";
+import type { ClientMessage, ServerMessage } from "../protocol/types.ts";
+import { deriveSessionKey, isSealed, open, ReplayGuard, seal } from "./e2e.ts";
+import type { PeerChannel } from "./peer_channel.ts";
+import type { RoomMeta } from "./relay_client.ts";
+import { type RelayHub, type RoomLink, relayHub } from "./relay_hub.ts";
 
 export interface OwnerHostOptions {
   roomId: string;
@@ -33,7 +33,10 @@ export class OwnerRelayHost {
   private readonly skewReportedAt = new Map<string, number>();
   private readonly hub: RelayHub;
 
-  constructor(private readonly options: OwnerHostOptions) {
+  private readonly options: OwnerHostOptions;
+
+  constructor(options: OwnerHostOptions) {
+    this.options = options;
     this.hub = options.hub ?? relayHub();
   }
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join, resolve } from "node:path";
 import { hostname } from "node:os";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { booleanFlag, type ParsedArgs, parseArgs, stringFlag } from "./cli/args.ts";
 import {
   BAYA_HOME,
   ensureBayaHome,
@@ -11,25 +12,19 @@ import {
   resolveRelayUrl,
   saveConfig,
   validateRelayUrl,
-} from "./config.js";
-import { BayaManager } from "./host/manager.js";
-import { controlCall, readControlInfo } from "./control/client.js";
-import { ControlServer } from "./control/server.js";
-import { packageVersion } from "./runtime/version.js";
-import { buildQRUri, displayQR } from "./pairing/qr.js";
-import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/storage.js";
-import { availableAgents, resolveDirectory } from "./workspace/directories.js";
-import { workspaceAgentDefinition } from "./workspace/agents.js";
-import { findSession, listSessions, removeSession } from "./session/registry.js";
-import { roomIdForBayaSession } from "./host/session_host.js";
-import type { WorkspaceAgent } from "./workspace/types.js";
-import { installStartup, uninstallStartup } from "./service.js";
-import {
-  booleanFlag,
-  parseArgs,
-  stringFlag,
-  type ParsedArgs,
-} from "./cli/args.js";
+} from "./config.ts";
+import { controlCall, readControlInfo } from "./control/client.ts";
+import { ControlServer } from "./control/server.ts";
+import { BayaManager } from "./host/manager.ts";
+import { roomIdForBayaSession } from "./host/session_host.ts";
+import { buildQRUri, displayQR } from "./pairing/qr.ts";
+import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/storage.ts";
+import { packageVersion } from "./runtime/version.ts";
+import { installStartup, uninstallStartup } from "./service.ts";
+import { findSession, listSessions, removeSession } from "./session/registry.ts";
+import { workspaceAgentDefinition } from "./workspace/agents.ts";
+import { availableAgents, resolveDirectory } from "./workspace/directories.ts";
+import type { WorkspaceAgent } from "./workspace/types.ts";
 
 interface StatusResult {
   pid: number;
@@ -94,28 +89,29 @@ Options:
 }
 
 function print(value: unknown, json: boolean): void {
-  process.stdout.write(
-    json ? JSON.stringify(value, null, 2) + "\n" : human(value),
-  );
+  process.stdout.write(json ? `${JSON.stringify(value, null, 2)}\n` : human(value));
 }
 
 function human(value: unknown): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value + "\n";
+  if (typeof value === "string") return `${value}\n`;
   if (Array.isArray(value)) return value.map(human).join("");
   if (typeof value === "object") {
     const record = value as Record<string, unknown>;
     if (Array.isArray(record["sessions"])) {
       const sessions = record["sessions"] as StatusResult["sessions"];
       if (sessions.length === 0) return "No Baya sessions are registered.\n";
-      return sessions.map((session) =>
-        `${session.online ? (session.busy ? "●" : "○") : "×"} ${session.name}  ` +
-        `${session.agent}  ${session.cwd}  ${session.id}\n`
-      ).join("");
+      return sessions
+        .map(
+          (session) =>
+            `${session.online ? (session.busy ? "●" : "○") : "×"} ${session.name}  ` +
+            `${session.agent}  ${session.cwd}  ${session.id}\n`,
+        )
+        .join("");
     }
-    return JSON.stringify(value, null, 2) + "\n";
+    return `${JSON.stringify(value, null, 2)}\n`;
   }
-  return String(value) + "\n";
+  return `${String(value)}\n`;
 }
 
 async function controlOnline(): Promise<StatusResult | null> {
@@ -309,7 +305,11 @@ async function create(args: ParsedArgs): Promise<void> {
     return;
   }
   const manager = new BayaManager();
-  const record = manager.create({ cwd, agent, ...(flag(args, "name") ? { name: flag(args, "name")! } : {}) });
+  const record = manager.create({
+    cwd,
+    agent,
+    ...(flag(args, "name") ? { name: flag(args, "name")! } : {}),
+  });
   print(record, jsonFlag(args));
 }
 
@@ -339,7 +339,7 @@ async function main(): Promise<void> {
     case "version":
     case "--version":
     case "-v":
-      process.stdout.write(packageVersion() + "\n");
+      process.stdout.write(`${packageVersion()}\n`);
       return;
     case "serve":
       await runForeground(args);

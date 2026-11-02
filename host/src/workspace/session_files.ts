@@ -1,10 +1,6 @@
 import { open, readdir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, sep } from "node:path";
-import type {
-  SessionDirectory,
-  SessionFileContent,
-  SessionFileEntry,
-} from "./types.js";
+import type { SessionDirectory, SessionFileContent, SessionFileEntry } from "./types.ts";
 
 const MAX_ENTRIES = 500;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -13,9 +9,7 @@ const MAX_PATH_LENGTH = 4096;
 function validatePath(input: string | undefined): string {
   if (
     input !== undefined &&
-    (typeof input !== "string" ||
-      input.length > MAX_PATH_LENGTH ||
-      input.includes("\0"))
+    (typeof input !== "string" || input.length > MAX_PATH_LENGTH || input.includes("\0"))
   ) {
     throw new Error("Invalid file path.");
   }
@@ -108,10 +102,7 @@ export async function browseSessionFiles(
   };
 }
 
-export async function readSessionFile(
-  cwd: string,
-  input: string,
-): Promise<SessionFileContent> {
+export async function readSessionFile(cwd: string, input: string): Promise<SessionFileContent> {
   const requestPath = validatePath(input);
   if (!requestPath) throw new Error("Choose a file to open.");
   const root = await resolveRoot(cwd);

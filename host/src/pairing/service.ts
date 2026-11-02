@@ -1,8 +1,8 @@
 import { hostname } from "node:os";
-import type { ClientMessage, ServerMessage } from "../protocol/types.js";
-import type { PeerChannel } from "../transport/peer_channel.js";
-import { addPeer } from "./storage.js";
-import { consumePendingPairToken } from "./token_store.js";
+import type { ClientMessage, ServerMessage } from "../protocol/types.ts";
+import type { PeerChannel } from "../transport/peer_channel.ts";
+import { addPeer } from "./storage.ts";
+import { consumePendingPairToken } from "./token_store.ts";
 
 export interface PairingContext {
   roomId: string;

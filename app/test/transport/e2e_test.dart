@@ -79,7 +79,10 @@ void main() {
       base64.decode(h2p['box'] as String),
     );
     final guard = ReplayGuard(const Duration(seconds: 1));
-    expect(guard.accept(opened, now: ts.add(const Duration(seconds: 2))), isFalse);
+    expect(
+      guard.accept(opened, now: ts.add(const Duration(seconds: 2))),
+      isFalse,
+    );
     expect(guard.accept(opened, now: ts), isTrue);
     expect(guard.accept(opened, now: ts), isFalse);
   });

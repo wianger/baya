@@ -117,13 +117,11 @@ Future<Uint8List> seal(
   List<int>? nonce,
 }) async {
   final body = Uint8List(8 + plaintext.length);
-  ByteData.sublistView(body).setUint64(
-    0,
-    (now ?? DateTime.now()).millisecondsSinceEpoch,
-  );
+  ByteData.sublistView(body)
+      .setUint64(0, (now ?? DateTime.now()).millisecondsSinceEpoch);
   body.setRange(8, body.length, plaintext);
-  final n = nonce ??
-      List<int>.generate(_nonceBytes, (_) => _random.nextInt(256));
+  final n =
+      nonce ?? List<int>.generate(_nonceBytes, (_) => _random.nextInt(256));
   final box = await _aead.encrypt(
     body,
     secretKey: key,
@@ -156,11 +154,7 @@ Future<Opened> open(
   );
   final List<int> body;
   try {
-    body = await _aead.decrypt(
-      box,
-      secretKey: key,
-      aad: _aad(direction, room),
-    );
+    body = await _aead.decrypt(box, secretKey: key, aad: _aad(direction, room));
   } on SecretBoxAuthenticationError {
     throw const E2EException('Frame failed authentication.');
   }

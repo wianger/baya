@@ -13,9 +13,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _NoopTransport implements PeerTransport {
-  @override Future<void> send(Uint8List data) async {}
-  @override Future<Uint8List> receive() => Completer<Uint8List>().future;
-  @override Future<void> close() async {}
+  @override
+  Future<void> send(Uint8List data) async {}
+  @override
+  Future<Uint8List> receive() => Completer<Uint8List>().future;
+  @override
+  Future<void> close() async {}
 }
 
 PlainPeerChannel _channel() => PlainPeerChannel(transport: _NoopTransport());
@@ -79,6 +82,7 @@ class _FakeSecureStorage implements FlutterSecureStorage {
       _store[key] = value;
     }
   }
+
   @override
   Future<void> delete({
     required String key,
@@ -131,24 +135,26 @@ void main() {
       vm.dispose();
     });
 
-    test('revoke deletes peer + clears selectedPeerEpk if it matched',
-        () async {
-      final storage = _FakeStorage([_peerA()]);
-      final prefs = Preferences(_FakeSecureStorage());
-      await prefs.setSelectedPeerEpk('epk_A');
+    test(
+      'revoke deletes peer + clears selectedPeerEpk if it matched',
+      () async {
+        final storage = _FakeStorage([_peerA()]);
+        final prefs = Preferences(_FakeSecureStorage());
+        await prefs.setSelectedPeerEpk('epk_A');
 
-      final vm = SettingsViewModel(storage, prefs, _conn(storage: storage));
-      await Future<void>.delayed(Duration.zero);
+        final vm = SettingsViewModel(storage, prefs, _conn(storage: storage));
+        await Future<void>.delayed(Duration.zero);
 
-      await vm.revoke('epk_A');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+        await vm.revoke('epk_A');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      expect(storage.peers, isEmpty);
-      expect(prefs.selectedPeerEpk, isNull);
-      expect(vm.state, isA<SettingsNoPeer>());
+        expect(storage.peers, isEmpty);
+        expect(prefs.selectedPeerEpk, isNull);
+        expect(vm.state, isA<SettingsNoPeer>());
 
-      vm.dispose();
-    });
+        vm.dispose();
+      },
+    );
 
     test('revoke does NOT touch selectedPeerEpk if different', () async {
       final storage = _FakeStorage([_peerA()]);
@@ -183,9 +189,7 @@ void main() {
     });
 
     test('setNickname with null clears the nickname', () async {
-      final storage = _FakeStorage([
-        _peerA().copyWith(nickname: 'Casa'),
-      ]);
+      final storage = _FakeStorage([_peerA().copyWith(nickname: 'Casa')]);
       final prefs = Preferences(_FakeSecureStorage());
       final vm = SettingsViewModel(storage, prefs, _conn(storage: storage));
       await Future<void>.delayed(Duration.zero);
@@ -200,9 +204,7 @@ void main() {
     });
 
     test('setNickname with whitespace clears the nickname', () async {
-      final storage = _FakeStorage([
-        _peerA().copyWith(nickname: 'Casa'),
-      ]);
+      final storage = _FakeStorage([_peerA().copyWith(nickname: 'Casa')]);
       final prefs = Preferences(_FakeSecureStorage());
       final vm = SettingsViewModel(storage, prefs, _conn(storage: storage));
       await Future<void>.delayed(Duration.zero);
@@ -231,19 +233,21 @@ void main() {
   });
 
   group('SettingsViewModel — relay config', () {
-    test('saveRelayUrl with valid URL persists override + returns null',
-        () async {
-      final prefs = Preferences(_FakeSecureStorage());
-      final vm = SettingsViewModel(_FakeStorage([]), prefs, _conn());
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'saveRelayUrl with valid URL persists override + returns null',
+      () async {
+        final prefs = Preferences(_FakeSecureStorage());
+        final vm = SettingsViewModel(_FakeStorage([]), prefs, _conn());
+        await Future<void>.delayed(Duration.zero);
 
-      final err = await vm.saveRelayUrl('https://custom.example');
-      expect(err, isNull);
-      expect(prefs.relayUrl, 'https://custom.example');
-      expect(vm.effectiveRelayUrl, 'https://custom.example');
+        final err = await vm.saveRelayUrl('https://custom.example');
+        expect(err, isNull);
+        expect(prefs.relayUrl, 'https://custom.example');
+        expect(vm.effectiveRelayUrl, 'https://custom.example');
 
-      vm.dispose();
-    });
+        vm.dispose();
+      },
+    );
 
     test(
       'saveRelayUrl with invalid URL returns error and does NOT persist',
@@ -260,69 +264,65 @@ void main() {
       },
     );
 
-    test('saveRelayUrl rejects ws:// / wss:// with the scheme-specific hint',
-        () async {
+    test(
+      'saveRelayUrl rejects ws:// / wss:// with the scheme-specific hint',
+      () async {
+        final prefs = Preferences(_FakeSecureStorage());
+        final vm = SettingsViewModel(_FakeStorage([]), prefs, _conn());
+        await Future<void>.delayed(Duration.zero);
+
+        final err = await vm.saveRelayUrl('wss://relay.example');
+        expect(err, isNotNull);
+        expect(err, contains('ws://'));
+        expect(err, contains('http://'));
+        expect(prefs.relayUrl, isNull);
+
+        vm.dispose();
+      },
+    );
+
+    test('saveRelayUrl with empty / null is rejected (URL is now required) and '
+        'does NOT clear the existing override', () async {
       final prefs = Preferences(_FakeSecureStorage());
+      await prefs.setRelayUrl('https://x.example');
       final vm = SettingsViewModel(_FakeStorage([]), prefs, _conn());
       await Future<void>.delayed(Duration.zero);
 
-      final err = await vm.saveRelayUrl('wss://relay.example');
-      expect(err, isNotNull);
-      expect(err, contains('ws://'));
-      expect(err, contains('http://'));
-      expect(prefs.relayUrl, isNull);
+      // Empty → error, override untouched.
+      final emptyErr = await vm.saveRelayUrl('');
+      expect(emptyErr, isNotNull);
+      expect(prefs.relayUrl, 'https://x.example');
+
+      // Whitespace-only → same (trimmed to empty).
+      final blankErr = await vm.saveRelayUrl('   ');
+      expect(blankErr, isNotNull);
+      expect(prefs.relayUrl, 'https://x.example');
+
+      // null → same.
+      final nullErr = await vm.saveRelayUrl(null);
+      expect(nullErr, isNotNull);
+      expect(prefs.relayUrl, 'https://x.example');
 
       vm.dispose();
     });
 
-    test(
-      'saveRelayUrl with empty / null is rejected (URL is now required) and '
-      'does NOT clear the existing override',
-      () async {
-        final prefs = Preferences(_FakeSecureStorage());
-        await prefs.setRelayUrl('https://x.example');
-        final vm = SettingsViewModel(_FakeStorage([]), prefs, _conn());
-        await Future<void>.delayed(Duration.zero);
+    test('relayUrlOverride defaults to kDefaultRelayUrl (pre-fill for the '
+        '"use default" button) and reflects a saved override', () async {
+      final prefs = Preferences(_FakeSecureStorage());
+      final vm = SettingsViewModel(_FakeStorage([]), prefs, _conn());
+      await Future<void>.delayed(Duration.zero);
 
-        // Empty → error, override untouched.
-        final emptyErr = await vm.saveRelayUrl('');
-        expect(emptyErr, isNotNull);
-        expect(prefs.relayUrl, 'https://x.example');
+      // No override yet → the field pre-fills with the default endpoint.
+      expect(vm.relayUrlOverride, kDefaultRelayUrl);
+      expect(vm.effectiveRelayUrl, kDefaultRelayUrl);
 
-        // Whitespace-only → same (trimmed to empty).
-        final blankErr = await vm.saveRelayUrl('   ');
-        expect(blankErr, isNotNull);
-        expect(prefs.relayUrl, 'https://x.example');
+      // Saving the default URL explicitly is valid (what the button does).
+      final err = await vm.saveRelayUrl(kDefaultRelayUrl);
+      expect(err, isNull);
+      expect(vm.relayUrlOverride, kDefaultRelayUrl);
+      expect(prefs.relayUrl, kDefaultRelayUrl);
 
-        // null → same.
-        final nullErr = await vm.saveRelayUrl(null);
-        expect(nullErr, isNotNull);
-        expect(prefs.relayUrl, 'https://x.example');
-
-        vm.dispose();
-      },
-    );
-
-    test(
-      'relayUrlOverride defaults to kDefaultRelayUrl (pre-fill for the '
-      '"use default" button) and reflects a saved override',
-      () async {
-        final prefs = Preferences(_FakeSecureStorage());
-        final vm = SettingsViewModel(_FakeStorage([]), prefs, _conn());
-        await Future<void>.delayed(Duration.zero);
-
-        // No override yet → the field pre-fills with the default endpoint.
-        expect(vm.relayUrlOverride, kDefaultRelayUrl);
-        expect(vm.effectiveRelayUrl, kDefaultRelayUrl);
-
-        // Saving the default URL explicitly is valid (what the button does).
-        final err = await vm.saveRelayUrl(kDefaultRelayUrl);
-        expect(err, isNull);
-        expect(vm.relayUrlOverride, kDefaultRelayUrl);
-        expect(prefs.relayUrl, kDefaultRelayUrl);
-
-        vm.dispose();
-      },
-    );
+      vm.dispose();
+    });
   });
 }

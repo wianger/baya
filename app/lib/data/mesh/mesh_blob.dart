@@ -28,11 +28,11 @@ class MeshMember {
   /// `#[serde(skip_serializing_if = "Option::is_none")]` rule on the
   /// relay side.
   Map<String, Object?> toJson() => {
-        'paired_at': pairedAt,
-        'relay_url': relayUrl,
-        'remote_epk': remoteEpk,
-        if (nickname != null) 'nickname': nickname,
-      };
+    'paired_at': pairedAt,
+    'relay_url': relayUrl,
+    'remote_epk': remoteEpk,
+    if (nickname != null) 'nickname': nickname,
+  };
 
   static MeshMember fromJson(Map<String, Object?> json) {
     final remoteEpk = json['remote_epk'];
@@ -40,9 +40,7 @@ class MeshMember {
     final pairedAt = json['paired_at'];
     final nickname = json['nickname'];
     if (remoteEpk is! String || relayUrl is! String || pairedAt is! String) {
-      throw const FormatException(
-        'MeshMember: missing required string fields',
-      );
+      throw const FormatException('MeshMember: missing required string fields');
     }
     if (nickname != null && nickname is! String) {
       throw const FormatException(
@@ -110,8 +108,8 @@ class MeshBlob {
     required this.issuedAt,
     required Uint8List ownerPk,
     List<MeshMember> members = const [],
-  })  : ownerPk = Uint8List.fromList(ownerPk),
-        members = List.unmodifiable(members) {
+  }) : ownerPk = Uint8List.fromList(ownerPk),
+       members = List.unmodifiable(members) {
     if (this.ownerPk.length != 32) {
       throw ArgumentError.value(
         this.ownerPk.length,
@@ -138,7 +136,9 @@ class MeshBlob {
   Uint8List toCanonicalBytes() {
     final root = _sortedMap({
       'issued_at': issuedAt,
-      'members': members.map((m) => _sortedMap(m.toJson())).toList(growable: false),
+      'members': members
+          .map((m) => _sortedMap(m.toJson()))
+          .toList(growable: false),
       'owner_pk': base64.encode(ownerPk),
       'version': version,
     });
@@ -180,7 +180,9 @@ class MeshBlob {
     final members = <MeshMember>[];
     for (final raw in membersRaw) {
       if (raw is! Map<String, Object?>) {
-        throw const FormatException('MeshBlob: each member must be a JSON object');
+        throw const FormatException(
+          'MeshBlob: each member must be a JSON object',
+        );
       }
       members.add(MeshMember.fromJson(raw));
     }
@@ -197,10 +199,7 @@ class MeshBlob {
   Future<MeshEnvelope> signWith(SimpleKeyPair ownerKey) async {
     final bytes = toCanonicalBytes();
     final sig = await Ed25519().sign(bytes, keyPair: ownerKey);
-    return MeshEnvelope(
-      blob: bytes,
-      sig: Uint8List.fromList(sig.bytes),
-    );
+    return MeshEnvelope(blob: bytes, sig: Uint8List.fromList(sig.bytes));
   }
 
   /// Verify the [envelope]'s signature against [ownerPk]. Returns

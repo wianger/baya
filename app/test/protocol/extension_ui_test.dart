@@ -29,7 +29,10 @@ void main() {
 
   group('AskQuestionWireType — wire round-trip', () {
     test('parses single/multi/preview', () {
-      expect(AskQuestionWireType.fromWire('single'), AskQuestionWireType.single);
+      expect(
+        AskQuestionWireType.fromWire('single'),
+        AskQuestionWireType.single,
+      );
       expect(AskQuestionWireType.fromWire('multi'), AskQuestionWireType.multi);
       expect(
         AskQuestionWireType.fromWire('preview'),
@@ -125,24 +128,27 @@ void main() {
 
   group('ClientMessage — extension_ui_response', () {
     test('value encodes value only', () {
-      expect(
-        ExtensionUiResponse(id: 'r1', value: 'Alpha').toJson(),
-        {'type': 'extension_ui_response', 'id': 'r1', 'value': 'Alpha'},
-      );
+      expect(ExtensionUiResponse(id: 'r1', value: 'Alpha').toJson(), {
+        'type': 'extension_ui_response',
+        'id': 'r1',
+        'value': 'Alpha',
+      });
     });
 
     test('confirmed encodes confirmed bool', () {
-      expect(
-        ExtensionUiResponse(id: 'r2', confirmed: true).toJson(),
-        {'type': 'extension_ui_response', 'id': 'r2', 'confirmed': true},
-      );
+      expect(ExtensionUiResponse(id: 'r2', confirmed: true).toJson(), {
+        'type': 'extension_ui_response',
+        'id': 'r2',
+        'confirmed': true,
+      });
     });
 
     test('cancelled encodes cancelled true', () {
-      expect(
-        ExtensionUiResponse(id: 'r3', cancelled: true).toJson(),
-        {'type': 'extension_ui_response', 'id': 'r3', 'cancelled': true},
-      );
+      expect(ExtensionUiResponse(id: 'r3', cancelled: true).toJson(), {
+        'type': 'extension_ui_response',
+        'id': 'r3',
+        'cancelled': true,
+      });
     });
 
     test('ask answer envelope carries structured answers', () {
@@ -152,7 +158,9 @@ void main() {
         ask: AskResponseEnrichmentWire(
           flowId: 'tool:tc_1',
           mode: 'submit',
-          answers: {'goal': AskAnswerWire(values: ['a'])},
+          answers: {
+            'goal': AskAnswerWire(values: ['a']),
+          },
         ),
       ).toJson();
       expect(j, {
@@ -164,7 +172,9 @@ void main() {
           'kind': 'answer',
           'mode': 'submit',
           'answers': {
-            'goal': {'values': ['a']},
+            'goal': {
+              'values': ['a'],
+            },
           },
         },
       });

@@ -17,6 +17,7 @@ class _Q {
       _buf.add(d);
     }
   }
+
   Future<Uint8List> next() {
     if (_buf.isNotEmpty) return Future.value(_buf.removeAt(0));
     final c = Completer<Uint8List>();
@@ -68,14 +69,20 @@ void main() {
       final req = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
       expect(req['type'], 'pair_request');
       expect(req['token'], _qr.token);
-      await host.send(Uint8List.fromList(utf8.encode(jsonEncode({
-        'type': 'pair_ok',
-        'in_reply_to': req['id'],
-        'session_name': 'Review',
-        'session_started_at': 1700000000000,
-        'room_id': 'room-from-pair-ok',
-        'hostname': 'workstation',
-      }))));
+      await host.send(
+        Uint8List.fromList(
+          utf8.encode(
+            jsonEncode({
+              'type': 'pair_ok',
+              'in_reply_to': req['id'],
+              'session_name': 'Review',
+              'session_started_at': 1700000000000,
+              'room_id': 'room-from-pair-ok',
+              'hostname': 'workstation',
+            }),
+          ),
+        ),
+      );
     }());
 
     final result = await performPairing(
@@ -100,12 +107,18 @@ void main() {
     unawaited(() async {
       final raw = await host.receive();
       final req = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
-      await host.send(Uint8List.fromList(utf8.encode(jsonEncode({
-        'type': 'pair_error',
-        'in_reply_to': req['id'],
-        'code': 'token_expired',
-        'message': 'expired',
-      }))));
+      await host.send(
+        Uint8List.fromList(
+          utf8.encode(
+            jsonEncode({
+              'type': 'pair_error',
+              'in_reply_to': req['id'],
+              'code': 'token_expired',
+              'message': 'expired',
+            }),
+          ),
+        ),
+      );
     }());
 
     await expectLater(
@@ -115,7 +128,9 @@ void main() {
         storage: _FakeStorage(),
         deviceName: 'phone',
       ),
-      throwsA(isA<PairingError>().having((e) => e.code, 'code', 'token_expired')),
+      throwsA(
+        isA<PairingError>().having((e) => e.code, 'code', 'token_expired'),
+      ),
     );
   });
 }

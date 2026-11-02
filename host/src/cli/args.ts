@@ -13,14 +13,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     };
   }
   const first = argv[0];
-  const standalone =
-    first === "--version" ||
-    first === "-v";
-  const command = standalone
-    ? first
-    : first && !first.startsWith("-")
-      ? first
-      : "serve";
+  const standalone = first === "--version" || first === "-v";
+  const command = standalone ? first : first && !first.startsWith("-") ? first : "serve";
   const rest = first === command || standalone ? argv.slice(1) : argv;
   const positionals: string[] = [];
   const flags = new Map<string, string | true>();
@@ -31,8 +25,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
     const separator = item.indexOf("=");
-    const rawKey =
-      separator >= 0 ? item.slice(2, separator) : item.slice(2);
+    const rawKey = separator >= 0 ? item.slice(2, separator) : item.slice(2);
     const inline = separator >= 0 ? item.slice(separator + 1) : undefined;
     if (!rawKey) continue;
     if (inline !== undefined) {

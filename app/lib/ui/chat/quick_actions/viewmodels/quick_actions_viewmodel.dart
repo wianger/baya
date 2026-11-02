@@ -99,25 +99,31 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
 
   Future<void> setThinking(ThinkingLevel level) async {
     final previous = state.currentThinking;
-    _emitIfAlive(QuickActionsBusy(
-      action: ActionName.thinkingSet,
-      currentThinking: level,
-      currentModel: state.currentModel,
-      currentModelName: state.currentModelName,
-    ));
-    try {
-      await _repo.setThinking(level);
-      _emitIfAlive(QuickActionsIdle(
+    _emitIfAlive(
+      QuickActionsBusy(
+        action: ActionName.thinkingSet,
         currentThinking: level,
         currentModel: state.currentModel,
         currentModelName: state.currentModelName,
-      ));
+      ),
+    );
+    try {
+      await _repo.setThinking(level);
+      _emitIfAlive(
+        QuickActionsIdle(
+          currentThinking: level,
+          currentModel: state.currentModel,
+          currentModelName: state.currentModelName,
+        ),
+      );
     } on ActionFailure catch (e) {
-      _emitIfAlive(QuickActionsIdle(
-        currentThinking: previous,
-        currentModel: state.currentModel,
-        currentModelName: state.currentModelName,
-      ));
+      _emitIfAlive(
+        QuickActionsIdle(
+          currentThinking: previous,
+          currentModel: state.currentModel,
+          currentModelName: state.currentModelName,
+        ),
+      );
       _errorController.add(e.message);
       rethrow;
     }
@@ -199,29 +205,32 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
     emit(next);
   }
 
-  Future<void> _runVoid(
-    ActionName action,
-    Future<void> Function() body,
-  ) async {
-    _emitIfAlive(QuickActionsBusy(
-      action: action,
-      currentThinking: state.currentThinking,
-      currentModel: state.currentModel,
-      currentModelName: state.currentModelName,
-    ));
+  Future<void> _runVoid(ActionName action, Future<void> Function() body) async {
+    _emitIfAlive(
+      QuickActionsBusy(
+        action: action,
+        currentThinking: state.currentThinking,
+        currentModel: state.currentModel,
+        currentModelName: state.currentModelName,
+      ),
+    );
     try {
       await body();
-      _emitIfAlive(QuickActionsIdle(
-        currentThinking: state.currentThinking,
-        currentModel: state.currentModel,
-        currentModelName: state.currentModelName,
-      ));
+      _emitIfAlive(
+        QuickActionsIdle(
+          currentThinking: state.currentThinking,
+          currentModel: state.currentModel,
+          currentModelName: state.currentModelName,
+        ),
+      );
     } on ActionFailure catch (e) {
-      _emitIfAlive(QuickActionsIdle(
-        currentThinking: state.currentThinking,
-        currentModel: state.currentModel,
-        currentModelName: state.currentModelName,
-      ));
+      _emitIfAlive(
+        QuickActionsIdle(
+          currentThinking: state.currentThinking,
+          currentModel: state.currentModel,
+          currentModelName: state.currentModelName,
+        ),
+      );
       _errorController.add(e.message);
       rethrow;
     }

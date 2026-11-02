@@ -54,16 +54,8 @@ void main() {
         'type': 'rooms',
         'peer': 'epk_A',
         'rooms': [
-          {
-            'room_id': 'r1',
-            'name': 'one',
-            'cwd': '/one',
-            'started_at': 1000,
-          },
-          {
-            'room_id': 'r2',
-            'started_at': 2000,
-          },
+          {'room_id': 'r1', 'name': 'one', 'cwd': '/one', 'started_at': 1000},
+          {'room_id': 'r2', 'started_at': 2000},
         ],
       });
       expect(c, isA<RoomsSnapshot>());
@@ -76,50 +68,41 @@ void main() {
       expect(r.rooms[1].cwd, isNull);
     });
 
-    test(
-      'room_announced parses optional `model`',
-      () {
-        final c = ControlInbound.tryFromJson({
-          'type': 'room_announced',
-          'peer': 'epk_A',
-          'room_id': 'r1',
-          'started_at': 1700000000000,
-          'model': 'claude-sonnet-4.5',
-        });
-        expect(c, isA<RoomAnnounced>());
-        expect((c! as RoomAnnounced).model, 'claude-sonnet-4.5');
-      },
-    );
+    test('room_announced parses optional `model`', () {
+      final c = ControlInbound.tryFromJson({
+        'type': 'room_announced',
+        'peer': 'epk_A',
+        'room_id': 'r1',
+        'started_at': 1700000000000,
+        'model': 'claude-sonnet-4.5',
+      });
+      expect(c, isA<RoomAnnounced>());
+      expect((c! as RoomAnnounced).model, 'claude-sonnet-4.5');
+    });
 
-    test(
-      'room_meta_updated parses with model',
-      () {
-        final c = ControlInbound.tryFromJson({
-          'type': 'room_meta_updated',
-          'peer': 'epk_A',
-          'room_id': 'r1',
-          'meta': {'model': 'gpt-4o'},
-        });
-        expect(c, isA<RoomMetaUpdated>());
-        final r = c! as RoomMetaUpdated;
-        expect(r.peer, 'epk_A');
-        expect(r.roomId, 'r1');
-        expect(r.model, 'gpt-4o');
-      },
-    );
+    test('room_meta_updated parses with model', () {
+      final c = ControlInbound.tryFromJson({
+        'type': 'room_meta_updated',
+        'peer': 'epk_A',
+        'room_id': 'r1',
+        'meta': {'model': 'gpt-4o'},
+      });
+      expect(c, isA<RoomMetaUpdated>());
+      final r = c! as RoomMetaUpdated;
+      expect(r.peer, 'epk_A');
+      expect(r.roomId, 'r1');
+      expect(r.model, 'gpt-4o');
+    });
 
-    test(
-      'room_meta_updated tolerates missing meta / model (clears value)',
-      () {
-        final c = ControlInbound.tryFromJson({
-          'type': 'room_meta_updated',
-          'peer': 'epk_A',
-          'room_id': 'r1',
-        });
-        expect(c, isA<RoomMetaUpdated>());
-        expect((c! as RoomMetaUpdated).model, isNull);
-      },
-    );
+    test('room_meta_updated tolerates missing meta / model (clears value)', () {
+      final c = ControlInbound.tryFromJson({
+        'type': 'room_meta_updated',
+        'peer': 'epk_A',
+        'room_id': 'r1',
+      });
+      expect(c, isA<RoomMetaUpdated>());
+      expect((c! as RoomMetaUpdated).model, isNull);
+    });
 
     test('RoomInfo serializes + parses model round-trip', () {
       const r = RoomInfo(

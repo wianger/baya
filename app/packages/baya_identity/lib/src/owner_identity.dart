@@ -18,11 +18,9 @@ class OwnerIdentity {
   /// 32-byte Ed25519 private key (seed).
   final Uint8List ownerSk;
 
-  OwnerIdentity({
-    required Uint8List ownerPk,
-    required Uint8List ownerSk,
-  })  : ownerPk = Uint8List.fromList(ownerPk),
-        ownerSk = Uint8List.fromList(ownerSk) {
+  OwnerIdentity({required Uint8List ownerPk, required Uint8List ownerSk})
+    : ownerPk = Uint8List.fromList(ownerPk),
+      ownerSk = Uint8List.fromList(ownerSk) {
     if (this.ownerPk.length != 32) {
       throw ArgumentError.value(
         this.ownerPk.length,
@@ -69,10 +67,8 @@ class OwnerIdentity {
   }
 
   @override
-  int get hashCode => Object.hash(
-        Object.hashAll(ownerPk),
-        Object.hashAll(ownerSk),
-      );
+  int get hashCode =>
+      Object.hash(Object.hashAll(ownerPk), Object.hashAll(ownerSk));
 
   @override
   String toString() => 'OwnerIdentity(ownerPk: <32B>, ownerSk: <32B>)';

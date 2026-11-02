@@ -14,8 +14,7 @@ class _FakeStore implements FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async =>
-      _m[key];
+  }) async => _m[key];
   @override
   Future<void> write({
     required String key,
@@ -33,6 +32,7 @@ class _FakeStore implements FlutterSecureStorage {
       _m[key] = value;
     }
   }
+
   @override
   Future<void> delete({
     required String key,
@@ -42,8 +42,7 @@ class _FakeStore implements FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async =>
-      _m.remove(key);
+  }) async => _m.remove(key);
   @override
   dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
@@ -66,10 +65,8 @@ void main() {
       expect(isValidRelayUrl(''), isFalse);
       expect(isValidRelayUrl('ftp://example.com'), isFalse);
       expect(isValidRelayUrl('foo'), isFalse);
-      expect(isValidRelayUrl('https://'), isFalse,
-          reason: 'no host segment');
-      expect(isValidRelayUrl('http://'), isFalse,
-          reason: 'no host segment');
+      expect(isValidRelayUrl('https://'), isFalse, reason: 'no host segment');
+      expect(isValidRelayUrl('http://'), isFalse, reason: 'no host segment');
     });
   });
 
@@ -99,15 +96,18 @@ void main() {
 
   group('relay_config — toWsRelayUrl', () {
     test('translates http(s) to ws(s)', () {
-      expect(toWsRelayUrl('https://relay.example.com'),
-          'wss://relay.example.com');
-      expect(toWsRelayUrl('http://localhost:8080'),
-          'ws://localhost:8080');
+      expect(
+        toWsRelayUrl('https://relay.example.com'),
+        'wss://relay.example.com',
+      );
+      expect(toWsRelayUrl('http://localhost:8080'), 'ws://localhost:8080');
     });
 
     test('passes ws(s) through unchanged (legacy QR / PeerRecord)', () {
-      expect(toWsRelayUrl('wss://relay.example.com'),
-          'wss://relay.example.com');
+      expect(
+        toWsRelayUrl('wss://relay.example.com'),
+        'wss://relay.example.com',
+      );
       expect(toWsRelayUrl('ws://localhost'), 'ws://localhost');
     });
   });

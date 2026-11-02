@@ -2,9 +2,9 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { dirname, join } from "node:path";
-import { BAYA_HOME } from "../config.js";
-import type { BayaManager } from "../host/manager.js";
-import type { ControlInfo, ControlRequest, ControlResponse } from "./protocol.js";
+import { BAYA_HOME } from "../config.ts";
+import type { BayaManager } from "../host/manager.ts";
+import type { ControlInfo, ControlRequest, ControlResponse } from "./protocol.ts";
 
 export function controlInfoPath(): string {
   return join(BAYA_HOME, "runtime", "control.json");
@@ -14,10 +14,13 @@ export class ControlServer {
   private server: Server | null = null;
   private readonly token = randomBytes(32).toString("base64url");
 
-  constructor(
-    private readonly manager: BayaManager,
-    private readonly stopProcess: () => void,
-  ) {}
+  private readonly manager: BayaManager;
+  private readonly stopProcess: () => void;
+
+  constructor(manager: BayaManager, stopProcess: () => void) {
+    this.manager = manager;
+    this.stopProcess = stopProcess;
+  }
 
   async start(): Promise<ControlInfo> {
     const server = createServer((socket) => this.accept(socket));
@@ -40,7 +43,7 @@ export class ControlServer {
       started_at: Date.now(),
     };
     mkdirSync(dirname(controlInfoPath()), { recursive: true, mode: 0o700 });
-    writeFileSync(controlInfoPath(), JSON.stringify(info, null, 2) + "\n", { mode: 0o600 });
+    writeFileSync(controlInfoPath(), `${JSON.stringify(info, null, 2)}\n`, { mode: 0o600 });
     return info;
   }
 
@@ -81,11 +84,11 @@ export class ControlServer {
     try {
       request = JSON.parse(line) as ControlRequest;
     } catch {
-      socket.end(JSON.stringify({ id: "", ok: false, error: "Invalid JSON." }) + "\n");
+      socket.end(`${JSON.stringify({ id: "", ok: false, error: "Invalid JSON." })}\n`);
       return;
     }
     if (request.token !== this.token) {
-      socket.end(JSON.stringify({ id: request.id, ok: false, error: "Unauthorized." }) + "\n");
+      socket.end(`${JSON.stringify({ id: request.id, ok: false, error: "Unauthorized." })}\n`);
       return;
     }
 
@@ -99,7 +102,7 @@ export class ControlServer {
         error: error instanceof Error ? error.message : "Control request failed.",
       };
     }
-    socket.end(JSON.stringify(response) + "\n");
+    socket.end(`${JSON.stringify(response)}\n`);
     if (request.command === "stop" && response.ok) {
       setTimeout(this.stopProcess, 20);
     }

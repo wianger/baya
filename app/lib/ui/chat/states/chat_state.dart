@@ -31,6 +31,7 @@ class ChatReady extends ChatState {
   // shows banner offering manual reconnect. `peerOfflineReason` is the
   // raw wire reason (peer_stop / session_replaced / shutdown / …).
   final String? peerOfflineReason;
+
   /// Live relay-reported presence of the active peer. When the peer is
   /// [PresenceOffline] the chat enters read-only mode (history visible,
   /// input disabled). Defaults to [PresenceUnknown] until the relay
@@ -88,27 +89,26 @@ class ChatReady extends ChatState {
     bool clearPendingUiRequest = false,
     String? pendingUiError,
     bool clearPendingUiError = false,
-  }) =>
-      ChatReady(
-        messages: messages ?? this.messages,
-        streaming: clearStreaming ? null : (streaming ?? this.streaming),
-        isOffline: isOffline ?? this.isOffline,
-        pairingRevoked: pairingRevoked ?? this.pairingRevoked,
-        peerOfflineReason: clearPeerOffline
-            ? null
-            : (peerOfflineReason ?? this.peerOfflineReason),
-        peerPresence: peerPresence ?? this.peerPresence,
-        isWorking: isWorking ?? this.isWorking,
-        queuedMessages: clearQueuedMessages
-            ? const []
-            : (queuedMessages ?? this.queuedMessages),
-        pendingUiRequest: clearPendingUiRequest
-            ? null
-            : (pendingUiRequest ?? this.pendingUiRequest),
-        pendingUiError: clearPendingUiError
-            ? null
-            : (pendingUiError ?? this.pendingUiError),
-      );
+  }) => ChatReady(
+    messages: messages ?? this.messages,
+    streaming: clearStreaming ? null : (streaming ?? this.streaming),
+    isOffline: isOffline ?? this.isOffline,
+    pairingRevoked: pairingRevoked ?? this.pairingRevoked,
+    peerOfflineReason: clearPeerOffline
+        ? null
+        : (peerOfflineReason ?? this.peerOfflineReason),
+    peerPresence: peerPresence ?? this.peerPresence,
+    isWorking: isWorking ?? this.isWorking,
+    queuedMessages: clearQueuedMessages
+        ? const []
+        : (queuedMessages ?? this.queuedMessages),
+    pendingUiRequest: clearPendingUiRequest
+        ? null
+        : (pendingUiRequest ?? this.pendingUiRequest),
+    pendingUiError: clearPendingUiError
+        ? null
+        : (pendingUiError ?? this.pendingUiError),
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -126,17 +126,17 @@ class ChatReady extends ChatState {
 
   @override
   int get hashCode => Object.hash(
-        messages,
-        streaming,
-        isOffline,
-        pairingRevoked,
-        peerOfflineReason,
-        peerPresence.runtimeType,
-        isWorking,
-        queuedMessages,
-        pendingUiRequest,
-        pendingUiError,
-      );
+    messages,
+    streaming,
+    isOffline,
+    pairingRevoked,
+    peerOfflineReason,
+    peerPresence.runtimeType,
+    isWorking,
+    queuedMessages,
+    pendingUiRequest,
+    pendingUiError,
+  );
 }
 
 // Permanent offline — must re-pair.

@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { WebSocketServer, type WebSocket } from "ws";
+import { type WebSocket, WebSocketServer } from "ws";
 
 const homes: string[] = [];
 const servers: WebSocketServer[] = [];
@@ -34,7 +34,9 @@ async function fakeRelay() {
   const sockets: FakeSocket[] = [];
   server.on("connection", (socket) => {
     socket.once("message", (hello) => {
-      socket.send(JSON.stringify({ type: "challenge", nonce: Buffer.alloc(32).toString("base64") }));
+      socket.send(
+        JSON.stringify({ type: "challenge", nonce: Buffer.alloc(32).toString("base64") }),
+      );
       socket.once("message", () => {
         const entry: FakeSocket = { hello: JSON.parse(String(hello)), socket, frames: [] };
         sockets.push(entry);
@@ -63,20 +65,32 @@ describe("relay hub", () => {
   test("all rooms share one socket on a multiplexing relay", async () => {
     const { sockets, hub } = await fakeRelay();
     const received: Record<string, string[]> = { a: [], b: [] };
-    const a = hub.open("a", { name: "A", cwd: "/a" }, { onLine: (line) => received.a!.push(line) });
-    const b = hub.open("b", { name: "B", cwd: "/b" }, { onLine: (line) => received.b!.push(line) });
+    const a = hub.open(
+      "a",
+      { name: "A", cwd: "/a" },
+      { onLine: (line) => received["a"]!.push(line) },
+    );
+    const b = hub.open(
+      "b",
+      { name: "B", cwd: "/b" },
+      { onLine: (line) => received["b"]!.push(line) },
+    );
 
     await vi.waitFor(() => expect(b.isOpen()).toBe(true));
     expect(sockets).toHaveLength(1);
     expect(sockets[0]!.hello["room_id"]).toBe("a");
-    expect(sockets[0]!.frames[0]).toMatchObject({ type: "room_open", room_id: "b", room_meta: { name: "B" } });
+    expect(sockets[0]!.frames[0]).toMatchObject({
+      type: "room_open",
+      room_id: "b",
+      room_meta: { name: "B" },
+    });
 
     const socket = sockets[0]!.socket;
     socket.send(JSON.stringify({ peer: "phone", room: "main", to_room: "b", ct: "x" }));
     socket.send(JSON.stringify({ peer: "phone", room: "main", to_room: "a", ct: "y" }));
-    await vi.waitFor(() => expect(received.a!.length + received.b!.length).toBe(2));
-    expect(JSON.parse(received.b![0]!).ct).toBe("x");
-    expect(JSON.parse(received.a![0]!).ct).toBe("y");
+    await vi.waitFor(() => expect(received["a"]!.length + received["b"]!.length).toBe(2));
+    expect(JSON.parse(received["b"]![0]!).ct).toBe("x");
+    expect(JSON.parse(received["a"]![0]!).ct).toBe("y");
 
     a.send({ peer: "phone", ct: "1" });
     b.send({ peer: "phone", ct: "2" });
@@ -89,9 +103,10 @@ describe("relay hub", () => {
     ]);
 
     a.close();
-    await vi.waitFor(() => expect(sockets[0]!.frames.at(-1)).toEqual({ type: "room_close", room_id: "a" }));
+    await vi.waitFor(() =>
+      expect(sockets[0]!.frames.at(-1)).toEqual({ type: "room_close", room_id: "a" }),
+    );
     expect(b.isOpen()).toBe(true);
     b.close();
   });
-
 });

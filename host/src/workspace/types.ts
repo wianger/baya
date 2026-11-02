@@ -3,11 +3,7 @@
  * Known ids retain completion while the open string arm lets the desktop
  * advertise adapters added in later releases without an app enum migration.
  */
-export type WorkspaceAgent =
-  | "pi"
-  | "codex"
-  | "deepseek"
-  | (string & {});
+export type WorkspaceAgent = "pi" | "codex" | "deepseek" | (string & {});
 
 export interface WorkspaceAgentInfo {
   id: WorkspaceAgent;

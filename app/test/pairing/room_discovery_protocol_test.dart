@@ -49,8 +49,7 @@ void main() {
       expect(back, peer);
     });
 
-    test('legacy PeerRecord JSON (no room_id) hydrates with roomId=null',
-        () {
+    test('legacy PeerRecord JSON (no room_id) hydrates with roomId=null', () {
       final j = {
         'remote_epk': 'epk_legacy',
         'session_name': 'Pi',
@@ -63,8 +62,7 @@ void main() {
       expect(p.remoteEpk, 'epk_legacy');
     });
 
-    test('copyWith(roomId: ...) overrides; default keeps existing',
-        () {
+    test('copyWith(roomId: ...) overrides; default keeps existing', () {
       const peer = PeerRecord(
         remoteEpk: 'epk_A',
         sessionName: 'Pi',
@@ -95,8 +93,7 @@ void main() {
       expect(j['room_id'], isNull);
       // Serializable end-to-end.
       final s = jsonEncode(j);
-      final back = PeerRecord.fromJson(
-          jsonDecode(s) as Map<String, dynamic>);
+      final back = PeerRecord.fromJson(jsonDecode(s) as Map<String, dynamic>);
       expect(back.roomId, isNull);
     });
   });

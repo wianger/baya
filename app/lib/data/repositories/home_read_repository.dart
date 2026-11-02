@@ -17,7 +17,7 @@ class HomeReadRepository extends Repository {
   Stream<List<SessionIndexRecord>> watchSessions() {
     final box = _boxes.sessionsIndexBox();
     final byKey = <String, SessionIndexRecord>{};
-    StreamSubscription? sub;
+    StreamSubscription<Object?>? sub;
     late final StreamController<List<SessionIndexRecord>> controller;
     controller = StreamController<List<SessionIndexRecord>>(
       onListen: () {

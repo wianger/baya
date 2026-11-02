@@ -2,7 +2,6 @@
 // PeerRecord (de)serialization, nickname/roomId edges, and the new
 // `wipeAll()` helper that the OwnerIdentityBridge calls on sync-reset.
 
-
 import 'package:app/pairing/storage.dart';
 import 'package:app/protocol/protocol.dart' show PiHarness;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';

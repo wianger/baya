@@ -15,8 +15,7 @@ class _FakeStore implements FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async =>
-      _m[key];
+  }) async => _m[key];
   @override
   Future<void> write({
     required String key,
@@ -34,6 +33,7 @@ class _FakeStore implements FlutterSecureStorage {
       _m[key] = value;
     }
   }
+
   @override
   Future<void> delete({
     required String key,
@@ -43,8 +43,7 @@ class _FakeStore implements FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async =>
-      _m.remove(key);
+  }) async => _m.remove(key);
   @override
   dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
@@ -66,7 +65,11 @@ void main() {
       expect(vm.state, const OnboardingInProgress(step: OnboardingStep.pair));
       vm.back();
       expect(vm.state, const OnboardingInProgress());
-      expect(prefs.relayUrl, isNull, reason: 'onboarding never asks for a relay');
+      expect(
+        prefs.relayUrl,
+        isNull,
+        reason: 'onboarding never asks for a relay',
+      );
     });
 
     test('pairing or skipping completes onboarding', () async {

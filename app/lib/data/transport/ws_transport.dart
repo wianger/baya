@@ -37,8 +37,7 @@ class WsTransportError implements Exception {
 class WsTransport implements PeerTransport, IControlLink {
   final WebSocketChannel _ws;
   final _queue = _MsgQueue();
-  final _controlController =
-      StreamController<ControlInbound>.broadcast();
+  final _controlController = StreamController<ControlInbound>.broadcast();
 
   WsTransport._(this._ws);
 
@@ -117,13 +116,17 @@ class WsTransport implements PeerTransport, IControlLink {
           );
         }
       },
-      onError: (e) {
-        if (!challengeCompleter.isCompleted) challengeCompleter.completeError(e);
+      onError: (Object e) {
+        if (!challengeCompleter.isCompleted) {
+          challengeCompleter.completeError(e);
+        }
         transport._queue.error(e);
       },
       onDone: () {
         if (!challengeCompleter.isCompleted) {
-          challengeCompleter.completeError(const WsTransportError('WS closed during auth'));
+          challengeCompleter.completeError(
+            const WsTransportError('WS closed during auth'),
+          );
         }
         transport._queue.close();
         if (!transport._controlController.isClosed) {
@@ -146,11 +149,13 @@ class WsTransport implements PeerTransport, IControlLink {
       // App is a client (no cwd) and always announces itself
       // on the canonical 'main' room. Pi-side hellos include their own
       // room_id (one per cwd) AND room_meta; that's not our concern here.
-      ws.sink.add(jsonEncode({
-        'type': 'hello',
-        'pubkey': base64.encode(pub.bytes),
-        'room_id': 'main',
-      }));
+      ws.sink.add(
+        jsonEncode({
+          'type': 'hello',
+          'pubkey': base64.encode(pub.bytes),
+          'room_id': 'main',
+        }),
+      );
 
       // 2. Challenge
       final ch = await challengeCompleter.future;
@@ -161,10 +166,9 @@ class WsTransport implements PeerTransport, IControlLink {
 
       // 3. Auth
       final sig = await Ed25519().sign(nonce, keyPair: ed25519Key);
-      ws.sink.add(jsonEncode({
-        'type': 'auth',
-        'sig': base64.encode(sig.bytes),
-      }));
+      ws.sink.add(
+        jsonEncode({'type': 'auth', 'sig': base64.encode(sig.bytes)}),
+      );
       authDone = true;
 
       transport._sub = sub;
@@ -177,7 +181,7 @@ class WsTransport implements PeerTransport, IControlLink {
   }
 
   String _peerPubkey = '';
-  StreamSubscription? _sub;
+  StreamSubscription<Object?>? _sub;
   late final SecretKey _key;
   final _replay = ReplayGuard();
   // Encryption is async; these chains keep frames in wire order.
@@ -202,35 +206,45 @@ class WsTransport implements PeerTransport, IControlLink {
   @override
   Future<void> send(Uint8List data) {
     final room = _activeRoom;
-    return _outbound = _outbound.then((_) async {
-      final box = await seal(_key, E2EDirection.phoneToHost, room, data);
-      _ws.sink.add(jsonEncode({
-        'peer': _peerPubkey,
-        'room': room,
-        'ct': base64.encode(box),
-      }));
-    }).catchError((Object e) {
-      debugPrint('[ws-out] seal failed: $e');
-    });
+    return _outbound = _outbound
+        .then((_) async {
+          final box = await seal(_key, E2EDirection.phoneToHost, room, data);
+          _ws.sink.add(
+            jsonEncode({
+              'peer': _peerPubkey,
+              'room': room,
+              'ct': base64.encode(box),
+            }),
+          );
+        })
+        .catchError((Object e) {
+          debugPrint('[ws-out] seal failed: $e');
+        });
   }
 
   void _receiveSealed(Uint8List bytes, String room) {
-    _inbound = _inbound.then((_) async {
-      // Plaintext could have been written by the relay: never trust it.
-      if (!isSealed(bytes)) return;
-      final opened = await open(_key, E2EDirection.hostToPhone, room, bytes);
-      // Errors always pass so a "clock_skew" report reaches a phone whose
-      // clock is the problem.
-      if (!_replay.accept(opened) && !_isErrorFrame(opened.plaintext)) {
-        debugPrint('[ws-in] stale or replayed frame DROPPED');
-        return;
-      }
-      _queue.add(opened.plaintext);
-    }).catchError((Object e) {
-      debugPrint('[ws-in] envelope DROPPED err=$e');
-    });
+    _inbound = _inbound
+        .then((_) async {
+          // Plaintext could have been written by the relay: never trust it.
+          if (!isSealed(bytes)) return;
+          final opened = await open(
+            _key,
+            E2EDirection.hostToPhone,
+            room,
+            bytes,
+          );
+          // Errors always pass so a "clock_skew" report reaches a phone whose
+          // clock is the problem.
+          if (!_replay.accept(opened) && !_isErrorFrame(opened.plaintext)) {
+            debugPrint('[ws-in] stale or replayed frame DROPPED');
+            return;
+          }
+          _queue.add(opened.plaintext);
+        })
+        .catchError((Object e) {
+          debugPrint('[ws-in] envelope DROPPED err=$e');
+        });
   }
-
 
   @override
   Future<Uint8List> receive() => _queue.next();
@@ -288,7 +302,9 @@ class _MsgQueue {
   }
 
   Future<Uint8List> next() {
-    if (_closed) return Future.error(const WsTransportError('transport closed'));
+    if (_closed) {
+      return Future.error(const WsTransportError('transport closed'));
+    }
     if (_buf.isNotEmpty) return Future.value(_buf.removeAt(0));
     final c = Completer<Uint8List>();
     _waiters.add(c);

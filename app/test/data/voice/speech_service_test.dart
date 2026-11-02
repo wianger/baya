@@ -2,6 +2,7 @@
 // level behavior, exercised through the SttPlugin seam (no device).
 
 import 'dart:io';
+
 import 'package:app/data/voice/speech_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -173,33 +174,30 @@ void main() {
       expect(await service.stop(), isEmpty);
     });
 
-    test(
-      'sound level is normalized to 0..1 on the soundLevel stream (Android scale)',
-      () async {
-        final plugin = _FakeSttPlugin();
-        // Pin the Android rmsdB scale so the assertions don't depend on the
-        // host the test runs on (forPlatform() picks darwin on macOS).
-        final service = SpeechToTextService(plugin, SoundLevelScale.android);
-        await service.init(preferredLocaleId: 'en_US');
+    test('sound level is normalized to 0..1 on the soundLevel stream (Android scale)', () async {
+      final plugin = _FakeSttPlugin();
+      // Pin the Android rmsdB scale so the assertions don't depend on the
+      // host the test runs on (forPlatform() picks darwin on macOS).
+      final service = SpeechToTextService(plugin, SoundLevelScale.android);
+      await service.init(preferredLocaleId: 'en_US');
 
-        final levels = <double>[];
-        final sub = service.soundLevel.listen(levels.add);
+      final levels = <double>[];
+      final sub = service.soundLevel.listen(levels.add);
 
-        await service.start(
-          localeId: 'en_US',
-          maxDuration: const Duration(seconds: 60),
-        );
-        plugin.emitLevel(-2.0); // min → 0
-        plugin.emitLevel(4.0); // midpoint → 0.5
-        plugin.emitLevel(10.0); // max → 1
-        plugin.emitLevel(99.0); // clamped → 1
-        await Future<void>.delayed(Duration.zero);
+      await service.start(
+        localeId: 'en_US',
+        maxDuration: const Duration(seconds: 60),
+      );
+      plugin.emitLevel(-2.0); // min → 0
+      plugin.emitLevel(4.0); // midpoint → 0.5
+      plugin.emitLevel(10.0); // max → 1
+      plugin.emitLevel(99.0); // clamped → 1
+      await Future<void>.delayed(Duration.zero);
 
-        expect(levels, [0.0, 0.5, 1.0, 1.0]);
-        await sub.cancel();
-        service.dispose();
-      },
-    );
+      expect(levels, [0.0, 0.5, 1.0, 1.0]);
+      await sub.cancel();
+      service.dispose();
+    });
 
     test(
       'sound level uses the dBFS scale on iOS/macOS (negative avgPower)',
@@ -233,15 +231,11 @@ void main() {
   });
 
   group('SoundLevelScale', () {
-    test(
-      'forPlatform picks the darwin scale on macOS test host',
-      () {
-        // The unit-test host is macOS, so the platform factory must resolve to
-        // the dBFS scale — guarding the iOS waveform regression directly.
-        expect(SoundLevelScale.forPlatform(), SoundLevelScale.darwin);
-      },
-      skip: !Platform.isMacOS,
-    );
+    test('forPlatform picks the darwin scale on macOS test host', () {
+      // The unit-test host is macOS, so the platform factory must resolve to
+      // the dBFS scale — guarding the iOS waveform regression directly.
+      expect(SoundLevelScale.forPlatform(), SoundLevelScale.darwin);
+    }, skip: !Platform.isMacOS);
 
     test('normalize clamps NaN and ±infinity to the endpoints', () {
       expect(SoundLevelScale.darwin.normalize(double.nan), 0.0);

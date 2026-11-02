@@ -1,11 +1,7 @@
-import type { PeerChannel } from "../transport/peer_channel.js";
-import type {
-  OpenedWorkspace,
-  SessionFilesRequest,
-  WorkspaceRequest,
-} from "./types.js";
-import { browseDirectory, resolveDirectory } from "./directories.js";
-import { browseSessionFiles, readSessionFile } from "./session_files.js";
+import type { PeerChannel } from "../transport/peer_channel.ts";
+import { browseDirectory, resolveDirectory } from "./directories.ts";
+import { browseSessionFiles, readSessionFile } from "./session_files.ts";
+import type { OpenedWorkspace, SessionFilesRequest, WorkspaceRequest } from "./types.ts";
 
 export type OpenWorkspace = (path: string, agent: unknown) => Promise<OpenedWorkspace>;
 
@@ -19,11 +15,7 @@ export async function handleWorkspaceRequest(
   cwd: string,
   openWorkspace: OpenWorkspace,
 ): Promise<void> {
-  if (
-    typeof message.id !== "string" ||
-    message.id.length === 0 ||
-    message.id.length > 200
-  ) return;
+  if (typeof message.id !== "string" || message.id.length === 0 || message.id.length > 200) return;
 
   try {
     switch (message.type) {
@@ -50,9 +42,10 @@ export async function handleWorkspaceRequest(
     }
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Could not open this path.";
-    const type = message.type === "session_files_browse" || message.type === "session_file_read"
-      ? "session_file_error"
-      : "workspace_error";
+    const type =
+      message.type === "session_files_browse" || message.type === "session_file_read"
+        ? "session_file_error"
+        : "workspace_error";
     sender.send({ type, in_reply_to: message.id, error: detail });
   }
 }

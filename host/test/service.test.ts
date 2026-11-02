@@ -1,15 +1,9 @@
 import { describe, expect, test } from "vitest";
-import {
-  BAYA_RUN_KEY,
-  BAYA_RUN_VALUE,
-  buildWindowsStartupCommand,
-} from "../src/service.js";
+import { BAYA_RUN_KEY, BAYA_RUN_VALUE, buildWindowsStartupCommand } from "../src/service.ts";
 
 describe("per-user Windows startup", () => {
   test("uses the current-user Run key", () => {
-    expect(BAYA_RUN_KEY).toBe(
-      "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-    );
+    expect(BAYA_RUN_KEY).toBe("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run");
     expect(BAYA_RUN_VALUE).toBe("BayaHost");
   });
 
@@ -21,28 +15,22 @@ describe("per-user Windows startup", () => {
       systemRoot: "C:\\Windows",
     });
 
-    expect(command).toContain(
-      '"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"',
-    );
+    expect(command).toContain('"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"');
     expect(command).toContain("-WindowStyle Hidden");
     expect(command).toContain("-EncodedCommand ");
 
     const encoded = command.split("-EncodedCommand ")[1]!;
     const script = Buffer.from(encoded, "base64").toString("utf16le");
     expect(script).toContain("'C:\\Program Files\\node.exe'");
-    expect(script).toContain(
-      "'C:\\Users\\O''Brien\\baya\\dist\\cli.js'",
-    );
-    expect(script).toContain(
-      "'C:\\Users\\O''Brien\\project space'",
-    );
+    expect(script).toContain("'C:\\Users\\O''Brien\\baya\\dist\\cli.js'");
+    expect(script).toContain("'C:\\Users\\O''Brien\\project space'");
   });
 });
 
 const target = {
   nodePath: "/usr/bin/node",
   entryPath: "/home/a b/baya/dist/cli.js",
-  cwd: "/home/a b/100% \"done\"",
+  cwd: '/home/a b/100% "done"',
   path: "/usr/local/bin:/usr/bin",
   logDir: "/home/a b/.baya/logs",
 };

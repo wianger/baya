@@ -1,4 +1,4 @@
-import type { ServerMessage } from "../protocol/types.js";
+import type { ServerMessage } from "../protocol/types.ts";
 
 /** Sink for ServerMessage outbound to the remote app. */
 export interface PeerChannel {

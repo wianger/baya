@@ -217,7 +217,6 @@ class SpeechToTextService implements SpeechService {
         firstWhere((s) => s == 'en_US') ??
         firstWhere((s) => s.split('_').first == 'en');
   }
-
 }
 
 /// Maps the plugin's raw `onSoundLevelChange` value to the `0..1` envelope the

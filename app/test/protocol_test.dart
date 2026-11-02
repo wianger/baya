@@ -29,45 +29,39 @@ void main() {
     });
 
     test('decodes listing, content and errors', () {
-      final listing =
-          ServerMessage.fromJson({
-                'type': 'session_files_listing',
-                'in_reply_to': 'browse',
-                'directory': {
-                  'root': '/project',
-                  'path': '/project',
-                  'parent': null,
-                  'entries': <Object>[],
-                  'truncated': false,
-                },
-              })
-              as SessionFilesListing;
+      final listing = ServerMessage.fromJson({
+        'type': 'session_files_listing',
+        'in_reply_to': 'browse',
+        'directory': {
+          'root': '/project',
+          'path': '/project',
+          'parent': null,
+          'entries': <Object>[],
+          'truncated': false,
+        },
+      }) as SessionFilesListing;
       expect(listing.directory['root'], '/project');
 
-      final file =
-          ServerMessage.fromJson({
-                'type': 'session_file_content',
-                'in_reply_to': 'read',
-                'file': {
-                  'name': 'a.dart',
-                  'path': '/project/a.dart',
-                  'size': 4,
-                  'modified_at': 1,
-                  'content': 'main',
-                  'binary': false,
-                  'truncated': false,
-                },
-              })
-              as SessionFileContentReply;
+      final file = ServerMessage.fromJson({
+        'type': 'session_file_content',
+        'in_reply_to': 'read',
+        'file': {
+          'name': 'a.dart',
+          'path': '/project/a.dart',
+          'size': 4,
+          'modified_at': 1,
+          'content': 'main',
+          'binary': false,
+          'truncated': false,
+        },
+      }) as SessionFileContentReply;
       expect(file.file['content'], 'main');
 
-      final error =
-          ServerMessage.fromJson({
-                'type': 'session_file_error',
-                'in_reply_to': 'read',
-                'error': 'Outside session root.',
-              })
-              as SessionFileError;
+      final error = ServerMessage.fromJson({
+        'type': 'session_file_error',
+        'in_reply_to': 'read',
+        'error': 'Outside session root.',
+      }) as SessionFileError;
       expect(error.error, 'Outside session root.');
     });
   });
@@ -169,27 +163,21 @@ void main() {
 
   group('Queued messages', () {
     test('parses steer consumed clear signal', () {
-      final msg =
-          ServerMessage.fromJson({'type': 'steer_consumed', 'id': 's1'})
-              as SteerConsumed;
+      final msg = ServerMessage.fromJson({
+        'type': 'steer_consumed',
+        'id': 's1',
+      }) as SteerConsumed;
 
       expect(msg.id, 's1');
     });
 
     test('parses plural items and legacy fallback', () {
-      final plural =
-          ServerMessage.fromJson({
-                'type': 'queued_message_state',
-                'items': [
-                  {
-                    'id': 'q1',
-                    'text': 'next',
-                    'editable': true,
-                    'created_at': 123,
-                  },
-                ],
-              })
-              as QueuedMessageState;
+      final plural = ServerMessage.fromJson({
+        'type': 'queued_message_state',
+        'items': [
+          {'id': 'q1', 'text': 'next', 'editable': true, 'created_at': 123},
+        ],
+      }) as QueuedMessageState;
 
       expect(plural.items, hasLength(1));
       expect(plural.items.single.id, 'q1');
@@ -197,13 +185,11 @@ void main() {
       expect(plural.items.single.editable, isTrue);
       expect(plural.text, 'next');
 
-      final legacy =
-          ServerMessage.fromJson({
-                'type': 'queued_message_state',
-                'id': 'old',
-                'text': 'legacy',
-              })
-              as QueuedMessageState;
+      final legacy = ServerMessage.fromJson({
+        'type': 'queued_message_state',
+        'id': 'old',
+        'text': 'legacy',
+      }) as QueuedMessageState;
 
       expect(legacy.items, hasLength(1));
       expect(legacy.items.single.id, 'old');
@@ -356,9 +342,9 @@ void main() {
       final line = file.readAsLinesSync().firstWhere(
         (l) => l.trim().isNotEmpty,
       );
-      final m =
-          ControlInbound.tryFromJson(jsonDecode(line) as Map<String, dynamic>)
-              as PeerOffline;
+      final m = ControlInbound.tryFromJson(
+        jsonDecode(line) as Map<String, dynamic>,
+      ) as PeerOffline;
       expect(m.sinceTs, 1716234500000);
     });
 
@@ -367,9 +353,9 @@ void main() {
       final line = file.readAsLinesSync().firstWhere(
         (l) => l.trim().isNotEmpty,
       );
-      final m =
-          ControlInbound.tryFromJson(jsonDecode(line) as Map<String, dynamic>)
-              as PresenceSnapshot;
+      final m = ControlInbound.tryFromJson(
+        jsonDecode(line) as Map<String, dynamic>,
+      ) as PresenceSnapshot;
       expect(m.states, hasLength(2));
       expect(m.states.first.online, isTrue);
       expect(m.states.last.online, isFalse);
@@ -515,76 +501,66 @@ void main() {
     });
 
     test('user_message echo decodes images → UserInput.image', () {
-      final msg =
-          ServerMessage.fromJson({
-                'type': 'user_message',
-                'id': 'u3',
-                'text': 'caption',
-                'images': [
-                  {'data': 'QUJD', 'mime': 'image/jpeg'},
-                ],
-              })
-              as UserInput;
+      final msg = ServerMessage.fromJson({
+        'type': 'user_message',
+        'id': 'u3',
+        'text': 'caption',
+        'images': [
+          {'data': 'QUJD', 'mime': 'image/jpeg'},
+        ],
+      }) as UserInput;
       expect(msg.image, isNotNull);
       expect(msg.image!.data, 'QUJD');
       expect(msg.image!.mime, 'image/jpeg');
     });
 
     test('user_message echo with steer behavior parses on UserInput', () {
-      final msg =
-          ServerMessage.fromJson({
-                'type': 'user_message',
-                'id': 'u-steer',
-                'text': 'refine',
-                'streaming_behavior': 'steer',
-              })
-              as UserInput;
+      final msg = ServerMessage.fromJson({
+        'type': 'user_message',
+        'id': 'u-steer',
+        'text': 'refine',
+        'streaming_behavior': 'steer',
+      }) as UserInput;
       expect(msg.streamingBehavior, UserMessageStreamingBehavior.steer);
     });
 
     test('unknown streaming_behavior is ignored (compatibility)', () {
-      final msg =
-          ServerMessage.fromJson({
-                'type': 'user_message',
-                'id': 'u-unknown',
-                'text': 'legacy',
-                'streaming_behavior': 'unknown-mode',
-              })
-              as UserInput;
+      final msg = ServerMessage.fromJson({
+        'type': 'user_message',
+        'id': 'u-unknown',
+        'text': 'legacy',
+        'streaming_behavior': 'unknown-mode',
+      }) as UserInput;
       expect(msg.streamingBehavior, isNull);
     });
 
     test('user_message without images → UserInput.image is null', () {
-      final msg =
-          ServerMessage.fromJson({
-                'type': 'user_message',
-                'id': 'u4',
-                'text': 'plain',
-              })
-              as UserInput;
+      final msg = ServerMessage.fromJson({
+        'type': 'user_message',
+        'id': 'u4',
+        'text': 'plain',
+      }) as UserInput;
       expect(msg.image, isNull);
     });
 
     test('session_history user_input event carries the image', () {
-      final hist =
-          ServerMessage.fromJson({
-                'type': 'session_history',
-                'in_reply_to': 'sync1',
-                'session_started_at': 0,
-                'eos': true,
-                'events': [
-                  {
-                    'type': 'user_input',
-                    'ts': 1,
-                    'id': 'u5',
-                    'text': 'replayed',
-                    'images': [
-                      {'data': 'QUJD', 'mime': 'image/jpeg'},
-                    ],
-                  },
-                ],
-              })
-              as SessionHistory;
+      final hist = ServerMessage.fromJson({
+        'type': 'session_history',
+        'in_reply_to': 'sync1',
+        'session_started_at': 0,
+        'eos': true,
+        'events': [
+          {
+            'type': 'user_input',
+            'ts': 1,
+            'id': 'u5',
+            'text': 'replayed',
+            'images': [
+              {'data': 'QUJD', 'mime': 'image/jpeg'},
+            ],
+          },
+        ],
+      }) as SessionHistory;
       final evt = hist.events.single as UserInputEvt;
       expect(evt.image?.data, 'QUJD');
     });

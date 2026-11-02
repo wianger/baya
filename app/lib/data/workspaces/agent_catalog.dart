@@ -12,11 +12,16 @@ List<WorkspaceAgent> decodeWorkspaceAgents(Object? raw) {
     agents[id] = WorkspaceAgent(
       id: id,
       label: name is String && name.trim().isNotEmpty ? name : id,
-      description: entry['description'] is String ? entry['description'] : '',
+      description: switch (entry['description']) {
+        final String text => text,
+        _ => '',
+      },
       available: entry['available'] == true,
-      unavailableReason: entry['reason'] is String ? entry['reason'] : null,
+      unavailableReason: switch (entry['reason']) {
+        final String text => text,
+        _ => null,
+      },
     );
   }
   return List.unmodifiable(agents.values);
 }
-

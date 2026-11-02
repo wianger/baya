@@ -1,4 +1,4 @@
-import type { ThinkingLevel } from "./types.js";
+import type { ThinkingLevel } from "./types.ts";
 
 export const THINKING_LEVELS = [
   "off",
@@ -52,11 +52,11 @@ export function thinkingLevelsFromOptions(values: readonly unknown[]): ThinkingL
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
     const entry = raw as Record<string, unknown>;
     for (const candidate of [
-      entry.reasoningEffort,
-      entry.effort,
-      entry.value,
-      entry.name,
-      entry.id,
+      entry["reasoningEffort"],
+      entry["effort"],
+      entry["value"],
+      entry["name"],
+      entry["id"],
     ]) {
       const level = thinkingLevel(candidate);
       if (level) {
@@ -72,14 +72,10 @@ export function thinkingLevelsFromOptions(values: readonly unknown[]): ThinkingL
  * Match Pi's `getSupportedThinkingLevels`: base levels are available unless
  * explicitly mapped to null; extended levels require an explicit mapping.
  */
-export function thinkingLevelsFromMap(
-  raw: unknown,
-  reasoning: boolean,
-): ThinkingLevel[] {
+export function thinkingLevelsFromMap(raw: unknown, reasoning: boolean): ThinkingLevel[] {
   if (!reasoning) return [];
-  const map = raw && typeof raw === "object" && !Array.isArray(raw)
-    ? raw as Record<string, unknown>
-    : {};
+  const map =
+    raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
   return THINKING_LEVELS.filter((level) => {
     if (map[level] === null) return false;
     if (level === "xhigh" || level === "max" || level === "ultra") {
