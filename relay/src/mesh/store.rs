@@ -1,6 +1,4 @@
 use std::path::Path;
-#[cfg(test)]
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
 use rusqlite::{Connection, OptionalExtension, params};
@@ -24,8 +22,6 @@ const SCHEMA: &str = include_str!("../../migrations/001_mesh_versions.sql");
 /// `owner_pk_hash`. Thread-safe via `std::sync::Mutex<Connection>`.
 pub struct MeshStore {
     conn: Mutex<Connection>,
-    #[cfg(test)]
-    all_blobs_calls: AtomicUsize,
 }
 
 impl std::fmt::Debug for MeshStore {
@@ -66,8 +62,6 @@ impl MeshStore {
         conn.execute_batch(SCHEMA)?;
         Ok(Self {
             conn: Mutex::new(conn),
-            #[cfg(test)]
-            all_blobs_calls: AtomicUsize::new(0),
         })
     }
 
@@ -77,8 +71,6 @@ impl MeshStore {
         conn.execute_batch(SCHEMA)?;
         Ok(Self {
             conn: Mutex::new(conn),
-            #[cfg(test)]
-            all_blobs_calls: AtomicUsize::new(0),
         })
     }
 
@@ -145,24 +137,6 @@ impl MeshStore {
         )?;
         tx.commit()?;
         Ok(())
-    }
-
-    /// Returns the raw `blob` bytes of every stored mesh version (one per
-    /// Owner). Used by mesh authorization (plan 25) to find which Owner a
-    /// given Pi-pubkey belongs to.
-    pub fn all_blobs(&self) -> Result<Vec<Vec<u8>>, StoreError> {
-        #[cfg(test)]
-        self.all_blobs_calls.fetch_add(1, Ordering::Relaxed);
-        let conn = self.connection();
-        let mut stmt = conn.prepare("SELECT blob FROM mesh_versions")?;
-        let rows: Result<Vec<Vec<u8>>, _> =
-            stmt.query_map([], |r| r.get::<_, Vec<u8>>(0))?.collect();
-        Ok(rows?)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn all_blobs_calls(&self) -> usize {
-        self.all_blobs_calls.load(Ordering::Relaxed)
     }
 
     /// Fetches the current record for `owner_pk_hash`, or `None` if absent.

@@ -9,7 +9,6 @@
 // the finalized message lands in the box on `agent_done`.
 
 import 'dart:async';
-import 'package:app/domain/value_objects/session_room.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -386,7 +385,7 @@ class SyncService extends Service {
   /// Only phone-local data is removed. The relay and computer are untouched.
   Future<void> removeCachedSession(String epk, String room) async {
     if (_activeEpk == epk &&
-        conversationRoomId(_activeRoomId) == conversationRoomId(room)) {
+        _activeRoomId == room) {
       _syncDebounce?.cancel();
       _resetTurnState();
       _activeEpk = null;
@@ -492,8 +491,8 @@ class SyncService extends Service {
     // chat is still mounted underneath. Never write that room into this box.
     if (originEpk != null &&
         _activeEpk != null &&
-        conversationRoomId(_conn.activeRoomId) !=
-            conversationRoomId(_activeRoomId)) {
+        _conn.activeRoomId !=
+            _activeRoomId) {
       return;
     }
     if (originEpk != null &&

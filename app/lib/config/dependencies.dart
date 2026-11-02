@@ -53,7 +53,7 @@ import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
-import 'package:remote_pi_identity/remote_pi_identity.dart';
+import 'package:baya_identity/baya_identity.dart';
 
 final _injector = CustomInjector();
 
@@ -281,9 +281,7 @@ Future<IChannel> _productionConnectionFactory(
   // its retry/backoff path, which is observable as `StatusRetrying` and
   // renders a "reconnecting" banner rather than an empty spinner.
   const wsConnectTimeout = Duration(seconds: 10);
-  // Resolve the GLOBAL relay URL: user override > default.
-  // `peer.relayUrl` is kept on PeerRecord for legacy QR payloads but is
-  // no longer consulted when opening a connection.
+  // One relay for every peer: the QR-adopted or Settings URL, else default.
   final relayUrl = resolveRelayUrl(_injector.get<Preferences>());
   final transport =
       await WsTransport.connect(
@@ -314,14 +312,8 @@ Future<PeerTransport> _productionPairingTransportFactory(
   QrPairPayload qr,
   SimpleKeyPair deviceEd25519,
 ) async {
-  // Pairing connects via the GLOBAL relay URL (Preferences),
-  // not whatever was embedded in the QR. Mismatch between qr.relayUrl
-  // and the user's configured relay is handled upstream by
-  // `pair_request_flow.dart` (raises a `relay_mismatch` error that
-  // PairingViewModel surfaces as a "trocar relay?" modal).
-  final relayUrl = resolveRelayUrl(_injector.get<Preferences>());
   return WsTransport.connect(
-    relayUrl: relayUrl,
+    relayUrl: qr.relayUrl,
     peerPubkey: qr.epk,
     ed25519Key: deviceEd25519,
   );

@@ -36,9 +36,8 @@ New-Item -ItemType Directory -Path $buildApp -Force | Out-Null
 & robocopy $source $buildApp /E /XD .dart_tool build .gradle /XF local.properties key.properties /NFL /NDL /NJH /NJS /NP
 if ($LASTEXITCODE -ge 8) { throw 'Source snapshot copy failed.' }
 
-# Keep this compatibility path: it already contains the private key that signs
-# the installed dev.wianger.remotepi app. Moving the key would break in-place
-# Android updates. The password remains protected with Windows DPAPI.
+# The personal signing key lives here, outside the checkout; its password is
+# protected with Windows DPAPI.
 $signing = Join-Path $BuildRoot 'signing'
 New-Item -ItemType Directory -Path $signing -Force | Out-Null
 $metadataPath = Join-Path $signing 'personal-key.json'

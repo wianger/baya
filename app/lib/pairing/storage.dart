@@ -5,8 +5,8 @@ import 'package:app/protocol/protocol.dart' show PiHarness;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-const _kPeersService = 'dev.remotepi.peers';
-const _kRoomsService = 'dev.remotepi.rooms';
+const _kPeersService = 'dev.wianger.baya.peers';
+const _kRoomsService = 'dev.wianger.baya.rooms';
 
 /// Persisted snapshot of every room we have ever
 /// learned about for a peer (relay-announced via `room_announced` /
@@ -90,11 +90,9 @@ class PeerRecord {
   // place of [sessionName] when set; null = use sessionName everywhere.
   final String? nickname;
 
-  /// Pi-side room id (cwd-session) this pairing is bound
-  /// to. Set from `PairOk.roomId` on pair, or discovered lazily via
-  /// `subscribe_rooms` for legacy peers persisted before this fix.
-  /// `null` = not yet discovered; outbound sends fall back to 'main'
-  /// while ConnectionManager runs the discovery once.
+  /// Room of the session this pairing addresses (from `pair_ok`, then the
+  /// last opened session). `null` only for records built by mesh sync before
+  /// a session is chosen.
   final String? roomId;
 
   /// Agent harness reported by the PC at pair time.
@@ -131,14 +129,8 @@ class PeerRecord {
       sessionName: j['session_name'] as String,
       relayUrl: j['relay_url'] as String,
       pairedAt: j['paired_at'] as String,
-      // Legacy records have no 'nickname' field.
       nickname: j['nickname'] as String?,
-      // Legacy records have no 'room_id'.
-      // Stays null until ConnectionManager discovers it via subscribe_rooms.
       roomId: j['room_id'] as String?,
-      // Harness was added later. Records saved before
-      // it lack the field; null falls back to the default at consumer
-      // side.
       harness: harnessJson is Map<String, dynamic>
           ? PiHarness.fromJson(harnessJson)
           : null,
@@ -226,8 +218,6 @@ class PairingStorage extends ChangeNotifier {
   String _peerKey(String remoteEpk) =>
       '$_kPeersService:${_canonicalEpk(remoteEpk)}';
 
-  String _legacyPeerKey(String remoteEpk) => '$_kPeersService:$remoteEpk';
-
   Future<void> savePeer(PeerRecord record) async {
     await _writePeer(record);
     _onPeersMutated?.call();
@@ -262,74 +252,26 @@ class PairingStorage extends ChangeNotifier {
   void notifyPeersChanged() => notifyListeners();
 
   Future<void> _writePeer(PeerRecord record) async {
-    final canonicalKey = _peerKey(record.remoteEpk);
-    await _store.write(key: canonicalKey, value: jsonEncode(record.toJson()));
-    for (final alias in await _peerAliasKeys(record.remoteEpk)) {
-      if (alias != canonicalKey) await _store.delete(key: alias);
-    }
+    await _store.write(
+      key: _peerKey(record.remoteEpk),
+      value: jsonEncode(record.toJson()),
+    );
     notifyListeners();
   }
 
   Future<void> _erasePeer(String remoteEpk) async {
-    final exactAliases = {
-      _peerKey(remoteEpk),
-      _legacyPeerKey(remoteEpk),
-      ...await _peerAliasKeys(remoteEpk),
-    };
-    for (final key in exactAliases) {
-      await _store.delete(key: key);
-    }
+    await _store.delete(key: _peerKey(remoteEpk));
     notifyListeners();
   }
 
   Future<List<PeerRecord>> listPeers() async {
     final all = await _store.readAll();
     final prefix = '$_kPeersService:';
-    final peersByEpk = <String, PeerRecord>{};
-    for (final entry in all.entries) {
-      if (!entry.key.startsWith(prefix)) continue;
-      final peer = PeerRecord.fromJson(
-        jsonDecode(entry.value) as Map<String, dynamic>,
-      );
-      final key = _canonicalEpk(peer.remoteEpk);
-      final existing = peersByEpk[key];
-      if (existing == null || _isNewerPeer(peer, existing)) {
-        peersByEpk[key] = peer;
-      }
-    }
-    return peersByEpk.values.toList();
-  }
-
-  Future<Set<String>> _peerAliasKeys(String remoteEpk) async {
-    final canonical = _canonicalEpk(remoteEpk);
-    final prefix = '$_kPeersService:';
-    final all = await _store.readAll();
-    final aliases = <String>{};
-    for (final entry in all.entries) {
-      if (!entry.key.startsWith(prefix)) continue;
-      try {
-        final peer = PeerRecord.fromJson(
-          jsonDecode(entry.value) as Map<String, dynamic>,
-        );
-        if (_canonicalEpk(peer.remoteEpk) == canonical) aliases.add(entry.key);
-      } catch (_) {
-        // Keep malformed records untouched unless their exact key is erased.
-      }
-    }
-    return aliases;
-  }
-
-  bool _isNewerPeer(PeerRecord candidate, PeerRecord existing) {
-    final candidateTime = DateTime.tryParse(candidate.pairedAt);
-    final existingTime = DateTime.tryParse(existing.pairedAt);
-    if (candidateTime != null &&
-        existingTime != null &&
-        candidateTime != existingTime) {
-      return candidateTime.isAfter(existingTime);
-    }
-    if (candidateTime != null && existingTime == null) return true;
-    if (candidateTime == null && existingTime != null) return false;
-    return candidate.remoteEpk.compareTo(existing.remoteEpk) >= 0;
+    return [
+      for (final entry in all.entries)
+        if (entry.key.startsWith(prefix))
+          PeerRecord.fromJson(jsonDecode(entry.value) as Map<String, dynamic>),
+    ];
   }
 
   /// Wipe every peer + every persisted room map. Used by the

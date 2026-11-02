@@ -48,7 +48,7 @@ unreachable, and the host reconnects in the background.
 `$BAYA_HOME/logs/host.log`. The control socket is loopback-only and protected by
 a random token stored with owner-only permissions.
 
-## State and migration
+## State
 
 The state directory defaults to `~/.baya` and may be overridden with
 `BAYA_HOME`. It contains:
@@ -62,10 +62,8 @@ runtime/
 logs/
 ```
 
-Existing `~/.pi/remote` relay settings, file identities, keyring identities,
-and paired-device records are read during migration. Baya never modifies the
-old directory. Pairing capability tokens are single-use and stored under the
-Baya runtime directory.
+Pairing capability tokens are single-use and stored under the Baya runtime
+directory.
 
 ## Agents
 
@@ -85,8 +83,6 @@ BAYA_DSH_BIN
 BAYA_DSH_INSPECTOR_PORT
 BAYA_ALLOW_FILE_IDENTITY=1
 ```
-
-Legacy `REMOTE_PI_*` overrides remain accepted for migration compatibility.
 
 ## Development
 

@@ -116,26 +116,6 @@ void main() {
     return out;
   }
 
-  test('daemon and interactive endpoints share one live writer', () async {
-    const daemon = 'pi_abcdefghijklmnop_d_ABCDEFGHIJKL';
-    const terminal = 'pi_abcdefghijklmnop_i_MNOPQRSTUVWX';
-    final s = await setup(room: daemon);
-    s.ch.push(UserInput(id: 'u', text: 'continue on the desktop'));
-    await _settle();
-
-    s.conn.switchRoom(terminal);
-    s.ch.push(AgentChunk(inReplyTo: 'u', delta: 'Resumed reply'));
-    s.ch.push(AgentDone(inReplyTo: 'u'));
-    await _settle();
-
-    final rows = messages(s.epk, room: daemon);
-    expect(rows, hasLength(2));
-    expect(rows.first.text, 'continue on the desktop');
-    expect(rows.last.text, 'Resumed reply');
-    s.conn.dispose();
-    s.sync.dispose();
-  });
-
   test(
     'Codex reconnect replaces the live cursor and saves one complete reply',
     () async {

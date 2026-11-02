@@ -3,10 +3,8 @@
 This document describes the protocol implemented by the standalone Baya host,
 the Baya Android client, and the compatible relay in this repository.
 
-Baya reuses the original Remote Pi transport and message vocabulary so the
-existing signed Android package can update in place. The host is independent:
-it does not install itself into Pi and Pi is launched as a normal RPC child
-process.
+The host is independent of any agent: Pi, Codex and DeepSeek Harness run as
+ordinary child processes.
 
 ## Security model
 
@@ -54,10 +52,7 @@ have already seen; the computer answers a stale but authentic frame with
 The key is static (no forward secrecy): a leaked identity key exposes recorded
 traffic. Rotating the computer identity and re-pairing replaces it.
 
-Plaintext frames are refused. A computer answers one with a plaintext `error`
-code `upgrade_required`, and the phone shows the same notice when a
-pre-encryption computer talks to it. Both sides must run an encrypting build.
-The shared test vector is `.orchestration/contracts/e2e_v1.json`.
+Plaintext frames are dropped on both sides. The shared test vector is `.orchestration/contracts/e2e_v1.json`.
 
 ## Relay envelope
 
@@ -81,10 +76,11 @@ the current clients. Unknown message types receive an `error` or
 The CLI renders a QR code and a copyable URI:
 
 ```text
-remotepi://pair?t=<token>&epk=<computer-public-key>&n=<session-name>&rm=<room-id>
+baya://pair?t=<token>&epk=<computer-public-key>&n=<session-name>&rm=<room-id>&r=<relay-url>
 ```
 
-The `remotepi://` scheme remains for Android compatibility.
+`r` is the relay the computer uses; the phone adopts it when it scans, so the
+user never types a relay address.
 
 The mobile client sends:
 
@@ -143,8 +139,7 @@ first room rides in `hello`; the others join and leave with control frames:
 Envelopes delivered to a socket carry `to_room` (the destination room), and a
 socket that owns several rooms names the sender room with `from_room`; the
 relay ignores a `from_room` the socket does not own. Older clients ignore
-`to_room`. When a relay does not answer `room_open` within five seconds the
-host treats it as a pre-multiplexing relay and opens one socket per room.
+`to_room`.
 
 `sessions_inventory` returns the native session keys visible to the current
 adapter. A complete inventory allows the mobile client to remove stale cached
@@ -297,12 +292,3 @@ or:
 
 Ordinary protocol failures use `error` with a machine-readable `code`, an
 optional `in_reply_to`, and a user-readable `message`.
-
-## Compatibility boundary
-
-- Android application id stays `dev.wianger.remotepi`.
-- Pairing URI scheme stays `remotepi://`.
-- Relay message names and fields stay compatible with the existing client;
-  the relay itself is unchanged by end-to-end encryption.
-- State migration reads `~/.pi/remote` without modifying it.
-- New CLI and state values use the `baya` / `BAYA_*` namespace.

@@ -1272,53 +1272,6 @@ void _registerRoomsTests() {
     );
 
     test(
-      'legacy peer (PeerRecord.roomId == null) → discovers + persists '
-      'first announced room',
-      () async {
-        final storage = _FakeStorage([]);
-        final ch = _ControllableChannel();
-        final cm = ConnectionManager(
-          factory: (_, _) async => ch,
-          storage: storage,
-          emitDebounce: Duration.zero,
-        );
-        // Pre-fix peer record — no roomId.
-        const legacyPeer = PeerRecord(
-          remoteEpk: 'epk_legacy',
-          sessionName: 'Pi',
-          relayUrl: 'wss://x',
-          pairedAt: '2025-12-01T00:00:00Z',
-        );
-        await cm.connectTo(legacyPeer);
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        expect(cm.activeRoomId, 'main',
-            reason: 'no persisted roomId → falls back to main');
-        expect(cm.activePeer?.roomId, isNull,
-            reason: 'legacy peer must remain unbound until discovery');
-
-        // Relay announces the real room for this peer.
-        ch.pushControl(const RoomAnnounced(
-          peer: 'epk_legacy',
-          roomId: 'discovered-room-id',
-          name: 'work',
-          cwd: '/Users/x',
-          startedAt: 1000,
-        ));
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-
-        expect(cm.activeRoomId, 'discovered-room-id',
-            reason: 'discovery should auto-adopt the announced room');
-        // Persisted on storage so subsequent app launches skip the
-        // discovery round-trip.
-        final saved = storage.savedPeers;
-        expect(saved, isNotEmpty);
-        expect(saved.last.roomId, 'discovered-room-id');
-
-        cm.dispose();
-      },
-    );
-
-    test(
       'explicit room switch is not overwritten by later room announce',
       () async {
         final storage = _FakeStorage([]);

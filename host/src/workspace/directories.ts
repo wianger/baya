@@ -42,7 +42,7 @@ export async function availableAgents(
 ): Promise<WorkspaceAgentInfo[]> {
   return Promise.all(workspaceAgents.map(async ({ id, name, command, description }) => {
     const override = id === "deepseek"
-      ? process.env["BAYA_DSH_BIN"]?.trim() || process.env["REMOTE_PI_DSH_BIN"]?.trim()
+      ? process.env["BAYA_DSH_BIN"]?.trim()
       : undefined;
     const onPath = await resolveExecutable(override || command) !== null;
     const available = onPath ||

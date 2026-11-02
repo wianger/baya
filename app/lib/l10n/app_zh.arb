@@ -396,5 +396,6 @@
   "computerDidNotConnect": "所选电脑未能及时连接，请在电脑上启动 Baya 后重试。",
   "pairedDevicesCount": "{count} 台已配对设备",
   "yourAgent": "你的智能体",
-  "workspaceNeedsName": "工作区需要一个名称。"
+  "workspaceNeedsName": "工作区需要一个名称。",
+  "pasteCodeHint": "扫不了码？粘贴 `baya pair` 打印的文本，它以 baya://pair?… 开头。"
 }

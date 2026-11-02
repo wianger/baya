@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const channel = MethodChannel('dev.wianger.remotepi/read_aloud');
+  const channel = MethodChannel('dev.wianger.baya/read_aloud');
   final controller = ReadAloudController.instance;
 
   tearDown(() async {

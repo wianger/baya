@@ -2,7 +2,6 @@
 // PeerRecord (de)serialization, nickname/roomId edges, and the new
 // `wipeAll()` helper that the OwnerIdentityBridge calls on sync-reset.
 
-import 'dart:convert';
 
 import 'package:app/pairing/storage.dart';
 import 'package:app/protocol/protocol.dart' show PiHarness;
@@ -213,36 +212,6 @@ void main() {
       expect(all, hasLength(1));
 
       await storage.deletePeer('epk1');
-      expect(await storage.listPeers(), isEmpty);
-    });
-
-    test('equivalent EPK aliases stay one peer and delete together', () async {
-      const urlSafe = 'Bz02uLiwrmQZ0S8qiwtFJAt0KzUvrgepYO_oMQ6yyQE';
-      const standard = 'Bz02uLiwrmQZ0S8qiwtFJAt0KzUvrgepYO/oMQ6yyQE=';
-      final fake = _FakeSecureStorage();
-      final storage = PairingStorage(fake);
-      final older = PeerRecord(
-        remoteEpk: urlSafe,
-        sessionName: 'older',
-        relayUrl: 'ws://x',
-        pairedAt: '2026-01-01T00:00:00Z',
-      );
-      final newer = PeerRecord(
-        remoteEpk: standard,
-        sessionName: 'newer',
-        relayUrl: 'ws://x',
-        pairedAt: '2026-02-01T00:00:00Z',
-      );
-      fake.seed('dev.remotepi.peers:$urlSafe', jsonEncode(older.toJson()));
-      fake.seed('dev.remotepi.peers:$standard', jsonEncode(newer.toJson()));
-
-      final peers = await storage.listPeers();
-
-      expect(peers, hasLength(1));
-      expect(peers.single.sessionName, 'newer');
-
-      await storage.deletePeer(urlSafe);
-
       expect(await storage.listPeers(), isEmpty);
     });
   });

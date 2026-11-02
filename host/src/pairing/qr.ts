@@ -1,23 +1,28 @@
 import qrTerminal from "qrcode-terminal";
 
+export interface PairingInvite {
+  token: string;
+  publicKey: Uint8Array;
+  sessionName: string;
+  roomId: string;
+  /** The relay this host listens on; the phone adopts it when scanning. */
+  relayUrl: string;
+}
+
 /**
- * Builds the pairing URI. The `remotepi://` scheme is kept so the installed
- * Android package keeps handling it. `rm` routes the phone's `pair_request`
- * to the session room that issued the token.
+ * `baya://pair?t&epk&n&rm&r` — everything the phone needs, so pairing never
+ * asks the user to type a relay address. `rm` routes the first
+ * `pair_request` to the session room that issued the token.
  */
-export function buildQRUri(
-  token: string,
-  publicKey: Uint8Array,
-  sessionName: string,
-  roomId: string,
-): string {
+export function buildQRUri(invite: PairingInvite): string {
   const params = new URLSearchParams({
-    t: token,
-    epk: Buffer.from(publicKey).toString("base64url"),
-    n: sessionName.slice(0, 80),
-    rm: roomId,
+    t: invite.token,
+    epk: Buffer.from(invite.publicKey).toString("base64url"),
+    n: invite.sessionName.slice(0, 80),
+    rm: invite.roomId,
+    r: invite.relayUrl,
   });
-  return `remotepi://pair?${params.toString()}`;
+  return `baya://pair?${params.toString()}`;
 }
 
 /** Prints the QR with Unicode half blocks so it fits a normal terminal. */

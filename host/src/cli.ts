@@ -218,13 +218,15 @@ async function pair(args: ParsedArgs): Promise<void> {
     ...(ttlSeconds === undefined ? {} : { ttl_ms: Math.floor(ttlSeconds * 1000) }),
   });
   const identity = await getOrCreateEd25519Keypair();
-  const uri = buildQRUri(
-    response.token,
-    identity.publicKey,
-    response.session_name,
-    response.room_id,
-  );
-  process.stdout.write(`Relay: ${resolveRelayUrl().url}\n`);
+  const relayUrl = resolveRelayUrl().url;
+  const uri = buildQRUri({
+    token: response.token,
+    publicKey: identity.publicKey,
+    sessionName: response.session_name,
+    roomId: response.room_id,
+    relayUrl,
+  });
+  process.stdout.write(`Relay: ${relayUrl}\n`);
   process.stdout.write(`Session: ${response.session_name} (${response.session_id})\n`);
   process.stdout.write(`Expires: ${new Date(response.expires_at).toLocaleString()}\n`);
   displayQR(uri);

@@ -2,10 +2,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const DEFAULT_RELAY_URL = "https://relay-rp1.jacobmoura.work";
+export const DEFAULT_RELAY_URL = "https://wiang-1.tail171f4a.ts.net";
 export const BAYA_HOME = process.env["BAYA_HOME"]?.trim() || join(homedir(), ".baya");
-export const LEGACY_REMOTE_PI_HOME =
-  process.env["REMOTE_PI_HOME"]?.trim() || join(homedir(), ".pi", "remote");
 
 export interface BayaConfig {
   relay?: string;
@@ -14,7 +12,7 @@ export interface BayaConfig {
 
 export interface ResolvedRelay {
   url: string;
-  source: "env" | "config" | "legacy-config" | "default";
+  source: "env" | "config" | "default";
 }
 
 function readConfig(path: string): BayaConfig | null {
@@ -53,14 +51,11 @@ export function saveConfig(patch: Partial<BayaConfig>): BayaConfig {
 }
 
 export function resolveRelayUrl(): ResolvedRelay {
-  const override = process.env["BAYA_RELAY"]?.trim() || process.env["REMOTE_PI_RELAY"]?.trim();
+  const override = process.env["BAYA_RELAY"]?.trim();
   if (override) return { url: override, source: "env" };
 
   const current = loadConfig().relay;
   if (current) return { url: current, source: "config" };
-
-  const legacy = readConfig(join(LEGACY_REMOTE_PI_HOME, "config.json"))?.relay;
-  if (legacy) return { url: legacy, source: "legacy-config" };
 
   return { url: DEFAULT_RELAY_URL, source: "default" };
 }

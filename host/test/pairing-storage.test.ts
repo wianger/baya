@@ -10,7 +10,6 @@ function isolatedHome(): string {
   const home = mkdtempSync(join(tmpdir(), "baya-storage-"));
   homes.push(home);
   process.env["BAYA_HOME"] = home;
-  process.env["REMOTE_PI_HOME"] = join(home, "legacy");
   process.env["BAYA_ALLOW_FILE_IDENTITY"] = "1";
   vi.resetModules();
   return home;
@@ -18,7 +17,6 @@ function isolatedHome(): string {
 
 afterEach(() => {
   delete process.env["BAYA_HOME"];
-  delete process.env["REMOTE_PI_HOME"];
   delete process.env["BAYA_ALLOW_FILE_IDENTITY"];
   vi.resetModules();
   for (const home of homes.splice(0)) rmSync(home, { recursive: true, force: true });

@@ -588,7 +588,7 @@ class HomeViewModel extends ViewModel<HomeState> {
   /// When the peer record in storage has no
   /// `roomId` yet (post-mesh-restore: the mesh blob doesn't carry
   /// per-device room data, so `PeerRecord.roomId` is null until the
-  /// relay announces the room and `ConnectionManager._maybeAdoptLegacyRoom`
+  /// relay announces the room and `ConnectionManager`
   /// catches up), persist the tapped roomId on the PeerRecord too.
   /// Without this, the next cold-start reads `peer.roomId=null` →
   /// `ConnectionManager._connect` falls back to room `'main'` → Pi

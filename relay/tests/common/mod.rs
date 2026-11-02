@@ -7,8 +7,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use ed25519_dalek::{Signer, SigningKey};
 use futures_util::{SinkExt, StreamExt};
 use relay::{
-    AppState, FirehoseMetrics, MeshAuthCache, MeshStore, PeerRegistry, PresenceManager,
-    RoomManager, build_router,
+    AppState, FirehoseMetrics, MeshStore, PeerRegistry, PresenceManager, RoomManager, build_router,
 };
 use serde_json::json;
 use tokio::net::TcpListener;
@@ -31,13 +30,11 @@ pub async fn start_relay() -> u16 {
         rooms.clone(),
         metrics.clone(),
     ));
-    let mesh_auth = Arc::new(MeshAuthCache::new());
     let state = AppState {
         registry,
         presence,
         rooms,
         mesh,
-        mesh_auth,
         metrics,
     };
     let app = build_router(state);

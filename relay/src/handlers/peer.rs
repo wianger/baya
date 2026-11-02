@@ -98,8 +98,6 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
     let registry = state.registry.clone();
     let presence = state.presence.clone();
     let rooms = state.rooms.clone();
-    let mesh = state.mesh.clone();
-    let mesh_auth = state.mesh_auth.clone();
     let metrics = state.metrics.clone();
 
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
@@ -160,7 +158,7 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
                                 .unwrap_or_default();
 
                             match t {
-                                // ── presence control frames (plano 12) ──
+                                // ── presence control frames ──
                                 "subscribe_presence" => {
                                     presence.subscribe(peer_id.clone(), peers.clone()).await;
                                     // Backfill: push peer_online for any already-online
@@ -195,7 +193,7 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
                                     }
                                 }
 
-                                // ── rooms control frames (plano 17) ──
+                                // ── rooms control frames ──
                                 "subscribe_rooms" => {
                                     rooms.subscribe(peer_id.clone(), peers).await;
                                 }
@@ -226,7 +224,7 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
                                     }
                                 }
 
-                                // ── room meta update (plano 18 + 28 + 32) ──
+                                // ── room meta update ──
                                 // `meta.model`, `meta.thinking` and
                                 // `meta.working` are patched independently: a
                                 // field absent from `meta` is *left alone* on
@@ -299,29 +297,6 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
                                     if let Some(index) = my_rooms.iter().position(|r| r == target) {
                                         let closed = my_rooms.remove(index);
                                         registry.unregister(&peer_id, &closed, conn_id).await;
-                                    }
-                                }
-
-                                // ── Pi-to-Pi envelope forward (plano 25 W-A) ──
-                                "pi_envelope" => {
-                                    use crate::handlers::pi_forward::{
-                                        PiForwardResult, handle_pi_envelope,
-                                    };
-                                    match handle_pi_envelope(
-                                        &peer_id,
-                                        &frame,
-                                        &registry,
-                                        mesh.clone(),
-                                        mesh_auth.clone(),
-                                    )
-                                    .await
-                                    {
-                                        PiForwardResult::Forwarded => {}
-                                        PiForwardResult::TransportError(err_msg) => {
-                                            if sink.send(err_msg).await.is_err() {
-                                                break;
-                                            }
-                                        }
                                     }
                                 }
 

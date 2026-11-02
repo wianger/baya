@@ -89,24 +89,14 @@ class WsTransport implements PeerTransport, IControlLink {
         }
         try {
           final frame = jsonDecode(raw as String) as Map<String, dynamic>;
-          // Envelope: {peer, room?, ct} → enqueue payload bytes.
+          // Envelope: {peer, room, ct}. The transport is shared across
+          // chats, so frames from a room other than the addressed one are
+          // dropped instead of bleeding into the chat on screen.
           if (frame.containsKey('peer') && frame.containsKey('ct')) {
             final bytes = _b64Decode(frame['ct'] as String);
             final senderRoom = frame['room'] as String?;
-            // DEMUX inbound by sender room.
-            // SessionRepository is singleton; without this guard,
-            // AgentChunks for a chat the user just left bleed into
-            // the chat they're now viewing. When senderRoom doesn't
-            // match the currently-addressed Pi cwd, drop the payload.
-            // Legacy Pis without `room` route unconditionally.
-            if (senderRoom != null && senderRoom != transport._activeRoom) {
-              debugPrint(
-                '[ws-in] bytes=${rawStr.length} kind=envelope '
-                'sender_room=$senderRoom DROPPED (room-mismatch)',
-              );
-              return;
-            }
-            transport._receiveSealed(bytes, senderRoom ?? transport._activeRoom);
+            if (senderRoom != transport._activeRoom) return;
+            transport._receiveSealed(bytes, senderRoom!);
             return;
           }
           // Control: top-level `type` only → presence stream.
@@ -190,7 +180,6 @@ class WsTransport implements PeerTransport, IControlLink {
   StreamSubscription? _sub;
   late final SecretKey _key;
   final _replay = ReplayGuard();
-  bool _reportedLegacyHost = false;
   // Encryption is async; these chains keep frames in wire order.
   Future<void> _inbound = Future.value();
   Future<void> _outbound = Future.value();
@@ -227,10 +216,8 @@ class WsTransport implements PeerTransport, IControlLink {
 
   void _receiveSealed(Uint8List bytes, String room) {
     _inbound = _inbound.then((_) async {
-      if (!isSealed(bytes)) {
-        _receivePlain(bytes);
-        return;
-      }
+      // Plaintext could have been written by the relay: never trust it.
+      if (!isSealed(bytes)) return;
       final opened = await open(_key, E2EDirection.hostToPhone, room, bytes);
       // Errors always pass so a "clock_skew" report reaches a phone whose
       // clock is the problem.
@@ -244,23 +231,6 @@ class WsTransport implements PeerTransport, IControlLink {
     });
   }
 
-  /// Plaintext frames are never trusted: the relay could have written them.
-  /// Only the host's "upgrade_required" notice passes (a forger gains nothing
-  /// from it); anything else means the computer runs a pre-encryption host.
-  void _receivePlain(Uint8List bytes) {
-    if (_isErrorFrame(bytes, code: 'upgrade_required')) {
-      _queue.add(bytes);
-      return;
-    }
-    if (_reportedLegacyHost) return;
-    _reportedLegacyHost = true;
-    _queue.add(utf8.encode(jsonEncode({
-      'type': 'error',
-      'code': 'upgrade_required',
-      'message': 'Update Baya on this computer: '
-          'the app now requires end-to-end encryption.',
-    })));
-  }
 
   @override
   Future<Uint8List> receive() => _queue.next();
@@ -349,12 +319,10 @@ String _normalizeToStandard(String pubkey) {
   }
 }
 
-bool _isErrorFrame(List<int> bytes, {String? code}) {
+bool _isErrorFrame(List<int> bytes) {
   try {
     final json = jsonDecode(utf8.decode(bytes));
-    return json is Map &&
-        json['type'] == 'error' &&
-        (code == null || json['code'] == code);
+    return json is Map && json['type'] == 'error';
   } catch (_) {
     return false;
   }

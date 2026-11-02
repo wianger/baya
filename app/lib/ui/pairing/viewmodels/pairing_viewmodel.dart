@@ -49,7 +49,7 @@ class PairingViewModel extends ViewModel<PairingState> {
     if (state is PairingConnecting) return;
 
     final qr = QrPairPayload.tryParse(rawUri);
-    if (qr == null) return; // not a remotepi:// QR — ignore silently
+    if (qr == null) return; // not a Baya pairing code — ignore silently
 
     emit(PairingConnecting(sessionName: qr.sessionName));
 
@@ -58,6 +58,11 @@ class PairingViewModel extends ViewModel<PairingState> {
       // Same device Ed25519 key on a second WS would collide in the relay's
       // peer registry, causing the old handler to unregister our new entry.
       await _conn.disconnect();
+
+      // The host's QR names its relay; adopt it so nobody types a URL.
+      await _prefs.setRelayUrl(
+        qr.relayUrl == kDefaultRelayUrl ? null : qr.relayUrl,
+      );
 
       // Challenge-response now uses the Owner-key (synced
       // via Block Store). The bridge is hydrated by
@@ -74,7 +79,6 @@ class PairingViewModel extends ViewModel<PairingState> {
             transport: transport,
             storage: _storage,
             deviceName: _deviceName(),
-            currentRelayUrl: resolveRelayUrl(_prefs),
           )
           .timeout(
             const Duration(seconds: 30),

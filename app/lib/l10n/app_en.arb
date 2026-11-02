@@ -696,5 +696,6 @@
     }
   },
   "yourAgent": "your agent",
-  "workspaceNeedsName": "A workspace needs a name."
+  "workspaceNeedsName": "A workspace needs a name.",
+  "pasteCodeHint": "Can't scan the code? Paste the text `baya pair` printed. It starts with baya://pair?…"
 }

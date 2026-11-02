@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:app/pairing/storage.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
-import 'package:remote_pi_identity/remote_pi_identity.dart';
+import 'package:baya_identity/baya_identity.dart';
 
 /// Outcome of a `bridge.boot()` call. The router uses this to decide
 /// between "show sync-required gate" and "boot normally".
@@ -30,7 +30,7 @@ final class IdentityReady extends OwnerIdentityBootResult {
   const IdentityReady(this.identity, {required this.generated});
 }
 
-/// Bridge between the `remote_pi_identity` plugin and the rest of the
+/// Bridge between the `baya_identity` plugin and the rest of the
 /// app. Responsibilities:
 ///
 /// - Boot-time decision: sync available? identity present?
@@ -134,7 +134,7 @@ class OwnerIdentityBridge extends ChangeNotifier {
   /// [boot] populated `_current`, that initial emit would look like
   /// a "different owner_pk" (because current is null) and trigger a
   /// spurious `wipeAll`. That cleared the freshly-paired peer set,
-  /// and a downstream `_maybeAdoptLegacyRoom` (driven by an incoming
+  /// and a downstream room adoption (driven by an incoming
   /// `room_announced`) would then re-publish v=N+1 with members=[],
   /// causing the pi-extension to self-revoke ~60s later.
   ///

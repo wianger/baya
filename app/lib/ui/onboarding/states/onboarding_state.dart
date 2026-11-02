@@ -1,9 +1,8 @@
 // Sealed state for OnboardingViewModel. Switch exhaustively in
 // OnboardingPage.build().
 
-enum OnboardingStep { welcome, relay, pair }
-
-enum RelayChoice { community, custom }
+/// Welcome, then scan. The relay comes from the pairing QR.
+enum OnboardingStep { welcome, pair }
 
 sealed class OnboardingState {
   const OnboardingState();
@@ -11,43 +10,14 @@ sealed class OnboardingState {
 
 class OnboardingInProgress extends OnboardingState {
   final OnboardingStep step;
-  final RelayChoice relayChoice;
-  final String customRelayUrl;
-  final String? customRelayError;
-
-  const OnboardingInProgress({
-    this.step = OnboardingStep.welcome,
-    this.relayChoice = RelayChoice.community,
-    this.customRelayUrl = '',
-    this.customRelayError,
-  });
-
-  OnboardingInProgress copyWith({
-    OnboardingStep? step,
-    RelayChoice? relayChoice,
-    String? customRelayUrl,
-    String? customRelayError,
-    bool clearCustomError = false,
-  }) =>
-      OnboardingInProgress(
-        step: step ?? this.step,
-        relayChoice: relayChoice ?? this.relayChoice,
-        customRelayUrl: customRelayUrl ?? this.customRelayUrl,
-        customRelayError:
-            clearCustomError ? null : (customRelayError ?? this.customRelayError),
-      );
+  const OnboardingInProgress({this.step = OnboardingStep.welcome});
 
   @override
   bool operator ==(Object other) =>
-      other is OnboardingInProgress &&
-      other.step == step &&
-      other.relayChoice == relayChoice &&
-      other.customRelayUrl == customRelayUrl &&
-      other.customRelayError == customRelayError;
+      other is OnboardingInProgress && other.step == step;
 
   @override
-  int get hashCode =>
-      Object.hash(step, relayChoice, customRelayUrl, customRelayError);
+  int get hashCode => step.hashCode;
 }
 
 class OnboardingComplete extends OnboardingState {

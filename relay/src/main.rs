@@ -10,7 +10,6 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let port: u16 = std::env::var("BAYA_RELAY_PORT")
-        .or_else(|_| std::env::var("REMOTEPI_RELAY_PORT"))
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(3000);
@@ -22,9 +21,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Default puts the SQLite file (and any transient -journal) under data/,
     // so bare-metal `cargo run` doesn't litter the project root.
-    let db_path = std::env::var("BAYA_MESH_DB_PATH")
-        .or_else(|_| std::env::var("REMOTEPI_MESH_DB_PATH"))
-        .unwrap_or_else(|_| "data/mesh.db".to_string());
+    let db_path = std::env::var("BAYA_MESH_DB_PATH").unwrap_or_else(|_| "data/mesh.db".to_string());
 
     let mesh = Arc::new(
         relay::MeshStore::open(&db_path)
@@ -40,7 +37,6 @@ async fn main() -> anyhow::Result<()> {
         rooms.clone(),
         metrics.clone(),
     ));
-    let mesh_auth = Arc::new(relay::MeshAuthCache::new());
 
     // Background reporter: drain firehose counters every 10 s and emit a
     // single structured log line. Quiet windows are silent.
@@ -59,7 +55,6 @@ async fn main() -> anyhow::Result<()> {
         presence,
         rooms,
         mesh,
-        mesh_auth,
         metrics,
     };
     let app = relay::build_router(state);

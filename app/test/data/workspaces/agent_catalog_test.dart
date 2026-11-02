@@ -34,27 +34,8 @@ void main() {
     expect(agents.last.label, 'unnamed');
   });
 
-  test(
-    'future agents never reuse a legacy Pi room just because its path matches',
-    () {
-      const future = WorkspaceAgent(id: 'future-agent', label: 'New Agent');
-      expect(matchesLegacyWorkspaceAgent('project', future), false);
-      expect(matchesLegacyWorkspaceAgent('Codex · project', future), false);
-      expect(matchesLegacyWorkspaceAgent('project', WorkspaceAgent.pi), true);
-      expect(
-        matchesLegacyWorkspaceAgent('Codex · project', WorkspaceAgent.codex),
-        true,
-      );
-      expect(matchesLegacyWorkspaceAgent('DeepSeek · project', future), false);
-      expect(
-        matchesLegacyWorkspaceAgent(
-          'DeepSeek · project',
-          WorkspaceAgent.deepseek,
-        ),
-        true,
-      );
-      expect(workspaceSessionTitle('DeepSeek · project'), 'project');
-      expect(workspaceAgentLabelForRoom('DeepSeek · project'), 'DeepSeek');
-    },
-  );
+  test('room names split into agent label and title', () {
+    expect(workspaceSessionTitle('DeepSeek · project'), 'project');
+    expect(workspaceAgentLabelForRoom('DeepSeek · project'), 'DeepSeek');
+  });
 }

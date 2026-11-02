@@ -17,10 +17,8 @@ type ConnEntry = (u64, RoomMeta, mpsc::UnboundedSender<Message>);
 
 /// Maps `(peer_id, room_id)` pairs to a *list* of live connections.
 ///
-/// Plan 23 (Wave 2C) relaxed the "one connection per (peer, room)" invariant:
-/// the registry now accepts N simultaneous connections at the same key —
-/// representing N devices of the same human Owner (shared Ed25519 key
-/// sincronizada via iCloud Keychain / Block Store). Each device authenticates
+/// The registry accepts several connections per (peer, room) — the phones of
+/// one owner share an Ed25519 key synced through Block Store. Each authenticates
 /// independently via challenge-response, so admission is still controlled by
 /// possession of the private key.
 ///
@@ -375,25 +373,6 @@ impl PeerRegistry {
                 }
             }
         }
-    }
-
-    /// Sends `msg` to every live connection of `peer_id`, regardless of room.
-    /// Returns `true` iff at least one recipient successfully accepted it.
-    /// Used by `pi_envelope` cross-PC forwarding (plan 25) where the relay
-    /// has Pi-B's pubkey but not its room_id.
-    pub fn forward_to_peer(&self, peer_id: &str, msg: Message) -> bool {
-        let lock = self.senders.lock().unwrap();
-        let mut delivered = false;
-        for ((p, _), v) in lock.iter() {
-            if p == peer_id {
-                for (_, _, tx) in v.iter() {
-                    if tx.send(msg.clone()).is_ok() {
-                        delivered = true;
-                    }
-                }
-            }
-        }
-        delivered
     }
 }
 

@@ -29,14 +29,14 @@ pub(crate) fn decode_ed25519_public_key(encoded: &str) -> Result<[u8; 32], Publi
         .map_err(|_| PublicKeyDecodeError::BadLength { actual })
 }
 
-pub(crate) fn canonical_ed25519_public_key(encoded: &str) -> Result<String, PublicKeyDecodeError> {
-    Ok(STANDARD.encode(decode_ed25519_public_key(encoded)?))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use base64::engine::general_purpose::{STANDARD, STANDARD_NO_PAD, URL_SAFE, URL_SAFE_NO_PAD};
+
+    fn canonical_ed25519_public_key(encoded: &str) -> Result<String, PublicKeyDecodeError> {
+        decode_ed25519_public_key(encoded).map(|bytes| STANDARD.encode(bytes))
+    }
 
     const STANDARD_KEY: &str = "+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/s=";
     const URL_SAFE_KEY: &str = "-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_v7-_s=";

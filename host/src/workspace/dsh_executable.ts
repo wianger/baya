@@ -70,7 +70,7 @@ async function isRunnableFile(path: string): Promise<boolean> {
 export async function resolveDeepSeekExecutable(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<string> {
-  const override = env["BAYA_DSH_BIN"]?.trim() || env["REMOTE_PI_DSH_BIN"]?.trim();
+  const override = env["BAYA_DSH_BIN"]?.trim();
   if (override) return override;
   if (await findExecutable("dsh")) return "dsh";
   for (const candidate of deepSeekDesktopCandidates(env)) {
@@ -84,7 +84,7 @@ export async function hasDeepSeekHarness(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<boolean> {
   const override =
-    env["BAYA_DSH_BIN"]?.trim() || env["REMOTE_PI_DSH_BIN"]?.trim();
+    env["BAYA_DSH_BIN"]?.trim();
   if (override) return (await findExecutable(override)) !== null;
   if (await findExecutable("dsh")) return true;
   for (const candidate of deepSeekDesktopCandidates(env)) {

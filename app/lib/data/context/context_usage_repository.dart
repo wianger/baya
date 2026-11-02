@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/domain/contracts/context_usage_repository.dart';
 import 'package:app/domain/entities/context_usage.dart';
-import 'package:app/domain/value_objects/session_room.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/protocol/uuid7.dart';
 
@@ -17,7 +16,7 @@ class ContextUsageRepository implements IContextUsageRepository {
   Future<ContextUsageSnapshot> fetch() async {
     final channel = _connection.channel;
     final peer = _connection.activePeer?.remoteEpk;
-    final conversation = conversationRoomId(_connection.activeRoomId);
+    final conversation = _connection.activeRoomId;
     if (channel == null || peer == null) {
       throw const ContextUsageFailure(
         'Connect to this session to view context usage.',
@@ -66,7 +65,7 @@ class ContextUsageRepository implements IContextUsageRepository {
         Future<void>.sync(() => channel.send(GetContextUsage(id: id))),
       ], eagerError: true);
       if (_connection.activePeer?.remoteEpk != peer ||
-          conversationRoomId(_connection.activeRoomId) != conversation) {
+          _connection.activeRoomId != conversation) {
         throw const ContextUsageFailure(
           'The selected session changed. Refresh to view its context.',
         );

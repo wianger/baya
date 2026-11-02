@@ -2,8 +2,6 @@ import { resolveRelayUrl, toWebSocketUrl } from "../config.js";
 import { getOrCreateEd25519Keypair } from "../pairing/storage.js";
 import { RelayClient, type RoomMeta } from "./relay_client.js";
 
-/** How long a relay gets to acknowledge `room_open` before we assume it is old. */
-const ROOM_OPEN_ACK_MS = 5_000;
 const MAX_BACKOFF_MS = 30_000;
 
 export interface RoomHandlers {
@@ -29,20 +27,11 @@ interface RoomEntry extends RoomHandlers {
 /**
  * All sessions of this host share one authenticated relay socket: the first
  * room rides in the hello and the rest join with `room_open`. Inbound frames
- * carry `to_room`, outbound ones `from_room`. A relay that never acknowledges
- * `room_open` predates multiplexing, so every room then gets its own socket,
- * exactly as before.
+ * carry `to_room`, outbound ones `from_room`.
  */
 export class RelayHub {
   private readonly rooms = new Map<string, RoomEntry>();
   private shared: Connection | null = null;
-  /** Learned once: the relay does not understand `room_open`. */
-  private legacy = false;
-  readonly ackTimeoutMs: number;
-
-  constructor(options: { ackTimeoutMs?: number } = {}) {
-    this.ackTimeoutMs = options.ackTimeoutMs ?? ROOM_OPEN_ACK_MS;
-  }
 
   open(roomId: string, meta: RoomMeta, handlers: RoomHandlers): RoomLink {
     this.close(roomId);
@@ -70,16 +59,6 @@ export class RelayHub {
     return this.rooms.get(roomId);
   }
 
-  /** The relay ignored `room_open`: give the room a socket of its own. */
-  demote(roomId: string): void {
-    const entry = this.rooms.get(roomId);
-    if (!entry) return;
-    this.legacy = true;
-    entry.conn.remove(roomId, false);
-    entry.conn = new Connection(this);
-    entry.conn.add(roomId);
-  }
-
   private close(roomId: string): void {
     const entry = this.rooms.get(roomId);
     if (!entry) return;
@@ -89,7 +68,6 @@ export class RelayHub {
   }
 
   private connectionFor(): Connection {
-    if (this.legacy) return new Connection(this);
     this.shared ??= new Connection(this);
     return this.shared;
   }
@@ -103,7 +81,8 @@ class Connection {
   private connecting = false;
   private attempt = 0;
   private retry: ReturnType<typeof setTimeout> | null = null;
-  private readonly pendingAcks = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Rooms sent in `room_open` that the relay has not confirmed yet. */
+  private readonly pending = new Set<string>();
 
   constructor(private readonly hub: RelayHub) {}
 
@@ -113,7 +92,7 @@ class Connection {
 
   /** Open for a room once the relay has acknowledged it. */
   isOpen(roomId: string): boolean {
-    return (this.client?.isOpen() ?? false) && !this.pendingAcks.has(roomId);
+    return (this.client?.isOpen() ?? false) && !this.pending.has(roomId);
   }
 
   add(roomId: string): void {
@@ -124,7 +103,7 @@ class Connection {
 
   remove(roomId: string, announce: boolean): void {
     if (!this.rooms.delete(roomId)) return;
-    this.clearAck(roomId);
+    this.pending.delete(roomId);
     if (announce && this.client?.isOpen() && this.rooms.size > 0) {
       this.control({ type: "room_close", room_id: roomId });
     }
@@ -176,7 +155,7 @@ class Connection {
       if (this.client !== client) return;
       this.client = null;
       this.helloRoom = null;
-      for (const room of [...this.pendingAcks.keys()]) this.clearAck(room);
+      this.pending.clear();
       this.scheduleReconnect();
     });
     client.on("error", () => {
@@ -189,14 +168,8 @@ class Connection {
   private openRoom(roomId: string): void {
     const entry = this.hub.entry(roomId);
     if (!entry) return;
+    this.pending.add(roomId);
     this.control({ type: "room_open", room_id: roomId, room_meta: entry.meta });
-    this.clearAck(roomId);
-    const timer = setTimeout(() => {
-      this.pendingAcks.delete(roomId);
-      this.hub.demote(roomId);
-    }, this.hub.ackTimeoutMs);
-    timer.unref?.();
-    this.pendingAcks.set(roomId, timer);
   }
 
   private dispatch(line: string): void {
@@ -207,18 +180,12 @@ class Connection {
       return;
     }
     if (frame["type"] === "room_opened" && typeof frame["room_id"] === "string") {
-      this.clearAck(frame["room_id"]);
+      this.pending.delete(frame["room_id"]);
       return;
     }
     if (typeof frame["type"] === "string") return;
     const target = typeof frame["to_room"] === "string" ? frame["to_room"] : this.helloRoom;
     if (target && this.rooms.has(target)) this.hub.entry(target)?.onLine(line);
-  }
-
-  private clearAck(roomId: string): void {
-    const timer = this.pendingAcks.get(roomId);
-    if (timer) clearTimeout(timer);
-    this.pendingAcks.delete(roomId);
   }
 
   private scheduleReconnect(): void {
@@ -233,7 +200,7 @@ class Connection {
   private shutdown(): void {
     if (this.retry) clearTimeout(this.retry);
     this.retry = null;
-    for (const room of [...this.pendingAcks.keys()]) this.clearAck(room);
+    this.pending.clear();
     const client = this.client;
     this.client = null;
     this.helloRoom = null;

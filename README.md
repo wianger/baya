@@ -6,17 +6,13 @@ extension. The `baya` CLI owns local sessions, pairing, relay connectivity, and
 workspace/file access; Pi, Codex, and DeepSeek Harness are launched as ordinary
 child processes.
 
-> Baya uses the Remote Pi wire protocol for compatibility with the existing
-> signed Android application. Protocol compatibility does not make Baya a Pi
-> plugin or require Remote Pi to be installed.
-
 ## Components
 
 | Path | Purpose |
 |---|---|
 | `host/` | Standalone TypeScript CLI and resident session host, published as the `baya` executable |
-| `app/` | Android Flutter client. The Android package ID remains `dev.wianger.remotepi` so signed updates install in place |
-| `relay/` | Self-hostable Rust relay compatible with the Baya/Remote Pi protocol |
+| `app/` | Android Flutter client (`dev.wianger.baya`) |
+| `relay/` | Self-hostable Rust relay for the Baya protocol |
 | `branding/` | Baya SVG and PNG identity assets |
 | `PROTOCOL.md` | Canonical wire protocol and security model |
 
@@ -68,9 +64,6 @@ baya uninstall-service
 ```
 
 The host stores its state in `%USERPROFILE%\.baya` (or `$BAYA_HOME` when set).
-On first use it migrates the existing Remote Pi identity from the OS keyring
-and copies `peers.json` and the relay setting, preserving current pairings when
-possible.
 
 ## Pi integration
 
@@ -86,15 +79,15 @@ independently.
 
 ## Android
 
-The existing Android package receives the Baya release channel:
+Build the release APK:
 
 ```powershell
 scripts\build-mobile-windows.ps1
 ```
 
-The build preserves the existing `dev.wianger.remotepi` package ID and signing
-certificate, so Android upgrades the current installation in place. Release
-artifacts are named `Baya-Android.apk` and published from this repository.
+The package ID is `dev.wianger.baya`. Release artifacts are named
+`Baya-Android.apk` and published from this repository; the app checks them for
+updates.
 
 ## Relay
 

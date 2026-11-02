@@ -84,9 +84,7 @@ export class DeepSeekClient extends EventEmitter<DeepSeekClientEvents> {
   constructor(
     private readonly cwd: string,
     private executable =
-      process.env["BAYA_DSH_BIN"]?.trim() ||
-      process.env["REMOTE_PI_DSH_BIN"]?.trim() ||
-      "dsh",
+      process.env["BAYA_DSH_BIN"]?.trim() || "dsh",
   ) {
     super();
   }
@@ -97,7 +95,6 @@ export class DeepSeekClient extends EventEmitter<DeepSeekClientEvents> {
     // PATH; resolve once so the spawned ACP host is the real executable.
     if (
       !process.env["BAYA_DSH_BIN"]?.trim() &&
-      !process.env["REMOTE_PI_DSH_BIN"]?.trim() &&
       this.executable === "dsh"
     ) {
       this.executable = await resolveDeepSeekExecutable();

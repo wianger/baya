@@ -17,7 +17,7 @@ import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:remote_pi_identity/remote_pi_identity.dart';
+import 'package:baya_identity/baya_identity.dart';
 
 // ---------------------------------------------------------------------------
 // Test infrastructure
@@ -103,20 +103,14 @@ class _FakeSecureStorage implements FlutterSecureStorage {
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// Synchronous Preferences subclass for tests. Pre-set relay URL to
-/// `ws://localhost` so it matches `_qrUri` (which still embeds the
-/// legacy `r=ws://localhost`); avoids tripping the relay-mismatch
-/// guard in `pair_request_flow.performPairing`. Pass `null` to force
-/// a different URL and exercise the mismatch path.
+/// In-memory Preferences that records the relay a scan adopts.
 class _PrefsForTest extends Preferences {
-  final String? _relay;
-  _PrefsForTest({String? relay = 'ws://localhost'})
-    : // The fixture keeps the production-style public parameter name.
-      // ignore: prefer_initializing_formals
-      _relay = relay,
-      super(_FakeSecureStorage());
+  String? _relay;
+  _PrefsForTest() : super(_FakeSecureStorage());
   @override
   String? get relayUrl => _relay;
+  @override
+  Future<void> setRelayUrl(String? value) async => _relay = value;
 }
 
 class _FakeStorage extends PairingStorage {
@@ -141,9 +135,9 @@ Future<OwnerIdentityBridge> _bootedBridge(PairingStorage storage) async {
 }
 
 const _qrUri =
-    'remotepi://pair?t=AAAAAAAAAAAAAAAAAAAAAA&'
+    'baya://pair?t=AAAAAAAAAAAAAAAAAAAAAA&'
     'epk=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&'
-    'r=ws%3A%2F%2Flocalhost&n=test+session';
+    'rm=room1&r=https%3A%2F%2Frelay.example&n=test+session';
 
 /// A pairing transport factory that runs a fake "Pi" responder which replies
 /// with the given inner message to whatever `pair_request` it receives.
@@ -237,13 +231,8 @@ void main() {
         'type': 'pair_ok',
         'session_name': 'test session',
       });
-      final vm = PairingViewModel(
-        storage,
-        factory,
-        fakeRepo,
-        _PrefsForTest(),
-        bridge,
-      );
+      final prefs = _PrefsForTest();
+      final vm = PairingViewModel(storage, factory, fakeRepo, prefs, bridge);
 
       final fut = vm.onQrScanned(_qrUri);
       expect(vm.state, isA<PairingConnecting>());
@@ -257,6 +246,9 @@ void main() {
       expect(fakeRepo.adoptedChannel, isNotNull);
       expect(fakeRepo.adoptedPeer?.remoteEpk, isNotEmpty);
       expect(fakeRepo.disconnectCalls, 1);
+      expect(prefs.relayUrl, 'https://relay.example',
+          reason: 'the QR relay is adopted, no manual setup');
+      expect(storage._saved.first.roomId, 'main');
 
       vm.dispose();
     });

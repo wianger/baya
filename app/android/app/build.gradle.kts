@@ -19,7 +19,7 @@ val keystoreProperties = Properties().apply {
 val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
 
 android {
-    namespace = "work.jacobmoura.remotepi"
+    namespace = "dev.wianger.baya"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -29,7 +29,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "dev.wianger.remotepi"
+        applicationId = "dev.wianger.baya"
         // The remote_pi_identity plugin needs API 34 (Block Store and
         // modern biometrics).
         minSdk = 34

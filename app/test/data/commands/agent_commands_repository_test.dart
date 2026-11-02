@@ -7,12 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/phone_controls.dart';
 
 void main() {
-  const daemon = 'pi_abcdefghijklmnop_d_ABCDEFGHIJKL';
-  const terminal = 'pi_abcdefghijklmnop_i_MNOPQRSTUVWX';
+  const daemon = 'aB12CD34eF56';
   const other = 'pi_QRSTUVWXYZ012345_i_ABCDEFGHIJKL';
 
   test(
-    'correlates command replies and accepts equivalent Pi endpoints',
+    'correlates command replies',
     () async {
       final peer = phoneTestPeer(room: daemon);
       final channel = PhoneTestChannel();
@@ -30,7 +29,6 @@ void main() {
             commands: const [WireAgentCommand(name: 'wrong', source: 'skill')],
           ),
         );
-        conn.switchRoom(terminal);
         channel.messages.add(
           ServerMessage.fromJson({
             'type': 'commands_list',

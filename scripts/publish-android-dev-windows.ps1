@@ -34,7 +34,7 @@ $tools = Join-Path $AndroidSdk 'build-tools\36.0.0'
 $badging = & (Join-Path $tools 'aapt2.exe') dump badging $apkFile
 if ($LASTEXITCODE -ne 0) { throw 'Could not inspect APK.' }
 $package = [regex]::Match(($badging -join "`n"), "package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'")
-if (-not $package.Success -or $package.Groups[1].Value -ne 'dev.wianger.remotepi' -or
+if (-not $package.Success -or $package.Groups[1].Value -ne 'dev.wianger.baya' -or
     [int]$package.Groups[2].Value -ne $build -or $package.Groups[3].Value -ne $version) {
     throw 'APK package/version does not match the development source.'
 }

@@ -12,8 +12,7 @@ use base64::{
 };
 use ed25519_dalek::{Signer, SigningKey};
 use relay::{
-    AppState, FirehoseMetrics, MeshAuthCache, MeshStore, PeerRegistry, PresenceManager,
-    RoomManager, build_router,
+    AppState, FirehoseMetrics, MeshStore, PeerRegistry, PresenceManager, RoomManager, build_router,
 };
 use reqwest::StatusCode;
 use serde_json::{Value, json};
@@ -34,13 +33,11 @@ async fn spawn_relay() -> (String, tempfile::TempDir) {
         rooms.clone(),
         metrics.clone(),
     ));
-    let mesh_auth = Arc::new(MeshAuthCache::new());
     let state = AppState {
         registry,
         presence,
         rooms,
         mesh,
-        mesh_auth,
         metrics,
     };
 

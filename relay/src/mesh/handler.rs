@@ -14,7 +14,7 @@ use super::store::{MeshStore, StoreError};
 use super::types::{GetQuery, GetResponse, MeshEnvelopeWire, PostResponse};
 use super::verify::{VerifyError, decode_wire, owner_pk_hash, verify_envelope};
 
-/// 500 KB cap on `POST /mesh/:hash` bodies (decision Q4 of plan 24).
+/// 500 KB cap on `POST /mesh/:hash` bodies.
 pub const MAX_BODY_BYTES: usize = 500 * 1024;
 
 /// Error variants surfaced to clients. Each maps to a specific HTTP status.

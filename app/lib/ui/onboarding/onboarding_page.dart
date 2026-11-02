@@ -56,8 +56,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
     return Scaffold(
       backgroundColor: context.colors.bg,
-      // Plan/tablet — cap + centre the stepper on wide screens so the
-      // phone-oriented column doesn't stretch edge-to-edge on iPad.
+      // Cap and centre the stepper on wide screens.
       body: BayaBackdrop(
         child: SafeArea(
           child: ResponsiveCenter(
@@ -70,13 +69,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       WelcomeStep(onNext: vm.next),
-                      RelayStep(
-                        state: s,
-                        onChoice: vm.setRelayChoice,
-                        onCustomUrl: vm.setCustomRelayUrl,
-                        onBack: vm.back,
-                        onNext: vm.next,
-                      ),
                       PairStep(
                         onPaired: () {
                           // ignore: unawaited_futures

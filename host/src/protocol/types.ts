@@ -242,7 +242,6 @@ export type KnownErrorCode =
   | "rate_limited"
   | "timeout"
   | "unknown_peer"
-  | "upgrade_required"
   | "clock_skew"
   | "internal_error";
 

@@ -34,7 +34,6 @@ import 'dart:async';
 import 'package:app/data/transport/channel.dart';
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/domain/contracts/service.dart';
-import 'package:app/domain/value_objects/session_room.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/protocol/protocol.dart';
 
@@ -243,11 +242,6 @@ class ConnectionManager extends Service {
   /// url-safe or standard base64.
   List<RoomInfo> roomsFor(String epk) =>
       List.unmodifiable(_roomsByPeer[toStandardB64(epk)] ?? const []);
-
-  /// One destination per actual conversation, for lists and workspace selection.
-  /// Keep roomsFor unfiltered so metadata for the active physical route remains accessible.
-  List<RoomInfo> conversationRoomsFor(String epk) =>
-      List.unmodifiable(_conversationRooms(toStandardB64(epk)));
 
   /// Active destination room (the Pi-side room id). 'main' = default.
   String get activeRoomId => _activeRoomId;
@@ -524,9 +518,6 @@ class ConnectionManager extends Service {
     if (samePeer && _activePeer?.roomId != null) {
       _activePeer = peer.copyWith(roomId: _activeRoomId);
     } else {
-      // Keep a legacy peer unbound until room discovery can persist its
-      // canonical room. Assigning the implicit `main` here would make
-      // `_maybeAdoptLegacyRoom` treat it as already bound.
       _activePeer = peer;
       final boundRoom = peer.roomId ?? 'main';
       if (boundRoom != _activeRoomId) {
@@ -710,13 +701,6 @@ class ConnectionManager extends Service {
         // Persist the new view so cold restart shows the same tiles.
         // ignore: unawaited_futures
         _persistRoomsForPeer(key);
-        // Legacy discovery: if the active peer has no
-        // persisted roomId yet (PeerRecord saved before this fix or
-        // QR without `rm`), adopt the first room we learn about as
-        // the canonical one. Persists the choice on the PeerRecord
-        // so future reconnects address it directly.
-        _maybeAdoptLegacyRoom(key, roomId);
-        _followConversationEndpoint(key, roomId);
       case RoomEnded(:final peer, :final roomId):
         final key = toStandardB64(peer);
         // Mark the room offline but KEEP it in the cached set so the
@@ -811,13 +795,6 @@ class ConnectionManager extends Service {
         roomsDirty = true;
         // ignore: unawaited_futures
         _persistRoomsForPeer(key);
-        // Same legacy-discovery hook as RoomAnnounced.
-        if (rooms.isNotEmpty) {
-          _maybeAdoptLegacyRoom(key, rooms.first.roomId);
-        }
-        for (final room in rooms) {
-          _followConversationEndpoint(key, room.roomId);
-        }
     }
     if (presenceDirty) _schedulePresenceEmit();
     if (roomsDirty) _scheduleRoomsEmit();
@@ -887,53 +864,8 @@ class ConnectionManager extends Service {
   }
 
   Map<String, List<RoomInfo>> _roomsSnapshot() => Map.unmodifiable(
-    _roomsByPeer.map(
-      (k, _) => MapEntry(k, List<RoomInfo>.unmodifiable(_conversationRooms(k))),
-    ),
+    _roomsByPeer.map((k, v) => MapEntry(k, List<RoomInfo>.unmodifiable(v))),
   );
-
-  List<RoomInfo> _conversationRooms(String peer) {
-    final grouped = <String, RoomInfo>{};
-    final rooms = _roomsByPeer[peer] ?? <RoomInfo>[];
-    final replacements = <String, String?>{
-      for (final room in rooms)
-        if (legacyPiInstanceRoomId(room.roomId) case final String legacy)
-          legacy: room.cwd,
-    };
-    for (final room in rooms) {
-      // Pre-upgrade rooms represented instance slots, not conversations.
-      // Hide the old slot when the same routing destination now exposes its
-      // session-bound identity. A live legacy slot can be the uncoordinated
-      // daemon half of a resume and must not become a second row; the chosen
-      // session-bound endpoint remains the only send destination.
-      if (legacyPiInstanceRoomId(room.roomId) == null &&
-          replacements.containsKey(room.roomId) &&
-          replacements[room.roomId] == room.cwd) {
-        continue;
-      }
-      final identity = conversationRoomId(room.roomId);
-      final existing = grouped[identity];
-      if (existing == null || _preferRoom(peer, room, existing)) {
-        grouped[identity] = room;
-      }
-    }
-    return grouped.values.toList();
-  }
-
-  bool _preferRoom(String peer, RoomInfo candidate, RoomInfo existing) {
-    final candidateLive = isRoomLive(peer, candidate.roomId);
-    final existingLive = isRoomLive(peer, existing.roomId);
-    if (candidateLive != existingLive) return candidateLive;
-    if (candidateLive && candidate.working != existing.working) {
-      return candidate.working;
-    }
-    final interactive = isInteractivePiRoom(candidate.roomId);
-    if (interactive != isInteractivePiRoom(existing.roomId)) return interactive;
-    if (candidate.startedAt != existing.startedAt) {
-      return candidate.startedAt > existing.startedAt;
-    }
-    return candidate.roomId.compareTo(existing.roomId) < 0;
-  }
 
   /// Returns `true` if `roomId` is currently announced live for the
   /// peer (the relay's last `room_announced` / `rooms` push included
@@ -1100,74 +1032,6 @@ class ConnectionManager extends Service {
     if (!_roomsController.isClosed) {
       _roomsController.add(_roomsSnapshot());
     }
-  }
-
-  /// Legacy migration hook for peers paired before
-  /// `PeerRecord.roomId` existed. When the relay tells us about rooms
-  /// for the active peer, and that peer has no persisted roomId yet,
-  /// we adopt the announced room as canonical:
-  ///   1. Update `_activeRoomId` so outbound envelopes are routed.
-  ///   2. Push the change down to the WS transport.
-  ///   3. Persist the choice on the PeerRecord via storage so
-  ///      subsequent app launches address (peer, room) from the start
-  ///      and don't re-trigger discovery.
-  void _maybeAdoptLegacyRoom(String peerKey, String discoveredRoom) {
-    final active = _activePeer;
-    if (active == null) return;
-    if (toStandardB64(active.remoteEpk) != peerKey) return;
-    if (active.roomId != null) {
-      return; // explicit room selection — discovery must not override it
-    }
-    _activeRoomId = discoveredRoom;
-    final cur = _status;
-    if (cur is StatusOnline) {
-      _propagateActiveRoom(discoveredRoom, cur.channel);
-    }
-    // Persist asynchronously — failure here is non-fatal (next discovery
-    // round will re-adopt).
-    final updated = active.copyWith(roomId: discoveredRoom);
-    _activePeer = updated;
-    // ignore: unawaited_futures
-    _storage
-        .savePeer(updated)
-        .then((_) {})
-        .catchError((Object e, StackTrace _) {});
-  }
-
-  /// Pi can publish a daemon endpoint and a resumed interactive endpoint for
-  /// the same conversation. Keep the active send target on the newest
-  /// interactive endpoint so a resume on the computer does not leave the phone
-  /// talking to the old daemon route.
-  void _followConversationEndpoint(String peerKey, String discoveredRoom) {
-    final active = _activePeer;
-    if (active == null) return;
-    if (toStandardB64(active.remoteEpk) != peerKey) return;
-    if (_activeRoomId == discoveredRoom) return;
-    if (conversationRoomId(_activeRoomId) !=
-        conversationRoomId(discoveredRoom)) {
-      return;
-    }
-    final rooms = _roomsByPeer[peerKey] ?? const <RoomInfo>[];
-    final current = rooms
-        .where((room) => room.roomId == _activeRoomId)
-        .firstOrNull;
-    final candidate = rooms
-        .where((room) => room.roomId == discoveredRoom)
-        .firstOrNull;
-    if (current == null ||
-        candidate == null ||
-        !isRoomLive(peerKey, candidate.roomId)) {
-      return;
-    }
-    // Snapshots can arrive in any order. Compare the complete route before
-    // moving so a late announcement cannot switch back to a stale endpoint.
-    if (!_preferRoom(peerKey, candidate, current)) return;
-    switchRoom(discoveredRoom);
-    final updated = _activePeer?.copyWith(roomId: discoveredRoom);
-    if (updated == null) return;
-    _activePeer = updated;
-    // ignore: unawaited_futures
-    _storage.savePeer(updated).then((_) {}).catchError((Object _) {});
   }
 
   /// On (re)connect, re-send the last subscribe_presence so the relay

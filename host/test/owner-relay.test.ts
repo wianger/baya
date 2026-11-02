@@ -9,7 +9,6 @@ const temporaryHomes: string[] = [];
 afterEach(() => {
   delete process.env["BAYA_HOME"];
   delete process.env["BAYA_RELAY"];
-  delete process.env["REMOTE_PI_HOME"];
   delete process.env["BAYA_ALLOW_FILE_IDENTITY"];
   vi.resetModules();
   for (const home of temporaryHomes.splice(0)) {
@@ -27,7 +26,6 @@ describe("standalone owner relay lifecycle", () => {
     const home = mkdtempSync(join(tmpdir(), "baya-relay-test-"));
     temporaryHomes.push(home);
     process.env["BAYA_HOME"] = home;
-    process.env["REMOTE_PI_HOME"] = join(home, "legacy");
     process.env["BAYA_RELAY"] = `http://127.0.0.1:${port}`;
     process.env["BAYA_ALLOW_FILE_IDENTITY"] = "1";
     vi.resetModules();
@@ -49,7 +47,7 @@ describe("standalone owner relay lifecycle", () => {
 });
 
 describe("end-to-end encryption through the relay", () => {
-  test("a paired phone exchanges only ciphertext; plaintext and forgeries are refused", async () => {
+  test("a paired phone exchanges only ciphertext; plaintext, forgeries and replays are dropped", async () => {
     const { WebSocketServer } = await import("ws");
     const server = new WebSocketServer({ port: 0, host: "127.0.0.1" });
     await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -69,7 +67,6 @@ describe("end-to-end encryption through the relay", () => {
     const home = mkdtempSync(join(tmpdir(), "baya-e2e-test-"));
     temporaryHomes.push(home);
     process.env["BAYA_HOME"] = home;
-    process.env["REMOTE_PI_HOME"] = join(home, "legacy");
     process.env["BAYA_RELAY"] = `http://127.0.0.1:${port}`;
     process.env["BAYA_ALLOW_FILE_IDENTITY"] = "1";
     vi.resetModules();
@@ -105,13 +102,10 @@ describe("end-to-end encryption through the relay", () => {
       deliver(sealed);
       deliver(sealed); // replay
 
-      await vi.waitFor(() => expect(fromHost).toHaveLength(2));
+      await vi.waitFor(() => expect(fromHost).toHaveLength(1));
       expect(received).toEqual([{ type: "ping", id: "p1" }]);
 
-      const upgrade = JSON.parse(Buffer.from(fromHost[0]!["ct"]!, "base64").toString());
-      expect(upgrade).toMatchObject({ type: "error", code: "upgrade_required" });
-
-      const reply = Buffer.from(fromHost[1]!["ct"]!, "base64");
+      const reply = Buffer.from(fromHost[0]!["ct"]!, "base64");
       expect(reply.includes(Buffer.from("pong"))).toBe(false);
       const opened = e2e.open(key, "h2p", "room1", reply);
       expect(JSON.parse(opened.plaintext.toString())).toEqual({ type: "pong", in_reply_to: "p1" });

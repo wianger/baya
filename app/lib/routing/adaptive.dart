@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:app/domain/value_objects/session_room.dart';
 
 /// Shortest side (logical pixels) at which the app switches to the two-pane
 /// tablet layout.
@@ -68,7 +67,7 @@ class SessionSelection extends ChangeNotifier {
     final c = _current;
     return c != null &&
         c.epk == epk &&
-        conversationRoomId(c.roomId) == conversationRoomId(roomId);
+        c.roomId == roomId;
   }
 
   /// [device] and [online] are what the list already knows, so the chat app

@@ -2,9 +2,7 @@
 
 Flutter Android client for the standalone Baya host.
 
-The package ID intentionally remains `dev.wianger.remotepi` and the release
-certificate intentionally remains the existing personal development key. This
-preserves installed pairings, local chat history, and in-place Android updates.
+The package ID is `dev.wianger.baya`, signed with the personal development key.
 
 The app discovers the GitHub release channel at
 <https://github.com/wianger/baya/releases> and accepts only uploaded

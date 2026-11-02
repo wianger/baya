@@ -11,7 +11,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:app/data/transport/relay_config.dart' show toWsRelayUrl;
 import 'package:app/protocol/protocol.dart' show PairOk;
 import 'package:app/protocol/uuid7.dart';
 
@@ -66,40 +65,12 @@ Future<PairingResult> performPairing({
   required PeerTransport transport,
   required PairingStorage storage,
   required String deviceName,
-  /// Effective relay URL the app is currently connected to. Used to
-  /// detect mismatch vs `qr.relayUrl` for legacy QRs. Passed in by
-  /// the caller (PairingViewModel reads it from Preferences).
-  required String currentRelayUrl,
 }) async {
-  // Legacy QRs may carry `r=<url>`. If that URL does not
-  // match the app's configured relay, the device would attempt to
-  // pair on the WRONG relay (or, after we centralised the connect
-  // factory on resolveRelayUrl, would silently pair against the
-  // user's relay while the Pi is waiting on another). Detect and
-  // surface — UI (PairingViewModel) can show "trocar relay?" modal.
-  if (qr.relayUrl != null &&
-      toWsRelayUrl(qr.relayUrl!) != toWsRelayUrl(currentRelayUrl)) {
-    throw PairingError(
-      code: 'relay_mismatch',
-      message: 'QR points to "${qr.relayUrl}", '
-          'but the app is configured for "$currentRelayUrl". '
-          'Update the relay in settings or ask the Pi to generate '
-          'a new QR.',
-    );
-  }
-
-  // Set the outer envelope's `room` BEFORE sending
-  // pair_request. Without this the relay would route to
-  // (peer=Pi, room='main') which usually doesn't exist (Pi-ext is in
-  // room=<hashOfCwd>) and drop with "dest not found". For legacy QRs
-  // that don't carry `rm`, falls back to 'main' — the new
-  // ConnectionManager discovery flow patches it up afterwards.
-  final pairingRoomId = qr.roomId ?? 'main';
+  // Address the session room that issued the token from the first frame.
   try {
-    (transport as dynamic).setActiveRoom(pairingRoomId);
+    (transport as dynamic).setActiveRoom(qr.roomId);
   } catch (_) {
-    // Non-WS transports (tests with in-memory pipes) don't track room —
-    // routing is symbolic there, so no harm done.
+    // In-memory test transports do not route by room.
   }
 
   final id = uuid7();
@@ -116,34 +87,13 @@ Future<PairingResult> performPairing({
   final type = inner['type'] as String?;
 
   if (type == 'pair_ok' && inner['in_reply_to'] == id) {
-    // Parse via the canonical decoder so PairOk schema evolutions
-    // land in one place.
     final pairOk = PairOk.fromJson(inner);
-    // Persist the Pi-confirmed room_id (or fall back to
-    // the one carried by the QR, then to 'main'). Stored on the
-    // PeerRecord so subsequent reconnects address (peer, room)
-    // correctly from the very first frame.
-    //
-    // `PairOk.roomId` defaults to 'main' when the Pi omits the field
-    // We peek at the raw map to
-    // tell "Pi explicitly said main" from "Pi didn't send a room" —
-    // only in the latter case do we want to fall back to qr.roomId.
-    final rawRoom = inner['room_id'];
-    final piEchoedRoom = rawRoom is String && rawRoom.isNotEmpty;
-    final piRoomId = piEchoedRoom
-        ? pairOk.roomId
-        : (qr.roomId ?? 'main');
     final peer = PeerRecord(
       remoteEpk: qr.epk,
       sessionName: pairOk.sessionName,
-      // Persist whichever relay we just paired on. For legacy QRs
-      // this equals qr.relayUrl (we'd have thrown above otherwise);
-      // for new QRs (no `r`) it's the currently configured relay.
-      relayUrl: qr.relayUrl ?? currentRelayUrl,
+      relayUrl: qr.relayUrl,
       pairedAt: DateTime.now().toUtc().toIso8601String(),
-      roomId: piRoomId,
-      // Null when pi-extension hasn't been upgraded
-      // yet to publish `harness` in pair_ok.
+      roomId: pairOk.roomId,
       harness: pairOk.harness,
     );
     await storage.savePeer(peer);

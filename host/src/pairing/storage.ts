@@ -1,7 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { BAYA_HOME, LEGACY_REMOTE_PI_HOME } from "../config.js";
+import { BAYA_HOME } from "../config.js";
 import {
   canonicalizeEd25519PublicKey,
   generateEd25519Keypair,
@@ -16,21 +16,15 @@ import {
  * is used when the keyring is unavailable, and once such a file exists it
  * always wins: the phone paired against that key, so a keyring that comes
  * online later must never mask it.
- *
- * Remote Pi identities and peers are copied on first use. Legacy sources are
- * read, never modified, so Remote Pi keeps working side by side.
  */
 
 const SERVICE = "dev.wianger.baya";
-const LEGACY_SERVICES = ["dev.remotepi.pi", "dev.remotepi.mac"] as const;
 const ACCOUNT = "longterm-ed25519";
 const KEYRING_TIMEOUT_MS = 3_000;
 const KEYRING_ATTEMPTS = 3;
 
 const IDENTITY_FILE = join(BAYA_HOME, "identity.json");
 const PEERS_FILE = join(BAYA_HOME, "peers.json");
-const LEGACY_IDENTITY_FILE = join(LEGACY_REMOTE_PI_HOME, "identity.json");
-const LEGACY_PEERS_FILE = join(LEGACY_REMOTE_PI_HOME, "peers.json");
 
 /** The keyring is a core OS service but stayed unreadable (usually locked). */
 export class KeyringUnavailableError extends Error {
@@ -129,25 +123,14 @@ async function writePrivate(path: string, contents: string): Promise<void> {
   await chmod(path, 0o600).catch(() => {});
 }
 
-async function fileIdentity(): Promise<Ed25519Keypair | null> {
-  const current = await readIdentityFile(IDENTITY_FILE);
-  if (current) return current;
-  const legacy = await readIdentityFile(LEGACY_IDENTITY_FILE);
-  if (legacy) await writePrivate(IDENTITY_FILE, serialize(legacy));
-  return legacy;
+function fileIdentity(): Promise<Ed25519Keypair | null> {
+  return readIdentityFile(IDENTITY_FILE);
 }
 
-/** Reads, migrates, or creates the identity in the keyring. Throws if unusable. */
+/** Reads or creates the identity in the keyring. Throws if unusable. */
 async function keyringIdentity(): Promise<Ed25519Keypair> {
   const current = await keyringRead(SERVICE);
   if (current) return deserialize(current);
-  for (const service of LEGACY_SERVICES) {
-    const legacy = await keyringRead(service);
-    if (legacy) {
-      await keyringWrite(SERVICE, legacy);
-      return deserialize(legacy);
-    }
-  }
   // Every read succeeded and found nothing: a genuine first run.
   const fresh = generateEd25519Keypair();
   await keyringWrite(SERVICE, serialize(fresh));
@@ -155,10 +138,7 @@ async function keyringIdentity(): Promise<Ed25519Keypair> {
 }
 
 function fileIdentityForced(): boolean {
-  return (
-    process.env["BAYA_ALLOW_FILE_IDENTITY"] === "1" ||
-    process.env["REMOTE_PI_ALLOW_FILE_IDENTITY"] === "1"
-  );
+  return process.env["BAYA_ALLOW_FILE_IDENTITY"] === "1";
 }
 
 let identity: Promise<Ed25519Keypair> | null = null;
@@ -253,8 +233,6 @@ export async function listPeers(): Promise<PeerRecord[]> {
   const mtimeMs = existsSync(PEERS_FILE) ? statSync(PEERS_FILE).mtimeMs : -1;
   if (cache && cache.mtimeMs === mtimeMs) return cache.peers;
   if (mtimeMs < 0) {
-    const legacy = await readPeersFile(LEGACY_PEERS_FILE);
-    if (legacy?.length) return writePeers(legacy);
     cache = { mtimeMs, peers: [] };
     return [];
   }

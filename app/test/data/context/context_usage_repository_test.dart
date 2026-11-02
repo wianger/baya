@@ -6,34 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/phone_controls.dart';
 
 void main() {
-  const daemon = 'pi_abcdefghijklmnop_d_ABCDEFGHIJKL';
-  const terminal = 'pi_abcdefghijklmnop_i_MNOPQRSTUVWX';
-
-  test(
-    'accepts the interactive endpoint for the same Pi conversation',
-    () async {
-      final peer = phoneTestPeer(room: daemon);
-      final channel = PhoneTestChannel();
-      final conn = ConnectionManager(
-        storage: PhoneTestStorage([peer]),
-        factory: (_, _) async => channel,
-      );
-      conn.adopt(channel, peer);
-      channel.onSend = (message) {
-        if (message is! GetContextUsage) return;
-        conn.switchRoom(terminal);
-        channel.messages.add(
-          ContextUsageReply(inReplyTo: message.id, tokens: 55, window: 100),
-        );
-      };
-
-      final usage = await ContextUsageRepository(conn).fetch();
-
-      expect(usage.percent, 55);
-      conn.dispose();
-      await channel.disposeStreams();
-    },
-  );
 
   test(
     'query correlates replies and rejects a reply for a room that is no longer selected',

@@ -97,7 +97,7 @@ void main() {
     expect(
       restoredPrefs.isSessionHidden(
         peer.remoteEpk,
-        'pi_abcdefghijklmnop_i_MNOPQRSTUVWX',
+        peer.roomId!,
       ),
       isTrue,
     );

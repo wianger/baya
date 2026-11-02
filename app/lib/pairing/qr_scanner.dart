@@ -1,66 +1,43 @@
 import 'dart:convert';
 
-// QR URI format:
-//   remotepi://pair?t=<base64url>&epk=<base64url>&n=<name>[&r=<url>][&rm=<roomId>]
-//
-// Fields:
-//   t   — token efêmero (16 bytes, base64url), single-use, valid 60s
-//   epk — host Ed25519 public key (32 bytes), its relay peer id
-//   n   — session name (max 80 chars)
-//   r   — relay WebSocket URL (optional; the app uses its own
-//         configured relay; legacy QR codes that carry `r` are tolerated
-//         and trigger a "switch relay?" prompt if the value mismatches
-//         the user's configured relay).
-//   rm  — Pi-side room id this QR was generated FROM —
-//         lets the app address the right cwd-session on the very first
-//         pair_request, otherwise the relay drops with
-//         "dest (peer, room) not found"). Optional; legacy QRs without
-//         `rm` make the app fall back to `'main'` during pair_request
-//         and rely on subscribe_rooms-based discovery afterwards.
-
+/// `baya://pair?t=<token>&epk=<host key>&n=<name>&rm=<room>&r=<relay>`
+///
+/// - `t`: single-use token (16 bytes, base64url)
+/// - `epk`: host Ed25519 public key (32 bytes, base64url), its relay peer id
+/// - `n`: session name
+/// - `rm`: room of the session that issued the token
+/// - `r`: relay URL the host listens on; scanning adopts it
 class QrPairPayload {
   final String token;
-  final String epk; // base64url Ed25519 — relay peer ID
-  /// Optional legacy relay URL embedded in the QR. `null` for new QRs.
-  /// Use `pair_request_flow` to detect mismatch vs `Preferences.relayUrl`.
-  final String? relayUrl;
+  final String epk;
   final String sessionName;
-  /// Pi-side room id (cwd-session). Used as the outer
-  /// envelope's `room` on pair_request so the relay can route to the
-  /// right Pi-WS. `null` for legacy QRs — caller must fall back to
-  /// `'main'` and discover the real room id via subscribe_rooms.
-  final String? roomId;
+  final String roomId;
+  final String relayUrl;
 
   const QrPairPayload({
     required this.token,
     required this.epk,
     required this.sessionName,
-    this.relayUrl,
-    this.roomId,
+    required this.roomId,
+    required this.relayUrl,
   });
 
   static QrPairPayload? tryParse(String raw) {
     try {
-      final uri = Uri.parse(raw);
-      if (uri.scheme != 'remotepi' || uri.host != 'pair') return null;
-      final t = uri.queryParameters['t'];
-      final epk = uri.queryParameters['epk'];
-      final r = uri.queryParameters['r']; // legacy/optional
-      final n = uri.queryParameters['n'];
-      final rm = uri.queryParameters['rm']; // host-side room
-      // r is no longer part of the canonical contract. Legacy QRs continue to include it; we capture it for
-      // mismatch detection but don't reject when absent.
-      // rm is optional too — legacy pi-extension didn't emit it, and
-      // the app falls back to 'main' / discovery in that case.
+      final uri = Uri.parse(raw.trim());
+      if (uri.scheme != 'baya' || uri.host != 'pair') return null;
+      final q = uri.queryParameters;
+      final t = q['t'], epk = q['epk'], n = q['n'], rm = q['rm'], r = q['r'];
       if (t == null || epk == null || n == null) return null;
+      if (rm == null || rm.isEmpty || r == null || r.isEmpty) return null;
       if (base64Url.decode(_pad(t)).length != 16) return null;
       if (base64Url.decode(_pad(epk)).length != 32) return null;
       return QrPairPayload(
         token: t,
         epk: epk,
         sessionName: n,
-        relayUrl: (r != null && r.isNotEmpty) ? r : null,
-        roomId: (rm != null && rm.isNotEmpty) ? rm : null,
+        roomId: rm,
+        relayUrl: r,
       );
     } catch (_) {
       return null;
@@ -69,8 +46,5 @@ class QrPairPayload {
 
   List<int> get epkBytes => base64Url.decode(_pad(epk));
 
-  static String _pad(String s) {
-    final p = (4 - s.length % 4) % 4;
-    return s + '=' * p;
-  }
+  static String _pad(String s) => s + '=' * ((4 - s.length % 4) % 4);
 }

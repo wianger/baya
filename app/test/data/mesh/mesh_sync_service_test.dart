@@ -10,7 +10,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:remote_pi_identity/remote_pi_identity.dart';
+import 'package:baya_identity/baya_identity.dart';
 
 class _FakeSecureStorage implements FlutterSecureStorage {
   final Map<String, String> _store = {};

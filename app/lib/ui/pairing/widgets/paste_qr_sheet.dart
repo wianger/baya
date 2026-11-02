@@ -9,7 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// text — useful when the device's camera can't read the on-screen QR
 /// (low-end front cameras, scratched lenses, etc).
 ///
-/// Submits via [onSubmit], which receives the raw `remotepi://pair?…`
+/// Submits via [onSubmit], which receives the raw `baya://pair?…`
 /// string the user typed/pasted. The sheet closes automatically after
 /// submit; if [onSubmit] throws or rejects the value, the sheet is
 /// already gone — the caller surfaces the error through the same
@@ -146,8 +146,7 @@ class _PasteQrSheetBodyState extends State<_PasteQrSheetBody> {
             ),
             const SizedBox(height: 6),
             Text(
-              "Can't scan the QR? Paste the text from the Baya CLI "
-              "below. It starts with remotepi://pair?…",
+              context.l10n.pasteCodeHint,
               style: TextStyle(
                 fontFamily: kMonoFamily,
                 fontSize: 11,
@@ -171,7 +170,7 @@ class _PasteQrSheetBodyState extends State<_PasteQrSheetBody> {
               ),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: 'remotepi://pair?t=…',
+                hintText: 'baya://pair?t=…',
                 hintStyle: TextStyle(
                   fontFamily: kMonoFamily,
                   color: colors.muted,

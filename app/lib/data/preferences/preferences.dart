@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:app/data/transport/epk_encoding.dart';
-import 'package:app/domain/value_objects/session_room.dart';
 import 'package:app/domain/value_objects/workspace.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
@@ -268,7 +267,7 @@ class Preferences extends ChangeNotifier {
   }
 
   static String _conversationKey(String epk, String room) =>
-      '${toStandardB64(epk)}:${conversationRoomId(room)}';
+      '${toStandardB64(epk)}:$room';
 
   bool isSessionHidden(String epk, String room) =>
       _hiddenSessions.contains(_conversationKey(epk, room));

@@ -311,7 +311,6 @@ async function trySyncViaInspector(
   const port = options.inspectorPort
     ?? Number(
       process.env["BAYA_DSH_INSPECTOR_PORT"]
-      || process.env["REMOTE_PI_DSH_INSPECTOR_PORT"]
       || DEFAULT_INSPECTOR_PORT,
     );
   if (!Number.isInteger(port) || port <= 0 || port > 65_535) {

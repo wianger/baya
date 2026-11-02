@@ -11,15 +11,15 @@ pub struct RoomMeta {
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
-    /// Active Claude model for this room (plano 18). None = not reported yet.
+    /// Active Claude model for this room. None = not reported yet.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-    /// Active thinking level for this room (plano 28). Opaque string from the
+    /// Active thinking level for this room. Opaque string from the
     /// Pi's perspective (e.g. `"high"`, `"medium"`, `"none"`) — the relay
     /// never interprets it. None = not reported yet.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<String>,
-    /// Whether this room currently has an in-flight agent turn (plano 32).
+    /// Whether this room currently has an in-flight agent turn.
     /// A plain bool with the same merge-patch semantics as `thinking`: a
     /// `room_meta_update` that omits `working` leaves it unchanged — it never
     /// auto-clears. Defaults to `false` until the Pi reports otherwise, and is

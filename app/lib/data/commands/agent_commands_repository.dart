@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/domain/contracts/agent_commands_repository.dart';
 import 'package:app/domain/entities/agent_command.dart';
-import 'package:app/domain/value_objects/session_room.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/protocol/uuid7.dart';
 
@@ -23,7 +22,7 @@ class AgentCommandsRepository implements IAgentCommandsRepository {
   Future<List<AgentCommand>> list() async {
     final channel = _connection.channel;
     final peer = _connection.activePeer?.remoteEpk;
-    final conversation = conversationRoomId(_connection.activeRoomId);
+    final conversation = _connection.activeRoomId;
     if (channel == null || peer == null) {
       throw const AgentCommandsFailure(
         'Connect to this session to load agent slash commands.',
@@ -77,7 +76,7 @@ class AgentCommandsRepository implements IAgentCommandsRepository {
         Future<void>.sync(() => channel.send(GetCommands(id: id))),
       ], eagerError: true);
       if (_connection.activePeer?.remoteEpk != peer ||
-          conversationRoomId(_connection.activeRoomId) != conversation) {
+          _connection.activeRoomId != conversation) {
         throw const AgentCommandsFailure('The selected session changed.');
       }
       return values.first as List<AgentCommand>;

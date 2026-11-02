@@ -12,7 +12,7 @@ class ReadAloudController extends ChangeNotifier {
 
   static final ReadAloudController instance = ReadAloudController._();
 
-  static const _channel = MethodChannel('dev.wianger.remotepi/read_aloud');
+  static const _channel = MethodChannel('dev.wianger.baya/read_aloud');
 
   Object? _owner;
   bool _speaking = false;

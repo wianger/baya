@@ -89,16 +89,7 @@ export class OwnerRelayHost {
 
     const peer = outer["peer"];
     const box = Buffer.from(outer["ct"], "base64");
-    if (!isSealed(box)) {
-      // A pre-encryption app. Error frames carry nothing secret, so this one
-      // goes out in the clear so the old app can show it.
-      this.sendPlain(peer, {
-        type: "error",
-        code: "upgrade_required",
-        message: "Update the Baya app: this computer requires end-to-end encryption.",
-      });
-      return;
-    }
+    if (!isSealed(box)) return;
     this.identity ??= await getOrCreateEd25519Keypair();
     const key = this.keyFor(peer);
     if (!key) return;
@@ -171,11 +162,6 @@ export class OwnerRelayHost {
       code: "clock_skew",
       message: `This phone's clock is ${minutes} min off from the computer. Turn on automatic date & time.`,
     });
-  }
-
-  private sendPlain(peer: string, message: ServerMessage): void {
-    const ct = Buffer.from(JSON.stringify(message)).toString("base64");
-    this.link?.send({ peer, ct });
   }
 
   private queueSend(peers: string[], message: ServerMessage): void {
