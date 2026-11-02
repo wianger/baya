@@ -1,6 +1,7 @@
 import type { Ed25519Keypair } from "../pairing/crypto.ts";
 import { getOrCreateEd25519Keypair, isPairedKey, listPeers } from "../pairing/storage.ts";
 import type { ClientMessage, ServerMessage } from "../protocol/types.ts";
+import { type DirectServer, directServer } from "./direct_server.ts";
 import { deriveSessionKey, isSealed, open, ReplayGuard, seal } from "./e2e.ts";
 import type { PeerChannel } from "./peer_channel.ts";
 import type { RoomMeta } from "./relay_client.ts";
@@ -13,6 +14,8 @@ export interface OwnerHostOptions {
   onFatal?: (error: Error) => void;
   /** Defaults to the process-wide hub. */
   hub?: RelayHub;
+  /** Defaults to the process-wide direct endpoint. */
+  direct?: DirectServer;
 }
 
 /**
@@ -47,8 +50,8 @@ export class OwnerRelayHost {
    */
   start(): void {
     this.link?.close();
-    this.link = this.hub.open(this.options.roomId, this.options.roomMeta, {
-      onLine: (line) => {
+    const handlers = {
+      onLine: (line: string) => {
         this.inbound = this.inbound
           .then(() => this.receive(line))
           .catch((error: unknown) => {
@@ -60,7 +63,17 @@ export class OwnerRelayHost {
           });
       },
       ...(this.options.onFatal ? { onFatal: this.options.onFatal } : {}),
-    });
+    };
+    // Phones reach the room through the relay and, on a tailnet, directly;
+    // every reply goes out both ways and arrives on whichever one they use.
+    this.link = bothWays(
+      this.hub.open(this.options.roomId, this.options.roomMeta, handlers),
+      (this.options.direct ?? directServer()).open(
+        this.options.roomId,
+        this.options.roomMeta,
+        handlers,
+      ),
+    );
   }
 
   stop(): void {
@@ -201,4 +214,23 @@ function isForUnpairedPeer(message: ServerMessage): boolean {
     message.type === "pair_error" ||
     (message.type === "error" && message.code === "unknown_peer")
   );
+}
+
+/** One room reachable over the relay and directly. */
+function bothWays(relay: RoomLink, direct: RoomLink): RoomLink {
+  return {
+    isOpen: () => relay.isOpen() || direct.isOpen(),
+    send: (envelope) => {
+      relay.send(envelope);
+      direct.send(envelope);
+    },
+    updateMeta: (meta) => {
+      relay.updateMeta(meta);
+      direct.updateMeta(meta);
+    },
+    close: () => {
+      relay.close();
+      direct.close();
+    },
+  };
 }

@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
+import { directServer } from "../transport/direct_server.ts";
 
 const run = promisify(execFile);
 
@@ -170,6 +171,10 @@ export class TailnetPairingServer {
     // The tailnet address for direct callers, loopback for `tailscale serve`.
     for (const address of new Set([self.ip, "127.0.0.1"])) {
       const server = createServer(handler);
+      // Phones on the tailnet also connect here directly, no relay between.
+      server.on("upgrade", (request, socket, head) =>
+        directServer().handleUpgrade(request, socket, head),
+      );
       await new Promise<void>((resolve, reject) => {
         server.once("error", reject);
         server.listen(port, address, () => resolve());
