@@ -4,7 +4,7 @@ import 'package:app/l10n/l10n.dart';
 
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -29,8 +29,8 @@ class DevicePickerField extends StatelessWidget {
     final colors = context.colors;
     final active = enabled && devices.isNotEmpty;
     final statusColor = selected.online ? colors.success : colors.muted;
-    return BayaGlassSurface(
-      role: BayaGlassRole.card,
+    return BayaSurface(
+      role: BayaSurfaceRole.card,
       radius: 16,
       elevated: false,
       child: InkWell(
@@ -44,8 +44,8 @@ class DevicePickerField extends StatelessWidget {
                   isScrollControlled: true,
                   useSafeArea: true,
                   backgroundColor: Colors.transparent,
-                  builder: (_) => BayaGlassSurface(
-                    role: BayaGlassRole.overlay,
+                  builder: (_) => BayaSurface(
+                    role: BayaSurfaceRole.overlay,
                     radius: 34,
                     elevated: false,
                     child: _DevicePickerSheet(

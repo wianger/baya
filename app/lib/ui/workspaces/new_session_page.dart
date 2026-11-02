@@ -1,7 +1,7 @@
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
@@ -65,8 +65,8 @@ class _NewSessionPageState extends State<NewSessionPage> {
         backgroundColor: colors.bg,
         appBar: AppBar(
           backgroundColor: colors.bg.withValues(alpha: 0),
-          flexibleSpace: const BayaGlassSurface(
-            role: BayaGlassRole.navigation,
+          flexibleSpace: const BayaSurface(
+            role: BayaSurfaceRole.navigation,
             radius: 0,
             elevated: false,
             child: SizedBox.expand(),
@@ -98,7 +98,7 @@ class _NewSessionPageState extends State<NewSessionPage> {
                   NewSessionUnavailable(:final message) => Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: BayaGlassSurface(
+                      child: BayaSurface(
                         radius: 24,
                         elevated: false,
                         child: Padding(
@@ -242,8 +242,8 @@ class _NewSessionPageState extends State<NewSessionPage> {
                       horizontal: 20,
                       vertical: 8,
                     ),
-                    child: BayaGlassSurface(
-                      role: BayaGlassRole.content,
+                    child: BayaSurface(
+                      role: BayaSurfaceRole.content,
                       radius: 14,
                       elevated: false,
                       emphasized: true,
@@ -344,11 +344,11 @@ class _NewSessionPageState extends State<NewSessionPage> {
             ],
           ),
         ),
-        BayaGlassSurface(
-          role: BayaGlassRole.navigation,
+        BayaSurface(
+          role: BayaSurfaceRole.navigation,
           radius: 26,
           padding: const EdgeInsets.all(20),
-          child: BayaGlassButton(
+          child: BayaButton(
             onPressed: state.canOpen ? _open : null,
             icon: const Icon(LucideIcons.plus, size: 18),
             label: Text(
@@ -382,8 +382,8 @@ class _WorkspacePickerField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = enabled && workspaces.isNotEmpty;
-    return BayaGlassSurface(
-      role: BayaGlassRole.card,
+    return BayaSurface(
+      role: BayaSurfaceRole.card,
       radius: 16,
       elevated: false,
       child: InkWell(
@@ -397,8 +397,8 @@ class _WorkspacePickerField extends StatelessWidget {
                   isScrollControlled: true,
                   useSafeArea: true,
                   backgroundColor: Colors.transparent,
-                  builder: (_) => BayaGlassSurface(
-                    role: BayaGlassRole.overlay,
+                  builder: (_) => BayaSurface(
+                    role: BayaSurfaceRole.overlay,
                     radius: 34,
                     elevated: false,
                     child: _WorkspacePickerSheet(

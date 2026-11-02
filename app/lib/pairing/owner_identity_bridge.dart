@@ -62,11 +62,8 @@ class OwnerIdentityBridge extends ChangeNotifier {
   /// Load (or generate) the Owner identity.
   /// Idempotent — repeated calls are cheap once `_current` is populated.
   ///
-  /// The `isSyncAvailable()` pre-flight is deliberately NOT a gate here
-  ///: on iOS it used to mirror the ubiquity token, which is
-  /// always nil without an iCloud entitlement, so every App Store user
-  /// hard-locked on "Sync required" regardless of their iCloud Keychain
-  /// state. The real capability check is the load/save path — the store
+  /// The `isSyncAvailable()` pre-flight is deliberately NOT a gate here:
+  /// it can report false negatives. The real capability check is the load/save path — the store
   /// throws [SyncUnavailable] when the platform sync surface genuinely
   /// can't hold the key (e.g. Android Block Store without backup), and
   /// only that verdict sends the router to /sync-required.
@@ -128,9 +125,8 @@ class OwnerIdentityBridge extends ChangeNotifier {
   /// Same-pk events are dropped — re-saves of identical content (echo
   /// from our own write) shouldn't reset state.
   ///
-  /// Initial-emit race: both the iOS plugin (`KeychainSyncStore`
-  /// onListen → emitIfChanged) and the Android plugin (initial
-  /// `store.load()` on subscribe) push the current blob to the event
+  /// Initial-emit race: the Android plugin (initial `store.load()` on
+  /// subscribe) pushes the current blob to the event
   /// channel as soon as we `.listen()`. If we subscribed before
   /// [boot] populated `_current`, that initial emit would look like
   /// a "different owner_pk" (because current is null) and trigger a

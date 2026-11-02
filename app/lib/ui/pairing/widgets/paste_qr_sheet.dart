@@ -1,6 +1,6 @@
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -23,8 +23,8 @@ Future<void> showPasteQrSheet(
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
     builder: (sheetCtx) {
-      return BayaGlassSurface(
-        role: BayaGlassRole.overlay,
+      return BayaSurface(
+        role: BayaSurfaceRole.overlay,
         radius: 32,
         elevated: false,
         child: Padding(
@@ -220,7 +220,7 @@ class _PasteQrSheetBodyState extends State<_PasteQrSheetBody> {
               ],
             ),
             const SizedBox(height: 12),
-            BayaGlassButton(
+            BayaButton(
               onPressed: _canSubmit ? _submit : null,
               label: Text(
                 context.l10n.pair,

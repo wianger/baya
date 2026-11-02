@@ -2,7 +2,7 @@ import 'package:app/data/preferences/preferences.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/data/transport/relay_config.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
@@ -44,8 +44,8 @@ class SettingsPage extends StatelessWidget {
       backgroundColor: embedded ? Colors.transparent : colors.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        flexibleSpace: const BayaGlassSurface(
-          role: BayaGlassRole.navigation,
+        flexibleSpace: const BayaSurface(
+          role: BayaSurfaceRole.navigation,
           radius: 0,
           elevated: false,
           child: SizedBox.expand(),
@@ -187,7 +187,7 @@ class _RelaySettingsPageState extends State<RelaySettingsPage> {
     final colors = context.colors;
     return _SettingsDetailScaffold(
       title: context.l10n.relay,
-      child: BayaGlassSurface(
+      child: BayaSurface(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -257,7 +257,7 @@ class _RelaySettingsPageState extends State<RelaySettingsPage> {
               spacing: 10,
               runSpacing: 8,
               children: [
-                BayaGlassButton(
+                BayaButton(
                   buttonKey: const Key('relay-save'),
                   onPressed: _save,
                   label: Text(
@@ -300,7 +300,7 @@ class DisplaySettingsPage extends StatelessWidget {
     final colors = context.colors;
     return _SettingsDetailScaffold(
       title: context.l10n.displayAndConversation,
-      child: BayaGlassSurface(
+      child: BayaSurface(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -398,8 +398,8 @@ class _SettingsDetailScaffold extends StatelessWidget {
       backgroundColor: colors.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        flexibleSpace: const BayaGlassSurface(
-          role: BayaGlassRole.navigation,
+        flexibleSpace: const BayaSurface(
+          role: BayaSurfaceRole.navigation,
           radius: 0,
           elevated: false,
           child: SizedBox.expand(),
@@ -505,7 +505,7 @@ class _SettingsEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BayaGlassSurface(
+    return BayaSurface(
       radius: 24,
       child: Material(color: Colors.transparent, child: child),
     );

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:app/l10n/l10n.dart';
 
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
@@ -109,7 +109,7 @@ class AgentMarkdown extends StatelessWidget {
       // Fenced ``` blocks — dark card + copy button.
       codeBuilder: (context, name, code, closed) =>
           _CodeBlock(language: name, code: code),
-      // The package defaults to generous list indents. Apple's transcript
+      // The package defaults to generous list indents. A transcript
       // style keeps bullets compact and aligns their text with the prose.
       unOrderedListBuilder: (context, child, config) => UnorderedListView(
         spacing: 5,
@@ -131,11 +131,11 @@ class AgentMarkdown extends StatelessWidget {
         child: child,
       ),
       tableBuilder: (context, rows, style, config) =>
-          _AppleMarkdownTable(rows: rows, style: style),
+          _MarkdownTable(rows: rows, style: style),
       components: MarkdownComponent.globalComponents
           .map<MarkdownComponent>(
             (component) =>
-                component is BlockQuote ? _AppleBlockQuote() : component,
+                component is BlockQuote ? _QuietBlockQuote() : component,
           )
           .toList(growable: false),
     );
@@ -179,8 +179,8 @@ class _CodeBlock extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: SizedBox(
         width: double.infinity,
-        child: BayaGlassSurface(
-          role: BayaGlassRole.content,
+        child: BayaSurface(
+          role: BayaSurfaceRole.content,
           radius: 14,
           elevated: false,
           child: Column(
@@ -301,9 +301,9 @@ class _CopyButtonState extends State<_CopyButton> {
 
 /// A rounded, hairline quote treatment that matches the rest of the chat
 /// surfaces. The upstream package's block quote uses Material defaults, which
-/// makes quoted prose feel detached from the Apple-inspired transcript.
-class _AppleBlockQuote extends BlockQuote {
-  _AppleBlockQuote();
+/// makes quoted prose feel detached from the transcript.
+class _QuietBlockQuote extends BlockQuote {
+  _QuietBlockQuote();
 
   @override
   InlineSpan span(BuildContext context, String text, GptMarkdownConfig config) {
@@ -332,8 +332,8 @@ class _AppleBlockQuote extends BlockQuote {
             textDirection: config.textDirection,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: BayaGlassSurface(
-                role: BayaGlassRole.content,
+              child: BayaSurface(
+                role: BayaSurfaceRole.content,
                 radius: 13,
                 elevated: false,
                 emphasized: true,
@@ -358,8 +358,8 @@ class _AppleBlockQuote extends BlockQuote {
   }
 }
 
-class _AppleMarkdownTable extends StatelessWidget {
-  const _AppleMarkdownTable({required this.rows, required this.style});
+class _MarkdownTable extends StatelessWidget {
+  const _MarkdownTable({required this.rows, required this.style});
 
   final List<CustomTableRow> rows;
   final TextStyle style;
@@ -373,8 +373,8 @@ class _AppleMarkdownTable extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: SizedBox(
         width: double.infinity,
-        child: BayaGlassSurface(
-          role: BayaGlassRole.content,
+        child: BayaSurface(
+          role: BayaSurfaceRole.content,
           radius: 14,
           elevated: false,
           child: LayoutBuilder(

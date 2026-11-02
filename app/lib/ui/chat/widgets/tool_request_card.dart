@@ -5,7 +5,7 @@ import 'package:app/ui/chat/widgets/tool_activity_details.dart';
 import 'package:app/ui/chat/widgets/tool_content.dart';
 import 'package:app/ui/chat/widgets/thinking_block.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -93,8 +93,8 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
     // outcome stay one tap away. Real approvals always start open.
     final expanded = _expanded || _needsApproval;
     final preview = _needsApproval ? null : content.preview;
-    return BayaGlassSurface(
-      role: BayaGlassRole.content,
+    return BayaSurface(
+      role: BayaSurfaceRole.content,
       radius: 18,
       elevated: false,
       emphasized: _needsApproval,
@@ -227,7 +227,7 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
                           child: Text(context.l10n.deny),
                         ),
                         const SizedBox(width: 10),
-                        BayaGlassButton(
+                        BayaButton(
                           onPressed: onDecide == null
                               ? null
                               : () => onDecide!(

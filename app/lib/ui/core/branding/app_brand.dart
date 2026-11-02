@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/themes/themes.dart';
 
 const kAppName = 'Baya';
 
 /// A weaverbird gathers devices, workspaces and conversations into one place.
 /// Geometry matches branding/baya-mark.svg and the Android vector icons: a
-/// translucent glass tile carrying a filled graphite-teal bird with one gold
+/// tonal tile carrying a filled graphite-teal bird with one gold
 /// accent. The silhouette stays recognizable from launcher to sidebar sizes.
 class AppMark extends StatelessWidget {
   const AppMark({super.key, this.size = 28, this.tile = false});
@@ -39,11 +39,11 @@ class AppMark extends StatelessWidget {
             ? AppBrandColors.shadow.withValues(alpha: dark ? .44 : .24)
             : colors.text.withValues(alpha: 0),
         bodyRim: tile
-            ? colors.glassHighlight.withValues(alpha: dark ? .34 : .58)
+            ? Colors.white.withValues(alpha: dark ? .34 : .58)
             : colors.text.withValues(alpha: .12),
         cutout: tile
             ? Color.alphaBlend(
-                colors.glassHighlight.withValues(alpha: dark ? .34 : .82),
+                Colors.white.withValues(alpha: dark ? .34 : .82),
                 colors.inputFill.withValues(alpha: dark ? .28 : .16),
               )
             : colors.bg,
@@ -57,11 +57,10 @@ class AppMark extends StatelessWidget {
       child: SizedBox.square(
         dimension: size,
         child: tile
-            ? BayaGlassSurface(
-                role: BayaGlassRole.brand,
+            ? BayaSurface(
+                role: BayaSurfaceRole.brand,
                 radius: size * .22,
                 elevated: size >= 52,
-                blurSigma: size >= 52 ? 30 : 16,
                 child: Padding(
                   padding: EdgeInsets.all(size * .13),
                   child: SizedBox.square(

@@ -11,7 +11,7 @@ import 'package:app/ui/chat/voice/states/voice_input_state.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/chat/voice/widgets/recording_strip.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -368,8 +368,8 @@ class _InputBarState extends State<InputBar> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      child: BayaGlassSurface(
-        role: BayaGlassRole.overlay,
+      child: BayaSurface(
+        role: BayaSurfaceRole.overlay,
         radius: 28,
         emphasized: _focused,
         child: Stack(
@@ -520,8 +520,8 @@ class _InputBarState extends State<InputBar> {
             if (showStrip)
               Positioned.fill(
                 child: IgnorePointer(
-                  child: BayaGlassSurface(
-                    role: BayaGlassRole.content,
+                  child: BayaSurface(
+                    role: BayaSurfaceRole.content,
                     radius: 26,
                     elevated: false,
                     child: Center(
@@ -880,8 +880,8 @@ class _QuickActionsButtonState extends State<_QuickActionsButton>
           constraints: const BoxConstraints(maxWidth: 190),
           // A filled pill with a chip icon and a caret makes it read as the
           // model switcher rather than a stray label next to `+`.
-          child: BayaGlassSurface(
-            role: BayaGlassRole.card,
+          child: BayaSurface(
+            role: BayaSurfaceRole.card,
             radius: 20,
             elevated: false,
             child: Material(
@@ -1076,8 +1076,8 @@ class _ComposerActionButton extends StatelessWidget {
               // Keep a hairline on the quiet states so the mic and the
               // (disabled) send read as a matching pair of circle buttons.
               color: visualEnabled
-                  ? (isVoice ? colors.glassEdge : Colors.transparent)
-                  : colors.glassEdge,
+                  ? (isVoice ? colors.border : Colors.transparent)
+                  : colors.border,
               width: 0.5,
             ),
             boxShadow:
@@ -1210,9 +1210,9 @@ class _SlashPalette extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 268),
-        child: BayaGlassSurface(
+        child: BayaSurface(
           key: const Key('slash-command-palette'),
-          role: BayaGlassRole.overlay,
+          role: BayaSurfaceRole.overlay,
           radius: 18,
           elevated: false,
           child: Material(

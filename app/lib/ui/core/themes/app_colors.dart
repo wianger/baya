@@ -1,18 +1,12 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 
-/// Semantic color tokens for the whole app.
+/// Semantic color tokens for the whole app, derived from one Material 3
+/// [ColorScheme].
 ///
-/// This is the SINGLE source of truth for every color used in the UI. Widgets
-/// must never hardcode `Color(0x…)` or `Colors.*` — they read from here via
-/// `context.colors.<token>` (see `theme_extensions.dart`).
-///
-/// Registered on [ThemeData.extensions] by `buildDarkTheme()` /
-/// `buildLightTheme()` so `Theme.of(context).extension<AppColors>()` resolves
-/// the right palette for the active brightness.
-///
-/// Apple-inspired semantic palette. Brightness variants use system-style
-/// grouped backgrounds, neutral labels, system blue, and restrained status
-/// colors while keeping every screen within the same token set.
+/// On Android 12+ the scheme comes from the wallpaper (Material You); other
+/// devices use the brand seed. Widgets read `context.colors.<token>` and never
+/// hardcode colors, so the whole app follows the system palette.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
@@ -38,154 +32,76 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.inputFill,
   });
 
-  /// App background (scaffold). Was `kBg`.
-  final Color bg;
+  /// Maps the M3 tonal roles onto the app's semantic tokens. Status colors
+  /// have no M3 role, so fixed hues are harmonized toward the primary color.
+  factory AppColors.fromScheme(ColorScheme s) {
+    final dark = s.brightness == Brightness.dark;
+    Color status(int argb) => Color(argb).harmonizeWith(s.primary);
+    return AppColors(
+      bg: s.surface,
+      surface: s.surfaceContainerLow,
+      border: s.outlineVariant,
+      text: s.onSurface,
+      muted: s.onSurfaceVariant,
+      muted2: Color.lerp(s.onSurfaceVariant, s.onSurface, .45)!,
+      accent: s.primary,
+      onAccent: s.onPrimary,
+      highlight: s.tertiary,
+      success: status(dark ? 0xFF7DD99A : 0xFF1E7A43),
+      error: s.error,
+      warning: status(dark ? 0xFFF2B866 : 0xFF8C5A00),
+      working: s.tertiary,
+      codeBg: s.surfaceContainer,
+      userBubble: s.primaryContainer,
+      onUserBubble: s.onPrimaryContainer,
+      modelBadgeBg: s.surfaceContainerHighest,
+      modelBadgeBorder: s.outlineVariant,
+      denyBorder: s.error.withValues(alpha: .4),
+      inputFill: s.surfaceContainerHigh,
+    );
+  }
 
-  /// Slightly raised surface (cards, sheets). Was `kSurface`.
-  final Color surface;
+  /// Brand seed for devices without a wallpaper palette.
+  static const seed = Color(0xFF2F6F73);
 
-  /// Hairline borders / dividers. Was `kBorder`.
-  final Color border;
+  static ColorScheme fallbackScheme(Brightness brightness) =>
+      ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
 
-  /// Primary foreground text. Was `kText`.
-  final Color text;
+  static final AppColors light = AppColors.fromScheme(
+    fallbackScheme(Brightness.light),
+  );
+  static final AppColors dark = AppColors.fromScheme(
+    fallbackScheme(Brightness.dark),
+  );
 
-  /// Secondary / de-emphasized text. Was `kMuted`.
-  final Color muted;
-
-  /// Tertiary text — slightly more prominent than [muted]. Was `kMuted2`.
-  final Color muted2;
-
-  /// Brand accent (links, active states, primary buttons). Was `kAccent`.
-  final Color accent;
-
-  /// Foreground painted on top of [accent] (e.g. filled-button label). Was the
-  /// hardcoded `Colors.black` / `onPrimary`.
-  final Color onAccent;
-
-  /// Code / file paths inside agent messages. Was `kHighlight`.
-  final Color highlight;
-
-  /// Success state (✓ tool results). Was `kSuccess`.
+  final Color bg; // surface
+  final Color surface; // surfaceContainerLow: cards, grouped content
+  final Color border; // outlineVariant
+  final Color text; // onSurface
+  final Color muted; // onSurfaceVariant
+  final Color muted2; // between muted and text
+  final Color accent; // primary
+  final Color onAccent; // onPrimary
+  final Color highlight; // tertiary: code and paths in agent text
   final Color success;
-
-  /// Error / destructive state (✗ tool results, failed sends, delete). Was
-  /// `kError` and the scattered `Colors.redAccent`.
   final Color error;
-
-  /// Warning state (relay offline). Was the scattered `Colors.amber`.
   final Color warning;
-
-  /// "Working" / in-progress accent (session running a turn). Was the local
-  /// `kWorking = Color(0xFF3FA9F5)` duplicated in session_tile and chat_page.
-  final Color working;
-
-  /// Background of inline/he block code. Was `kCodeBg`.
-  final Color codeBg;
-
-  /// User chat bubble background. Was `kUserBubble`.
-  final Color userBubble;
-
-  /// Foreground painted on the user bubble.
-  final Color onUserBubble;
-
-  /// Model badge background. Was `kModelBadgeBg`.
-  final Color modelBadgeBg;
-
-  /// Model badge border. Was `kModelBadgeBorder`.
+  final Color working; // tertiary: a session running a turn
+  final Color codeBg; // surfaceContainer
+  final Color userBubble; // primaryContainer
+  final Color onUserBubble; // onPrimaryContainer
+  final Color modelBadgeBg; // surfaceContainerHighest
   final Color modelBadgeBorder;
-
-  /// Border for a denied tool-call card. Was `kDenyBorder`.
   final Color denyBorder;
+  final Color inputFill; // surfaceContainerHigh: fields and controls
 
-  /// Text-field fill. Was the hardcoded `Color(0xFF0E0E0E)`.
-  final Color inputFill;
-
-  // Layered Apple-style materials. Text always renders above these translucent
-  // fills; high-contrast surfaces opt out of translucency in
-  // BayaGlassSurface.
-  bool get _isDark => bg.computeLuminance() < 0.2;
-  //
-  // These are fully opaque pigments. BayaGlassSurface applies the final alpha
-  // once, per material role. Keeping alpha out of the pigment avoids the
-  // compounded, muddy layers that made earlier glass look like gray plastic.
-  Color get glassFill =>
-      _isDark ? const Color(0xFF68717D) : const Color(0xFFFFFFFF);
-  Color get glassFillStrong =>
-      _isDark ? const Color(0xFF89929E) : const Color(0xFFFFFFFF);
-  Color get glassTint =>
-      _isDark ? const Color(0xFF171A20) : const Color(0xFFF4F7FA);
-  Color get glassEdge =>
-      const Color(0xFFFFFFFF).withValues(alpha: _isDark ? 0.20 : 0.70);
-  Color get glassShade =>
-      const Color(0xFF000000).withValues(alpha: _isDark ? 0.32 : 0.11);
-  Color get glassHighlight =>
-      const Color(0xFFFFFFFF).withValues(alpha: _isDark ? 0.16 : 0.72);
-  Color get glassShadow =>
-      const Color(0xFF000000).withValues(alpha: _isDark ? 0.30 : 0.10);
-  Color get glassContactShadow =>
-      const Color(0xFF000000).withValues(alpha: _isDark ? 0.12 : 0.035);
-  Color get glassInnerShadow =>
-      const Color(0xFF000000).withValues(alpha: _isDark ? 0.10 : 0.025);
-  Color get glassCool => _isDark
-      ? const Color(0xFF586D8A).withValues(alpha: 0.14)
-      : const Color(0xFFC9DBF2).withValues(alpha: 0.24);
-  Color get glassWarm => _isDark
-      ? const Color(0xFF8F7566).withValues(alpha: 0.09)
-      : const Color(0xFFF0DECB).withValues(alpha: 0.17);
-  Color get selection => accent.withValues(alpha: _isDark ? 0.13 : 0.085);
-  Color get quietFill => surface.withValues(alpha: _isDark ? 0.72 : 0.84);
-  Color get backdropAccent =>
-      const Color(0xFF5E70A0).withValues(alpha: _isDark ? 0.11 : 0.18);
-  Color get backdropWarmth => glassWarm;
-
-  /// True-black canvas with elevated graphite groups.
-  static const AppColors dark = AppColors(
-    bg: Color(0xFF0B0C0F),
-    surface: Color(0xFF202228),
-    border: Color(0xFF45474E),
-    text: Color(0xFFF5F5F7),
-    muted: Color(0xFF98989F),
-    muted2: Color(0xFFC7C7CC),
-    accent: Color(0xFF0A84FF),
-    onAccent: Color(0xFFFFFFFF),
-    highlight: Color(0xFF64D2FF),
-    success: Color(0xFF30D158),
-    error: Color(0xFFFF453A),
-    warning: Color(0xFFFF9F0A),
-    working: Color(0xFF64D2FF),
-    codeBg: Color(0xFF17191E),
-    userBubble: Color(0xFF0A84FF),
-    onUserBubble: Color(0xFFFFFFFF),
-    modelBadgeBg: Color(0xFF2B2D33),
-    modelBadgeBorder: Color(0xFF4B4E55),
-    denyBorder: Color(0x66FF453A),
-    inputFill: Color(0xFF202228),
-  );
-
-  /// Grouped iOS canvas with white control surfaces.
-  static const AppColors light = AppColors(
-    bg: Color(0xFFF2F2F7),
-    surface: Color(0xFFFFFFFF),
-    border: Color(0xFFD1D1D6),
-    text: Color(0xFF1D1D1F),
-    muted: Color(0xFF8E8E93),
-    muted2: Color(0xFF636366),
-    accent: Color(0xFF007AFF),
-    onAccent: Color(0xFFFFFFFF),
-    highlight: Color(0xFF007AFF),
-    success: Color(0xFF34C759),
-    error: Color(0xFFFF3B30),
-    warning: Color(0xFFFF9500),
-    working: Color(0xFF5AC8FA),
-    codeBg: Color(0xFFF2F2F7),
-    userBubble: Color(0xFF007AFF),
-    onUserBubble: Color(0xFFFFFFFF),
-    modelBadgeBg: Color(0xFFE5E5EA),
-    modelBadgeBorder: Color(0xFFD1D1D6),
-    denyBorder: Color(0x66FF3B30),
-    inputFill: Color(0xFFFFFFFF),
-  );
+  /// Tonal layers. Material 3 expresses elevation through tone, not
+  /// translucency or heavy shadows.
+  Color get glassFill => inputFill;
+  Color get glassFillStrong => modelBadgeBg;
+  Color get glassShadow => const Color(0x1F000000);
+  Color get selection => accent.withValues(alpha: .12);
+  Color get quietFill => surface;
 
   @override
   AppColors copyWith({

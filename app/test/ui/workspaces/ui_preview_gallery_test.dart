@@ -1,6 +1,6 @@
 import 'package:app/ui/core/branding/app_brand.dart';
 
-// Manual preview renderer. Only runs when REMOTE_PI_PREVIEW_DIR is set.
+// Manual preview renderer. Only runs when BAYA_PREVIEW_DIR is set.
 // Uses production widgets with fixture ViewModels; no pairing or network.
 import 'dart:async';
 import 'dart:convert';
@@ -315,9 +315,9 @@ Future<void> _fonts(WidgetTester tester) async {
     }
     // The test engine has no Android system fonts. Supply the open Noto CJK
     // face used for this preview's device fallback; it is not an APK asset.
-    final cjk = Platform.environment['REMOTE_PI_PREVIEW_CJK_FONT'];
-    if (cjk == null) throw StateError('Set REMOTE_PI_PREVIEW_CJK_FONT');
-    final fallbackLoader = FontLoader(kFontFallback.first)
+    final cjk = Platform.environment['BAYA_PREVIEW_CJK_FONT'];
+    if (cjk == null) throw StateError('Set BAYA_PREVIEW_CJK_FONT');
+    final fallbackLoader = FontLoader('Roboto')
       ..addFont(File(cjk).readAsBytes().then(ByteData.sublistView));
     await fallbackLoader.load();
   });
@@ -391,7 +391,7 @@ class _PreviewActions implements IActionsRepository {
 }
 
 void main() {
-  final output = Platform.environment['REMOTE_PI_PREVIEW_DIR'];
+  final output = Platform.environment['BAYA_PREVIEW_DIR'];
   testWidgets(
     'render Android chat, session drawer and folder chooser previews',
     (tester) async {
@@ -452,7 +452,7 @@ void main() {
       final chatKey = GlobalKey();
       final drawerKey = GlobalKey();
       final foldersKey = GlobalKey();
-      final light = Platform.environment['REMOTE_PI_PREVIEW_THEME'] == 'light';
+      final light = Platform.environment['BAYA_PREVIEW_THEME'] == 'light';
       final theme = light ? buildLightTheme() : buildDarkTheme();
       final previewTheme = theme.copyWith(platform: TargetPlatform.android);
       Widget phone(String title, GlobalKey key, Widget child) => SizedBox(

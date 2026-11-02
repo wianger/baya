@@ -1,7 +1,7 @@
 import 'package:app/domain/value_objects/workspace.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -39,8 +39,8 @@ class DeviceSwitcher extends StatelessWidget {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * .7,
       ),
-      builder: (sheetContext) => BayaGlassSurface(
-        role: BayaGlassRole.overlay,
+      builder: (sheetContext) => BayaSurface(
+        role: BayaSurfaceRole.overlay,
         radius: 34,
         elevated: false,
         child: SafeArea(
@@ -142,8 +142,8 @@ class DeviceSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return BayaGlassSurface(
-      role: BayaGlassRole.content,
+    return BayaSurface(
+      role: BayaSurfaceRole.content,
       radius: 22,
       elevated: false,
       child: Material(
@@ -258,8 +258,8 @@ class WorkspaceSwitcher extends StatelessWidget {
           ),
           builder: (sheetContext) {
             final colors = sheetContext.colors;
-            return BayaGlassSurface(
-              role: BayaGlassRole.overlay,
+            return BayaSurface(
+              role: BayaSurfaceRole.overlay,
               radius: 34,
               elevated: false,
               child: SafeArea(
@@ -296,8 +296,8 @@ class WorkspaceSwitcher extends StatelessWidget {
                                       ))
                                     : null,
                               )
-                            : BayaGlassSurface(
-                                role: BayaGlassRole.content,
+                            : BayaSurface(
+                                role: BayaSurfaceRole.content,
                                 radius: 26,
                                 elevated: false,
                                 child: Material(
@@ -447,8 +447,8 @@ class WorkspaceSwitcher extends StatelessWidget {
               : context.l10n.chooseDeviceFirst
         : labels[selected] ?? _name(selected!);
     final canOpen = enabled && hasDevice;
-    return BayaGlassSurface(
-      role: BayaGlassRole.content,
+    return BayaSurface(
+      role: BayaSurfaceRole.content,
       radius: 22,
       elevated: false,
       child: Material(
@@ -526,8 +526,8 @@ class _EmptyWorkspaceList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return BayaGlassSurface(
-      role: BayaGlassRole.content,
+    return BayaSurface(
+      role: BayaSurfaceRole.content,
       radius: 26,
       elevated: false,
       child: Material(
@@ -603,8 +603,8 @@ class _SwitcherSheetHeader extends StatelessWidget {
               ),
             ),
           ),
-          BayaGlassSurface(
-            role: BayaGlassRole.control,
+          BayaSurface(
+            role: BayaSurfaceRole.control,
             radius: 22,
             elevated: false,
             child: Material(

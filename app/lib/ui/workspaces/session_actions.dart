@@ -6,7 +6,7 @@ import 'dart:async';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
@@ -62,8 +62,8 @@ Future<void> showPreviousSessions(
     useSafeArea: true,
     showDragHandle: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => BayaGlassSurface(
-      role: BayaGlassRole.overlay,
+    builder: (_) => BayaSurface(
+      role: BayaSurfaceRole.overlay,
       radius: 34,
       elevated: false,
       child: PreviousSessionsSheet(
@@ -132,8 +132,8 @@ Future<void> showCreateWorkspace(BuildContext context) async {
     context: context,
     showDragHandle: true,
     backgroundColor: Colors.transparent,
-    builder: (sheetContext) => BayaGlassSurface(
-      role: BayaGlassRole.overlay,
+    builder: (sheetContext) => BayaSurface(
+      role: BayaSurfaceRole.overlay,
       radius: 34,
       elevated: false,
       child: StatefulBuilder(
@@ -169,7 +169,7 @@ Future<void> showCreateWorkspace(BuildContext context) async {
                   ),
                 ),
                 const SizedBox(height: 18),
-                BayaGlassButton(
+                BayaButton(
                   onPressed: name.text.trim().isEmpty
                       ? null
                       : () async {

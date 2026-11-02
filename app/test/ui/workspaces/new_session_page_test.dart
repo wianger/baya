@@ -23,7 +23,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      final previews = Platform.environment['REMOTE_PI_PREVIEW_DIR'];
+      final previews = Platform.environment['BAYA_PREVIEW_DIR'];
       if (previews != null && Platform.isWindows) {
         final font = File(r'C:\Windows\Fonts\segoeui.ttf');
         if (font.existsSync()) {

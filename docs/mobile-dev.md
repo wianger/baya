@@ -95,5 +95,4 @@ For deterministic layout previews:
 ```
 
 Preview images are written to
-`%USERPROFILE%\Downloads\RemotePi-UI-Preview` for compatibility with existing
-local preview scripts. That path may be changed with `-OutputDirectory`.
+`%USERPROFILE%\Downloads\Baya-UI-Preview` (change with `-OutputDirectory`).

@@ -4,7 +4,7 @@ library;
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_actions.dart';
@@ -26,8 +26,8 @@ class SessionWelcome extends StatelessWidget {
       backgroundColor: colors.bg,
       appBar: AppBar(
         backgroundColor: colors.bg.withValues(alpha: 0),
-        flexibleSpace: const BayaGlassSurface(
-          role: BayaGlassRole.navigation,
+        flexibleSpace: const BayaSurface(
+          role: BayaSurfaceRole.navigation,
           radius: 0,
           elevated: false,
           child: SizedBox.expand(),
@@ -64,7 +64,7 @@ class _NoDeviceOverview extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 480),
         child: Padding(
           padding: const EdgeInsets.all(28),
-          child: BayaGlassSurface(
+          child: BayaSurface(
             radius: 32,
             child: Padding(
               padding: const EdgeInsets.all(30),
@@ -105,7 +105,7 @@ class _NoDeviceOverview extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  BayaGlassButton(
+                  BayaButton(
                     onPressed: () => context.push('/pair'),
                     icon: const Icon(LucideIcons.scanLine, size: 18),
                     label: Text(context.l10n.pairComputer),
@@ -224,7 +224,7 @@ class _WorkspaceOverview extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-            BayaGlassSurface(
+            BayaSurface(
               radius: 26,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 18),
@@ -549,7 +549,7 @@ class _FocusSessionCard extends StatelessWidget {
         : online
         ? colors.success
         : colors.muted;
-    return BayaGlassSurface(
+    return BayaSurface(
       radius: 28,
       child: Material(
         color: colors.bg.withValues(alpha: 0),
@@ -648,7 +648,7 @@ class _EmptyWorkspaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return BayaGlassSurface(
+    return BayaSurface(
       radius: 28,
       child: Padding(
         padding: const EdgeInsets.all(22),

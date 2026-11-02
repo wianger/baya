@@ -1,14 +1,14 @@
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 
-/// An AlertDialog-compatible glass modal.
+/// An AlertDialog-compatible Material 3 modal.
 ///
 /// Keeping [AlertDialog] as the returned primitive preserves semantics and
 /// tests that identify dialogs by type, while the complete visible surface is
-/// rendered by [BayaGlassSurface].
-class BayaGlassDialog extends StatelessWidget {
-  const BayaGlassDialog({
+/// rendered by [BayaSurface].
+class BayaDialog extends StatelessWidget {
+  const BayaDialog({
     super.key,
     required this.title,
     required this.content,
@@ -29,8 +29,8 @@ class BayaGlassDialog extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
-        child: BayaGlassSurface(
-          role: BayaGlassRole.overlay,
+        child: BayaSurface(
+          role: BayaSurfaceRole.overlay,
           radius: 28,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(22, 22, 22, 16),

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:app/l10n/l10n.dart';
 
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
@@ -80,8 +80,8 @@ class _PairingPageState extends State<PairingPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        flexibleSpace: const BayaGlassSurface(
-          role: BayaGlassRole.navigation,
+        flexibleSpace: const BayaSurface(
+          role: BayaSurfaceRole.navigation,
           radius: 0,
           elevated: false,
           child: SizedBox.expand(),
@@ -144,8 +144,8 @@ class _PairingPageState extends State<PairingPage> {
           MobileScanner(controller: _scanner, onDetect: _onDetect),
         Center(
           child: isConnecting
-              ? BayaGlassSurface(
-                  role: BayaGlassRole.overlay,
+              ? BayaSurface(
+                  role: BayaSurfaceRole.overlay,
                   radius: 24,
                   elevated: false,
                   child: SizedBox.square(
@@ -171,8 +171,8 @@ class _PairingPageState extends State<PairingPage> {
           left: 0,
           right: 0,
           child: Center(
-            child: BayaGlassSurface(
-              role: BayaGlassRole.content,
+            child: BayaSurface(
+              role: BayaSurfaceRole.content,
               radius: 15,
               elevated: false,
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
@@ -297,7 +297,7 @@ class _ErrorView extends StatelessWidget {
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
-          child: BayaGlassSurface(
+          child: BayaSurface(
             radius: 28,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(26, 26, 26, 24),
@@ -329,7 +329,7 @@ class _ErrorView extends StatelessWidget {
                   ),
                   if (canRetry) ...[
                     const SizedBox(height: 22),
-                    BayaGlassButton(
+                    BayaButton(
                       onPressed: onRetry,
                       label: Text(context.l10n.tryAgain),
                     ),

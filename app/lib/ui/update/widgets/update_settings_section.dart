@@ -1,7 +1,7 @@
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
@@ -65,7 +65,7 @@ class UpdateSettingsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final vm = context.watch<UpdateBannerViewModel>();
     final state = vm.state;
-    return BayaGlassSurface(
+    return BayaSurface(
       radius: 24,
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -86,7 +86,7 @@ class UpdateSettingsSection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            BayaGlassButton(
+            BayaButton(
               buttonKey: const Key('check-github-updates'),
               onPressed: state is UpdateCheckInProgress
                   ? null
@@ -122,7 +122,7 @@ class UpdateSettingsSection extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              BayaGlassButton(
+              BayaButton(
                 buttonKey: const Key('download-github-apk'),
                 onPressed: () => _download(context),
                 icon: const Icon(Icons.download, size: 18),

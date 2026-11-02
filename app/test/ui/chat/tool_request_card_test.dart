@@ -2,7 +2,7 @@ import 'package:app/domain/session_state.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/widgets/tool_request_card.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -191,7 +191,7 @@ void main() {
 
     final commandSurface = find.descendant(
       of: find.byKey(const Key('tool-command')),
-      matching: find.byType(BayaGlassSurface),
+      matching: find.byType(BayaSurface),
     );
     final commandCopyRect = tester.getRect(commandCopy);
     final commandSurfaceRect = tester.getRect(commandSurface);
@@ -330,7 +330,7 @@ void main() {
       final body = find
           .descendant(
             of: find.byKey(const Key('tool-changes')),
-            matching: find.byType(BayaGlassSurface),
+            matching: find.byType(BayaSurface),
           )
           .first;
       final bodyRect = tester.getRect(body);

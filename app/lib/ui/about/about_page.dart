@@ -1,7 +1,7 @@
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
@@ -98,8 +98,8 @@ class AboutPage extends StatelessWidget {
       backgroundColor: colors.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        flexibleSpace: const BayaGlassSurface(
-          role: BayaGlassRole.navigation,
+        flexibleSpace: const BayaSurface(
+          role: BayaSurfaceRole.navigation,
           radius: 0,
           elevated: false,
           child: SizedBox.expand(),
@@ -167,7 +167,7 @@ class AboutPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     Center(
-                      child: BayaGlassButton(
+                      child: BayaButton(
                         buttonKey: const Key('check-github-updates'),
                         onPressed: updateState is UpdateCheckInProgress
                             ? null
@@ -191,7 +191,7 @@ class AboutPage extends StatelessWidget {
                     ),
                     if (updateState is UpdateBannerVisible) ...[
                       const SizedBox(height: 16),
-                      BayaGlassSurface(
+                      BayaSurface(
                         child: Padding(
                           padding: const EdgeInsets.all(18),
                           child: Column(
@@ -218,7 +218,7 @@ class AboutPage extends StatelessWidget {
                                 ),
                               ],
                               const SizedBox(height: 12),
-                              BayaGlassButton(
+                              BayaButton(
                                 buttonKey: const Key('download-github-apk'),
                                 onPressed: () => _download(context),
                                 icon: const Icon(
@@ -251,7 +251,7 @@ class AboutPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    BayaGlassSurface(
+                    BayaSurface(
                       child: Column(
                         children: [
                           _LinkTile(
@@ -274,7 +274,7 @@ class AboutPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    BayaGlassSurface(
+                    BayaSurface(
                       child: _LinkTile(
                         icon: LucideIcons.user,
                         imageUrl: _avatarUrl.toString(),

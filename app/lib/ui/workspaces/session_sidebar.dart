@@ -9,7 +9,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/home/states/home_state.dart';
@@ -192,8 +192,8 @@ class _SessionSidebarState extends State<SessionSidebar> {
     final items = vm.workspaceItems
         .where((item) => vm.displayNameOf(item).toLowerCase().contains(query))
         .toList();
-    return BayaGlassSurface(
-      role: BayaGlassRole.card,
+    return BayaSurface(
+      role: BayaSurfaceRole.card,
       radius: widget.close == null ? 0 : 28,
       elevated: false,
       child: Material(
@@ -375,7 +375,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                       },
                     ),
                     const Spacer(),
-                    BayaGlassButton(
+                    BayaButton(
                       buttonKey: const Key('sidebar-new-session'),
                       onPressed: vm.selectedWorkspace == null
                           ? null
@@ -409,8 +409,8 @@ class _SidebarCircleAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return BayaGlassSurface(
-      role: BayaGlassRole.control,
+    return BayaSurface(
+      role: BayaSurfaceRole.control,
       radius: 22,
       elevated: false,
       child: Material(

@@ -3,7 +3,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:flutter/material.dart';
@@ -30,7 +30,7 @@ Future<void> showStandaloneModelPicker(BuildContext context) {
   );
 }
 
-/// Apple-style model chooser with a single calm list and an optional effort
+/// Model chooser with a single calm list and an optional effort
 /// picker, matching the hierarchy used by Claude mobile.
 Future<void> showModelPickerSheet(
   BuildContext context, {
@@ -137,7 +137,7 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
           // Lists shrink to their visible rows while this cap keeps long
           // catalogues usable and scrollable on compact screens.
           constraints: BoxConstraints(maxHeight: mq.size.height * .84),
-          child: BayaGlassSurface(
+          child: BayaSurface(
             key: const Key('model-picker-sheet'),
             radius: 38,
             elevated: false,
@@ -317,8 +317,8 @@ class _Header extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Padding(
               padding: const EdgeInsets.only(left: 16),
-              child: BayaGlassSurface(
-                role: BayaGlassRole.control,
+              child: BayaSurface(
+                role: BayaSurfaceRole.control,
                 radius: 22,
                 elevated: false,
                 child: SizedBox.square(
@@ -388,8 +388,8 @@ class _PickerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return BayaGlassSurface(
-      role: BayaGlassRole.content,
+    return BayaSurface(
+      role: BayaSurfaceRole.content,
       radius: 22,
       elevated: false,
       child: Material(
@@ -448,8 +448,8 @@ class _EffortList extends StatelessWidget {
       physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
       children: [
-        BayaGlassSurface(
-          role: BayaGlassRole.content,
+        BayaSurface(
+          role: BayaSurfaceRole.content,
           radius: 22,
           elevated: false,
           child: Material(
@@ -506,8 +506,8 @@ class _ModelList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return BayaGlassSurface(
-      role: BayaGlassRole.content,
+    return BayaSurface(
+      role: BayaSurfaceRole.content,
       radius: 26,
       elevated: false,
       child: Material(

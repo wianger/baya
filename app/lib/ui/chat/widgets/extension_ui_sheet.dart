@@ -4,7 +4,7 @@ import 'package:app/l10n/l10n.dart';
 
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 
@@ -234,8 +234,8 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
         child: SafeArea(
           child: BayaBackdrop(
             translucent: true,
-            child: BayaGlassSurface(
-              role: BayaGlassRole.overlay,
+            child: BayaSurface(
+              role: BayaSurfaceRole.overlay,
               radius: 0,
               elevated: false,
               child: Scaffold(
@@ -350,8 +350,8 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
     return InkWell(
       onTap: _submitting ? null : () => _toggle(q.id, o.value, multi),
       borderRadius: BorderRadius.circular(10),
-      child: BayaGlassSurface(
-        role: BayaGlassRole.content,
+      child: BayaSurface(
+        role: BayaSurfaceRole.content,
         radius: 14,
         elevated: false,
         emphasized: selected,
@@ -395,8 +395,8 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
             ],
             if (isPreview && o.preview != null && o.preview!.isNotEmpty) ...[
               const SizedBox(height: 8),
-              BayaGlassSurface(
-                role: BayaGlassRole.content,
+              BayaSurface(
+                role: BayaSurfaceRole.content,
                 radius: 8,
                 elevated: false,
                 padding: const EdgeInsets.all(10),
@@ -505,7 +505,7 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: BayaGlassButton(
+                  child: BayaButton(
                     onPressed: (_canSubmit && !_submitting) ? _submit : null,
                     label: _submitting
                         ? const SizedBox(

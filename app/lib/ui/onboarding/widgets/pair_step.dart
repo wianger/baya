@@ -1,6 +1,6 @@
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
@@ -80,8 +80,8 @@ class _PairStepState extends State<PairStep> {
     final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: BayaGlassSurface(
-        role: BayaGlassRole.card,
+      child: BayaSurface(
+        role: BayaSurfaceRole.card,
         radius: 28,
         elevated: false,
         child: Padding(
@@ -111,8 +111,8 @@ class _PairStepState extends State<PairStep> {
                 ),
               ),
               const SizedBox(height: 6),
-              BayaGlassSurface(
-                role: BayaGlassRole.content,
+              BayaSurface(
+                role: BayaSurfaceRole.content,
                 radius: 13,
                 elevated: false,
                 padding: const EdgeInsets.symmetric(
@@ -262,8 +262,8 @@ class _StatusOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return BayaGlassSurface(
-      role: BayaGlassRole.overlay,
+    return BayaSurface(
+      role: BayaSurfaceRole.overlay,
       radius: 24,
       elevated: false,
       child: Center(
@@ -287,7 +287,7 @@ class _StatusOverlay extends StatelessWidget {
               ),
               if (actionLabel != null && onAction != null) ...[
                 const SizedBox(height: 16),
-                BayaGlassButton(onPressed: onAction, label: Text(actionLabel!)),
+                BayaButton(onPressed: onAction, label: Text(actionLabel!)),
               ],
             ],
           ),

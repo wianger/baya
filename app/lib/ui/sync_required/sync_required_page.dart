@@ -3,7 +3,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -58,8 +58,8 @@ class _SyncRequiredPageState extends State<SyncRequiredPage> {
                       const SizedBox(height: 24),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: BayaGlassSurface(
-                          role: BayaGlassRole.control,
+                        child: BayaSurface(
+                          role: BayaSurfaceRole.control,
                           radius: 19,
                           elevated: false,
                           child: SizedBox.square(
@@ -113,7 +113,7 @@ class _SyncRequiredPageState extends State<SyncRequiredPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      BayaGlassButton(
+                      BayaButton(
                         onPressed: _checking ? null : _recheck,
                         label: _checking
                             ? SizedBox(
@@ -165,7 +165,7 @@ class _RequirementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return BayaGlassSurface(
+    return BayaSurface(
       radius: 20,
       elevated: false,
       child: Padding(
@@ -173,8 +173,8 @@ class _RequirementCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            BayaGlassSurface(
-              role: BayaGlassRole.control,
+            BayaSurface(
+              role: BayaSurfaceRole.control,
               radius: 9,
               elevated: false,
               child: SizedBox.square(

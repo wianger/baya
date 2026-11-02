@@ -1,6 +1,6 @@
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -30,8 +30,8 @@ Future<void> showBayaNotice(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: BayaGlassSurface(
-          role: BayaGlassRole.overlay,
+        child: BayaSurface(
+          role: BayaSurfaceRole.overlay,
           radius: 28,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 340),
@@ -76,7 +76,7 @@ Future<void> showBayaNotice(
                     ),
                   ],
                   const SizedBox(height: 20),
-                  BayaGlassButton(
+                  BayaButton(
                     buttonKey: const Key('baya-notice-confirm'),
                     onPressed: () {
                       Navigator.of(dialogContext).pop();

@@ -2,7 +2,7 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:flutter/material.dart';
 
 /// Shared motion language for the app. Values follow a restrained
-/// iOS-inspired rhythm: quick feedback, calm settling, and decisive exits.
+/// Motion rhythm: quick feedback, calm settling, and decisive exits.
 abstract final class BayaMotion {
   static const fast = Duration(milliseconds: 140);
   static const standard = Duration(milliseconds: 240);
@@ -16,7 +16,7 @@ abstract final class BayaMotion {
   static const morphSettle = Cubic(0.18, 0.94, 0.24, 1);
 }
 
-/// Lets a morphing popover keep its glass material visible while its contents
+/// Lets a morphing popover keep its surface visible while its contents
 /// cross-fade into the final layout.
 class BayaSurfaceContentMotion extends InheritedWidget {
   const BayaSurfaceContentMotion({
@@ -79,11 +79,7 @@ class BayaReveal extends StatelessWidget {
   }
 }
 
-/// Quiet canvas behind the functional glass layer.
-///
-/// Content is the visual subject. A barely perceptible tonal transition keeps
-/// large screens from looking flat without introducing the colored glows and
-/// moving light fields that competed with text in earlier builds.
+/// The page canvas: the M3 `surface` color.
 class BayaBackdrop extends StatelessWidget {
   const BayaBackdrop({
     super.key,
@@ -96,28 +92,8 @@ class BayaBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: translucent ? Colors.transparent : colors.bg,
-        gradient: translucent
-            ? null
-            : LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color.lerp(
-                    colors.bg,
-                    colors.surface,
-                    Theme.of(context).brightness == Brightness.dark
-                        ? .035
-                        : .16,
-                  )!,
-                  colors.bg,
-                ],
-                stops: const [0, .42],
-              ),
-      ),
+    return ColoredBox(
+      color: translucent ? Colors.transparent : context.colors.bg,
       child: Material(type: MaterialType.transparency, child: child),
     );
   }

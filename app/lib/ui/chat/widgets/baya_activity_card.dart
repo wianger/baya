@@ -1,6 +1,6 @@
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -30,8 +30,8 @@ class BayaActivityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return BayaGlassSurface(
-      role: BayaGlassRole.content,
+    return BayaSurface(
+      role: BayaSurfaceRole.content,
       radius: 18,
       elevated: false,
       child: Material(
@@ -117,9 +117,9 @@ class BayaFloatingActivitySurface extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 560),
           child: SizedBox(
             width: double.infinity,
-            child: BayaGlassSurface(
+            child: BayaSurface(
               key: surfaceKey,
-              role: BayaGlassRole.overlay,
+              role: BayaSurfaceRole.overlay,
               radius: 30,
               elevated: false,
               child: child,

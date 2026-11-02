@@ -107,7 +107,7 @@ Future<void> _save(WidgetTester tester, GlobalKey key, String path) async {
 }
 
 void main() {
-  final output = Platform.environment['REMOTE_PI_PREVIEW_DIR'];
+  final output = Platform.environment['BAYA_PREVIEW_DIR'];
   testWidgets('render the session file browser preview', (tester) async {
     final disabledShadows = debugDisableShadows;
     debugDisableShadows = false;

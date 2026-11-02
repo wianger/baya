@@ -1,7 +1,7 @@
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -45,7 +45,7 @@ class WelcomeStep extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 28),
-                BayaGlassSurface(
+                BayaSurface(
                   radius: 26,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -73,7 +73,7 @@ class WelcomeStep extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 26),
-                BayaGlassButton(
+                BayaButton(
                   onPressed: onNext,
                   label: Text(context.l10n.getStarted),
                   minimumSize: const Size.fromHeight(52),

@@ -2,8 +2,8 @@ import 'package:app/pairing/storage.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_dialog.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_dialog.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 
 /// Phone-local conversation rename. Empty input clears the override so the
@@ -46,7 +46,7 @@ Future<bool> showDeviceDeleteDialog(
     context: context,
     builder: (dialogContext) {
       final colors = dialogContext.colors;
-      return BayaGlassDialog(
+      return BayaDialog(
         title: Text(context.l10n.deleteNamed(name)),
         content: Text(
           context.l10n.deleteDeviceBody,
@@ -77,7 +77,7 @@ Future<bool> showWorkspaceDeleteDialog(
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => BayaGlassDialog(
+    builder: (dialogContext) => BayaDialog(
       title: Text(context.l10n.deleteWorkspaceNamed(name)),
       content: Text(
         context.l10n.deleteWorkspaceBody,
@@ -107,7 +107,7 @@ Future<bool> showSessionDeleteDialog(
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => BayaGlassDialog(
+    builder: (dialogContext) => BayaDialog(
       title: Text(context.l10n.deleteFromPhone),
       content: Text(context.l10n.deleteSessionBody(name)),
       actions: [
@@ -174,7 +174,7 @@ class _NameDialogState extends State<_NameDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => BayaGlassDialog(
+  Widget build(BuildContext context) => BayaDialog(
     title: Text(widget.title),
     content: TextField(
       controller: _controller,
@@ -188,7 +188,7 @@ class _NameDialogState extends State<_NameDialog> {
         onPressed: () => Navigator.of(context).pop(),
         child: Text(context.l10n.cancel),
       ),
-      BayaGlassButton(
+      BayaButton(
         onPressed: () => Navigator.of(context).pop(_controller.text),
         label: Text(context.l10n.save),
       ),
@@ -216,7 +216,7 @@ Future<void> showSessionInfoDialog(
   return showDialog<void>(
     context: context,
     builder: (dialogContext) {
-      return BayaGlassDialog(
+      return BayaDialog(
         title: Text(context.l10n.sessionInfo, style: dialogContext.typo.title),
         content: Column(
           mainAxisSize: MainAxisSize.min,

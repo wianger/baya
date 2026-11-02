@@ -5,7 +5,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/chat/quick_actions/states/quick_actions_state.dart';
 import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
 import 'package:app/ui/chat/quick_actions/widgets/dismiss_on_session_change.dart';
@@ -45,8 +45,8 @@ Future<void> showQuickActionsSheet(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
     builder: (ctx) {
-      return BayaGlassSurface(
-        role: BayaGlassRole.overlay,
+      return BayaSurface(
+        role: BayaSurfaceRole.overlay,
         radius: 32,
         elevated: false,
         child: DismissOnSessionChange(

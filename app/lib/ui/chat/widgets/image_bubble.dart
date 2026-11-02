@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:app/domain/session_state.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 
 /// Static image thumbnail + optional caption inside the user
@@ -58,8 +58,8 @@ class _ImageBubbleState extends State<ImageBubble> {
   Widget build(BuildContext context) {
     final caption = widget.caption.trim();
     final colors = context.colors;
-    return BayaGlassSurface(
-      role: BayaGlassRole.user,
+    return BayaSurface(
+      role: BayaSurfaceRole.user,
       radius: 12,
       emphasized: widget.isFailed,
       emphasisColor: widget.isFailed ? colors.error : null,
@@ -94,8 +94,8 @@ class _ImageBubbleState extends State<ImageBubble> {
     final colors = context.colors;
     return SizedBox(
       height: 120,
-      child: BayaGlassSurface(
-        role: BayaGlassRole.content,
+      child: BayaSurface(
+        role: BayaSurfaceRole.content,
         radius: 0,
         elevated: false,
         child: Center(

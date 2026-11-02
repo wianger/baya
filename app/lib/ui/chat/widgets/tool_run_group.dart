@@ -6,7 +6,7 @@ import 'package:app/ui/chat/widgets/tool_activity_details.dart';
 import 'package:app/ui/chat/widgets/tool_content.dart';
 import 'package:app/ui/chat/widgets/tool_request_card.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -150,8 +150,8 @@ class ToolRunGroup extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Flexible(
-                      child: BayaGlassSurface(
-                        role: BayaGlassRole.content,
+                      child: BayaSurface(
+                        role: BayaSurfaceRole.content,
                         radius: 24,
                         elevated: false,
                         child: Material(

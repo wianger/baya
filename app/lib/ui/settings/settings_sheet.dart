@@ -1,6 +1,6 @@
 import 'package:app/config/dependencies.dart';
 import 'package:app/routing/adaptive.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/settings/settings_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:flutter/material.dart';
@@ -35,8 +35,8 @@ Future<void> showSettingsSheet(BuildContext context) {
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
     builder: (ctx) {
-      return BayaGlassSurface(
-        role: BayaGlassRole.overlay,
+      return BayaSurface(
+        role: BayaSurfaceRole.overlay,
         radius: 32,
         elevated: false,
         child: FractionallySizedBox(

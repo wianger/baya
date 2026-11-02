@@ -1,6 +1,6 @@
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 
 /// Post-pair nickname modal.
@@ -32,8 +32,8 @@ Future<String?> showNicknameSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => BayaGlassSurface(
-      role: BayaGlassRole.overlay,
+    builder: (_) => BayaSurface(
+      role: BayaSurfaceRole.overlay,
       radius: 32,
       elevated: false,
       child: _NicknameSheet(defaultName: defaultName),
@@ -154,7 +154,7 @@ class _NicknameSheetState extends State<_NicknameSheet> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: BayaGlassButton(
+                    child: BayaButton(
                       buttonKey: const Key('nickname-sheet-save'),
                       onPressed: _save,
                       label: Text(context.l10n.save),

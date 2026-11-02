@@ -1,7 +1,7 @@
 import 'package:app/domain/session_files/session_files_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/copy_button.dart';
 import 'package:app/ui/session_files/states/session_files_state.dart';
@@ -159,7 +159,7 @@ class _FilesHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       child: Row(
         children: [
-          BayaGlassSurface(
+          BayaSurface(
             radius: 24,
             padding: EdgeInsets.zero,
             child: SizedBox.square(
@@ -247,8 +247,8 @@ class _DirectoryView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 4, 14, 28),
       children: [
-        BayaGlassSurface(
-          role: BayaGlassRole.content,
+        BayaSurface(
+          role: BayaSurfaceRole.content,
           radius: 18,
           elevated: false,
           padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
@@ -372,8 +372,8 @@ class _FileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BayaGlassSurface(
-      role: BayaGlassRole.control,
+    return BayaSurface(
+      role: BayaSurfaceRole.control,
       radius: 16,
       elevated: false,
       child: Material(
@@ -435,8 +435,8 @@ class _FileView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 4, 14, 28),
       children: [
-        BayaGlassSurface(
-          role: BayaGlassRole.content,
+        BayaSurface(
+          role: BayaSurfaceRole.content,
           radius: 18,
           elevated: false,
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -513,9 +513,9 @@ class _FileView extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 2),
-              BayaGlassSurface(
+              BayaSurface(
                 key: const ValueKey('session-file-content-surface'),
-                role: BayaGlassRole.content,
+                role: BayaSurfaceRole.content,
                 radius: 18,
                 elevated: false,
                 padding: const EdgeInsets.all(15),
@@ -580,8 +580,8 @@ class _FileNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BayaGlassSurface(
-      role: BayaGlassRole.content,
+    return BayaSurface(
+      role: BayaSurfaceRole.content,
       radius: 18,
       elevated: false,
       padding: const EdgeInsets.all(16),
@@ -641,7 +641,7 @@ class _ErrorView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            BayaGlassButton(
+            BayaButton(
               onPressed: onRetry,
               icon: const Icon(LucideIcons.refreshCw, size: 17),
               label: Text(context.l10n.tryAgain),

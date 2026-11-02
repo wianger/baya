@@ -1,6 +1,6 @@
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_top_right_popover.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +39,7 @@ class ContextUsageSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final vm = context.watch<ContextUsageViewModel>();
     final state = vm.state;
-    return BayaGlassSurface(
+    return BayaSurface(
       radius: 24,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: SingleChildScrollView(

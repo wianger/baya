@@ -1,7 +1,7 @@
 param(
     [string]$SourceApp = (Join-Path (Split-Path $PSScriptRoot -Parent) 'app'),
     [string]$BuildRoot = (Join-Path $env:LOCALAPPDATA 'RemotePiMobileBuild'),
-    [string]$OutputDirectory = (Join-Path $env:USERPROFILE 'Downloads\RemotePi-UI-Preview'),
+    [string]$OutputDirectory = (Join-Path $env:USERPROFILE 'Downloads\Baya-UI-Preview'),
     [string]$ProxyUrl = $env:HTTPS_PROXY,
     [string]$FlutterRoot = 'C:\Scoop\apps\flutter\current',
     [ValidateSet('dark', 'light')][string]$Theme = 'dark'
@@ -47,13 +47,13 @@ if ((Get-FileHash -LiteralPath $cjk -Algorithm SHA256).Hash -ne '2C76254F6FC379F
     throw 'Noto preview font checksum mismatch.'
 }
 $savedEnvironment = @{}
-foreach ($name in @('REMOTE_PI_PREVIEW_DIR', 'REMOTE_PI_PREVIEW_THEME', 'REMOTE_PI_PREVIEW_CJK_FONT')) {
+foreach ($name in @('BAYA_PREVIEW_DIR', 'BAYA_PREVIEW_THEME', 'BAYA_PREVIEW_CJK_FONT')) {
     $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 try {
-    $env:REMOTE_PI_PREVIEW_DIR = [IO.Path]::GetFullPath($OutputDirectory)
-    $env:REMOTE_PI_PREVIEW_THEME = $Theme
-    $env:REMOTE_PI_PREVIEW_CJK_FONT = $cjk
+    $env:BAYA_PREVIEW_DIR = [IO.Path]::GetFullPath($OutputDirectory)
+    $env:BAYA_PREVIEW_THEME = $Theme
+    $env:BAYA_PREVIEW_CJK_FONT = $cjk
     Push-Location $buildApp
     try {
         & $flutter pub get

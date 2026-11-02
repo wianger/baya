@@ -23,7 +23,7 @@ import 'package:app/ui/chat/widgets/extension_ui_sheet.dart';
 import 'package:app/ui/chat/widgets/input_bar.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_top_right_popover.dart';
@@ -168,8 +168,8 @@ class ChatPage extends StatelessWidget {
         children: [
           Align(
             alignment: Alignment.centerLeft,
-            child: BayaGlassSurface(
-              role: BayaGlassRole.control,
+            child: BayaSurface(
+              role: BayaSurfaceRole.control,
               radius: 25,
               padding: EdgeInsets.zero,
               child: SizedBox.square(
@@ -249,8 +249,8 @@ class ChatPage extends StatelessWidget {
           ),
           Align(
             alignment: Alignment.centerRight,
-            child: BayaGlassSurface(
-              role: BayaGlassRole.control,
+            child: BayaSurface(
+              role: BayaSurfaceRole.control,
               radius: 25,
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Row(
@@ -304,8 +304,8 @@ class ChatPage extends StatelessWidget {
       surfaceRadius: 22,
       child: KeyedSubtree(
         key: const Key('session-actions-popover'),
-        child: BayaGlassSurface(
-          role: BayaGlassRole.overlay,
+        child: BayaSurface(
+          role: BayaSurfaceRole.overlay,
           radius: 22,
           padding: const EdgeInsets.symmetric(vertical: 7),
           child: Column(
@@ -761,8 +761,8 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            BayaGlassSurface(
-              role: BayaGlassRole.content,
+            BayaSurface(
+              role: BayaSurfaceRole.content,
               radius: 36,
               elevated: false,
               child: SizedBox.square(
@@ -782,7 +782,7 @@ class _EmptyState extends StatelessWidget {
             ),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 22),
-              BayaGlassButton(onPressed: onAction, label: Text(actionLabel!)),
+              BayaButton(onPressed: onAction, label: Text(actionLabel!)),
             ],
           ],
         ),

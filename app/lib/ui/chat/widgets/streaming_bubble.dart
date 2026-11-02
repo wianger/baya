@@ -5,7 +5,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 
@@ -128,7 +128,7 @@ class _AgentWorkingIndicatorState extends State<AgentWorkingIndicator>
       child: ExcludeSemantics(
         child: Align(
           alignment: Alignment.centerLeft,
-          child: BayaGlassSurface(
+          child: BayaSurface(
             radius: 18,
             elevated: false,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),

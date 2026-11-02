@@ -2,18 +2,15 @@ import 'package:flutter/material.dart';
 
 import 'package:app/ui/core/themes/app_colors.dart';
 
-/// Bundled OFL fonts stay in place for consistent Latin rendering across
-/// Android devices. CJK continues to use the device's native sans face.
-const String kSansFamily = 'Geist';
+/// Interface text uses the system face (Roboto / Google Sans), which shares
+/// metrics with the device's CJK font so mixed Chinese and Latin text sits
+/// on one baseline. Only code and the wordmark use bundled fonts.
+const String? kSansFamily = null;
 const String kMonoFamily = 'Geist Mono';
 const String kWordmarkFamily = 'Pinyon Script';
 
-/// CJK and other scripts use the device's installed sans fonts.
-const List<String> kFontFallback = [
-  'Noto Sans CJK SC',
-  'Noto Sans SC',
-  'sans-serif',
-];
+/// System fallback handles CJK and other scripts.
+const List<String>? kFontFallback = null;
 
 /// General branded labels use the bundled interface face.
 TextStyle brandTextStyle({
@@ -91,7 +88,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
     fontSize: 20,
     height: 1.25,
     fontWeight: FontWeight.w600,
-    letterSpacing: -0.4,
   );
 
   /// Build the style set for a given color palette so text colors track the
@@ -119,22 +115,19 @@ class AppTypography extends ThemeExtension<AppTypography> {
         fontFamilyFallback: kFontFallback,
         fontSize: 16.0,
         color: c.text,
-        height: 1.47,
-        letterSpacing: -0.18,
+        height: 1.5,
       ),
     );
   }
 
-  /// Dark typography — mono text matches the original `0xFFE6E6E6`.
   static final AppTypography dark = AppTypography.fromColors(
     AppColors.dark,
-    monoColor: const Color(0xFFE6E6E6),
+    monoColor: AppColors.dark.text,
   );
 
-  /// Light typography — mono text is a near-black for contrast on white.
   static final AppTypography light = AppTypography.fromColors(
     AppColors.light,
-    monoColor: const Color(0xFF1A1A1A),
+    monoColor: AppColors.light.text,
   );
 
   @override

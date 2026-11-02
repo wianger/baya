@@ -4,7 +4,7 @@ import 'package:app/l10n/l10n.dart';
 
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -26,8 +26,8 @@ class AgentPickerField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = enabled && agents.isNotEmpty;
-    return BayaGlassSurface(
-      role: BayaGlassRole.card,
+    return BayaSurface(
+      role: BayaSurfaceRole.card,
       radius: 16,
       elevated: false,
       child: InkWell(
@@ -41,8 +41,8 @@ class AgentPickerField extends StatelessWidget {
                   isScrollControlled: true,
                   useSafeArea: true,
                   backgroundColor: Colors.transparent,
-                  builder: (_) => BayaGlassSurface(
-                    role: BayaGlassRole.overlay,
+                  builder: (_) => BayaSurface(
+                    role: BayaSurfaceRole.overlay,
                     radius: 34,
                     elevated: false,
                     child: _AgentPickerSheet(

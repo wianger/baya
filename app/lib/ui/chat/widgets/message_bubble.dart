@@ -7,7 +7,7 @@ import 'package:app/domain/session_state.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/chat/widgets/image_bubble.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_glass_surface.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -54,8 +54,8 @@ class UserBubble extends StatelessWidget {
                         caption: message.text,
                         isFailed: isFailed,
                       )
-                    : BayaGlassSurface(
-                        role: BayaGlassRole.user,
+                    : BayaSurface(
+                        role: BayaSurfaceRole.user,
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(22),
                           topRight: Radius.circular(22),
@@ -150,8 +150,8 @@ class CompactionBubble extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: BayaGlassSurface(
-            role: BayaGlassRole.content,
+          child: BayaSurface(
+            role: BayaSurfaceRole.content,
             radius: 15,
             elevated: false,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
