@@ -46,14 +46,14 @@ export class BayaManager {
         }),
       ];
     }
-    const results = await Promise.allSettled(sessions.map((session) => this.startSession(session)));
-    for (const result of results) {
-      if (result.status === "rejected") {
-        process.stderr.write(`[baya] ${errorMessage(result.reason)}\n`);
-      }
-    }
-    if (results.every((result) => result.status === "rejected")) {
-      throw new Error("No Baya session could be started. Run `baya doctor` for diagnostics.");
+    // Agents start in the background: a slow or broken agent must not keep
+    // the host (CLI, pairing, relay) from coming up. Failures retry with
+    // the same backoff as a crash.
+    for (const session of sessions) {
+      this.startSession(session).catch((error: unknown) => {
+        process.stderr.write(`[baya] ${errorMessage(error)}\n`);
+        this.scheduleRestart(session.id, 0);
+      });
     }
   }
 
@@ -108,12 +108,12 @@ export class BayaManager {
     id?: string,
     ttlMs?: number,
   ): PendingPairToken & { session_id: string; session_name: string } {
-    const record = id ? findSession(id) : this.list().find((session) => session.online);
+    // Prefer a live session, but one that is still starting is fine: the
+    // token only names its room, which answers once the agent is up.
+    const sessions = this.list();
+    const record = id ? findSession(id) : (sessions.find((s) => s.online) ?? sessions[0]);
     if (!record) {
-      throw new Error(id ? `No session matches "${id}".` : "No Baya session is online.");
-    }
-    if (!this.hosts.has(record.id)) {
-      throw new Error(`${record.name} is not online. Check \`baya status\`.`);
+      throw new Error(id ? `No session matches "${id}".` : "No Baya session is registered.");
     }
     return {
       ...issuePendingPairToken(roomIdForBayaSession(record), ttlMs),

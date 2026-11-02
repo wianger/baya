@@ -308,7 +308,8 @@ export class PiAdapter implements AgentAdapter {
 
   async start(): Promise<void> {
     await this.rpc.start();
-    const state = record(await this.rpc.request("get_state"));
+    // A cold Pi start (first run, Windows, antivirus scans) can take a while.
+    const state = record(await this.rpc.request("get_state", {}, 90_000));
     this.captureState(state);
   }
 
