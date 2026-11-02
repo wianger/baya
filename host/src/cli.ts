@@ -6,7 +6,6 @@ import {
   existsSync,
   mkdirSync,
   openSync,
-  readFileSync,
   statSync,
   watch,
 } from "node:fs";
@@ -48,7 +47,16 @@ import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/sto
 import { packageVersion } from "./runtime/version.ts";
 import { installStartup, uninstallStartup } from "./service.ts";
 import { findSession, listSessions, removeSession } from "./session/registry.ts";
-import { TailnetPairingServer, tailnetSelf } from "./tailnet/pairing_server.ts";
+import {
+  hostLabel,
+  servePath,
+  TailnetPairingServer,
+  tailnetPairPort,
+  tailnetSelf,
+} from "./tailnet/pairing_server.ts";
+
+const LABEL_NAMES = { windows: "Windows", wsl: "WSL", linux: "Linux", macos: "macOS" } as const;
+
 import { workspaceAgentDefinition } from "./workspace/agents.ts";
 import { availableAgents, resolveDirectory } from "./workspace/directories.ts";
 import type { WorkspaceAgent } from "./workspace/types.ts";
@@ -289,11 +297,22 @@ async function runForeground(args: ParsedArgs): Promise<void> {
 async function startTailnetPairing(manager: BayaManager, control: ControlServer): Promise<void> {
   const self = await tailnetSelf();
   if (!self) return;
-  const server = new TailnetPairingServer(() => pairingUri(manager.pair()));
+  const label = hostLabel();
+  const identity = await getOrCreateEd25519Keypair();
+  const server = new TailnetPairingServer(
+    {
+      label,
+      name: `${hostname()} (${LABEL_NAMES[label]})`,
+      key: Buffer.from(identity.publicKey).toString("base64"),
+    },
+    () => pairingUri(manager.pair()),
+  );
   try {
     await server.start(self);
     control.tailnetName = self.name;
-    out(`[baya] Tailscale pairing on ${self.ip}; phones can type "${self.name}"`);
+    out(
+      `[baya] Tailscale pairing (${label}) on port ${tailnetPairPort(label)}; phones type "${self.name}"`,
+    );
   } catch (error) {
     out(`[baya] Tailscale pairing unavailable: ${error instanceof Error ? error.message : error}`);
   }
@@ -422,14 +441,6 @@ async function logs(args: ParsedArgs): Promise<void> {
   await new Promise(() => {});
 }
 
-function runningInWsl(): boolean {
-  try {
-    return readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft");
-  } catch {
-    return false;
-  }
-}
-
 async function relayReachable(url: string): Promise<boolean> {
   try {
     const response = await fetch(new URL("/health", url), { signal: AbortSignal.timeout(4_000) });
@@ -481,12 +492,13 @@ async function doctor(args: ParsedArgs): Promise<void> {
   }
   if (host?.tailnet) {
     lines.push(ok(`Tailscale pairing: phones type ${host.tailnet}`));
-    if (runningInWsl()) {
+    const label = hostLabel();
+    if (label === "wsl" || label === "windows") {
+      const path = servePath(label);
       lines.push(
-        warn("WSL: phones reach the host through tailscale serve (inbound to WSL is firewalled)"),
-        hint(
-          "on Windows, once:\n" +
-            "    tailscale serve --bg --set-path /baya-pair http://127.0.0.1:7480/baya-pair",
+        dim("  phones reach it through tailscale serve; on Windows, once:"),
+        dim(
+          `    tailscale serve --bg --set-path ${path} http://127.0.0.1:${tailnetPairPort(label)}${path}`,
         ),
       );
     }

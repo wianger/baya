@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { TailnetPairingServer } from "../src/tailnet/pairing_server.ts";
+import { type HostInfo, TailnetPairingServer } from "../src/tailnet/pairing_server.ts";
 
 const self = {
   ip: "127.0.0.1",
@@ -8,10 +8,12 @@ const self = {
   userId: 42,
   login: "me@github",
 };
+const info: HostInfo = { label: "windows", name: "BOX (Windows)", key: "a2V5" };
 
 async function serve(callerUser: number | null) {
   let issued = 0;
   const server = new TailnetPairingServer(
+    info,
     async () => `baya://pair?n=${++issued}`,
     async () => callerUser,
   );
@@ -21,12 +23,13 @@ async function serve(callerUser: number | null) {
 }
 
 describe("Tailscale pairing endpoint", () => {
-  test("hands a pairing code to the owner's own devices", async () => {
+  test("describes itself and issues codes to the owner's devices", async () => {
     const { server, url } = await serve(42);
     try {
+      expect(await (await fetch(`${url}/info`)).json()).toEqual(info);
       const response = await fetch(`${url}/pair`);
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ uri: "baya://pair?n=1", name: "box" });
+      expect(await response.json()).toEqual({ uri: "baya://pair?n=1", ...info });
       expect((await fetch(`${url}/other`)).status).toBe(404);
     } finally {
       server.close();
@@ -38,23 +41,22 @@ describe("Tailscale pairing endpoint", () => {
       const { server, url } = await serve(user);
       try {
         expect((await fetch(`${url}/pair`)).status).toBe(403);
+        expect((await fetch(`${url}/info`)).status).toBe(403);
       } finally {
         server.close();
       }
     }
   });
 
-  test("through tailscale serve, the login header identifies the caller", async () => {
+  test("through tailscale serve: its own label path, the login header, and the legacy path", async () => {
     const { server, url } = await serve(null);
+    const as = (login: string) => ({ headers: { "Tailscale-User-Login": login } });
     try {
-      const mine = await fetch(`${url}/baya-pair/pair`, {
-        headers: { "Tailscale-User-Login": "me@github" },
-      });
-      expect(mine.status).toBe(200);
-      const theirs = await fetch(`${url}/baya-pair/pair`, {
-        headers: { "Tailscale-User-Login": "someone@github" },
-      });
-      expect(theirs.status).toBe(403);
+      expect((await fetch(`${url}/baya-pair/windows/info`, as("me@github"))).status).toBe(200);
+      expect((await fetch(`${url}/baya-pair/wsl/info`, as("me@github"))).status).toBe(404);
+      expect((await fetch(`${url}/baya-pair/info`, as("me@github"))).status).toBe(200);
+      expect((await fetch(`${url}/baya-pair/windows/pair`, as("someone@github"))).status).toBe(403);
+      expect((await fetch(`${url}/baya-pair/windows/pair`, as("me@github"))).status).toBe(200);
     } finally {
       server.close();
     }

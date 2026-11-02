@@ -10,21 +10,35 @@ class TailnetPairingException implements Exception {
   const TailnetPairingException(this.reason);
 }
 
-/// Port the host's Tailscale pairing endpoint listens on.
-const kTailnetPairingPort = 7480;
+/// One Baya host on a computer. Windows and WSL can each run one under the
+/// same Tailscale name.
+class TailnetHost {
+  final String label;
+  final String name;
+  final String key;
+  final Uri pairUri;
+  const TailnetHost({
+    required this.label,
+    required this.name,
+    required this.key,
+    required this.pairUri,
+  });
+}
 
-/// Asks the computer called [name] on this tailnet for a pairing code.
+const _labels = ['wsl', 'windows', 'linux', 'macos'];
+const _directPorts = [7480, 7481];
+const _timeout = Duration(seconds: 8);
+
+/// Finds the Baya hosts on the computer called [name].
 ///
-/// Tries, in order:
-/// 1. `https://<full name>/baya-pair/pair` — through the computer's
-///    `tailscale serve`, which works even when inbound connections are
-///    firewalled (WSL). A short name is completed with [tailnetSuffix]
-///    (e.g. `tail1234.ts.net`, taken from the relay address).
-/// 2. `http://<name>:7480/pair` — the host's direct tailnet listener.
-///
-/// The host answers only to devices of the same Tailscale account, and both
-/// paths stay inside the tailnet, so the code is as trustworthy as a scan.
-Future<String> fetchTailnetPairingCode(
+/// Each host answers `…/info` only to devices of the same Tailscale account
+/// and only inside the tailnet, so what comes back is as trustworthy as a
+/// scanned code. Probed in parallel:
+/// - `https://<full name>/baya-pair/<label>/info` through the computer's
+///   `tailscale serve` (works even when inbound connections are firewalled,
+///   as on WSL). A short name is completed with [tailnetSuffix];
+/// - `http://<name>:<port>/info` on each host's direct tailnet listener.
+Future<List<TailnetHost>> discoverTailnetHosts(
   String name, {
   String? tailnetSuffix,
   http.Client? client,
@@ -33,39 +47,88 @@ Future<String> fetchTailnetPairingCode(
   final fullName = host.contains('.')
       ? host
       : (tailnetSuffix == null ? null : '$host.$tailnetSuffix');
-  final candidates = [
-    if (fullName != null)
-      Uri(scheme: 'https', host: fullName, path: '/baya-pair/pair'),
-    Uri(scheme: 'http', host: host, port: kTailnetPairingPort, path: '/pair'),
+  final probes = <({Uri info, Uri pair})>[
+    if (fullName != null) ...[
+      for (final label in _labels)
+        (
+          info: Uri.https(fullName, '/baya-pair/$label/info'),
+          pair: Uri.https(fullName, '/baya-pair/$label/pair'),
+        ),
+      (
+        info: Uri.https(fullName, '/baya-pair/info'),
+        pair: Uri.https(fullName, '/baya-pair/pair'),
+      ),
+    ],
+    for (final port in _directPorts)
+      (
+        info: Uri(scheme: 'http', host: host, port: port, path: '/info'),
+        pair: Uri(scheme: 'http', host: host, port: port, path: '/pair'),
+      ),
   ];
   final http_ = client ?? http.Client();
-  TailnetPairingException? last;
-  for (final uri in candidates) {
-    final http.Response response;
-    try {
-      response = await http_.get(uri).timeout(const Duration(seconds: 8));
-    } catch (_) {
-      last = const TailnetPairingException(TailnetPairingFailure.unreachable);
-      continue;
-    }
-    switch (response.statusCode) {
-      case 200:
+  var refused = false;
+  final results = await Future.wait(
+    probes.map((probe) async {
+      try {
+        final response = await http_.get(probe.info).timeout(_timeout);
+        if (response.statusCode == 403) refused = true;
+        if (response.statusCode != 200) return null;
         final body = jsonDecode(response.body);
-        if (body is Map && body['uri'] is String) return body['uri'] as String;
-        throw const TailnetPairingException(TailnetPairingFailure.notReady);
-      case 403:
-        throw const TailnetPairingException(
-          TailnetPairingFailure.notYourAccount,
+        if (body is! Map ||
+            body['label'] is! String ||
+            body['name'] is! String ||
+            body['key'] is! String) {
+          return null;
+        }
+        return TailnetHost(
+          label: body['label'] as String,
+          name: body['name'] as String,
+          key: body['key'] as String,
+          pairUri: probe.pair,
         );
-      case 404:
-        // This path is not set up on that computer; try the next one.
-        last = const TailnetPairingException(TailnetPairingFailure.unreachable);
-      default:
-        last = const TailnetPairingException(TailnetPairingFailure.notReady);
-    }
+      } catch (_) {
+        return null;
+      }
+    }),
+  );
+  // The same host can answer on several paths; keep the first (HTTPS) one.
+  final byKey = <String, TailnetHost>{};
+  for (final found in results.whereType<TailnetHost>()) {
+    byKey.putIfAbsent(found.key, () => found);
   }
-  throw last ??
-      const TailnetPairingException(TailnetPairingFailure.unreachable);
+  if (byKey.isEmpty) {
+    throw TailnetPairingException(
+      refused
+          ? TailnetPairingFailure.notYourAccount
+          : TailnetPairingFailure.unreachable,
+    );
+  }
+  return byKey.values.toList();
+}
+
+/// A fresh pairing code from [host], used exactly like a scanned one.
+Future<String> fetchTailnetPairingCode(
+  TailnetHost host, {
+  http.Client? client,
+}) async {
+  final http.Response response;
+  try {
+    response = await (client ?? http.Client())
+        .get(host.pairUri)
+        .timeout(_timeout);
+  } catch (_) {
+    throw const TailnetPairingException(TailnetPairingFailure.unreachable);
+  }
+  switch (response.statusCode) {
+    case 200:
+      final body = jsonDecode(response.body);
+      if (body is Map && body['uri'] is String) return body['uri'] as String;
+      throw const TailnetPairingException(TailnetPairingFailure.notReady);
+    case 403:
+      throw const TailnetPairingException(TailnetPairingFailure.notYourAccount);
+    default:
+      throw const TailnetPairingException(TailnetPairingFailure.notReady);
+  }
 }
 
 /// The tailnet domain of a `*.ts.net` relay address, e.g. `tail1234.ts.net`.

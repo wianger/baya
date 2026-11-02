@@ -51,32 +51,50 @@ class _TailnetPairBodyState extends State<_TailnetPairBody> {
     super.dispose();
   }
 
+  /// Hosts found on the typed computer when there is more than one.
+  List<TailnetHost>? _choices;
+
   Future<void> _pair() async {
     final name = _name.text.trim();
     if (name.isEmpty || _busy) return;
+    await _guard(name, () async {
+      final hosts = await discoverTailnetHosts(
+        name,
+        tailnetSuffix: _tailnetSuffix(),
+      );
+      if (hosts.length == 1) return _pairWith(hosts.single, name);
+      if (mounted) setState(() => _choices = hosts);
+    });
+  }
+
+  Future<void> _pairWith(TailnetHost host, String name) =>
+      _guard(name, () async {
+        final code = await fetchTailnetPairingCode(host);
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        widget.onSubmit(code);
+      });
+
+  /// Runs [action] with the busy state and turns failures into messages.
+  Future<void> _guard(String name, Future<void> Function() action) async {
     final l10n = context.l10n;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final code = await fetchTailnetPairingCode(
-        name,
-        tailnetSuffix: _tailnetSuffix(),
-      );
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      widget.onSubmit(code);
+      await action();
     } on TailnetPairingException catch (e) {
       if (!mounted) return;
       setState(() {
-        _busy = false;
         _error = switch (e.reason) {
           TailnetPairingFailure.notYourAccount => l10n.tailnetNotYourAccount,
           TailnetPairingFailure.unreachable => l10n.tailnetUnreachable(name),
           TailnetPairingFailure.notReady => l10n.tailnetNotReady,
         };
       });
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -121,6 +139,23 @@ class _TailnetPairBodyState extends State<_TailnetPairBody> {
               prefixIcon: const Icon(LucideIcons.monitor),
             ),
           ),
+          if (_choices case final hosts?) ...[
+            const SizedBox(height: 12),
+            Text(l10n.chooseBaya, style: context.typo.sansBody),
+            for (final host in hosts)
+              ListTile(
+                key: Key('tailnet-host-${host.label}'),
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  host.label == 'windows'
+                      ? LucideIcons.appWindow
+                      : LucideIcons.terminal,
+                ),
+                title: Text(host.name),
+                enabled: !_busy,
+                onTap: () => _pairWith(host, _name.text.trim()),
+              ),
+          ],
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,

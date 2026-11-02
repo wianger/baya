@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
 
@@ -16,7 +17,42 @@ export interface TailnetSelf {
   login: string;
 }
 
-export const TAILNET_PAIR_PORT = Number(process.env["BAYA_TAILNET_PORT"] ?? 7480);
+/**
+ * Which Baya on this machine: WSL and Windows can both run one, sharing a
+ * Tailscale name and (in mirrored networking) their ports.
+ */
+export type HostLabel = "windows" | "wsl" | "linux" | "macos";
+
+export function hostLabel(): HostLabel {
+  if (process.platform === "win32") return "windows";
+  if (process.platform === "darwin") return "macos";
+  try {
+    if (readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft")) return "wsl";
+  } catch {
+    // not WSL
+  }
+  return "linux";
+}
+
+/** One port per label so a Windows and a WSL host can listen side by side. */
+export function tailnetPairPort(label: HostLabel = hostLabel()): number {
+  const override = Number(process.env["BAYA_TAILNET_PORT"]);
+  if (Number.isInteger(override) && override > 0) return override;
+  return label === "windows" ? 7481 : 7480;
+}
+
+/** The `tailscale serve` path for this host's pairing endpoint. */
+export function servePath(label: HostLabel = hostLabel()): string {
+  return `/baya-pair/${label}`;
+}
+
+/** What `/info` tells an authorized phone about this host. */
+export interface HostInfo {
+  label: HostLabel;
+  name: string;
+  /** Host public key (base64), so a phone can tell hosts apart. */
+  key: string;
+}
 
 /**
  * Runs `tailscale <command> --json [args]` (`tailscale.exe` from WSL). Go's
@@ -57,63 +93,76 @@ export async function tailnetUserOf(ip: string): Promise<number | null> {
 }
 
 /**
- * Two ways in, same rule:
+ * This host's pairing endpoint. Two ways in, same rule:
+ * - through `tailscale serve` (`/baya-pair/<label>` → 127.0.0.1): HTTPS on
+ *   the machine's MagicDNS name, which works when inbound connections are
+ *   firewalled (WSL). Serve names the caller in `Tailscale-User-Login`,
+ *   trusted only on loopback, where nothing else can set it;
  * - direct, on the tailnet address: the caller is identified by
- *   `tailscale whois` on its source address;
- * - through `tailscale serve` (`/baya-pair` → 127.0.0.1): HTTPS on the
- *   machine's MagicDNS name, the path that works when inbound connections
- *   are firewalled (WSL). Serve names the caller in `Tailscale-User-Login`,
- *   which is trusted only on loopback, where nothing else can set it.
+ *   `tailscale whois` on its source address.
  *
- * `GET /pair` hands a fresh pairing code to devices
- * signed in to the same Tailscale account, so a phone pairs by typing this
- * computer's name instead of scanning. Tailscale authenticates the caller's
- * address and encrypts the request, so the host key arrives as safely as
- * through a QR code. Anyone else gets 403.
+ * `GET …/info` describes this host and `GET …/pair` issues a pairing code,
+ * both only to devices of the same Tailscale account (403 otherwise).
+ * Tailscale authenticates and encrypts the request, so the host key
+ * arrives as safely as through a QR code. `/baya-pair/{info,pair}` without
+ * a label stays as the pre-label serve mapping.
  */
 export class TailnetPairingServer {
   private readonly servers: Server[] = [];
   private lastIssued = 0;
+  private readonly info: HostInfo;
   private readonly issue: () => Promise<string>;
   private readonly whois: (ip: string) => Promise<number | null>;
 
   constructor(
+    info: HostInfo,
     issue: () => Promise<string>,
     whois: (ip: string) => Promise<number | null> = tailnetUserOf,
   ) {
+    this.info = info;
     this.issue = issue;
     this.whois = whois;
   }
 
-  async start(self: TailnetSelf, port = TAILNET_PAIR_PORT): Promise<void> {
+  /** `info` or `pair` when [path] addresses this host, else null. */
+  private route(path: string): "info" | "pair" | null {
+    for (const action of ["info", "pair"] as const) {
+      if (
+        path === `/${action}` ||
+        path === `/baya-pair/${action}` ||
+        path.endsWith(`/baya-pair/${this.info.label}/${action}`)
+      ) {
+        return action;
+      }
+    }
+    return null;
+  }
+
+  async start(self: TailnetSelf, port = tailnetPairPort(this.info.label)): Promise<void> {
     const handler = async (request: IncomingMessage, response: ServerResponse) => {
-      const reply = (status: number, body: Record<string, unknown>) => {
+      const reply = (status: number, body: object) => {
         response.writeHead(status, { "content-type": "application/json" });
         response.end(JSON.stringify(body));
       };
       const caller = (request.socket.remoteAddress ?? "").replace(/^::ffff:/, "");
-      const path = (request.url ?? "").split("?")[0];
-      // `tailscale serve` may or may not strip its mount path.
-      if (request.method !== "GET" || !(path === "/pair" || path?.endsWith("/baya-pair/pair"))) {
-        return reply(404, {});
-      }
+      const action =
+        request.method === "GET" ? this.route((request.url ?? "").split("?")[0]!) : null;
+      if (!action) return reply(404, {});
       const login = request.headers["tailscale-user-login"];
       const viaServe = (caller === "127.0.0.1" || caller === "::1") && typeof login === "string";
       const allowed = viaServe
         ? login === self.login && self.login !== ""
         : (await this.whois(caller)) === self.userId;
       if (!allowed) {
-        const who = viaServe
-          ? String(request.headers["tailscale-user-login"] ?? "no login")
-          : caller;
-        log(`refused ${who}`);
+        log(`refused ${viaServe ? String(login) : caller}`);
         return reply(403, { error: "This device is not signed in to your Tailscale account." });
       }
+      if (action === "info") return reply(200, this.info);
       if (Date.now() - this.lastIssued < 1_000) return reply(429, { error: "Try again." });
       this.lastIssued = Date.now();
       try {
-        log(`issued a pairing code to ${caller}`);
-        return reply(200, { uri: await this.issue(), name: self.name });
+        log(`issued a pairing code to ${viaServe ? String(login) : caller}`);
+        return reply(200, { uri: await this.issue(), ...this.info });
       } catch (error) {
         return reply(503, { error: error instanceof Error ? error.message : "Not ready." });
       }
@@ -121,7 +170,6 @@ export class TailnetPairingServer {
     // The tailnet address for direct callers, loopback for `tailscale serve`.
     for (const address of new Set([self.ip, "127.0.0.1"])) {
       const server = createServer(handler);
-      server.on("connection", (socket) => log(`connection from ${socket.remoteAddress}`));
       await new Promise<void>((resolve, reject) => {
         server.once("error", reject);
         server.listen(port, address, () => resolve());

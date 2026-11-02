@@ -706,5 +706,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "chooseBaya": "This computer runs more than one Baya. Which one?"
 }
