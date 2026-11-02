@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/data/images/image_picker_service.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/domain/entities/agent_command.dart';
@@ -424,11 +426,13 @@ class _InputBarState extends State<InputBar> {
                           cursorColor: colors.accent,
                           decoration: InputDecoration(
                             hintText: widget.streaming
-                                ? 'Steer current response…'
+                                ? context.l10n.steerCurrentResponse
                                 : (widget.voice != null ||
                                       widget.onStartAudio != null)
-                                ? 'Reply to ${widget.agentLabel} or hold to talk…'
-                                : 'Reply to ${widget.agentLabel}…',
+                                ? context.l10n.replyToAgentOrTalk(
+                                    widget.agentLabel,
+                                  )
+                                : context.l10n.replyToAgent(widget.agentLabel),
                             hintStyle: context.typo.sansBody.copyWith(
                               color: colors.muted,
                             ),
@@ -595,7 +599,9 @@ class _QueuedMessagePreview extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        editable ? 'Queued. Tap to edit.' : 'Queued follow-up.',
+                        editable
+                            ? context.l10n.queuedTapToEdit
+                            : context.l10n.queuedFollowUp,
                         style: TextStyle(
                           color: colors.accent,
                           fontFamily: kMonoFamily,
@@ -625,7 +631,7 @@ class _QueuedMessagePreview extends StatelessWidget {
                     height: 28,
                     child: IconButton(
                       key: const Key('input-bar-clear-queued'),
-                      tooltip: 'Clear queued message',
+                      tooltip: context.l10n.clearQueuedMessage,
                       padding: EdgeInsets.zero,
                       iconSize: 16,
                       splashRadius: 16,
@@ -697,7 +703,7 @@ class _AttachButton extends StatelessWidget {
           key: const Key('input-bar-attach'),
           padding: EdgeInsets.zero,
           iconSize: 18,
-          tooltip: 'Attach image',
+          tooltip: context.l10n.attachImage,
           icon: Icon(
             LucideIcons.plus,
             color: enabled
@@ -993,10 +999,10 @@ class _ComposerActionButton extends StatelessWidget {
     }
 
     final label = _mode == _ComposerMode.sendAudio
-        ? 'Voice input'
+        ? context.l10n.voiceInput
         : _mode == _ComposerMode.cancel
-        ? 'Stop response'
-        : 'Send message';
+        ? context.l10n.stopResponse
+        : context.l10n.sendMessage;
     final voiceMode = _mode == _ComposerMode.sendAudio && voiceEnabled;
     return Semantics(
       button: true,
@@ -1004,7 +1010,7 @@ class _ComposerActionButton extends StatelessWidget {
       enabled: _resolveTap() != null,
       child: Tooltip(
         key: tooltipKey,
-        message: voiceMode ? 'Hold to talk' : label,
+        message: voiceMode ? context.l10n.holdToTalk : label,
         triggerMode: voiceMode
             ? TooltipTriggerMode.manual
             : TooltipTriggerMode.longPress,
@@ -1137,22 +1143,47 @@ class _SlashPalette extends StatelessWidget {
   final String? error;
   final void Function(String id, String raw) onSelected;
 
-  static const _commands = [
-    _SlashCommand('new', 'New session', '/new', LucideIcons.squarePen),
+  static final _commands = [
+    _SlashCommand('new', appL10n.newSession, '/new', LucideIcons.squarePen),
     _SlashCommand(
       'workspace',
-      'New workspace',
+      appL10n.newWorkspace,
       '/workspace',
       LucideIcons.folderPlus,
     ),
-    _SlashCommand('model', 'Switch model', '/model', LucideIcons.cpu),
-    _SlashCommand('thinking', 'Thinking level', '/thinking', LucideIcons.brain),
-    _SlashCommand('compact', 'Compact context', '/compact', LucideIcons.shrink),
-    _SlashCommand('context', 'Context usage', '/context', LucideIcons.activity),
-    _SlashCommand('attach', 'Attach image', '/attach', LucideIcons.paperclip),
-    _SlashCommand('settings', 'Settings', '/settings', LucideIcons.settings2),
-    _SlashCommand('pair', 'Pair computer', '/pair', LucideIcons.scanLine),
-    _SlashCommand('about', 'About', '/about', LucideIcons.info),
+    _SlashCommand('model', appL10n.switchModel, '/model', LucideIcons.cpu),
+    _SlashCommand(
+      'thinking',
+      appL10n.thinkingLevel,
+      '/thinking',
+      LucideIcons.brain,
+    ),
+    _SlashCommand(
+      'compact',
+      appL10n.compactContext,
+      '/compact',
+      LucideIcons.shrink,
+    ),
+    _SlashCommand(
+      'context',
+      appL10n.contextUsage,
+      '/context',
+      LucideIcons.activity,
+    ),
+    _SlashCommand(
+      'attach',
+      appL10n.attachImage,
+      '/attach',
+      LucideIcons.paperclip,
+    ),
+    _SlashCommand(
+      'settings',
+      appL10n.settings,
+      '/settings',
+      LucideIcons.settings2,
+    ),
+    _SlashCommand('pair', appL10n.pairComputer, '/pair', LucideIcons.scanLine),
+    _SlashCommand('about', appL10n.about, '/about', LucideIcons.info),
   ];
 
   @override
@@ -1210,7 +1241,7 @@ class _SlashPalette extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
                     child: Text(
-                      'Agent commands & skills',
+                      context.l10n.agentCommandsSkills,
                       style: context.typo.sansBody.copyWith(
                         color: colors.muted,
                         fontSize: 11,
@@ -1276,8 +1307,8 @@ class _SlashPalette extends StatelessWidget {
                   ),
                   title: Text(
                     normalized.isEmpty
-                        ? 'Send a slash command to the agent'
-                        : 'Send /$normalized to the agent',
+                        ? context.l10n.sendSlashCommand
+                        : context.l10n.sendCommandToAgent(normalized),
                     style: const TextStyle(fontSize: 13),
                   ),
                   onTap: () => onSelected('agent', '/$normalized'),
@@ -1291,8 +1322,8 @@ class _SlashPalette extends StatelessWidget {
   }
 
   static String _sourceLabel(String source) => switch (source) {
-    'skill' => 'Skill',
-    'prompt' => 'Prompt',
-    _ => 'Agent command',
+    'skill' => appL10n.skill,
+    'prompt' => appL10n.prompt,
+    _ => appL10n.agentCommand,
   };
 }

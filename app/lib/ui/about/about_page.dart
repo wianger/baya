@@ -1,4 +1,5 @@
 import 'package:app/ui/core/branding/app_brand.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -31,8 +32,8 @@ class AboutPage extends StatelessWidget {
     if (!context.mounted || opened) return;
     await showBayaNotice(
       context,
-      title: 'Could not open the link',
-      message: 'Check your connection and try again.',
+      title: context.l10n.couldNotOpenLink,
+      message: context.l10n.checkConnectionTryAgain,
     );
   }
 
@@ -44,14 +45,14 @@ class AboutPage extends StatelessWidget {
       case UpdateCheckCurrent():
         await showBayaNotice(
           context,
-          title: 'Check for updates',
-          message: 'The app is already up to date.',
+          title: context.l10n.checkForUpdates,
+          message: context.l10n.appUpToDate,
         );
       case UpdateCheckFailed():
         await showBayaNotice(
           context,
-          title: 'Check for updates',
-          message: 'Could not check GitHub. Check your connection.',
+          title: context.l10n.checkForUpdates,
+          message: context.l10n.couldNotCheckGitHub,
         );
       case UpdateBannerVisible():
         // Show the modal here and silence the background UpdateBanner
@@ -60,12 +61,13 @@ class AboutPage extends StatelessWidget {
         // same widget; we own the About route's prompt directly.
         await showBayaNotice(
           context,
-          title: 'Update available',
-          message:
-              'Version ${(vm.state as UpdateBannerVisible).info.version} '
-              '(${(vm.state as UpdateBannerVisible).info.buildNumber}) is ready to download.',
-          confirmLabel: 'Download APK',
-          secondaryLabel: 'Later',
+          title: context.l10n.updateAvailable,
+          message: context.l10n.versionReady(
+            (vm.state as UpdateBannerVisible).info.version,
+            '${(vm.state as UpdateBannerVisible).info.buildNumber}',
+          ),
+          confirmLabel: context.l10n.downloadApk,
+          secondaryLabel: context.l10n.later,
           onConfirm: () => _download(context),
           onSecondary: vm.dismiss,
           dismissible: false,
@@ -80,9 +82,9 @@ class AboutPage extends StatelessWidget {
     if (!context.mounted || opened) return;
     await showBayaNotice(
       context,
-      title: 'Could not start the download',
-      message: 'Open GitHub Releases instead.',
-      secondaryLabel: 'GitHub Releases',
+      title: context.l10n.couldNotStartDownload,
+      message: context.l10n.openGitHubReleasesInstead,
+      secondaryLabel: context.l10n.gitHubReleases,
       onSecondary: () => _open(context, _releases),
     );
   }
@@ -105,11 +107,11 @@ class AboutPage extends StatelessWidget {
         automaticallyImplyLeading: false,
         leading: IconButton(
           icon: Icon(LucideIcons.chevronLeft, size: 20, color: colors.text),
-          tooltip: 'Back',
+          tooltip: context.l10n.back,
           onPressed: () =>
               context.canPop() ? context.pop() : context.go('/home'),
         ),
-        title: const Text('About'),
+        title: Text(context.l10n.about),
       ),
       body: BayaBackdrop(
         child: SafeArea(
@@ -156,8 +158,7 @@ class AboutPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      'A focused remote client for coding-agent sessions on your '
-                      'own computers.',
+                      context.l10n.aboutTagline,
                       textAlign: TextAlign.center,
                       style: context.typo.sansBody.copyWith(
                         color: colors.muted,
@@ -182,8 +183,8 @@ class AboutPage extends StatelessWidget {
                             : const Icon(LucideIcons.refreshCw, size: 18),
                         label: Text(
                           updateState is UpdateCheckInProgress
-                              ? 'Checking GitHub…'
-                              : 'Check for updates',
+                              ? context.l10n.checkingGitHub
+                              : context.l10n.checkForUpdates,
                         ),
                         prominent: false,
                       ),
@@ -197,8 +198,10 @@ class AboutPage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Version ${updateState.info.version} '
-                                '(${updateState.info.buildNumber}) is available.',
+                                context.l10n.versionAvailable(
+                                  updateState.info.version,
+                                  '${updateState.info.buildNumber}',
+                                ),
                                 style: context.typo.sansBody.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -222,12 +225,11 @@ class AboutPage extends StatelessWidget {
                                   LucideIcons.download,
                                   size: 18,
                                 ),
-                                label: const Text('Download APK'),
+                                label: Text(context.l10n.downloadApk),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Your pairings and settings are kept when Android '
-                                'installs the update.',
+                                context.l10n.updateKeepsDataAndroid,
                                 style: context.typo.sansBody.copyWith(
                                   color: colors.muted,
                                   fontSize: 12,
@@ -242,7 +244,7 @@ class AboutPage extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(left: 8, bottom: 8),
                       child: Text(
-                        'More',
+                        context.l10n.more,
                         style: context.typo.sansBody.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -254,7 +256,7 @@ class AboutPage extends StatelessWidget {
                         children: [
                           _LinkTile(
                             icon: LucideIcons.code,
-                            title: 'Project',
+                            title: context.l10n.project,
                             subtitle: 'github.com/wianger/baya',
                             onTap: () => _open(context, _project),
                           ),
@@ -265,7 +267,7 @@ class AboutPage extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(left: 8, bottom: 8),
                       child: Text(
-                        'Built by',
+                        context.l10n.builtBy,
                         style: context.typo.sansBody.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -333,7 +335,7 @@ class _LinkTile extends StatelessWidget {
                 child: Image.network(
                   imageUrl!,
                   key: const Key('built-by-github-avatar'),
-                  semanticLabel: 'GitHub avatar for wianger',
+                  semanticLabel: context.l10n.gitHubAvatar,
                   fit: BoxFit.cover,
                   filterQuality: FilterQuality.high,
                   loadingBuilder: (context, child, progress) {

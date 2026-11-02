@@ -1,4 +1,5 @@
 import 'package:app/data/mesh/mesh_sync_service.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/data/transport/relay_config.dart';
@@ -66,7 +67,7 @@ class SettingsViewModel extends ViewModel<SettingsState> {
 
   Future<String?> saveRelayUrl(String? value) async {
     if (value == null || value.trim().isEmpty) {
-      return 'Enter a URL or clear the field to use the default relay.';
+      return appL10n.enterRelayUrl;
     }
     final trimmed = value.trim();
 

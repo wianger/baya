@@ -1,4 +1,5 @@
 import 'package:app/domain/value_objects/workspace.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:flutter/material.dart';
@@ -52,14 +53,14 @@ class DeviceSwitcher extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
                   child: _SwitcherSheetHeader(
-                    title: 'Switch device',
+                    title: context.l10n.switchDevice,
                     onAdd: enabled && onAdd != null
                         ? () => Navigator.pop(sheetContext, (
                             add: true,
                             device: null,
                           ))
                         : null,
-                    addTooltip: 'Pair another computer',
+                    addTooltip: context.l10n.pairAnotherComputer,
                     addKey: const Key('device-add'),
                   ),
                 ),
@@ -96,7 +97,7 @@ class DeviceSwitcher extends StatelessWidget {
                                 ? null
                                 : IconButton(
                                     key: ValueKey('device-rename-${entry.key}'),
-                                    tooltip: 'Rename device',
+                                    tooltip: context.l10n.renameDevice,
                                     visualDensity: VisualDensity.compact,
                                     onPressed: enabled
                                         ? () async {
@@ -185,7 +186,7 @@ class DeviceSwitcher extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        devices[selected] ?? 'Pair a device',
+                        devices[selected] ?? context.l10n.pairADevice,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: context.typo.sansBody.copyWith(
@@ -271,7 +272,7 @@ class WorkspaceSwitcher extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(8, 0, 16, 0),
                         child: _SwitcherSheetHeader(
-                          title: 'Switch workspace',
+                          title: context.l10n.switchWorkspace,
                           onAdd: enabled && onCreate != null
                               ? () => Navigator.of(sheetContext).pop((
                                   add: true,
@@ -279,7 +280,7 @@ class WorkspaceSwitcher extends StatelessWidget {
                                   rename: null,
                                 ))
                               : null,
-                          addTooltip: 'New workspace',
+                          addTooltip: context.l10n.newWorkspace,
                           addKey: const Key('workspace-add'),
                         ),
                       ),
@@ -384,7 +385,9 @@ class WorkspaceSwitcher extends StatelessWidget {
                                                   key: ValueKey(
                                                     'workspace-rename-${entry.key}',
                                                   ),
-                                                  tooltip: 'Rename workspace',
+                                                  tooltip: context
+                                                      .l10n
+                                                      .renameWorkspace,
                                                   visualDensity:
                                                       VisualDensity.compact,
                                                   onPressed: () =>
@@ -440,8 +443,8 @@ class WorkspaceSwitcher extends StatelessWidget {
     final detail = workspaces[selected];
     final title = detail == null
         ? hasDevice
-              ? 'No workspaces yet'
-              : 'Choose a device first'
+              ? context.l10n.noWorkspacesYet
+              : context.l10n.chooseDeviceFirst
         : labels[selected] ?? _name(selected!);
     final canOpen = enabled && hasDevice;
     return BayaGlassSurface(
@@ -544,14 +547,14 @@ class _EmptyWorkspaceList extends StatelessWidget {
             color: colors.muted2,
           ),
           title: Text(
-            'No workspaces yet',
+            context.l10n.noWorkspacesYet,
             style: context.typo.sansBody.copyWith(
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
           ),
           subtitle: Text(
-            'Create one to group sessions from any folders.',
+            context.l10n.createWorkspaceHint,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: context.typo.sansBody.copyWith(
@@ -647,7 +650,7 @@ class _SwipeDeleteBackground extends StatelessWidget {
           Icon(LucideIcons.trash2, size: 18, color: colors.error),
           const SizedBox(width: 7),
           Text(
-            'Delete',
+            context.l10n.delete,
             style: context.typo.sansBody.copyWith(
               color: colors.error,
               fontWeight: FontWeight.w600,

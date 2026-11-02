@@ -1,4 +1,5 @@
 import 'package:app/domain/session_files/session_files_repository.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/session_files/states/session_files_state.dart';
 
@@ -37,7 +38,7 @@ class SessionFilesViewModel extends ViewModel<SessionFilesState> {
         SessionFilesError(
           error is SessionFilesFailure
               ? error.message
-              : 'Could not read the session directory.',
+              : appL10n.couldNotReadSessionDirectory,
           previous: _lastDirectory,
         ),
       );
@@ -71,7 +72,9 @@ class SessionFilesViewModel extends ViewModel<SessionFilesState> {
       if (_disposed || generation != _generation) return;
       emit(
         SessionFilesError(
-          error is SessionFilesFailure ? error.message : 'Could not read file.',
+          error is SessionFilesFailure
+              ? error.message
+              : appL10n.couldNotReadFile,
           previous: _lastDirectory,
         ),
       );

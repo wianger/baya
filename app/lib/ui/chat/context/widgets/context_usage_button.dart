@@ -1,4 +1,5 @@
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/widgets/baya_top_right_popover.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -87,17 +88,17 @@ class _ContextUsageButtonState extends State<ContextUsageButton>
         : null;
     final loading = widget.enabled && state is ContextUsageLoading;
     final value = !widget.enabled
-        ? 'Offline'
+        ? context.l10n.statusOffline
         : percent != null
         ? '${percent.toStringAsFixed(1)}%'
         : loading
-        ? 'Loading'
-        : 'Not reported';
+        ? context.l10n.loading
+        : context.l10n.notReported;
     final colors = context.colors;
     return Semantics(
       value: value,
       child: IconButton(
-        tooltip: 'Context usage',
+        tooltip: context.l10n.contextUsage,
         onPressed: widget.enabled
             ? () => showContextUsage(context, origin: bayaRectOf(context))
             : null,

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -85,7 +87,7 @@ class _PairingPageState extends State<PairingPage> {
           child: SizedBox.expand(),
         ),
         scrolledUnderElevation: 0,
-        title: const Text('Pair device'),
+        title: Text(context.l10n.pairDevice),
       ),
       body: _buildBody(state, vm),
     );
@@ -176,8 +178,8 @@ class _PairingPageState extends State<PairingPage> {
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
               child: Text(
                 isConnecting
-                    ? 'Connecting to $sessionName…'
-                    : 'Point the camera at the QR shown in the Baya CLI',
+                    ? context.l10n.connectingTo(sessionName ?? '')
+                    : context.l10n.pointCameraAtQr,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.text, fontSize: 14),
               ),
@@ -329,7 +331,7 @@ class _ErrorView extends StatelessWidget {
                     const SizedBox(height: 22),
                     BayaGlassButton(
                       onPressed: onRetry,
-                      label: const Text('Try again'),
+                      label: Text(context.l10n.tryAgain),
                     ),
                   ],
                 ],

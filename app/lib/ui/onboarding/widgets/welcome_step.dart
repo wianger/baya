@@ -1,4 +1,5 @@
 import 'package:app/ui/core/branding/app_brand.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -35,7 +36,7 @@ class WelcomeStep extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Your agents. Across devices.',
+                  context.l10n.welcomeTagline,
                   textAlign: TextAlign.center,
                   style: context.typo.sansBody.copyWith(
                     fontSize: 16,
@@ -50,23 +51,22 @@ class WelcomeStep extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
                     child: Column(
                       children: [
-                        const _FeatureRow(
+                        _FeatureRow(
                           icon: LucideIcons.scanQrCode,
-                          title: 'Pair securely',
-                          subtitle: 'Connect your own computers in seconds.',
+                          title: context.l10n.pairSecurely,
+                          subtitle: context.l10n.pairSecurelyHint,
                         ),
                         const SizedBox(height: 15),
-                        const _FeatureRow(
+                        _FeatureRow(
                           icon: LucideIcons.layoutDashboard,
-                          title: 'Keep your workspaces',
-                          subtitle:
-                              'Move between projects without losing context.',
+                          title: context.l10n.keepWorkspaces,
+                          subtitle: context.l10n.keepWorkspacesHint,
                         ),
                         const SizedBox(height: 15),
-                        const _FeatureRow(
+                        _FeatureRow(
                           icon: LucideIcons.messageSquareText,
-                          title: 'Continue anywhere',
-                          subtitle: 'Pick up active sessions from your phone.',
+                          title: context.l10n.continueAnywhere,
+                          subtitle: context.l10n.continueAnywhereHint,
                         ),
                       ],
                     ),
@@ -75,7 +75,7 @@ class WelcomeStep extends StatelessWidget {
                 const SizedBox(height: 26),
                 BayaGlassButton(
                   onPressed: onNext,
-                  label: const Text('Get started'),
+                  label: Text(context.l10n.getStarted),
                   minimumSize: const Size.fromHeight(52),
                 ),
               ],

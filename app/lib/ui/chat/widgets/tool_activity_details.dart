@@ -1,4 +1,5 @@
 import 'package:app/domain/session_state.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/widgets/tool_content.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
@@ -51,7 +52,7 @@ class ToolActivityDetails extends StatelessWidget {
         if (changes != null) ...[
           _Section(
             key: const Key('tool-changes'),
-            label: 'Changes',
+            label: context.l10n.changes,
             body: changes,
             monospace: true,
             semanticDiff: true,
@@ -61,7 +62,7 @@ class ToolActivityDetails extends StatelessWidget {
         ] else if (hasCommand) ...[
           _Section(
             key: const Key('tool-command'),
-            label: 'Command',
+            label: context.l10n.command,
             body: command,
             monospace: true,
             copyKey: ValueKey('tool-copy-${tool.toolCallId}-command'),
@@ -87,7 +88,7 @@ class ToolActivityDetails extends StatelessWidget {
             const SizedBox(height: 10),
           _Section(
             key: const Key('tool-result'),
-            label: 'Result',
+            label: context.l10n.result,
             body: output.text!,
             monospace: !content.usesProseDetails,
             semanticDiff: commandResultIsDiff,
@@ -99,7 +100,7 @@ class ToolActivityDetails extends StatelessWidget {
           const SizedBox(height: 10),
           _Section(
             key: const Key('tool-stderr'),
-            label: 'Error output',
+            label: context.l10n.errorOutput,
             body: output.stderr!,
             monospace: true,
             maxHeight: resultMaxHeight,
@@ -111,7 +112,7 @@ class ToolActivityDetails extends StatelessWidget {
           const SizedBox(height: 10),
           _Section(
             key: const Key('tool-error'),
-            label: 'Error',
+            label: context.l10n.error,
             body: error,
             monospace: !content.usesProseDetails,
             maxHeight: resultMaxHeight,
@@ -125,7 +126,7 @@ class ToolActivityDetails extends StatelessWidget {
             !hasStderr &&
             !hasError) ...[
           Text(
-            'Completed without output.',
+            context.l10n.completedWithoutOutput,
             style: context.typo.sansBody.copyWith(
               fontSize: 12.5,
               color: context.colors.muted,

@@ -1,5 +1,7 @@
 import 'dart:io' show Platform;
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/data/transport/peer_channel.dart';
@@ -14,11 +16,10 @@ import 'package:cryptography/cryptography.dart';
 
 // Factory that produces a connected PeerTransport for the given QR payload.
 // Production: WsTransport.connect(...). Tests: in-memory pipe.
-typedef PairingTransportFactory =
-    Future<pair_flow.PeerTransport> Function(
-      QrPairPayload qr,
-      SimpleKeyPair deviceEd25519,
-    );
+typedef PairingTransportFactory = Future<pair_flow.PeerTransport> Function(
+  QrPairPayload qr,
+  SimpleKeyPair deviceEd25519,
+);
 
 class PairingViewModel extends ViewModel<PairingState> {
   final PairingStorage _storage;
@@ -77,10 +78,9 @@ class PairingViewModel extends ViewModel<PairingState> {
           )
           .timeout(
             const Duration(seconds: 30),
-            onTimeout: () => throw const pair_flow.PairingError(
+            onTimeout: () => throw pair_flow.PairingError(
               code: 'pair_timeout',
-              message:
-                  'Timed out — make sure the Baya host is running on your computer',
+              message: appL10n.pairTimedOut,
             ),
           );
 
@@ -133,20 +133,19 @@ class PairingViewModel extends ViewModel<PairingState> {
   }
 
   static String _friendlyError(pair_flow.PairingError e) => switch (e.code) {
-    'token_expired' => 'QR expired — run baya pair again on your computer',
-    'token_consumed' => 'QR already used — generate a new one',
-    'token_unknown' => 'QR not recognized by Baya — run baya pair again',
-    'pair_timeout' =>
-      'Timed out — make sure the Baya host is running on your computer',
+    'token_expired' => appL10n.qrExpired,
+    'token_consumed' => appL10n.qrConsumed,
+    'token_unknown' => appL10n.qrUnknown,
+    'pair_timeout' => appL10n.pairTimedOut,
     _ => e.message.isEmpty ? e.code : e.message,
   };
 
   static String _deviceName() {
     try {
-      if (Platform.isAndroid) return 'Android device';
-      return 'Mobile';
+      if (Platform.isAndroid) return appL10n.androidDevice;
+      return appL10n.mobile;
     } catch (_) {
-      return 'Mobile';
+      return appL10n.mobile;
     }
   }
 }

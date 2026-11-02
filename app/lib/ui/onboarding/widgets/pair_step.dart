@@ -1,4 +1,5 @@
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
@@ -92,7 +93,7 @@ class _PairStepState extends State<PairStep> {
               BayaReveal(
                 offset: 6,
                 child: Text(
-                  'Connect to your device',
+                  context.l10n.connectToDevice,
                   style: context.typo.sansBody.copyWith(
                     fontSize: 28,
                     color: colors.text,
@@ -103,8 +104,7 @@ class _PairStepState extends State<PairStep> {
               ),
               const SizedBox(height: 12),
               Text(
-                'On your computer (Windows, Linux, or macOS), open a terminal '
-                'and run:',
+                context.l10n.pairStepInstructions,
                 style: context.typo.sansBody.copyWith(
                   fontSize: 13,
                   color: colors.muted,
@@ -129,7 +129,7 @@ class _PairStepState extends State<PairStep> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Scan the QR code that appears:',
+                context.l10n.scanQrThatAppears,
                 style: context.typo.sansBody.copyWith(
                   fontSize: 13,
                   color: colors.muted,
@@ -176,7 +176,7 @@ class _PairStepState extends State<PairStep> {
                         vertical: 12,
                       ),
                     ),
-                    child: const Text('Back'),
+                    child: Text(context.l10n.back),
                   ),
                   const Spacer(),
                   TextButton(
@@ -189,7 +189,7 @@ class _PairStepState extends State<PairStep> {
                       ),
                     ),
                     child: Text(
-                      'Scan later',
+                      context.l10n.scanLater,
                       style: context.typo.sansBody.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -230,7 +230,7 @@ class _PairStepState extends State<PairStep> {
       return _StatusOverlay(
         icon: LucideIcons.circleAlert,
         message: state.message,
-        actionLabel: state.canRetry ? 'Try again' : null,
+        actionLabel: state.canRetry ? context.l10n.tryAgain : null,
         onAction: state.canRetry
             ? () {
                 _scannerActive = true;

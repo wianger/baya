@@ -1,4 +1,5 @@
 import 'package:app/ui/chat/widgets/baya_activity_card.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/copy_button.dart';
@@ -15,7 +16,7 @@ class ThinkingBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final content = text.trim();
-    final title = complete ? 'Thought process' : 'Thinking…';
+    final title = complete ? context.l10n.thoughtProcess : 'Thinking…';
     return BayaActivityCard(
       disclosureKey: const ValueKey('thinking-disclosure'),
       leading: complete
@@ -60,7 +61,7 @@ class _ThinkingDetail extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Reasoning',
+                context.l10n.reasoning,
                 style: context.typo.sansBody.copyWith(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,

@@ -1,5 +1,7 @@
 import 'package:app/domain/workspaces/workspace_repository.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
+
 import '../states/new_session_state.dart';
 
 class NewSessionViewModel extends ViewModel<NewSessionState> {
@@ -41,7 +43,7 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
       final hosts = await _repository.listHosts();
       if (_disposed || generation != _generation) return;
       if (hosts.isEmpty) {
-        emit(const NewSessionUnavailable('Pair a computer to open a session.'));
+        emit(NewSessionUnavailable(appL10n.pairToOpenSession));
         return;
       }
       final available = hosts.where((host) => host.online).toList();
@@ -69,7 +71,7 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
           NewSessionUnavailable(
             error is WorkspaceFailure
                 ? error.message
-                : 'Could not load your computers. Try again.',
+                : appL10n.couldNotLoadComputers,
           ),
         );
       }
@@ -121,10 +123,7 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
           .timeout(
             browseTimeout,
             onTimeout: () {
-              throw const WorkspaceFailure(
-                'The selected computer did not connect in time. '
-                'Start Baya on it, then try again.',
-              );
+              throw WorkspaceFailure(appL10n.computerDidNotConnect);
             },
           );
       if (_disposed || generation != _generation) return;
@@ -157,7 +156,7 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
             loading: false,
             error: error is WorkspaceFailure
                 ? error.message
-                : 'Could not read this folder. Try again.',
+                : appL10n.couldNotReadFolder,
           ),
         );
       }
@@ -224,7 +223,7 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
             opening: false,
             error: error is WorkspaceFailure
                 ? error.message
-                : 'Could not start the session. Try again.',
+                : appL10n.couldNotStartSession,
           ),
         );
       }

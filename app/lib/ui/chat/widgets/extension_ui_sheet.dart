@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
@@ -217,7 +219,8 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
   @override
   Widget build(BuildContext context) {
     final ask = _ask;
-    final title = widget.request.title ?? ask?.title ?? 'Clarification needed';
+    final title =
+        widget.request.title ?? ask?.title ?? context.l10n.clarificationNeeded;
 
     // System back (Android) mirrors the close button: cancel the flow instead
     // of popping the chat route underneath while the modal is still overlaid.
@@ -244,7 +247,7 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
                   scrolledUnderElevation: 0,
                   leading: IconButton(
                     icon: const Icon(Icons.close),
-                    tooltip: 'Cancel',
+                    tooltip: context.l10n.cancel,
                     onPressed: _submitting ? null : _cancel,
                   ),
                   title: Text(title),
@@ -319,7 +322,7 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
           // Submit button would stay stale for text-only answers.
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
-            hintText: 'Type your own…',
+            hintText: context.l10n.typeYourOwn,
             isDense: true,
             border: const OutlineInputBorder(),
             contentPadding: const EdgeInsets.symmetric(
@@ -453,7 +456,7 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
               ),
             ),
             ExtensionUiMethod.confirm => Text(
-              'Please confirm.',
+              context.l10n.pleaseConfirm,
               style: text.titleMedium,
             ),
             // ChatViewModel consumes notify requests without opening this
@@ -485,10 +488,10 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
                 ),
               )
             else if (_awaitHint)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'No response from Pi yet — retry or cancel.',
+                  context.l10n.noResponseYet,
                   style: TextStyle(fontSize: 13),
                 ),
               ),
@@ -497,7 +500,7 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: _submitting ? null : _cancel,
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.cancel),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -510,7 +513,7 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Submit'),
+                        : Text(context.l10n.submit),
                   ),
                 ),
               ],

@@ -1,4 +1,5 @@
 import 'package:app/data/actions/actions_repository.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -22,7 +23,7 @@ Future<void> showStandaloneModelPicker(BuildContext context) {
       if (!errorContext.mounted) return;
       showBayaNotice(
         errorContext,
-        title: 'Model change failed',
+        title: context.l10n.modelChangeFailed,
         message: message,
       );
     },
@@ -155,10 +156,10 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
                 const SizedBox(height: 4),
                 _Header(
                   title: _editingModel
-                      ? 'Select model'
+                      ? context.l10n.selectModel
                       : _editingEffort
-                      ? 'Reasoning effort'
-                      : 'Model',
+                      ? context.l10n.reasoningEffort
+                      : context.l10n.model,
                   onRefresh: _editingModel || !detail ? _refresh : null,
                   onBack: _editingEffort || _editingModel
                       ? () => setState(() {
@@ -201,7 +202,7 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
                                 return _ErrorState(
                                   message: snap.error is ActionFailure
                                       ? (snap.error as ActionFailure).message
-                                      : 'Failed to load models',
+                                      : context.l10n.failedToLoadModels,
                                   onRetry: _refresh,
                                 );
                               }
@@ -247,20 +248,22 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
                                 children: [
                                   _PickerRow(
                                     key: const Key('model-picker-model'),
-                                    label: 'Model',
-                                    value: selected?.name ?? 'Not reported',
+                                    label: context.l10n.model,
+                                    value:
+                                        selected?.name ??
+                                        context.l10n.notReported,
                                     onTap: () =>
                                         setState(() => _editingModel = true),
                                   ),
                                   const SizedBox(height: 6),
                                   _PickerRow(
                                     key: const Key('model-picker-effort'),
-                                    label: 'Effort',
+                                    label: context.l10n.effort,
                                     value: effortLevels.isEmpty
-                                        ? 'Not supported'
+                                        ? context.l10n.notSupported
                                         : current == null ||
                                               !effortLevels.contains(current)
-                                        ? 'Default'
+                                        ? context.l10n.defaultLabel
                                         : _effortLabel(current),
                                     onTap: effortLevels.isEmpty
                                         ? null
@@ -283,14 +286,14 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
   }
 
   static String _effortLabel(ThinkingLevel level) => switch (level) {
-    ThinkingLevel.off => 'Off',
-    ThinkingLevel.minimal => 'Minimal',
-    ThinkingLevel.low => 'Low',
-    ThinkingLevel.medium => 'Medium',
-    ThinkingLevel.high => 'High',
-    ThinkingLevel.xhigh => 'Extra high',
-    ThinkingLevel.max => 'Max',
-    ThinkingLevel.ultra => 'Ultra',
+    ThinkingLevel.off => appL10n.effortOff,
+    ThinkingLevel.minimal => appL10n.effortMinimal,
+    ThinkingLevel.low => appL10n.effortLow,
+    ThinkingLevel.medium => appL10n.effortMedium,
+    ThinkingLevel.high => appL10n.effortHigh,
+    ThinkingLevel.xhigh => appL10n.effortExtraHigh,
+    ThinkingLevel.max => appL10n.effortMax,
+    ThinkingLevel.ultra => appL10n.effortUltra,
   };
 }
 
@@ -323,8 +326,8 @@ class _Header extends StatelessWidget {
                   child: IconButton(
                     key: const Key('model-picker-close'),
                     tooltip: onBack == null
-                        ? 'Close model picker'
-                        : 'Back to model summary',
+                        ? context.l10n.closeModelPicker
+                        : context.l10n.backToModelSummary,
                     onPressed: onBack ?? () => Navigator.of(context).pop(),
                     icon: Icon(
                       onBack == null ? LucideIcons.x : LucideIcons.chevronLeft,
@@ -350,7 +353,7 @@ class _Header extends StatelessWidget {
               padding: const EdgeInsets.only(right: 12),
               child: IconButton(
                 key: const Key('model-picker-refresh'),
-                tooltip: 'Refresh models',
+                tooltip: context.l10n.refreshModels,
                 onPressed: onRefresh,
                 icon: Icon(
                   LucideIcons.refreshCw,
@@ -585,7 +588,7 @@ class _ModelTile extends StatelessWidget {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            'Reasoning',
+                            context.l10n.reasoning,
                             style: context.typo.sansBody.copyWith(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
@@ -624,7 +627,7 @@ class _ModelTile extends StatelessWidget {
     final pieces = <String>[
       model.provider,
       if (model.contextWindow > 0)
-        '${(model.contextWindow / 1000).round()}k context',
+        appL10n.contextWindowK((model.contextWindow / 1000).round()),
       if (model.vision) 'vision',
     ];
     return pieces.join(' · ');
@@ -657,14 +660,14 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'No models available',
+              context.l10n.noModelsAvailable,
               style: TextStyle(fontSize: 13, color: context.colors.muted),
             ),
             const SizedBox(height: 12),
             OutlinedButton(
               key: const Key('model-picker-empty-retry'),
               onPressed: onRetry,
-              child: const Text('Try again'),
+              child: Text(context.l10n.tryAgain),
             ),
           ],
         ),
@@ -693,7 +696,7 @@ class _ErrorState extends StatelessWidget {
             style: TextStyle(color: colors.error, fontSize: 13),
           ),
           const SizedBox(height: 14),
-          OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+          OutlinedButton(onPressed: onRetry, child: Text(context.l10n.retry)),
         ],
       ),
     );

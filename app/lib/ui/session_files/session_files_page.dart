@@ -1,4 +1,5 @@
 import 'package:app/domain/session_files/session_files_repository.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -134,20 +135,23 @@ class _FilesHeader extends StatelessWidget {
       SessionFilesDirectory(:final directory) => (
         _baseName(directory.root),
         directory.path == directory.root
-            ? 'Session workspace · read-only'
+            ? context.l10n.sessionWorkspaceReadOnly
             : _relativePath(directory.root, directory.path),
       ),
-      SessionFilesFile(:final file) => (file.name, 'Read-only file preview'),
+      SessionFilesFile(:final file) => (
+        file.name,
+        context.l10n.readOnlyFilePreview,
+      ),
       SessionFilesError(:final previous) => (
-        previous == null ? 'Session files' : _baseName(previous.root),
+        previous == null ? context.l10n.sessionFiles : _baseName(previous.root),
         previous == null
-            ? 'Read-only browser'
+            ? context.l10n.readOnlyBrowser
             : _relativePath(previous.root, previous.path),
       ),
       SessionFilesLoading(:final previous) => (
-        previous == null ? 'Session files' : _baseName(previous.root),
+        previous == null ? context.l10n.sessionFiles : _baseName(previous.root),
         previous == null
-            ? 'Read-only browser'
+            ? context.l10n.readOnlyBrowser
             : _relativePath(previous.root, previous.path),
       ),
     };
@@ -162,8 +166,8 @@ class _FilesHeader extends StatelessWidget {
               dimension: 46,
               child: IconButton(
                 tooltip: state is SessionFilesFile
-                    ? 'Back to directory'
-                    : 'Back to session',
+                    ? context.l10n.backToDirectory
+                    : context.l10n.backToSession,
                 onPressed: onBack,
                 icon: Icon(
                   LucideIcons.chevronLeft,
@@ -203,7 +207,9 @@ class _FilesHeader extends StatelessWidget {
           ),
           if (onToggleHidden != null)
             IconButton(
-              tooltip: showHidden ? 'Hide hidden files' : 'Show hidden files',
+              tooltip: showHidden
+                  ? context.l10n.hideHiddenFiles
+                  : context.l10n.showHiddenFiles,
               onPressed: onToggleHidden,
               icon: Icon(
                 showHidden ? LucideIcons.eyeOff : LucideIcons.eye,
@@ -211,7 +217,7 @@ class _FilesHeader extends StatelessWidget {
               ),
             ),
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: context.l10n.refresh,
             onPressed: state is SessionFilesLoading ? null : onRefresh,
             icon: const Icon(LucideIcons.refreshCw, size: 19),
           ),
@@ -268,7 +274,7 @@ class _DirectoryView extends StatelessWidget {
                   onPressed: busy
                       ? null
                       : () => onOpenDirectory(directory.root),
-                  child: const Text('Root'),
+                  child: Text(context.l10n.root),
                 ),
               ],
             ],
@@ -279,7 +285,7 @@ class _DirectoryView extends StatelessWidget {
           _FileRow(
             key: const ValueKey('session-files-parent'),
             icon: LucideIcons.cornerLeftUp,
-            title: 'Parent directory',
+            title: context.l10n.parentDirectory,
             subtitle: directory.parent!,
             onTap: busy ? null : () => onOpenDirectory(directory.parent!),
           ),
@@ -295,7 +301,7 @@ class _DirectoryView extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'No files here',
+                  context.l10n.noFilesHere,
                   style: context.typo.sansBody.copyWith(
                     color: context.colors.muted,
                   ),
@@ -317,7 +323,7 @@ class _DirectoryView extends StatelessWidget {
                     : context.colors.muted2,
                 title: entry.name,
                 subtitle: entry.kind == SessionFileKind.directory
-                    ? 'Directory'
+                    ? context.l10n.directory
                     : _entryMetadata(entry),
                 trailing: entry.kind == SessionFileKind.directory
                     ? LucideIcons.chevronRight
@@ -334,7 +340,7 @@ class _DirectoryView extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'Only the first 500 entries are shown.',
+              context.l10n.first500Entries,
               style: context.typo.sansBody.copyWith(
                 color: context.colors.muted,
                 fontSize: 12,
@@ -464,7 +470,7 @@ class _FileView extends StatelessWidget {
                   if (file.modifiedAt case final modified?)
                     _MetadataChip(label: _formatDate(modified)),
                   if (file.truncated)
-                    const _MetadataChip(label: 'Preview truncated'),
+                    _MetadataChip(label: context.l10n.previewTruncated),
                 ],
               ),
             ],
@@ -474,14 +480,14 @@ class _FileView extends StatelessWidget {
         if (file.binary)
           _FileNotice(
             icon: LucideIcons.fileArchive,
-            title: 'Binary file',
-            message: 'This file cannot be shown as text. Its size and modification date are available above.',
+            title: context.l10n.binaryFile,
+            message: context.l10n.binaryFileHint,
           )
         else if (content == null || content.isEmpty)
-          const _FileNotice(
+          _FileNotice(
             icon: LucideIcons.file,
-            title: 'Empty file',
-            message: 'There is no text content to display.',
+            title: context.l10n.emptyFile,
+            message: context.l10n.noTextContent,
           )
         else
           Column(
@@ -492,7 +498,7 @@ class _FileView extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Preview',
+                      context.l10n.preview,
                       style: context.typo.sansBody.copyWith(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -500,7 +506,10 @@ class _FileView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  BayaCopyButton(text: content, tooltip: 'Copy contents'),
+                  BayaCopyButton(
+                    text: content,
+                    tooltip: context.l10n.copyContents,
+                  ),
                 ],
               ),
               const SizedBox(height: 2),
@@ -522,7 +531,7 @@ class _FileView extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Text(
-              'Showing the first 256 KB of this file.',
+              context.l10n.first256Kb,
               style: context.typo.sansBody.copyWith(
                 color: context.colors.warning,
                 fontSize: 12,
@@ -635,7 +644,7 @@ class _ErrorView extends StatelessWidget {
             BayaGlassButton(
               onPressed: onRetry,
               icon: const Icon(LucideIcons.refreshCw, size: 17),
-              label: const Text('Try again'),
+              label: Text(context.l10n.tryAgain),
               prominent: false,
             ),
           ],
@@ -682,7 +691,7 @@ String _entryMetadata(SessionFileEntry entry) {
   final pieces = <String>[];
   if (entry.size case final size?) pieces.add(_formatBytes(size));
   if (entry.modifiedAt case final modified?) pieces.add(_formatDate(modified));
-  return pieces.isEmpty ? 'File' : pieces.join('  ·  ');
+  return pieces.isEmpty ? appL10n.file : pieces.join('  ·  ');
 }
 
 String _formatBytes(int bytes) {

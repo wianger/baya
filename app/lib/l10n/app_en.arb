@@ -1,0 +1,700 @@
+{
+  "@@locale": "en",
+  "couldNotOpenLink": "Could not open the link",
+  "checkConnectionTryAgain": "Check your connection and try again.",
+  "checkForUpdates": "Check for updates",
+  "appUpToDate": "The app is already up to date.",
+  "couldNotCheckGitHub": "Could not check GitHub. Check your connection.",
+  "couldNotCheckGitHubRetry": "Could not check GitHub. Check your connection and try again.",
+  "updateAvailable": "Update available",
+  "downloadApk": "Download APK",
+  "later": "Later",
+  "couldNotStartDownload": "Could not start the download",
+  "openGitHubReleasesInstead": "Open GitHub Releases instead.",
+  "gitHubReleases": "GitHub Releases",
+  "back": "Back",
+  "about": "About",
+  "checkingGitHub": "Checking GitHub…",
+  "more": "More",
+  "project": "Project",
+  "builtBy": "Built by",
+  "gitHubAvatar": "GitHub avatar for wianger",
+  "statusWorking": "Working",
+  "statusReconnecting": "Reconnecting",
+  "statusReady": "Ready",
+  "statusOffline": "Offline",
+  "sessions": "Sessions",
+  "sessionActions": "Session actions",
+  "files": "Files",
+  "rename": "Rename",
+  "info": "Info",
+  "delete": "Delete",
+  "sessionNotFoundToDelete": "Could not find this session to delete.",
+  "noActiveDevice": "No active device",
+  "nothingHere": "Nothing here",
+  "model": "Model",
+  "cameraAccessOff": "Camera access is off",
+  "enableCameraInSettings": "Enable it in Settings to attach a photo.",
+  "openSettings": "Open Settings",
+  "tryPickingAgain": "Try picking it again from the camera or gallery.",
+  "microphoneAccessOff": "Microphone access is off",
+  "enableMicrophoneInSettings": "Enable it in Settings to dictate.",
+  "jumpToLatest": "Jump to latest",
+  "pairingRevoked": "Pairing revoked by the computer — re-pair to continue",
+  "couldNotLoadCommands": "Could not load slash commands.",
+  "loading": "Loading",
+  "notReported": "Not reported",
+  "contextUsage": "Context usage",
+  "refreshContextUsage": "Refresh context usage",
+  "usedTokens": "Used tokens",
+  "contextWindow": "Context window",
+  "usage": "Usage",
+  "modelChangeFailed": "Model change failed",
+  "selectModel": "Select model",
+  "reasoningEffort": "Reasoning effort",
+  "failedToLoadModels": "Failed to load models",
+  "effort": "Effort",
+  "notSupported": "Not supported",
+  "defaultLabel": "Default",
+  "effortOff": "Off",
+  "effortMinimal": "Minimal",
+  "effortLow": "Low",
+  "effortMedium": "Medium",
+  "effortHigh": "High",
+  "effortExtraHigh": "Extra high",
+  "effortMax": "Max",
+  "effortUltra": "Ultra",
+  "closeModelPicker": "Close model picker",
+  "backToModelSummary": "Back to model summary",
+  "refreshModels": "Refresh models",
+  "reasoning": "Reasoning",
+  "noModelsAvailable": "No models available",
+  "tryAgain": "Try again",
+  "retry": "Retry",
+  "session": "Session",
+  "chooseModel": "Choose a model",
+  "thinking": "Thinking",
+  "noConfigurableEffort": "This model has no configurable effort.",
+  "answerNotAccepted": "Answer was not accepted.",
+  "notConnectedRetry": "Not connected — check the link to Pi and retry.",
+  "slideToCancel": "slide to cancel",
+  "releaseToCancel": "release to cancel",
+  "copied": "Copied",
+  "copyCode": "Copy code",
+  "camera": "Camera",
+  "photoLibrary": "Photo Library",
+  "close": "Close",
+  "clarificationNeeded": "Clarification needed",
+  "cancel": "Cancel",
+  "typeYourOwn": "Type your own…",
+  "pleaseConfirm": "Please confirm.",
+  "noResponseYet": "No response from Pi yet — retry or cancel.",
+  "submit": "Submit",
+  "steerCurrentResponse": "Steer current response…",
+  "queuedTapToEdit": "Queued. Tap to edit.",
+  "queuedFollowUp": "Queued follow-up.",
+  "clearQueuedMessage": "Clear queued message",
+  "attachImage": "Attach image",
+  "voiceInput": "Voice input",
+  "stopResponse": "Stop response",
+  "sendMessage": "Send message",
+  "holdToTalk": "Hold to talk",
+  "newSession": "New session",
+  "newWorkspace": "New workspace",
+  "switchModel": "Switch model",
+  "thinkingLevel": "Thinking level",
+  "compactContext": "Compact context",
+  "settings": "Settings",
+  "pairComputer": "Pair computer",
+  "agentCommandsSkills": "Agent commands & skills",
+  "sendSlashCommand": "Send a slash command to the agent",
+  "skill": "Skill",
+  "prompt": "Prompt",
+  "agentCommand": "Agent command",
+  "notDelivered": "not delivered",
+  "contextCompacted": "Context compacted",
+  "copy": "Copy",
+  "stopReading": "Stop reading",
+  "readAloud": "Read aloud",
+  "agentIsWorking": "Agent is working",
+  "thoughtProcess": "Thought process",
+  "changes": "Changes",
+  "command": "Command",
+  "result": "Result",
+  "errorOutput": "Error output",
+  "error": "Error",
+  "completedWithoutOutput": "Completed without output.",
+  "tool": "Tool",
+  "waitingForApproval": "Waiting for approval",
+  "runningCommand": "Running command",
+  "ranCommand": "Ran command",
+  "editingFile": "Editing file",
+  "editedFile": "Edited file",
+  "messagingAgent": "Messaging agent",
+  "messagedAgent": "Messaged agent",
+  "readingFile": "Reading file",
+  "readFile": "Read file",
+  "searchingWeb": "Searching the web",
+  "searchingFiles": "Searching files",
+  "searchedWeb": "Searched the web",
+  "searchedFiles": "Searched files",
+  "waiting": "Waiting",
+  "running": "Running",
+  "completed": "Completed",
+  "failed": "Failed",
+  "denied": "Denied",
+  "expired": "Expired",
+  "message": "Message",
+  "file": "File",
+  "query": "Query",
+  "search": "Search",
+  "input": "Input",
+  "messageDelivered": "Message delivered.",
+  "messageSent": "Message sent.",
+  "recipientDenied": "The recipient denied the message.",
+  "messageDeliveryTimedOut": "Message delivery timed out.",
+  "showLess": "Show less",
+  "showFullOutput": "Show full output",
+  "agentWaitingApproval": "The agent is waiting for your approval.",
+  "deny": "Deny",
+  "allowOnce": "Allow once",
+  "approval": "Approval",
+  "done": "Done",
+  "confirm": "Confirm",
+  "somethingWentWrong": "Something went wrong",
+  "noSessionsYet": "No sessions yet",
+  "connectToDevice": "Connect to your device",
+  "scanQrThatAppears": "Scan the QR code that appears:",
+  "scanLater": "Scan later",
+  "chooseRelay": "Choose a relay",
+  "relayExplainer": "Where the app and your PC meet.",
+  "selfHostedRelay": "Self-hosted. Best privacy.",
+  "communityRelay": "Community relay",
+  "communityRelayHint": "Hosted by us. Quick to start.",
+  "continueLabel": "Continue",
+  "useMyOwnServer": "Use my own server",
+  "welcomeTagline": "Your agents. Across devices.",
+  "pairSecurely": "Pair securely",
+  "pairSecurelyHint": "Connect your own computers in seconds.",
+  "keepWorkspaces": "Keep your workspaces",
+  "keepWorkspacesHint": "Move between projects without losing context.",
+  "continueAnywhere": "Continue anywhere",
+  "continueAnywhereHint": "Pick up active sessions from your phone.",
+  "getStarted": "Get started",
+  "pairDevice": "Pair device",
+  "pointCameraAtQr": "Point the camera at the QR shown in the Baya CLI",
+  "pairTimedOut": "Timed out — make sure the Baya host is running on your computer",
+  "qrExpired": "QR expired — run baya pair again on your computer",
+  "qrConsumed": "QR already used — generate a new one",
+  "qrUnknown": "QR not recognized by Baya — run baya pair again",
+  "computer": "Computer",
+  "nameThisPc": "Name this PC",
+  "skip": "Skip",
+  "save": "Save",
+  "pastePairingCode": "Paste pairing code",
+  "pasteFromClipboard": "Paste from clipboard",
+  "pair": "Pair",
+  "sessionWorkspaceReadOnly": "Session workspace · read-only",
+  "readOnlyFilePreview": "Read-only file preview",
+  "sessionFiles": "Session files",
+  "readOnlyBrowser": "Read-only browser",
+  "backToDirectory": "Back to directory",
+  "backToSession": "Back to session",
+  "hideHiddenFiles": "Hide hidden files",
+  "showHiddenFiles": "Show hidden files",
+  "refresh": "Refresh",
+  "root": "Root",
+  "parentDirectory": "Parent directory",
+  "noFilesHere": "No files here",
+  "directory": "Directory",
+  "first500Entries": "Only the first 500 entries are shown.",
+  "previewTruncated": "Preview truncated",
+  "binaryFile": "Binary file",
+  "binaryFileHint": "This file cannot be shown as text. Its size and modification date are available above.",
+  "emptyFile": "Empty file",
+  "noTextContent": "There is no text content to display.",
+  "preview": "Preview",
+  "copyContents": "Copy contents",
+  "first256Kb": "Showing the first 256 KB of this file.",
+  "couldNotReadSessionDirectory": "Could not read the session directory.",
+  "couldNotReadFile": "Could not read file.",
+  "connection": "Connection",
+  "relay": "Relay",
+  "chatAndAppearance": "Chat & appearance",
+  "displayAndConversation": "Display and conversation",
+  "information": "Information",
+  "aboutHint": "Version, updates and project links",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "toolsHidden": "Tools hidden",
+  "toolsVisible": "Tools visible",
+  "relayUpdated": "Relay updated",
+  "relayUpdatedHint": "This device now uses the new relay URL.",
+  "serverAddress": "Server address",
+  "relayReconnectHint": "The app reconnects after a new relay is saved.",
+  "useDefaultRelay": "Use default relay",
+  "theme": "Theme",
+  "themeHint": "Follow Android or keep one appearance.",
+  "textSize": "Text size",
+  "textSizeHint": "Scale the whole app, including chat text.",
+  "hideToolCalls": "Hide tool calls in chat",
+  "hideToolCallsHint": "Only show your messages and assistant replies.",
+  "enterRelayUrl": "Enter a URL or clear the field to use the default relay.",
+  "syncRequired": "Sync required",
+  "toEnableOnDevice": "TO ENABLE ON THIS DEVICE",
+  "checkAgain": "Check again",
+  "setUpScreenLock": "Set up a screen lock",
+  "screenLockPath": "Settings › Security › Screen lock",
+  "screenLockNote": "PIN, pattern or biometrics — required by Block Store.",
+  "turnOnGoogleBackup": "Turn on Google Backup",
+  "signInGoogle": "Sign in to a Google account",
+  "signInGooglePath": "Settings › Passwords & accounts › Add account › Google",
+  "appUpdates": "App updates",
+  "updateKeepsData": "Open the download to update this app. Your pairings and settings are kept.",
+  "chooseFolderHint": "Choose a folder on your computer. A fresh agent session will start there.",
+  "refreshComputers": "Refresh computers",
+  "folderPath": "Folder path",
+  "absolutePathHint": "Absolute path on the computer",
+  "goToFolder": "Go to folder",
+  "homeFolder": "Home folder",
+  "parentFolder": "Parent folder",
+  "hiddenFolders": "Hidden folders",
+  "filterFolders": "Filter folders",
+  "readingFolders": "Reading folders…",
+  "selectOnlineComputer": "Select an online computer to browse folders.",
+  "noSubfolders": "No subfolders",
+  "first300Folders": "Showing the first 300 folders. Enter a path to open another folder.",
+  "workspace": "Workspace",
+  "chooseWorkspace": "Choose a workspace",
+  "noWorkspacesOnComputer": "No workspaces on this computer",
+  "chooseWorkspaceTitle": "Choose Workspace",
+  "closeWorkspacePicker": "Close workspace picker",
+  "renameConversation": "Rename conversation",
+  "leaveEmptyForComputerName": "Leave empty to use the computer name",
+  "renameDevice": "Rename device",
+  "nameShownInApp": "Name shown in this app",
+  "renameWorkspace": "Rename workspace",
+  "deleteFromPhone": "Delete from phone?",
+  "sessionInfo": "Session info",
+  "name": "Name",
+  "path": "Path",
+  "owner": "Owner",
+  "room": "Room",
+  "paired": "Paired",
+  "couldNotOpenSession": "Could not open this session. Try again.",
+  "couldNotRemoveSession": "Could not remove this session. Try again.",
+  "couldNotRenameSession": "Could not rename this session.",
+  "noDeviceSelected": "No device selected",
+  "pairBeforeWorkspace": "Pair a computer first, then create a workspace.",
+  "workspaceExplainer": "A workspace groups sessions from any folders on this computer.",
+  "workspaceName": "Workspace name",
+  "workspaceNameHint": "e.g. Client work",
+  "createWorkspace": "Create workspace",
+  "noWorkspaceYet": "No workspace yet",
+  "createWorkspaceFirst": "Create a workspace before starting a session.",
+  "couldNotSaveSelection": "Could not save your selection. Try again.",
+  "couldNotRenameDevice": "Could not rename this device.",
+  "couldNotDeleteDevice": "Could not delete this device. Try again.",
+  "couldNotDeleteWorkspace": "Could not delete this workspace. Try again.",
+  "couldNotRenameWorkspace": "Could not rename this workspace.",
+  "searchSessions": "Search sessions",
+  "pairToGetStarted": "Pair a computer to get started.",
+  "noMatchingSessions": "No matching sessions in this workspace.",
+  "closeSearch": "Close search",
+  "renameSession": "Rename session",
+  "overview": "Overview",
+  "openNavigation": "Open navigation",
+  "bringFirstComputerOnline": "Bring your first computer online",
+  "noWorkspace": "No workspace",
+  "currentWorkspace": "CURRENT WORKSPACE",
+  "runningNow": "Running now",
+  "useSidebarHint": "Use the sidebar for devices, workspaces and the full session list.",
+  "previousSessions": "Previous sessions",
+  "closePreviousSessions": "Close previous sessions",
+  "noWorkspaceSelected": "No workspace selected",
+  "useSidebarToStart": "Use the sidebar to start one in any folder on this computer.",
+  "useSidebarToChooseWorkspace": "Use the sidebar to choose or create a workspace.",
+  "pairToOpenSession": "Pair a computer to open a session.",
+  "couldNotLoadComputers": "Could not load your computers. Try again.",
+  "couldNotReadFolder": "Could not read this folder. Try again.",
+  "couldNotStartSession": "Could not start the session. Try again.",
+  "agent": "Agent",
+  "chooseAgent": "Choose an agent",
+  "chooseAgentTitle": "Choose Agent",
+  "closeAgentPicker": "Close agent picker",
+  "searchAgents": "Search agents",
+  "noMatchingAgents": "No matching agents",
+  "notAvailableOnComputer": "Not available on this computer",
+  "unavailable": "Unavailable",
+  "device": "Device",
+  "chooseDeviceTitle": "Choose Device",
+  "onePairedDevice": "1 paired device",
+  "closeDevicePicker": "Close device picker",
+  "searchDevices": "Search devices",
+  "noMatchingDevices": "No matching devices",
+  "switchDevice": "Switch device",
+  "pairAnotherComputer": "Pair another computer",
+  "pairADevice": "Pair a device",
+  "switchWorkspace": "Switch workspace",
+  "noWorkspacesYet": "No workspaces yet",
+  "chooseDeviceFirst": "Choose a device first",
+  "createWorkspaceHint": "Create one to group sessions from any folders.",
+  "inbox": "Inbox",
+  "mobile": "Mobile",
+  "androidDevice": "Android device",
+  "versionReady": "Version {version} ({build}) is ready to download.",
+  "@versionReady": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "versionAvailable": "Version {version} ({build}) is available.",
+  "@versionAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutTagline": "A focused remote client for coding-agent sessions on your own computers.",
+  "updateKeepsDataAndroid": "Your pairings and settings are kept when Android installs the update.",
+  "contextWindowK": "{k}k context",
+  "@contextWindowK": {
+    "placeholders": {
+      "k": {
+        "type": "int"
+      }
+    }
+  },
+  "replyToAgentOrTalk": "Reply to {agent} or hold to talk…",
+  "@replyToAgentOrTalk": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "replyToAgent": "Reply to {agent}…",
+  "@replyToAgent": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "sendCommandToAgent": "Send /{command} to the agent",
+  "@sendCommandToAgent": {
+    "placeholders": {
+      "command": {
+        "type": "String"
+      }
+    }
+  },
+  "tokensApprox": "~{tokens} tokens",
+  "@tokensApprox": {
+    "placeholders": {
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
+  "editingFiles": "Editing {count} files",
+  "@editingFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "editedFiles": "Edited {count} files",
+  "@editedFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "usingTool": "Using {tool}",
+  "@usingTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "usedTool": "Used {tool}",
+  "@usedTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "fromLine": "from line {start}",
+  "@fromLine": {
+    "placeholders": {
+      "start": {
+        "type": "int"
+      }
+    }
+  },
+  "lineRange": "lines {start}-{end}",
+  "@lineRange": {
+    "placeholders": {
+      "start": {
+        "type": "int"
+      },
+      "end": {
+        "type": "int"
+      }
+    }
+  },
+  "queryInScope": "{query}\nin {scope}",
+  "@queryInScope": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      },
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "messageTo": "To {recipient}\n\n{body}",
+  "@messageTo": {
+    "placeholders": {
+      "recipient": {
+        "type": "String"
+      },
+      "body": {
+        "type": "String"
+      }
+    }
+  },
+  "andMore": "{first}  ·  +{count} more",
+  "@andMore": {
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deliveredTo": "Delivered to {target}.",
+  "@deliveredTo": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "targetDenied": "{target} denied the message.",
+  "@targetDenied": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "deliveryToTimedOut": "Message delivery to {target} timed out.",
+  "@deliveryToTimedOut": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "ranCommands": "{count, plural, =1{Ran a command} other{Ran {count} commands}}",
+  "@ranCommands": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "usedTools": "{count, plural, =1{Used a tool} other{Used {count} tools}}",
+  "@usedTools": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "ranAndUsed": "{commands, plural, =1{Ran a command} other{Ran {commands} commands}}, {tools, plural, =1{used a tool} other{used {tools} tools}}",
+  "@ranAndUsed": {
+    "placeholders": {
+      "commands": {
+        "type": "int"
+      },
+      "tools": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionCount": "{count, plural, =1{1 session} other{{count} sessions}}",
+  "@sessionCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "folderCountSuffix": " · {count} folders",
+  "@folderCountSuffix": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "folderCount": "{count, plural, =1{1 folder} other{{count} folders}}",
+  "@folderCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pairStepInstructions": "On your computer (Windows, Linux, or macOS), open a terminal and run:",
+  "connectingTo": "Connecting to {name}…",
+  "@connectingTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "nicknameHint": "Pick a label so this computer is easy to spot in your list. You can change it later from the sidebar.",
+  "displaySummary": "{theme} · {scale} text · {tools}",
+  "@displaySummary": {
+    "placeholders": {
+      "theme": {
+        "type": "String"
+      },
+      "scale": {
+        "type": "String"
+      },
+      "tools": {
+        "type": "String"
+      }
+    }
+  },
+  "fontSmall": "Small",
+  "fontDefault": "Default",
+  "fontLarge": "Large",
+  "currentRelay": "Current: {url}",
+  "@currentRelay": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "syncWhy": "{app} keeps your Ed25519 owner key in Google Block Store so you can restore it on a new phone through Google Backup without losing your paired computers.",
+  "@syncWhy": {
+    "placeholders": {
+      "app": {
+        "type": "String"
+      }
+    }
+  },
+  "googleBackupPath": "Settings › System › Backup\n(Samsung: Settings › Accounts and backup › Backup data)",
+  "startingAgent": "Starting {agent}…",
+  "@startingAgent": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "openAgentHere": "Open {agent} here",
+  "@openAgentHere": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "onComputer": "On {computer}",
+  "@onComputer": {
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteNamed": "Delete {name}?",
+  "@deleteNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteDeviceBody": "This removes the computer from this phone and clears its cached sessions. The computer can be paired again by running baya pair.",
+  "deleteWorkspaceNamed": "Delete {name} workspace?",
+  "@deleteWorkspaceNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteWorkspaceBody": "Sessions and computer history are kept. Sessions will return to their folder groups.",
+  "deleteSessionBody": "Remove \"{name}\" and clear its cached messages on this phone? Computer history and the running agent are kept.",
+  "@deleteSessionBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionsCount": "Sessions · {count}",
+  "@sessionsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noSessionsInWorkspace": "No sessions in this workspace yet. Start one in any folder.",
+  "pairDeviceHint": "Pair a device to see its workspaces and activity here. Your navigation and session list will appear in the sidebar.",
+  "runningCount": "{count} running",
+  "@runningCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "previousSessionsCount": "Previous sessions ({count})",
+  "@previousSessionsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "computerDidNotConnect": "The selected computer did not connect in time. Start Baya on it, then try again.",
+  "pairedDevicesCount": "{count} paired devices",
+  "@pairedDevicesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yourAgent": "your agent",
+  "workspaceNeedsName": "A workspace needs a name."
+}

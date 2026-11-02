@@ -1,4 +1,5 @@
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_top_right_popover.dart';
@@ -29,7 +30,7 @@ Future<void> showContextUsage(BuildContext context, {Rect? origin}) async {
 class ContextUsageSheet extends StatelessWidget {
   const ContextUsageSheet({super.key});
   String _tokens(int? value) => value == null
-      ? 'Not reported'
+      ? appL10n.notReported
       : value.toString().replaceAllMapped(
           RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
           (match) => '${match[1]},',
@@ -50,7 +51,7 @@ class ContextUsageSheet extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Context usage',
+                    context.l10n.contextUsage,
                     style: context.typo.sansBody.copyWith(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
@@ -59,7 +60,7 @@ class ContextUsageSheet extends StatelessWidget {
                 ),
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  tooltip: 'Refresh context usage',
+                  tooltip: context.l10n.refreshContextUsage,
                   onPressed: state is ContextUsageLoading ? null : vm.refresh,
                   icon: const Icon(Icons.refresh, size: 19),
                 ),
@@ -75,13 +76,21 @@ class ContextUsageSheet extends StatelessWidget {
               ),
             if (state is ContextUsageError) Text(state.message),
             if (state is ContextUsageReady) ...[
-              _row(context, 'Used tokens', _tokens(state.usage.tokens)),
-              _row(context, 'Context window', _tokens(state.usage.window)),
               _row(
                 context,
-                'Usage',
+                context.l10n.usedTokens,
+                _tokens(state.usage.tokens),
+              ),
+              _row(
+                context,
+                context.l10n.contextWindow,
+                _tokens(state.usage.window),
+              ),
+              _row(
+                context,
+                context.l10n.usage,
                 state.usage.percent == null
-                    ? 'Not reported'
+                    ? context.l10n.notReported
                     : '${state.usage.percent!.toStringAsFixed(1)}%',
               ),
               const SizedBox(height: 12),

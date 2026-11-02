@@ -1,4 +1,5 @@
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:flutter/material.dart';
 
@@ -50,7 +51,7 @@ class _NicknameSheet extends StatefulWidget {
 
 class _NicknameSheetState extends State<_NicknameSheet> {
   late final TextEditingController _controller;
-  static const _fallback = 'Computer';
+  static final _fallback = appL10n.computer;
 
   String get _placeholder {
     final d = widget.defaultName?.trim();
@@ -104,7 +105,7 @@ class _NicknameSheetState extends State<_NicknameSheet> {
                 ),
               ),
               Text(
-                'Name this PC',
+                context.l10n.nameThisPc,
                 style: TextStyle(
                   color: colors.text,
                   fontSize: 17,
@@ -113,8 +114,7 @@ class _NicknameSheetState extends State<_NicknameSheet> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Pick a label so this computer is easy to spot in your list. '
-                'You can change it later from the sidebar.',
+                context.l10n.nicknameHint,
                 style: TextStyle(color: colors.muted2, fontSize: 13),
               ),
               const SizedBox(height: 20),
@@ -147,7 +147,7 @@ class _NicknameSheetState extends State<_NicknameSheet> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: Text(
-                        'Skip',
+                        context.l10n.skip,
                         style: TextStyle(color: colors.muted),
                       ),
                     ),
@@ -157,7 +157,7 @@ class _NicknameSheetState extends State<_NicknameSheet> {
                     child: BayaGlassButton(
                       buttonKey: const Key('nickname-sheet-save'),
                       onPressed: _save,
-                      label: const Text('Save'),
+                      label: Text(context.l10n.save),
                     ),
                   ),
                 ],

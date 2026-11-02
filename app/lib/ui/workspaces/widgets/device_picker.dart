@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
@@ -57,7 +59,7 @@ class DevicePickerField extends StatelessWidget {
               },
         child: InputDecorator(
           decoration: InputDecoration(
-            labelText: 'Device',
+            labelText: context.l10n.device,
             enabled: active,
             filled: false,
           ),
@@ -104,7 +106,9 @@ class DevicePickerField extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          selected.online ? 'Ready' : 'Offline',
+                          selected.online
+                              ? context.l10n.statusReady
+                              : context.l10n.statusOffline,
                           style: context.typo.sansBody.copyWith(
                             fontSize: 12,
                             color: statusColor,
@@ -175,12 +179,17 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Choose Device', style: context.typo.title),
+                        Text(
+                          context.l10n.chooseDeviceTitle,
+                          style: context.typo.title,
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           widget.devices.length == 1
-                              ? '1 paired device'
-                              : '${widget.devices.length} paired devices',
+                              ? context.l10n.onePairedDevice
+                              : context.l10n.pairedDevicesCount(
+                                  widget.devices.length,
+                                ),
                           style: context.typo.sansBody.copyWith(
                             fontSize: 12,
                             color: colors.muted,
@@ -190,7 +199,7 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Close device picker',
+                    tooltip: context.l10n.closeDevicePicker,
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(LucideIcons.x, size: 20),
                   ),
@@ -201,8 +210,8 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: TextField(
                 key: const ValueKey('new-session-device-search'),
-                decoration: const InputDecoration(
-                  hintText: 'Search devices',
+                decoration: InputDecoration(
+                  hintText: context.l10n.searchDevices,
                   prefixIcon: Icon(LucideIcons.search, size: 18),
                   isDense: true,
                 ),
@@ -216,7 +225,7 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
                       height: 128,
                       child: Center(
                         child: Text(
-                          'No matching devices',
+                          context.l10n.noMatchingDevices,
                           style: context.typo.sansBody.copyWith(
                             color: colors.muted,
                           ),
@@ -280,7 +289,9 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  device.online ? 'Ready' : 'Offline',
+                                  device.online
+                                      ? context.l10n.statusReady
+                                      : context.l10n.statusOffline,
                                   style: context.typo.sansBody.copyWith(
                                     fontSize: 12,
                                     color: statusColor,

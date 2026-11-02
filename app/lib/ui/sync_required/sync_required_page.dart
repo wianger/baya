@@ -1,4 +1,5 @@
 import 'package:app/config/dependencies.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -37,11 +38,8 @@ class _SyncRequiredPageState extends State<SyncRequiredPage> {
 
   @override
   Widget build(BuildContext context) {
-    const requirements = _requirements;
-    const why =
-        '$kAppName keeps your Ed25519 owner key in Google Block Store so you '
-        'can restore it on a new phone through Google Backup without losing '
-        'your paired computers.';
+    final requirements = _requirements(context.l10n);
+    final why = context.l10n.syncWhy(kAppName);
 
     final colors = context.colors;
     return Scaffold(
@@ -76,7 +74,7 @@ class _SyncRequiredPageState extends State<SyncRequiredPage> {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        'Sync required',
+                        context.l10n.syncRequired,
                         style: context.typo.sansBody.copyWith(
                           fontSize: 30,
                           fontWeight: FontWeight.w700,
@@ -95,7 +93,7 @@ class _SyncRequiredPageState extends State<SyncRequiredPage> {
                       ),
                       const SizedBox(height: 22),
                       Text(
-                        'TO ENABLE ON THIS DEVICE',
+                        context.l10n.toEnableOnDevice,
                         style: context.typo.sansBody.copyWith(
                           fontSize: 11,
                           color: colors.muted,
@@ -126,7 +124,7 @@ class _SyncRequiredPageState extends State<SyncRequiredPage> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Text('Check again'),
+                            : Text(context.l10n.checkAgain),
                         minimumSize: const Size.fromHeight(50),
                       ),
                       const SizedBox(height: 24),
@@ -149,22 +147,14 @@ class _Requirement {
   const _Requirement({required this.title, required this.path, this.note});
 }
 
-const _requirements = <_Requirement>[
+List<_Requirement> _requirements(AppLocalizations l10n) => [
   _Requirement(
-    title: 'Set up a screen lock',
-    path: 'Settings › Security › Screen lock',
-    note: 'PIN, pattern or biometrics — required by Block Store.',
+    title: l10n.setUpScreenLock,
+    path: l10n.screenLockPath,
+    note: l10n.screenLockNote,
   ),
-  _Requirement(
-    title: 'Turn on Google Backup',
-    path:
-        'Settings › System › Backup\n'
-        '(Samsung: Settings › Accounts and backup › Backup data)',
-  ),
-  _Requirement(
-    title: 'Sign in to a Google account',
-    path: 'Settings › Passwords & accounts › Add account › Google',
-  ),
+  _Requirement(title: l10n.turnOnGoogleBackup, path: l10n.googleBackupPath),
+  _Requirement(title: l10n.signInGoogle, path: l10n.signInGooglePath),
 ];
 
 class _RequirementCard extends StatelessWidget {

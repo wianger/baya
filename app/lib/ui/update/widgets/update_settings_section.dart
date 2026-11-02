@@ -1,4 +1,5 @@
 import 'package:app/ui/core/branding/app_brand.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
@@ -15,9 +16,9 @@ class UpdateSettingsSection extends StatelessWidget {
     if (!context.mounted || opened) return;
     await showBayaNotice(
       context,
-      title: 'Could not start the download',
-      message: 'Open GitHub Releases instead.',
-      secondaryLabel: 'GitHub Releases',
+      title: context.l10n.couldNotStartDownload,
+      message: context.l10n.openGitHubReleasesInstead,
+      secondaryLabel: context.l10n.gitHubReleases,
       onSecondary: () => context.read<UpdateBannerViewModel>().openReleases(),
     );
   }
@@ -30,26 +31,27 @@ class UpdateSettingsSection extends StatelessWidget {
       case UpdateCheckCurrent():
         await showBayaNotice(
           context,
-          title: 'Check for updates',
-          message: 'The app is already up to date.',
+          title: context.l10n.checkForUpdates,
+          message: context.l10n.appUpToDate,
         );
       case UpdateCheckFailed():
         await showBayaNotice(
           context,
-          title: 'Check for updates',
-          message: 'Could not check GitHub. Check your connection.',
+          title: context.l10n.checkForUpdates,
+          message: context.l10n.couldNotCheckGitHub,
         );
       case UpdateBannerVisible():
         // Show a modal here rather than letting the background UpdateBanner
         // (Home is still in the navigation stack) raise a duplicate.
         await showBayaNotice(
           context,
-          title: 'Update available',
-          message:
-              'Version ${(vm.state as UpdateBannerVisible).info.version} '
-              '(${(vm.state as UpdateBannerVisible).info.buildNumber}) is ready to download.',
-          confirmLabel: 'Download APK',
-          secondaryLabel: 'Later',
+          title: context.l10n.updateAvailable,
+          message: context.l10n.versionReady(
+            (vm.state as UpdateBannerVisible).info.version,
+            '${(vm.state as UpdateBannerVisible).info.buildNumber}',
+          ),
+          confirmLabel: context.l10n.downloadApk,
+          secondaryLabel: context.l10n.later,
           onConfirm: () => _download(context),
           onSecondary: vm.dismiss,
           dismissible: false,
@@ -71,7 +73,7 @@ class UpdateSettingsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'App updates',
+              context.l10n.appUpdates,
               style: context.typo.sansBody.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -98,15 +100,18 @@ class UpdateSettingsSection extends StatelessWidget {
                   : const Icon(Icons.system_update, size: 18),
               label: Text(
                 state is UpdateCheckInProgress
-                    ? 'Checking GitHub…'
-                    : 'Check for updates',
+                    ? context.l10n.checkingGitHub
+                    : context.l10n.checkForUpdates,
               ),
               prominent: false,
             ),
             if (state is UpdateBannerVisible) ...[
               const SizedBox(height: 12),
               Text(
-                'Version ${state.info.version} (${state.info.buildNumber}) is available.',
+                context.l10n.versionAvailable(
+                  state.info.version,
+                  '${state.info.buildNumber}',
+                ),
               ),
               if (state.info.notes.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -121,11 +126,11 @@ class UpdateSettingsSection extends StatelessWidget {
                 buttonKey: const Key('download-github-apk'),
                 onPressed: () => _download(context),
                 icon: const Icon(Icons.download, size: 18),
-                label: const Text('Download APK'),
+                label: Text(context.l10n.downloadApk),
               ),
               const SizedBox(height: 8),
               Text(
-                'Open the download to update this app. Your pairings and settings are kept.',
+                context.l10n.updateKeepsData,
                 style: context.typo.sansBody.copyWith(
                   color: context.colors.muted,
                 ),
@@ -133,7 +138,7 @@ class UpdateSettingsSection extends StatelessWidget {
             ],
             TextButton(
               onPressed: vm.openReleases,
-              child: const Text('GitHub Releases'),
+              child: Text(context.l10n.gitHubReleases),
             ),
           ],
         ),

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/domain/session_state.dart';
 
 /// Presentation-only interpretation of the loosely typed tool payloads emitted
@@ -157,7 +159,7 @@ class ToolContent {
 
   String get toolName {
     final name = tool.tool.trim();
-    return name.isEmpty ? 'Tool' : name;
+    return name.isEmpty ? appL10n.tool : name;
   }
 
   String? get description {
@@ -175,39 +177,42 @@ class ToolContent {
   }
 
   String get title {
-    if (awaitingApproval) return 'Waiting for approval';
+    if (awaitingApproval) return appL10n.waitingForApproval;
     final explicit = description;
     if (explicit != null) return explicit;
     final running =
         tool.status == ToolEventStatus.pending ||
         tool.status == ToolEventStatus.allowed;
-    if (isCommand) return running ? 'Running command' : 'Ran command';
+    if (isCommand) return running ? appL10n.runningCommand : appL10n.ranCommand;
     if (isFileChange) {
       final count = changedPaths.length;
       if (count > 1) {
-        return running ? 'Editing $count files' : 'Edited $count files';
+        return running
+            ? appL10n.editingFiles(count)
+            : appL10n.editedFiles(count);
       }
-      return running ? 'Editing file' : 'Edited file';
+      return running ? appL10n.editingFile : appL10n.editedFile;
     }
     if (isAgentMessage) {
-      return running ? 'Messaging agent' : 'Messaged agent';
+      return running ? appL10n.messagingAgent : appL10n.messagedAgent;
     }
-    if (isRead) return running ? 'Reading file' : 'Read file';
+    if (isRead) return running ? appL10n.readingFile : appL10n.readFile;
     if (isSearch) {
       return running
-          ? (isWeb ? 'Searching the web' : 'Searching files')
-          : (isWeb ? 'Searched the web' : 'Searched files');
+          ? (isWeb ? appL10n.searchingWeb : appL10n.searchingFiles)
+          : (isWeb ? appL10n.searchedWeb : appL10n.searchedFiles);
     }
-    return '${running ? 'Using' : 'Used'} $toolName';
+    return running ? appL10n.usingTool(toolName) : appL10n.usedTool(toolName);
   }
 
   String get statusLabel => switch (tool.status) {
-    ToolEventStatus.pending => awaitingApproval ? 'Waiting' : 'Running',
-    ToolEventStatus.allowed => 'Running',
-    ToolEventStatus.completed => 'Completed',
-    ToolEventStatus.failed => 'Failed',
-    ToolEventStatus.denied => 'Denied',
-    ToolEventStatus.expired => 'Expired',
+    ToolEventStatus.pending =>
+      awaitingApproval ? appL10n.waiting : appL10n.running,
+    ToolEventStatus.allowed => appL10n.running,
+    ToolEventStatus.completed => appL10n.completed,
+    ToolEventStatus.failed => appL10n.failed,
+    ToolEventStatus.denied => appL10n.denied,
+    ToolEventStatus.expired => appL10n.expired,
   };
 
   String? get command {
@@ -297,10 +302,10 @@ class ToolContent {
   }
 
   String get inputLabel {
-    if (isAgentMessage) return 'Message';
-    if (isRead) return 'File';
-    if (isSearch) return isWeb ? 'Query' : 'Search';
-    return 'Input';
+    if (isAgentMessage) return appL10n.message;
+    if (isRead) return appL10n.file;
+    if (isSearch) return isWeb ? appL10n.query : appL10n.search;
+    return appL10n.input;
   }
 
   String? get inputText {
@@ -325,8 +330,8 @@ class ToolContent {
       if (offset == null && limit == null) return file;
       final start = offset ?? 1;
       final range = limit == null
-          ? 'from line $start'
-          : 'lines $start-${start + limit - 1}';
+          ? appL10n.fromLine(start)
+          : appL10n.lineRange(start, start + limit - 1);
       return '$file\n$range';
     }
 
@@ -339,14 +344,18 @@ class ToolContent {
         'action',
       ]);
       final scope = path ?? _stringValue(args, const ['cwd', 'directory']);
-      if (query != null && scope != null) return '$query\nin $scope';
+      if (query != null && scope != null) {
+        return appL10n.queryInScope(query, scope);
+      }
       return query ?? scope;
     }
 
     if (isAgentMessage) {
       final recipient = _stringValue(args, const ['to', 'recipient', 'target']);
       final body = _textFrom(_firstValue(args, _agentBodyKeys));
-      if (recipient != null && body != null) return 'To $recipient\n\n$body';
+      if (recipient != null && body != null) {
+        return appL10n.messageTo(recipient, body);
+      }
       return body ?? recipient;
     }
 
@@ -441,7 +450,7 @@ class ToolContent {
         final first = _oneLine(paths.first);
         return paths.length == 1
             ? first
-            : '$first  ·  +${paths.length - 1} more';
+            : appL10n.andMore(first, paths.length - 1);
       }
     }
     if (isRead) {
@@ -726,16 +735,14 @@ class ToolContent {
     final target = _stringValue(value, const ['target', 'to', 'recipient']);
     return switch (status) {
       'received' =>
-        target == null ? 'Message delivered.' : 'Delivered to $target.',
-      'sent' => 'Message sent.',
+        target == null ? appL10n.messageDelivered : appL10n.deliveredTo(target),
+      'sent' => appL10n.messageSent,
       'denied' =>
-        target == null
-            ? 'The recipient denied the message.'
-            : '$target denied the message.',
+        target == null ? appL10n.recipientDenied : appL10n.targetDenied(target),
       'timeout' =>
         target == null
-            ? 'Message delivery timed out.'
-            : 'Message delivery to $target timed out.',
+            ? appL10n.messageDeliveryTimedOut
+            : appL10n.deliveryToTimedOut(target),
       _ => null,
     };
   }

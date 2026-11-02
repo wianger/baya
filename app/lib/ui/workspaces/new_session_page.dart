@@ -1,4 +1,5 @@
 import 'package:app/domain/workspaces/workspace_repository.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -74,12 +75,12 @@ class _NewSessionPageState extends State<NewSessionPage> {
           leading: IconButton(
             onPressed: ready?.opening == true ? null : _cancel,
             icon: const Icon(LucideIcons.x),
-            tooltip: 'Cancel',
+            tooltip: context.l10n.cancel,
           ),
-          title: const Text('New session'),
+          title: Text(context.l10n.newSession),
           actions: [
             IconButton(
-              tooltip: 'Refresh computers',
+              tooltip: context.l10n.refreshComputers,
               onPressed: ready?.opening == true ? null : vm.load,
               icon: const Icon(LucideIcons.refreshCw, size: 19),
             ),
@@ -109,7 +110,7 @@ class _NewSessionPageState extends State<NewSessionPage> {
                               const SizedBox(height: 16),
                               OutlinedButton(
                                 onPressed: vm.load,
-                                child: const Text('Try again'),
+                                child: Text(context.l10n.tryAgain),
                               ),
                             ],
                           ),
@@ -167,7 +168,7 @@ class _NewSessionPageState extends State<NewSessionPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Choose a folder on your computer. A fresh agent session will start there.',
+            context.l10n.chooseFolderHint,
             style: TextStyle(color: colors.muted2, fontSize: 12),
           ),
           const SizedBox(height: 16),
@@ -178,10 +179,10 @@ class _NewSessionPageState extends State<NewSessionPage> {
             enableSuggestions: false,
             style: context.typo.mono.copyWith(fontSize: 12),
             decoration: InputDecoration(
-              labelText: 'Folder path',
-              hintText: 'Absolute path on the computer',
+              labelText: context.l10n.folderPath,
+              hintText: context.l10n.absolutePathHint,
               suffixIcon: IconButton(
-                tooltip: 'Go to folder',
+                tooltip: context.l10n.goToFolder,
                 onPressed: locked ? null : () => vm.browse(path: _path.text),
                 icon: const Icon(LucideIcons.arrowRight, size: 18),
               ),
@@ -191,14 +192,14 @@ class _NewSessionPageState extends State<NewSessionPage> {
           Row(
             children: [
               IconButton(
-                tooltip: 'Home folder',
+                tooltip: context.l10n.homeFolder,
                 onPressed: locked
                     ? null
                     : () => vm.browse(path: directory?.home),
                 icon: const Icon(LucideIcons.house, size: 18),
               ),
               IconButton(
-                tooltip: 'Parent folder',
+                tooltip: context.l10n.parentFolder,
                 onPressed: locked || directory?.parent == null
                     ? null
                     : () => vm.browse(path: directory!.parent),
@@ -206,7 +207,7 @@ class _NewSessionPageState extends State<NewSessionPage> {
               ),
               const Spacer(),
               Text(
-                'Hidden folders',
+                context.l10n.hiddenFolders,
                 style: TextStyle(color: colors.muted2, fontSize: 12),
               ),
               Switch(
@@ -218,8 +219,8 @@ class _NewSessionPageState extends State<NewSessionPage> {
           TextField(
             key: ValueKey(directory?.path),
             enabled: !locked,
-            decoration: const InputDecoration(
-              hintText: 'Filter folders',
+            decoration: InputDecoration(
+              hintText: context.l10n.filterFolders,
               prefixIcon: Icon(LucideIcons.search, size: 18),
               isDense: true,
             ),
@@ -268,7 +269,7 @@ class _NewSessionPageState extends State<NewSessionPage> {
                             TextButton(
                               key: const ValueKey('new-session-retry-browse'),
                               onPressed: locked ? null : vm.retryBrowse,
-                              child: const Text('Try again'),
+                              child: Text(context.l10n.tryAgain),
                             ),
                           ],
                         ),
@@ -289,10 +290,10 @@ class _NewSessionPageState extends State<NewSessionPage> {
                       padding: const EdgeInsets.all(20),
                       child: Text(
                         state.loading
-                            ? 'Reading folders…'
+                            ? context.l10n.readingFolders
                             : directory == null
-                            ? 'Select an online computer to browse folders.'
-                            : 'No subfolders',
+                            ? context.l10n.selectOnlineComputer
+                            : context.l10n.noSubfolders,
                         textAlign: TextAlign.center,
                         style: TextStyle(color: colors.muted),
                       ),
@@ -335,7 +336,7 @@ class _NewSessionPageState extends State<NewSessionPage> {
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Text(
-                      'Showing the first 300 folders. Enter a path to open another folder.',
+                      context.l10n.first300Folders,
                       style: TextStyle(color: colors.muted, fontSize: 11),
                     ),
                   ),
@@ -352,8 +353,8 @@ class _NewSessionPageState extends State<NewSessionPage> {
             icon: const Icon(LucideIcons.plus, size: 18),
             label: Text(
               state.opening
-                  ? 'Starting ${state.agent.label}…'
-                  : 'Open ${state.agent.label} here',
+                  ? context.l10n.startingAgent(state.agent.label)
+                  : context.l10n.openAgentHere(state.agent.label),
             ),
             minimumSize: const Size.fromHeight(52),
           ),
@@ -412,7 +413,7 @@ class _WorkspacePickerField extends StatelessWidget {
               },
         child: InputDecorator(
           decoration: InputDecoration(
-            labelText: 'Workspace',
+            labelText: context.l10n.workspace,
             enabled: active,
             filled: false,
           ),
@@ -428,8 +429,8 @@ class _WorkspacePickerField extends StatelessWidget {
                 child: Text(
                   selected?.label ??
                       (active
-                          ? 'Choose a workspace'
-                          : 'No workspaces on this computer'),
+                          ? context.l10n.chooseWorkspace
+                          : context.l10n.noWorkspacesOnComputer),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: context.typo.sansBody.copyWith(
@@ -480,10 +481,13 @@ class _WorkspacePickerSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Choose Workspace', style: context.typo.title),
+                      Text(
+                        context.l10n.chooseWorkspaceTitle,
+                        style: context.typo.title,
+                      ),
                       const SizedBox(height: 4),
                       Text(
-                        'On $computerLabel',
+                        context.l10n.onComputer(computerLabel),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: context.typo.sansBody.copyWith(
@@ -495,7 +499,7 @@ class _WorkspacePickerSheet extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Close workspace picker',
+                  tooltip: context.l10n.closeWorkspacePicker,
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(LucideIcons.x, size: 20),
                 ),

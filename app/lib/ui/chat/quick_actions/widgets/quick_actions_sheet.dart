@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/protocol/protocol.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -160,7 +162,7 @@ class _QuickActionsSheetBodyState extends State<QuickActionsSheetBody> {
             const SizedBox(height: 10),
             _DragHandle(),
             const SizedBox(height: 6),
-            const _SheetTitle(text: 'Session'),
+            _SheetTitle(text: context.l10n.session),
             const _Divider(),
             _ModelRow(
               currentLabel: vm.currentModel?.name ?? vm.currentModelName,
@@ -266,7 +268,8 @@ class _ModelRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final label = currentLabel ?? (busy ? 'Switching…' : 'Choose a model');
+    final label =
+        currentLabel ?? (busy ? 'Switching…' : context.l10n.chooseModel);
     return InkWell(
       key: const Key('qa-model-row'),
       onTap: busy ? null : onTap,
@@ -281,7 +284,7 @@ class _ModelRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Model',
+                    context.l10n.model,
                     style: TextStyle(
                       fontFamily: kMonoFamily,
                       fontSize: 11,
@@ -343,7 +346,7 @@ class _ThinkingRow extends StatelessWidget {
               Icon(LucideIcons.brain, color: colors.accent, size: 18),
               const SizedBox(width: 14),
               Text(
-                'Thinking',
+                context.l10n.thinking,
                 style: TextStyle(
                   fontFamily: kMonoFamily,
                   fontSize: 11,
@@ -365,7 +368,7 @@ class _ThinkingRow extends StatelessWidget {
           const SizedBox(height: 10),
           if (levels.isEmpty)
             Text(
-              'This model has no configurable effort.',
+              context.l10n.noConfigurableEffort,
               style: TextStyle(
                 fontFamily: kMonoFamily,
                 fontSize: 11,

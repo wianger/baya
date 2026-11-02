@@ -1,4 +1,5 @@
 import 'package:app/domain/contracts/agent_commands_repository.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/commands/states/agent_commands_state.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 
@@ -25,7 +26,7 @@ class AgentCommandsViewModel extends ViewModel<AgentCommandsState> {
         emit(
           AgentCommandsState(
             commands: state.commands,
-            error: 'Could not load slash commands.',
+            error: appL10n.couldNotLoadCommands,
           ),
         );
       }

@@ -1,4 +1,5 @@
 import 'package:app/domain/session_state.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/widgets/tool_activity_details.dart';
 import 'package:app/ui/chat/widgets/tool_content.dart';
@@ -200,7 +201,9 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
                         onPressed: () =>
                             setState(() => _outputExpanded = !_outputExpanded),
                         child: Text(
-                          _outputExpanded ? 'Show less' : 'Show full output',
+                          _outputExpanded
+                              ? context.l10n.showLess
+                              : context.l10n.showFullOutput,
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -208,7 +211,7 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
                   const SizedBox(height: 10),
                   if (_needsApproval) ...[
                     Text(
-                      'The agent is waiting for your approval.',
+                      context.l10n.agentWaitingApproval,
                       style: TextStyle(color: colors.text, fontSize: 13),
                     ),
                     const SizedBox(height: 12),
@@ -221,7 +224,7 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
                                   tool.toolCallId,
                                   ApproveDecision.deny,
                                 ),
-                          child: const Text('Deny'),
+                          child: Text(context.l10n.deny),
                         ),
                         const SizedBox(width: 10),
                         BayaGlassButton(
@@ -231,7 +234,7 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
                                   tool.toolCallId,
                                   ApproveDecision.allow,
                                 ),
-                          label: const Text('Allow once'),
+                          label: Text(context.l10n.allowOnce),
                         ),
                       ],
                     ),
@@ -262,12 +265,12 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
   /// states, and a check once an ordinary call finishes.
   Widget _buildStatus(BuildContext context, Color color) {
     final statusLabel = switch (tool.status) {
-      ToolEventStatus.pending ||
-      ToolEventStatus.allowed => _needsApproval ? 'Approval' : 'Running',
-      ToolEventStatus.completed => 'Done',
-      ToolEventStatus.failed => 'Failed',
-      ToolEventStatus.denied => 'Denied',
-      ToolEventStatus.expired => 'Expired',
+      ToolEventStatus.pending || ToolEventStatus.allowed =>
+        _needsApproval ? context.l10n.approval : context.l10n.running,
+      ToolEventStatus.completed => context.l10n.done,
+      ToolEventStatus.failed => context.l10n.failed,
+      ToolEventStatus.denied => context.l10n.denied,
+      ToolEventStatus.expired => context.l10n.expired,
     };
     if (_running && !_needsApproval) {
       return SizedBox(

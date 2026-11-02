@@ -1,4 +1,5 @@
 import 'package:app/pairing/storage.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_dialog.dart';
@@ -12,9 +13,9 @@ Future<String?> showSessionRenameDialog(
   required String currentName,
 }) => showNameDialog(
   context,
-  title: 'Rename conversation',
+  title: context.l10n.renameConversation,
   currentValue: currentName,
-  hintText: 'Leave empty to use the computer name',
+  hintText: context.l10n.leaveEmptyForComputerName,
 );
 
 Future<String?> showDeviceRenameDialog(
@@ -22,9 +23,9 @@ Future<String?> showDeviceRenameDialog(
   required String currentName,
 }) => showNameDialog(
   context,
-  title: 'Rename device',
+  title: context.l10n.renameDevice,
   currentValue: currentName,
-  hintText: 'Name shown in this app',
+  hintText: context.l10n.nameShownInApp,
 );
 
 Future<String?> showWorkspaceRenameDialog(
@@ -32,9 +33,9 @@ Future<String?> showWorkspaceRenameDialog(
   required String currentName,
 }) => showNameDialog(
   context,
-  title: 'Rename workspace',
+  title: context.l10n.renameWorkspace,
   currentValue: currentName,
-  hintText: 'Name shown in this app',
+  hintText: context.l10n.nameShownInApp,
 );
 
 Future<bool> showDeviceDeleteDialog(
@@ -46,20 +47,22 @@ Future<bool> showDeviceDeleteDialog(
     builder: (dialogContext) {
       final colors = dialogContext.colors;
       return BayaGlassDialog(
-        title: Text('Delete $name?'),
+        title: Text(context.l10n.deleteNamed(name)),
         content: Text(
-          'This removes the computer from this phone and clears its cached '
-          'sessions. The computer can be paired again by running baya pair.',
+          context.l10n.deleteDeviceBody,
           style: TextStyle(color: colors.muted2),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text('Delete', style: TextStyle(color: colors.error)),
+            child: Text(
+              context.l10n.delete,
+              style: TextStyle(color: colors.error),
+            ),
           ),
         ],
       );
@@ -75,21 +78,20 @@ Future<bool> showWorkspaceDeleteDialog(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => BayaGlassDialog(
-      title: Text('Delete $name workspace?'),
+      title: Text(context.l10n.deleteWorkspaceNamed(name)),
       content: Text(
-        'Sessions and computer history are kept. Sessions will return to '
-        'their folder groups.',
+        context.l10n.deleteWorkspaceBody,
         style: TextStyle(color: dialogContext.colors.muted2),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.cancel),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
           child: Text(
-            'Delete',
+            context.l10n.delete,
             style: TextStyle(color: dialogContext.colors.error),
           ),
         ),
@@ -106,20 +108,17 @@ Future<bool> showSessionDeleteDialog(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => BayaGlassDialog(
-      title: const Text('Delete from phone?'),
-      content: Text(
-        'Remove "$name" and clear its cached messages on this phone? '
-        'Computer history and the running agent are kept.',
-      ),
+      title: Text(context.l10n.deleteFromPhone),
+      content: Text(context.l10n.deleteSessionBody(name)),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.cancel),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
           child: Text(
-            'Delete',
+            context.l10n.delete,
             style: TextStyle(color: dialogContext.colors.error),
           ),
         ),
@@ -187,11 +186,11 @@ class _NameDialogState extends State<_NameDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
+        child: Text(context.l10n.cancel),
       ),
       BayaGlassButton(
         onPressed: () => Navigator.of(context).pop(_controller.text),
-        label: const Text('Save'),
+        label: Text(context.l10n.save),
       ),
     ],
   );
@@ -218,24 +217,24 @@ Future<void> showSessionInfoDialog(
     context: context,
     builder: (dialogContext) {
       return BayaGlassDialog(
-        title: Text('Session info', style: dialogContext.typo.title),
+        title: Text(context.l10n.sessionInfo, style: dialogContext.typo.title),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _InfoRow(label: 'Name', value: name),
-            _InfoRow(label: 'Path', value: room?.cwd ?? '—'),
-            _InfoRow(label: 'Owner', value: owner),
+            _InfoRow(label: context.l10n.name, value: name),
+            _InfoRow(label: context.l10n.path, value: room?.cwd ?? '—'),
+            _InfoRow(label: context.l10n.owner, value: owner),
             if (model != null && model.isNotEmpty)
-              _InfoRow(label: 'Model', value: model),
-            _InfoRow(label: 'Room', value: room?.roomId ?? '—'),
-            _InfoRow(label: 'Paired', value: paired),
+              _InfoRow(label: context.l10n.model, value: model),
+            _InfoRow(label: context.l10n.room, value: room?.roomId ?? '—'),
+            _InfoRow(label: context.l10n.paired, value: paired),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Close'),
+            child: Text(context.l10n.close),
           ),
         ],
       );

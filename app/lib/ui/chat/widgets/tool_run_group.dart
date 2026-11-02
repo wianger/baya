@@ -1,4 +1,5 @@
 import 'package:app/domain/session_state.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/widgets/baya_activity_card.dart';
 import 'package:app/ui/chat/widgets/tool_activity_details.dart';
@@ -28,13 +29,12 @@ class ToolRunGroup extends StatelessWidget {
     final commands = tools.where(_isCommand).length;
     final others = tools.length - commands;
     if (commands > 0 && others > 0) {
-      return 'Ran ${commands == 1 ? 'a command' : '$commands commands'}, '
-          'used ${others == 1 ? 'a tool' : '$others tools'}';
+      return appL10n.ranAndUsed(commands, others);
     }
     if (commands > 0) {
-      return 'Ran ${commands == 1 ? 'a command' : '$commands commands'}';
+      return appL10n.ranCommands(commands);
     }
-    return 'Used ${others == 1 ? 'a tool' : '$others tools'}';
+    return appL10n.usedTools(others);
   }
 
   bool get _failed => tools.any((t) => t.status == ToolEventStatus.failed);
@@ -48,7 +48,7 @@ class ToolRunGroup extends StatelessWidget {
     final head = ToolContent(tools.first).preview;
     if (head == null) return null;
     if (tools.length == 1) return head;
-    return '$head  ·  +${tools.length - 1} more';
+    return appL10n.andMore(head, tools.length - 1);
   }
 
   IconData get _icon {
@@ -129,7 +129,7 @@ class ToolRunGroup extends StatelessWidget {
                         SizedBox.square(
                           dimension: 42,
                           child: IconButton.filledTonal(
-                            tooltip: 'Close',
+                            tooltip: context.l10n.close,
                             onPressed: () => Navigator.of(sheetContext).pop(),
                             icon: const Icon(LucideIcons.x, size: 20),
                           ),

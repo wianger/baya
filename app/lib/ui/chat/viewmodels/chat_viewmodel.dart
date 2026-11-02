@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/data/local/records/message_record.dart';
 import 'package:app/data/local/records/runtime_record.dart';
 import 'package:app/data/preferences/preferences.dart';
@@ -261,7 +263,7 @@ class ChatViewModel extends ViewModel<ChatState> {
         if (isWarning) {
           _pendingUiError = (req.message?.isNotEmpty ?? false)
               ? req.message
-              : 'Answer was not accepted.';
+              : appL10n.answerNotAccepted;
         } else {
           _pendingUiRequest = null;
           _pendingUiError = null;
@@ -342,7 +344,7 @@ class ChatViewModel extends ViewModel<ChatState> {
     _recompute();
     final sent = await _sync.respondExtensionUi(resp);
     if (!sent) {
-      _pendingUiError = 'Not connected — check the link to Pi and retry.';
+      _pendingUiError = appL10n.notConnectedRetry;
       _recompute();
     }
   }

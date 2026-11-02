@@ -1,4 +1,5 @@
 import 'package:app/domain/entities/update_info.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
@@ -36,11 +37,10 @@ class _UpdateBannerState extends State<UpdateBanner> {
     _showing = true;
     await showBayaNotice(
       context,
-      title: 'Update available',
-      message:
-          'Version ${info.version} (${info.buildNumber}) is ready to download.',
-      confirmLabel: 'Download APK',
-      secondaryLabel: 'Later',
+      title: context.l10n.updateAvailable,
+      message: context.l10n.versionReady(info.version, '${info.buildNumber}'),
+      confirmLabel: context.l10n.downloadApk,
+      secondaryLabel: context.l10n.later,
       dismissible: false,
       onConfirm: vm.download,
       onSecondary: vm.dismiss,

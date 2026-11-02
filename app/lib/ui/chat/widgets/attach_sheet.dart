@@ -1,4 +1,5 @@
 import 'package:app/routing/adaptive.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/quick_actions/widgets/dismiss_on_session_change.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
@@ -63,13 +64,13 @@ class _AttachSheetBody extends StatelessWidget {
             _AttachOption(
               key: const Key('attach-camera'),
               icon: LucideIcons.camera,
-              label: 'Camera',
+              label: context.l10n.camera,
               onTap: () => Navigator.of(context).pop(AttachSource.camera),
             ),
             _AttachOption(
               key: const Key('attach-gallery'),
               icon: LucideIcons.image,
-              label: 'Photo Library',
+              label: context.l10n.photoLibrary,
               onTap: () => Navigator.of(context).pop(AttachSource.gallery),
             ),
           ],

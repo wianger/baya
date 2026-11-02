@@ -1,12 +1,8 @@
+import 'package:app/l10n/l10n.dart';
+
 /// User-selectable text size.
 ///
-/// Why an in-app control at all: every text size in the app is hardcoded
-/// (`AppTypography` plus per-widget `copyWith(fontSize: …)`), and Flutter does
-/// not participate in iOS's per-app "Text Size" entry — the engine derives its
-/// scale factor exclusively from `preferredContentSizeCategory`, which only
-/// surfaces for apps supporting UIKit Dynamic Type. So the only OS-level
-/// workaround is the *global* Larger Text setting, which resizes every other
-/// app on the device. This gives the app its own knob.
+/// The system font size changes every app; this gives Baya its own knob.
 ///
 /// The factor is applied as a `TextScaler` on the `MediaQuery` above the router
 /// rather than by multiplying `AppTypography`'s base sizes. That covers the
@@ -20,8 +16,15 @@ enum AppFontScale {
 
   const AppFontScale(this.label, this.factor);
 
-  /// Short label for the Settings segmented control.
+  /// English label; the UI uses [localizedLabel].
   final String label;
+
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+    small => l10n.fontSmall,
+    standard => l10n.fontDefault,
+    large => l10n.fontLarge,
+    extraLarge => label,
+  };
 
   /// Multiplier applied to every text size in the app.
   final double factor;

@@ -1,4 +1,5 @@
 import 'package:app/data/preferences/preferences.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/data/transport/relay_config.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
@@ -49,7 +50,7 @@ class SettingsPage extends StatelessWidget {
           elevated: false,
           child: SizedBox.expand(),
         ),
-        title: const Text('Settings'),
+        title: Text(context.l10n.settings),
         automaticallyImplyLeading: false,
         leading: IconButton(
           icon: Icon(
@@ -57,7 +58,7 @@ class SettingsPage extends StatelessWidget {
             size: embedded ? 22 : 18,
             color: colors.text,
           ),
-          tooltip: embedded ? 'Close' : 'Back',
+          tooltip: embedded ? context.l10n.close : context.l10n.back,
           onPressed: () =>
               context.canPop() ? context.pop() : context.go('/home'),
         ),
@@ -77,12 +78,12 @@ class SettingsPage extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 36),
                   children: [
-                    const _SettingsSectionLabel('Connection'),
+                    _SettingsSectionLabel(context.l10n.connection),
                     _SettingsEntryCard(
                       child: _SettingsEntry(
                         key: const Key('settings-relay'),
                         icon: LucideIcons.settings2,
-                        title: 'Relay',
+                        title: context.l10n.relay,
                         subtitle: vm.effectiveRelayUrl,
                         onTap: () => _openDetail(
                           context,
@@ -91,12 +92,12 @@ class SettingsPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 22),
-                    const _SettingsSectionLabel('Chat & appearance'),
+                    _SettingsSectionLabel(context.l10n.chatAndAppearance),
                     _SettingsEntryCard(
                       child: _SettingsEntry(
                         key: const Key('settings-display'),
                         icon: LucideIcons.monitor,
-                        title: 'Display and conversation',
+                        title: context.l10n.displayAndConversation,
                         subtitle: _displaySummary(prefs),
                         onTap: () => _openDetail(
                           context,
@@ -105,13 +106,13 @@ class SettingsPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 22),
-                    const _SettingsSectionLabel('Information'),
+                    _SettingsSectionLabel(context.l10n.information),
                     _SettingsEntryCard(
                       child: _SettingsEntry(
                         key: const Key('settings-about'),
                         icon: LucideIcons.info,
-                        title: 'About',
-                        subtitle: 'Version, updates and project links',
+                        title: context.l10n.about,
+                        subtitle: context.l10n.aboutHint,
                         onTap: () => context.push('/about'),
                       ),
                     ),
@@ -127,12 +128,18 @@ class SettingsPage extends StatelessWidget {
 
   String _displaySummary(Preferences prefs) {
     final theme = switch (prefs.themeMode) {
-      ThemeMode.system => 'System',
-      ThemeMode.light => 'Light',
-      ThemeMode.dark => 'Dark',
+      ThemeMode.system => appL10n.themeSystem,
+      ThemeMode.light => appL10n.themeLight,
+      ThemeMode.dark => appL10n.themeDark,
     };
-    final tools = prefs.hideToolCalls ? 'Tools hidden' : 'Tools visible';
-    return '$theme · ${prefs.fontScale.label} text · $tools';
+    final tools = prefs.hideToolCalls
+        ? appL10n.toolsHidden
+        : appL10n.toolsVisible;
+    return appL10n.displaySummary(
+      theme,
+      prefs.fontScale.localizedLabel(appL10n),
+      tools,
+    );
   }
 }
 
@@ -168,8 +175,8 @@ class _RelaySettingsPageState extends State<RelaySettingsPage> {
     if (err == null) {
       await showBayaNotice(
         context,
-        title: 'Relay updated',
-        message: 'This device now uses the new relay URL.',
+        title: context.l10n.relayUpdated,
+        message: context.l10n.relayUpdatedHint,
       );
     }
   }
@@ -179,14 +186,14 @@ class _RelaySettingsPageState extends State<RelaySettingsPage> {
     final vm = context.watch<SettingsViewModel>();
     final colors = context.colors;
     return _SettingsDetailScaffold(
-      title: 'Relay',
+      title: context.l10n.relay,
       child: BayaGlassSurface(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Server address',
+              context.l10n.serverAddress,
               style: context.typo.sansBody.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -194,7 +201,7 @@ class _RelaySettingsPageState extends State<RelaySettingsPage> {
             ),
             const SizedBox(height: 6),
             Text(
-              'The app reconnects after a new relay is saved.',
+              context.l10n.relayReconnectHint,
               style: context.typo.sansBody.copyWith(
                 color: colors.muted,
                 fontSize: 13,
@@ -219,7 +226,7 @@ class _RelaySettingsPageState extends State<RelaySettingsPage> {
                   color: colors.muted,
                   fontSize: 12,
                 ),
-                helperText: 'Current: ${vm.effectiveRelayUrl}',
+                helperText: context.l10n.currentRelay(vm.effectiveRelayUrl),
                 helperMaxLines: 2,
                 helperStyle: context.typo.mono.copyWith(
                   fontSize: 10,
@@ -254,7 +261,7 @@ class _RelaySettingsPageState extends State<RelaySettingsPage> {
                   buttonKey: const Key('relay-save'),
                   onPressed: _save,
                   label: Text(
-                    'Save',
+                    context.l10n.save,
                     style: const TextStyle(
                       fontFamily: kMonoFamily,
                       fontSize: 13,
@@ -268,7 +275,7 @@ class _RelaySettingsPageState extends State<RelaySettingsPage> {
                     _save();
                   },
                   child: Text(
-                    'Use default relay',
+                    context.l10n.useDefaultRelay,
                     style: const TextStyle(
                       fontFamily: kMonoFamily,
                       fontSize: 13,
@@ -292,27 +299,33 @@ class DisplaySettingsPage extends StatelessWidget {
     final prefs = context.watch<Preferences>();
     final colors = context.colors;
     return _SettingsDetailScaffold(
-      title: 'Display and conversation',
+      title: context.l10n.displayAndConversation,
       child: BayaGlassSurface(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _DetailControl(
-              title: 'Theme',
-              description: 'Follow Android or keep one appearance.',
+              title: context.l10n.theme,
+              description: context.l10n.themeHint,
               child: SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<ThemeMode>(
                   key: const Key('theme-selector'),
                   showSelectedIcon: false,
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: ThemeMode.system,
-                      label: Text('System'),
+                      label: Text(context.l10n.themeSystem),
                     ),
-                    ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                    ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      label: Text(context.l10n.themeLight),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      label: Text(context.l10n.themeDark),
+                    ),
                   ],
                   selected: {prefs.themeMode},
                   onSelectionChanged: (selection) =>
@@ -322,8 +335,8 @@ class DisplaySettingsPage extends StatelessWidget {
             ),
             Divider(color: colors.border, height: 32),
             _DetailControl(
-              title: 'Text size',
-              description: 'Scale the whole app, including chat text.',
+              title: context.l10n.textSize,
+              description: context.l10n.textSizeHint,
               child: SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<AppFontScale>(
@@ -331,7 +344,10 @@ class DisplaySettingsPage extends StatelessWidget {
                   showSelectedIcon: false,
                   segments: [
                     for (final scale in AppFontScale.values)
-                      ButtonSegment(value: scale, label: Text(scale.label)),
+                      ButtonSegment(
+                        value: scale,
+                        label: Text(scale.localizedLabel(context.l10n)),
+                      ),
                   ],
                   selected: {prefs.fontScale},
                   onSelectionChanged: (selection) =>
@@ -345,14 +361,14 @@ class DisplaySettingsPage extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               activeThumbColor: colors.accent,
               title: Text(
-                'Hide tool calls in chat',
+                context.l10n.hideToolCalls,
                 style: context.typo.sansBody.copyWith(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               subtitle: Text(
-                'Only show your messages and assistant replies.',
+                context.l10n.hideToolCallsHint,
                 style: context.typo.sansBody.copyWith(
                   color: colors.muted,
                   fontSize: 13,
@@ -391,7 +407,7 @@ class _SettingsDetailScaffold extends StatelessWidget {
         automaticallyImplyLeading: false,
         leading: IconButton(
           icon: Icon(LucideIcons.chevronLeft, size: 20, color: colors.text),
-          tooltip: 'Back',
+          tooltip: context.l10n.back,
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(title),

@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
@@ -55,7 +57,7 @@ class AgentPickerField extends StatelessWidget {
               },
         child: InputDecorator(
           decoration: InputDecoration(
-            labelText: 'Agent',
+            labelText: context.l10n.agent,
             enabled: active,
             filled: false,
           ),
@@ -69,7 +71,7 @@ class AgentPickerField extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  selected?.label ?? 'Choose an agent',
+                  selected?.label ?? context.l10n.chooseAgent,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: context.typo.sansBody.copyWith(
@@ -140,10 +142,13 @@ class _AgentPickerSheetState extends State<_AgentPickerSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Choose Agent', style: context.typo.title),
+                        Text(
+                          context.l10n.chooseAgentTitle,
+                          style: context.typo.title,
+                        ),
                         const SizedBox(height: 4),
                         Text(
-                          'On ${widget.computerLabel}',
+                          context.l10n.onComputer(widget.computerLabel),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: context.typo.sansBody.copyWith(
@@ -155,7 +160,7 @@ class _AgentPickerSheetState extends State<_AgentPickerSheet> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Close agent picker',
+                    tooltip: context.l10n.closeAgentPicker,
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(LucideIcons.x, size: 20),
                   ),
@@ -166,8 +171,8 @@ class _AgentPickerSheetState extends State<_AgentPickerSheet> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: TextField(
                 key: const ValueKey('agent-picker-search'),
-                decoration: const InputDecoration(
-                  hintText: 'Search agents',
+                decoration: InputDecoration(
+                  hintText: context.l10n.searchAgents,
                   prefixIcon: Icon(LucideIcons.search, size: 18),
                   isDense: true,
                 ),
@@ -181,7 +186,7 @@ class _AgentPickerSheetState extends State<_AgentPickerSheet> {
                       height: 128,
                       child: Center(
                         child: Text(
-                          'No matching agents',
+                          context.l10n.noMatchingAgents,
                           style: context.typo.sansBody.copyWith(
                             color: colors.muted,
                           ),
@@ -199,7 +204,7 @@ class _AgentPickerSheetState extends State<_AgentPickerSheet> {
                         final subtitle = agent.available
                             ? agent.description
                             : agent.unavailableReason ??
-                                  'Not available on this computer';
+                                  context.l10n.notAvailableOnComputer;
                         return ListTile(
                           key: ValueKey('agent-option-${agent.id}'),
                           enabled: agent.available,
@@ -245,7 +250,7 @@ class _AgentPickerSheetState extends State<_AgentPickerSheet> {
                                 )
                               : !agent.available
                               ? Text(
-                                  'Unavailable',
+                                  context.l10n.unavailable,
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: colors.muted,

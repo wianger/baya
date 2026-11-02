@@ -1,4 +1,5 @@
 import 'package:app/ui/core/branding/app_brand.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
@@ -150,12 +151,12 @@ class ChatPage extends StatelessWidget {
         ? colors.success
         : colors.muted;
     final status = working
-        ? 'Working'
+        ? context.l10n.statusWorking
         : reconnecting
-        ? 'Reconnecting'
+        ? context.l10n.statusReconnecting
         : online
-        ? 'Ready'
-        : 'Offline';
+        ? context.l10n.statusReady
+        : context.l10n.statusOffline;
     final menu = SessionShell.menuOf(context);
     final leadingAction =
         menu ??
@@ -176,7 +177,9 @@ class ChatPage extends StatelessWidget {
               child: SizedBox.square(
                 dimension: 48,
                 child: IconButton(
-                  tooltip: menu != null ? 'Sessions' : 'Back',
+                  tooltip: menu != null
+                      ? context.l10n.sessions
+                      : context.l10n.back,
                   onPressed: leadingAction,
                   icon: Icon(
                     menu != null ? LucideIcons.menu : LucideIcons.chevronLeft,
@@ -267,7 +270,7 @@ class ChatPage extends StatelessWidget {
                   _HeaderActionAnchor(
                     builder: (origin) => IconButton(
                       key: const Key('chat-actions'),
-                      tooltip: 'Session actions',
+                      tooltip: context.l10n.sessionActions,
                       onPressed: () => _openSessionActions(
                         context,
                         vm,
@@ -312,17 +315,17 @@ class ChatPage extends StatelessWidget {
             children: [
               _SessionActionTile(
                 icon: LucideIcons.folderOpen,
-                label: 'Files',
+                label: context.l10n.files,
                 value: 'files',
               ),
               _SessionActionTile(
                 icon: LucideIcons.pencil,
-                label: 'Rename',
+                label: context.l10n.rename,
                 value: 'rename',
               ),
               _SessionActionTile(
                 icon: LucideIcons.info,
-                label: 'Info',
+                label: context.l10n.info,
                 value: 'info',
               ),
               Divider(
@@ -334,7 +337,7 @@ class ChatPage extends StatelessWidget {
               ),
               _SessionActionTile(
                 icon: LucideIcons.trash2,
-                label: 'Delete',
+                label: context.l10n.delete,
                 value: 'delete',
                 destructive: true,
               ),
@@ -396,10 +399,7 @@ class ChatPage extends StatelessWidget {
         return;
       }
     }
-    await showBayaError(
-      context,
-      message: 'Could not find this session to delete.',
-    );
+    await showBayaError(context, message: context.l10n.sessionNotFoundToDelete);
   }
 
   static String _roomDisplayName(
@@ -449,9 +449,9 @@ class ChatPage extends StatelessWidget {
       // user was here). The chat is not the place to pair — render
       // a minimal empty state without an action. User navigates back
       // and uses Home / Settings → pairing.
-      ChatNoPeer() => const _EmptyState(
+      ChatNoPeer() => _EmptyState(
         icon: LucideIcons.messageCircle,
-        message: 'No active device',
+        message: context.l10n.noActiveDevice,
       ),
       ChatConnecting() => const _EmptyState(
         icon: LucideIcons.refreshCw,
@@ -480,9 +480,9 @@ class ChatPage extends StatelessWidget {
         // here"), shown whenever there's nothing to render — including while
         // reconnecting (the reconnect handshake never swaps the body).
         if (visible.isEmpty && streaming == null && !working) {
-          return const _EmptyState(
+          return _EmptyState(
             icon: LucideIcons.terminal,
-            message: 'Nothing here',
+            message: context.l10n.nothingHere,
           );
         }
         return ChatMessageList(
@@ -532,7 +532,9 @@ class ChatPage extends StatelessWidget {
         vm.activeRoom?.name ?? initialTitle,
       ),
       modelLabel:
-          quickActions.currentModelName ?? vm.activeRoom?.model ?? 'Model',
+          quickActions.currentModelName ??
+          vm.activeRoom?.model ??
+          context.l10n.model,
       disabled:
           !isReady ||
           isOffline ||
@@ -630,16 +632,16 @@ class ChatPage extends StatelessWidget {
       case AttachHint.cameraPermissionDenied:
         await showBayaNotice(
           context,
-          title: 'Camera access is off',
-          message: 'Enable it in Settings to attach a photo.',
-          confirmLabel: 'Open Settings',
+          title: context.l10n.cameraAccessOff,
+          message: context.l10n.enableCameraInSettings,
+          confirmLabel: context.l10n.openSettings,
           onConfirm: AppSettings.openAppSettings,
         );
       case AttachHint.pickFailed:
         await showBayaNotice(
           context,
           title: "Couldn't attach that image",
-          message: 'Try picking it again from the camera or gallery.',
+          message: context.l10n.tryPickingAgain,
         );
     }
   }
@@ -652,9 +654,9 @@ class ChatPage extends StatelessWidget {
       case VoiceHint.permissionDenied:
         showBayaNotice(
           context,
-          title: 'Microphone access is off',
-          message: 'Enable it in Settings to dictate.',
-          confirmLabel: 'Open Settings',
+          title: context.l10n.microphoneAccessOff,
+          message: context.l10n.enableMicrophoneInSettings,
+          confirmLabel: context.l10n.openSettings,
           onConfirm: AppSettings.openAppSettings,
         );
     }
@@ -1099,7 +1101,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                         dimension: 42,
                         child: IconButton(
                           key: const Key('jump-to-latest'),
-                          tooltip: 'Jump to latest',
+                          tooltip: context.l10n.jumpToLatest,
                           onPressed: _jumpToLatest,
                           icon: const Icon(
                             LucideIcons.arrowDown,
@@ -1239,9 +1241,9 @@ class _RevokedBanner extends StatelessWidget {
         children: [
           const Icon(LucideIcons.unlink, color: Colors.white, size: 15),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Pairing revoked by the computer — re-pair to continue',
+              context.l10n.pairingRevoked,
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.white,

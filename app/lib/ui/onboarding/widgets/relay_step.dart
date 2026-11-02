@@ -1,4 +1,5 @@
 import 'package:app/data/transport/relay_config.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -55,7 +56,7 @@ class RelayStep extends StatelessWidget {
               BayaReveal(
                 offset: 6,
                 child: Text(
-                  'Choose a relay',
+                  context.l10n.chooseRelay,
                   style: context.typo.sansBody.copyWith(
                     fontSize: 30,
                     color: colors.text,
@@ -66,7 +67,7 @@ class RelayStep extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Where the app and your PC meet.',
+                context.l10n.relayExplainer,
                 style: context.typo.sansBody.copyWith(
                   fontSize: 13,
                   color: colors.muted,
@@ -75,7 +76,7 @@ class RelayStep extends StatelessWidget {
               const SizedBox(height: 24),
               _CustomRelayCard(
                 badge: 'recommended',
-                description: 'Self-hosted. Best privacy.',
+                description: context.l10n.selfHostedRelay,
                 selected: state.relayChoice == RelayChoice.custom,
                 customUrl: state.customRelayUrl,
                 error: state.customRelayError,
@@ -84,8 +85,8 @@ class RelayStep extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _RelayCard(
-                title: 'Community relay',
-                description: 'Hosted by us. Quick to start.',
+                title: context.l10n.communityRelay,
+                description: context.l10n.communityRelayHint,
                 footer: kDefaultRelayUrl,
                 selected: state.relayChoice == RelayChoice.community,
                 onTap: () => onChoice(RelayChoice.community),
@@ -103,13 +104,13 @@ class RelayStep extends StatelessWidget {
                         vertical: 12,
                       ),
                     ),
-                    child: const Text('Back'),
+                    child: Text(context.l10n.back),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: BayaGlassButton(
                       onPressed: _canContinue ? onNext : null,
-                      label: const Text('Continue'),
+                      label: Text(context.l10n.continueLabel),
                     ),
                   ),
                 ],
@@ -281,7 +282,7 @@ class _CustomRelayCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Use my own server',
+                          context.l10n.useMyOwnServer,
                           style: context.typo.sansBody.copyWith(
                             fontSize: 15,
                             color: colors.text,

@@ -1,4 +1,5 @@
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -11,7 +12,7 @@ Future<void> showBayaNotice(
   BuildContext context, {
   required String title,
   String? message,
-  String confirmLabel = 'Confirm',
+  String? confirmLabel,
   String? secondaryLabel,
   IconData? icon,
   VoidCallback? onConfirm,
@@ -81,7 +82,7 @@ Future<void> showBayaNotice(
                       Navigator.of(dialogContext).pop();
                       onConfirm?.call();
                     },
-                    label: Text(confirmLabel),
+                    label: Text(confirmLabel ?? context.l10n.confirm),
                     minimumSize: const Size.fromHeight(46),
                   ),
                   if (secondaryLabel != null) ...[
@@ -109,7 +110,7 @@ Future<void> showBayaNotice(
 Future<void> showBayaError(BuildContext context, {required String message}) =>
     showBayaNotice(
       context,
-      title: 'Something went wrong',
+      title: context.l10n.somethingWentWrong,
       message: message,
       icon: LucideIcons.circleAlert,
     );

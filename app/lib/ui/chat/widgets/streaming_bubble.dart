@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/domain/session_state.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -121,7 +123,7 @@ class _AgentWorkingIndicatorState extends State<AgentWorkingIndicator>
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Semantics(
-      label: 'Agent is working',
+      label: context.l10n.agentIsWorking,
       container: true,
       child: ExcludeSemantics(
         child: Align(

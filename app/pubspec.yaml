@@ -10,6 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 
   lucide_icons_flutter: ^3.1.14+2
   cryptography: ^2.7.0
@@ -59,6 +62,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
 
   assets:
     - assets/fonts/Geist/OFL.txt

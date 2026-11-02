@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -51,7 +53,7 @@ class _BayaCopyButtonState extends State<BayaCopyButton> {
     return TextButton.icon(
       onPressed: _copy,
       icon: Icon(_copied ? LucideIcons.check : LucideIcons.copy, size: 13),
-      label: Text(_copied ? 'Copied' : widget.tooltip),
+      label: Text(_copied ? context.l10n.copied : widget.tooltip),
       style: TextButton.styleFrom(
         foregroundColor: tint,
         minimumSize: const Size(0, 28),

@@ -1,4 +1,5 @@
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -173,7 +174,7 @@ Future<void> showBayaActivityDetailSheet(
                   SizedBox.square(
                     dimension: 40,
                     child: IconButton.filledTonal(
-                      tooltip: 'Close',
+                      tooltip: context.l10n.close,
                       onPressed: () => Navigator.of(sheetContext).pop(),
                       icon: const Icon(LucideIcons.x, size: 19),
                     ),

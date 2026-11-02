@@ -1,4 +1,5 @@
 import 'package:app/ui/core/branding/app_brand.dart';
+import 'package:app/l10n/l10n.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -45,10 +46,7 @@ Future<void> _openSession(
     );
   } catch (_) {
     if (context.mounted) {
-      await showBayaError(
-        context,
-        message: 'Could not open this session. Try again.',
-      );
+      await showBayaError(context, message: context.l10n.couldNotOpenSession);
     }
   }
 }
@@ -58,7 +56,8 @@ Future<void> _showPreviousSessions(
   List<HomeItem> items,
 ) async {
   final vm = context.read<HomeViewModel>();
-  final workspaceName = vm.workspaceLabel(vm.selectedWorkspace) ?? 'Workspace';
+  final workspaceName =
+      vm.workspaceLabel(vm.selectedWorkspace) ?? context.l10n.workspace;
   final selected = await showModalBottomSheet<HomeItem>(
     context: context,
     isScrollControlled: true,
@@ -98,10 +97,7 @@ Future<void> _deleteFromPhone(BuildContext context, HomeItem item) async {
     }
   } catch (_) {
     if (context.mounted) {
-      await showBayaError(
-        context,
-        message: 'Could not remove this session. Try again.',
-      );
+      await showBayaError(context, message: context.l10n.couldNotRemoveSession);
     }
   }
 }
@@ -117,7 +113,7 @@ Future<void> _renameSession(BuildContext context, HomeItem item) async {
     await vm.renameSession(item, name);
   } catch (_) {
     if (context.mounted) {
-      await showBayaError(context, message: 'Could not rename this session.');
+      await showBayaError(context, message: context.l10n.couldNotRenameSession);
     }
   }
 }
@@ -128,8 +124,8 @@ Future<void> showCreateWorkspace(BuildContext context) async {
   if (device == null) {
     await showBayaNotice(
       context,
-      title: 'No device selected',
-      message: 'Pair a computer first, then create a workspace.',
+      title: context.l10n.noDeviceSelected,
+      message: context.l10n.pairBeforeWorkspace,
     );
     return;
   }
@@ -155,10 +151,10 @@ Future<void> showCreateWorkspace(BuildContext context) async {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('New workspace', style: sheetContext.typo.title),
+                Text(context.l10n.newWorkspace, style: sheetContext.typo.title),
                 const SizedBox(height: 8),
                 Text(
-                  'A workspace groups sessions from any folders on this computer.',
+                  context.l10n.workspaceExplainer,
                   style: sheetContext.typo.sansBody.copyWith(
                     color: sheetContext.colors.muted,
                     fontSize: 13,
@@ -169,9 +165,9 @@ Future<void> showCreateWorkspace(BuildContext context) async {
                   controller: name,
                   autofocus: true,
                   onChanged: (_) => setSheetState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'Workspace name',
-                    hintText: 'e.g. Client work',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.workspaceName,
+                    hintText: context.l10n.workspaceNameHint,
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -188,7 +184,7 @@ Future<void> showCreateWorkspace(BuildContext context) async {
                           }
                         },
                   icon: const Icon(LucideIcons.layoutDashboard, size: 18),
-                  label: const Text('Create workspace'),
+                  label: Text(context.l10n.createWorkspace),
                 ),
               ],
             ),
@@ -206,8 +202,8 @@ Future<void> _startSession(BuildContext context, {VoidCallback? close}) async {
   if (workspace == null) {
     await showBayaNotice(
       context,
-      title: 'No workspace yet',
-      message: 'Create a workspace before starting a session.',
+      title: context.l10n.noWorkspaceYet,
+      message: context.l10n.createWorkspaceFirst,
     );
     return;
   }
@@ -350,7 +346,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
       if (mounted) {
         await showBayaError(
           context,
-          message: 'Could not save your selection. Try again.',
+          message: context.l10n.couldNotSaveSelection,
         );
       }
     } finally {
@@ -381,7 +377,10 @@ class _SessionSidebarState extends State<SessionSidebar> {
       return true;
     } catch (_) {
       if (mounted) {
-        await showBayaError(context, message: 'Could not rename this device.');
+        await showBayaError(
+          context,
+          message: context.l10n.couldNotRenameDevice,
+        );
       }
       return false;
     }
@@ -406,10 +405,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
       return true;
     } catch (_) {
       if (!mounted) return false;
-      await showBayaError(
-        context,
-        message: 'Could not delete this device. Try again.',
-      );
+      await showBayaError(context, message: context.l10n.couldNotDeleteDevice);
       return false;
     }
   }
@@ -426,7 +422,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
       if (mounted) {
         await showBayaError(
           context,
-          message: 'Could not delete this workspace. Try again.',
+          message: context.l10n.couldNotDeleteWorkspace,
         );
       }
       return false;
@@ -450,7 +446,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
       if (mounted) {
         await showBayaError(
           context,
-          message: 'Could not rename this workspace.',
+          message: context.l10n.couldNotRenameWorkspace,
         );
       }
       return false;
@@ -509,7 +505,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                                       ),
                                       _SidebarCircleAction(
                                         key: const Key('sidebar-search'),
-                                        tooltip: 'Search sessions',
+                                        tooltip: context.l10n.searchSessions,
                                         icon: LucideIcons.search,
                                         onPressed: _openSearch,
                                       ),
@@ -564,7 +560,9 @@ class _SessionSidebarState extends State<SessionSidebar> {
                           Padding(
                             padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
                             child: Text(
-                              'Sessions · ${vm.workspaceItems.length}',
+                              context.l10n.sessionsCount(
+                                vm.workspaceItems.length,
+                              ),
                               style: TextStyle(
                                 color: colors.muted,
                                 fontSize: 12,
@@ -580,11 +578,10 @@ class _SessionSidebarState extends State<SessionSidebar> {
                                 child: Center(
                                   child: Text(
                                     state is HomeNoPeer
-                                        ? 'Pair a computer to get started.'
+                                        ? context.l10n.pairToGetStarted
                                         : _query.isNotEmpty
-                                        ? 'No matching sessions in this workspace.'
-                                        : 'No sessions in this workspace yet. '
-                                              'Start one in any folder.',
+                                        ? context.l10n.noMatchingSessions
+                                        : context.l10n.noSessionsInWorkspace,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: colors.muted,
@@ -642,7 +639,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                   children: [
                     _SidebarCircleAction(
                       key: const Key('sidebar-settings'),
-                      tooltip: 'Settings',
+                      tooltip: context.l10n.settings,
                       icon: LucideIcons.settings2,
                       onPressed: () {
                         widget.close?.call();
@@ -656,7 +653,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                           ? null
                           : () => _startSession(context, close: widget.close),
                       icon: const Icon(LucideIcons.plus, size: 18),
-                      label: const Text('New session'),
+                      label: Text(context.l10n.newSession),
                     ),
                   ],
                 ),
@@ -732,7 +729,7 @@ class _SidebarSearchField extends StatelessWidget {
             onChanged: onChanged,
             style: context.typo.sansBody.copyWith(fontSize: 15),
             decoration: InputDecoration(
-              hintText: 'Search sessions',
+              hintText: context.l10n.searchSessions,
               isDense: true,
               filled: true,
               fillColor: colors.glassFill,
@@ -752,7 +749,7 @@ class _SidebarSearchField extends StatelessWidget {
         const SizedBox(width: 8),
         IconButton(
           key: const Key('sidebar-search-close'),
-          tooltip: 'Close search',
+          tooltip: context.l10n.closeSearch,
           onPressed: onClose,
           icon: Icon(LucideIcons.x, size: 19, color: colors.muted2),
         ),
@@ -836,10 +833,10 @@ class _SessionRow extends StatelessWidget {
                 Flexible(
                   child: Text(
                     working
-                        ? 'Working'
+                        ? context.l10n.statusWorking
                         : online
-                        ? 'Ready'
-                        : 'Offline',
+                        ? context.l10n.statusReady
+                        : context.l10n.statusOffline,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 11, color: statusColor),
@@ -869,7 +866,7 @@ class _SessionRow extends StatelessWidget {
               key: ValueKey(
                 'session-rename-${item.peer.remoteEpk}-${item.room.roomId}',
               ),
-              tooltip: 'Rename session',
+              tooltip: context.l10n.renameSession,
               visualDensity: VisualDensity.compact,
               onPressed: onRename,
               icon: Icon(LucideIcons.pencil, size: 16, color: colors.muted2),
@@ -929,7 +926,7 @@ class _SessionDeleteBackground extends StatelessWidget {
               Icon(LucideIcons.trash2, size: 18, color: colors.error),
               const SizedBox(width: 8),
               Text(
-                'Delete',
+                context.l10n.delete,
                 style: context.typo.sansBody.copyWith(
                   color: colors.error,
                   fontSize: 13,
@@ -963,12 +960,12 @@ class SessionWelcome extends StatelessWidget {
           child: SizedBox.expand(),
         ),
         centerTitle: true,
-        title: const Text('Overview'),
+        title: Text(context.l10n.overview),
         leading: SessionShell.menuOf(context) == null
             ? null
             : IconButton(
                 onPressed: SessionShell.menuOf(context),
-                tooltip: 'Open navigation',
+                tooltip: context.l10n.openNavigation,
                 icon: const Icon(LucideIcons.panelLeft, size: 21),
               ),
       ),
@@ -1016,7 +1013,7 @@ class _NoDeviceOverview extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Bring your first computer online',
+                    context.l10n.bringFirstComputerOnline,
                     textAlign: TextAlign.center,
                     style: context.typo.sansBody.copyWith(
                       fontSize: 24,
@@ -1026,9 +1023,7 @@ class _NoDeviceOverview extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Pair a device to see its workspaces and activity here. '
-                    'Your navigation and session list will appear in the '
-                    'sidebar.',
+                    context.l10n.pairDeviceHint,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: colors.muted2,
@@ -1040,7 +1035,7 @@ class _NoDeviceOverview extends StatelessWidget {
                   BayaGlassButton(
                     onPressed: () => context.push('/pair'),
                     icon: const Icon(LucideIcons.scanLine, size: 18),
-                    label: const Text('Pair computer'),
+                    label: Text(context.l10n.pairComputer),
                   ),
                 ],
               ),
@@ -1081,8 +1076,11 @@ class _WorkspaceOverview extends StatelessWidget {
     final deviceEpk = vm.selectedDevice;
     final device = deviceEpk == null ? null : vm.devices[deviceEpk];
     final deviceName =
-        device?.nickname ?? device?.sessionName ?? 'No device selected';
-    final workspaceName = vm.workspaceLabel(workspace) ?? 'No workspace';
+        device?.nickname ??
+        device?.sessionName ??
+        context.l10n.noDeviceSelected;
+    final workspaceName =
+        vm.workspaceLabel(workspace) ?? context.l10n.noWorkspace;
     final focusWorking =
         focus != null &&
         vm.isRoomWorking(focus.peer.remoteEpk, focus.room.roomId);
@@ -1104,7 +1102,7 @@ class _WorkspaceOverview extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 30, 24, 32),
           children: [
             Text(
-              'CURRENT WORKSPACE',
+              context.l10n.currentWorkspace,
               style: context.typo.monoSmall.copyWith(
                 color: colors.accent,
                 fontSize: 11,
@@ -1146,7 +1144,7 @@ class _WorkspaceOverview extends StatelessWidget {
                   Text('·', style: TextStyle(color: colors.muted)),
                   const SizedBox(width: 8),
                   Text(
-                    '$folderCount ${folderCount == 1 ? 'folder' : 'folders'}',
+                    context.l10n.folderCount(folderCount),
                     style: TextStyle(color: colors.muted, fontSize: 13),
                   ),
                 ],
@@ -1195,7 +1193,9 @@ class _WorkspaceOverview extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  focusWorking ? 'Running now' : 'Continue',
+                  focusWorking
+                      ? context.l10n.runningNow
+                      : context.l10n.continueLabel,
                   style: context.typo.sansBody.copyWith(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -1205,7 +1205,7 @@ class _WorkspaceOverview extends StatelessWidget {
                 const Spacer(),
                 if (working.length > 1)
                   Text(
-                    '${working.length} running',
+                    context.l10n.runningCount(working.length),
                     style: TextStyle(
                       color: colors.working,
                       fontSize: 12,
@@ -1236,7 +1236,7 @@ class _WorkspaceOverview extends StatelessWidget {
                       _showPreviousSessions(context, previousSessions),
                   icon: const Icon(LucideIcons.history, size: 17),
                   label: Text(
-                    'Previous sessions (${previousSessions.length})',
+                    context.l10n.previousSessionsCount(previousSessions.length),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -1244,7 +1244,7 @@ class _WorkspaceOverview extends StatelessWidget {
             ],
             const SizedBox(height: 16),
             Text(
-              'Use the sidebar for devices, workspaces and the full session list.',
+              context.l10n.useSidebarHint,
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.muted, fontSize: 12),
             ),
@@ -1285,7 +1285,10 @@ class _PreviousSessionsSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Previous sessions', style: context.typo.title),
+                      Text(
+                        context.l10n.previousSessions,
+                        style: context.typo.title,
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         workspaceName,
@@ -1300,7 +1303,7 @@ class _PreviousSessionsSheet extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Close previous sessions',
+                  tooltip: context.l10n.closePreviousSessions,
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(LucideIcons.x, size: 20),
                 ),
@@ -1329,10 +1332,10 @@ class _PreviousSessionsSheet extends StatelessWidget {
                   item.room.roomId,
                 );
                 final status = working
-                    ? 'Working'
+                    ? context.l10n.statusWorking
                     : online
-                    ? 'Ready'
-                    : 'Offline';
+                    ? context.l10n.statusReady
+                    : context.l10n.statusOffline;
                 final statusColor = working
                     ? colors.working
                     : online
@@ -1527,10 +1530,10 @@ class _FocusSessionCard extends StatelessWidget {
                           const SizedBox(width: 6),
                           Text(
                             working
-                                ? 'Working'
+                                ? context.l10n.statusWorking
                                 : online
-                                ? 'Ready'
-                                : 'Offline',
+                                ? context.l10n.statusReady
+                                : context.l10n.statusOffline,
                             style: TextStyle(
                               color: statusColor,
                               fontSize: 11.5,
@@ -1592,7 +1595,9 @@ class _EmptyWorkspaceCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    hasWorkspace ? 'No sessions yet' : 'No workspace selected',
+                    hasWorkspace
+                        ? context.l10n.noSessionsYet
+                        : context.l10n.noWorkspaceSelected,
                     style: context.typo.sansBody.copyWith(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -1601,8 +1606,8 @@ class _EmptyWorkspaceCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     hasWorkspace
-                        ? 'Use the sidebar to start one in any folder on this computer.'
-                        : 'Use the sidebar to choose or create a workspace.',
+                        ? context.l10n.useSidebarToStart
+                        : context.l10n.useSidebarToChooseWorkspace,
                     style: TextStyle(
                       color: colors.muted,
                       fontSize: 12.5,

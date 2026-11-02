@@ -1,4 +1,5 @@
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -135,7 +136,7 @@ class _PasteQrSheetBodyState extends State<_PasteQrSheetBody> {
               ),
             ),
             Text(
-              'Paste pairing code',
+              context.l10n.pastePairingCode,
               style: TextStyle(
                 fontFamily: kMonoFamily,
                 fontSize: 15,
@@ -201,7 +202,7 @@ class _PasteQrSheetBodyState extends State<_PasteQrSheetBody> {
                       color: colors.accent,
                     ),
                     label: Text(
-                      'Paste from clipboard',
+                      context.l10n.pasteFromClipboard,
                       style: TextStyle(
                         fontFamily: kMonoFamily,
                         fontSize: 12,
@@ -222,8 +223,8 @@ class _PasteQrSheetBodyState extends State<_PasteQrSheetBody> {
             const SizedBox(height: 12),
             BayaGlassButton(
               onPressed: _canSubmit ? _submit : null,
-              label: const Text(
-                'Pair',
+              label: Text(
+                context.l10n.pair,
                 style: TextStyle(
                   fontFamily: kMonoFamily,
                   fontSize: 14,

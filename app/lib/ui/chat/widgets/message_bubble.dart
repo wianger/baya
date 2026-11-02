@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/data/voice/read_aloud_controller.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
@@ -109,7 +111,7 @@ class UserBubble extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'not delivered',
+                          context.l10n.notDelivered,
                           style: typo.sansBody.copyWith(
                             color: colors.error,
                             fontSize: 11,
@@ -163,7 +165,7 @@ class CompactionBubble extends StatelessWidget {
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        'Context compacted',
+                        context.l10n.contextCompacted,
                         style: context.typo.sansBody.copyWith(
                           fontSize: 13,
                           color: colors.text,
@@ -173,7 +175,7 @@ class CompactionBubble extends StatelessWidget {
                     ),
                     if (tokens != null)
                       Text(
-                        '~$tokens tokens',
+                        context.l10n.tokensApprox('$tokens'),
                         style: TextStyle(
                           fontFamily: kMonoFamily,
                           fontSize: 11,
@@ -283,7 +285,7 @@ class _CopyRowState extends State<_CopyRow> {
           clipBehavior: Clip.antiAlias,
           child: IconButton(
             key: const Key('assistant-copy'),
-            tooltip: _copied ? 'Copied' : 'Copy',
+            tooltip: _copied ? context.l10n.copied : context.l10n.copy,
             onPressed: _copy,
             visualDensity: VisualDensity.compact,
             constraints: const BoxConstraints.tightFor(width: 36, height: 36),
@@ -351,7 +353,9 @@ class _ReadAloudButtonState extends State<_ReadAloudButton> {
           clipBehavior: Clip.antiAlias,
           child: IconButton(
             key: const Key('assistant-speak'),
-            tooltip: speaking ? 'Stop reading' : 'Read aloud',
+            tooltip: speaking
+                ? context.l10n.stopReading
+                : context.l10n.readAloud,
             onPressed: _toggle,
             visualDensity: VisualDensity.compact,
             constraints: const BoxConstraints.tightFor(width: 36, height: 36),

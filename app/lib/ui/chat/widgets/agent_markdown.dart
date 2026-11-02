@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
@@ -149,14 +151,14 @@ class AgentMarkdown extends StatelessWidget {
       if (ok || !context.mounted) return;
       await showBayaNotice(
         context,
-        title: 'Could not open the link',
+        title: context.l10n.couldNotOpenLink,
         message: url,
       );
     } catch (_) {
       if (!context.mounted) return;
       await showBayaNotice(
         context,
-        title: 'Could not open the link',
+        title: context.l10n.couldNotOpenLink,
         message: url,
       );
     }
@@ -267,7 +269,7 @@ class _CopyButtonState extends State<_CopyButton> {
     final colors = context.colors;
     return Semantics(
       button: true,
-      label: _copied ? 'Copied' : 'Copy code',
+      label: _copied ? context.l10n.copied : context.l10n.copyCode,
       child: InkResponse(
         key: const Key('code-copy'),
         radius: 18,

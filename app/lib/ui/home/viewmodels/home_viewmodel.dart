@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:app/l10n/l10n.dart';
+
 import 'package:app/data/actions/actions_repository.dart';
 import 'package:app/data/mesh/mesh_sync_service.dart';
 import 'package:app/data/sync/sync_service.dart';
@@ -119,7 +121,7 @@ class HomeViewModel extends ViewModel<HomeState> {
     if (key == null) return null;
     final custom = _prefs.workspaceName(key);
     if (custom != null) return custom;
-    return isInboxWorkspace(key) ? 'Inbox' : workspaceId(key);
+    return isInboxWorkspace(key) ? appL10n.inbox : workspaceId(key);
   }
 
   Future<String> createWorkspace({
@@ -275,9 +277,9 @@ class HomeViewModel extends ViewModel<HomeState> {
           .whereType<String>()
           .toSet();
       result[key] = items.isEmpty
-          ? 'No sessions yet'
-          : '${items.length} ${items.length == 1 ? 'session' : 'sessions'}'
-                '${folders.length > 1 ? ' · ${folders.length} folders' : ''}';
+          ? appL10n.noSessionsYet
+          : '${appL10n.sessionCount(items.length)}'
+                '${folders.length > 1 ? appL10n.folderCountSuffix(folders.length) : ''}';
     }
     return result;
   }

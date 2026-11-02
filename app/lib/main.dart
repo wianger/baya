@@ -11,6 +11,7 @@ import 'package:app/routing/adaptive.dart';
 import 'package:app/routing/app_router.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/themes/app_font_licenses.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -102,12 +103,14 @@ class _RemotePiAppState extends State<RemotePiApp> with WidgetsBindingObserver {
           darkTheme: buildDarkTheme(),
           themeMode: prefs.themeMode,
           routerConfig: _router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           debugShowCheckedModeBanner: false,
           // User-chosen text size. Applied here rather than by
           // scaling `AppTypography`'s base sizes so the many per-widget
           // `copyWith(fontSize: …)` overrides scale too. `TextScaler.linear`
           // REPLACES the platform scaler, which is deliberate: Flutter can't
-          // read iOS's per-app Text Size anyway (it only reads the global
+          // read a per-app text size anyway (it only reads the global
           // accessibility setting), so honoring both would compound them.
           builder: (context, child) => MediaQuery.withClampedTextScaling(
             minScaleFactor: prefs.fontScale.factor,
