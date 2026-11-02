@@ -136,3 +136,12 @@ describe("paired devices", () => {
     expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({ peers: [] });
   });
 });
+
+describe("pairing tokens", () => {
+  test("are 16 bytes, the length the app's QR parser accepts", async () => {
+    isolatedHome();
+    const { issuePendingPairToken } = await import("../src/pairing/token_store.ts");
+    const token = issuePendingPairToken("room").token;
+    expect(Buffer.from(token, "base64url")).toHaveLength(16);
+  });
+});

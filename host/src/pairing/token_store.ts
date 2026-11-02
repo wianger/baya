@@ -16,7 +16,8 @@ export function pendingPairPath(): string {
 
 export function issuePendingPairToken(roomId: string, ttlMs = 600_000): PendingPairToken {
   const value: PendingPairToken = {
-    token: randomBytes(24).toString("base64url"),
+    // 128 bits: the token is single-use and expires within minutes.
+    token: randomBytes(16).toString("base64url"),
     room_id: roomId,
     expires_at: Date.now() + Math.max(10_000, Math.min(ttlMs, 600_000)),
     consumed_at: null,

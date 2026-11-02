@@ -49,7 +49,18 @@ class PairingViewModel extends ViewModel<PairingState> {
     if (state is PairingConnecting) return;
 
     final qr = QrPairPayload.tryParse(rawUri);
-    if (qr == null) return; // not a Baya pairing code — ignore silently
+    if (qr == null) {
+      // Say why instead of silently ignoring the scan.
+      emit(
+        PairingError(
+          message: rawUri.trim().startsWith('baya://')
+              ? appL10n.pairingCodeInvalid
+              : appL10n.notAPairingCode,
+          canRetry: true,
+        ),
+      );
+      return;
+    }
 
     emit(PairingConnecting(sessionName: qr.sessionName));
 

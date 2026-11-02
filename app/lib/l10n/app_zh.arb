@@ -396,5 +396,7 @@
   "keyNotBackedUp": "仅保存在这部手机上，点按以备份。",
   "keyBackupHowTo": "请设置屏幕锁定并开启 Google 备份（设置 › 系统 › 备份），然后再点一次。在此之前 Baya 照常可用，只是换新手机时需要重新配对。",
   "compactUnavailable": "无法压缩上下文",
-  "compactUnavailableHint": "此智能体会自动管理上下文，不支持手动压缩。"
+  "compactUnavailableHint": "此智能体会自动管理上下文，不支持手动压缩。",
+  "pairingCodeInvalid": "配对码不完整，请在电脑上重新运行 `baya pair`。",
+  "notAPairingCode": "这不是 Baya 配对码。请扫描 `baya pair` 显示的二维码。"
 }

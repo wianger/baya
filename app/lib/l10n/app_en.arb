@@ -689,5 +689,7 @@
   "keyNotBackedUp": "Only on this phone. Tap to back up.",
   "keyBackupHowTo": "Set up a screen lock and turn on Google Backup (Settings › System › Backup), then tap again. Until then Baya works normally, but a new phone has to pair again.",
   "compactUnavailable": "Compact unavailable",
-  "compactUnavailableHint": "This agent manages its context automatically and does not expose manual compaction."
+  "compactUnavailableHint": "This agent manages its context automatically and does not expose manual compaction.",
+  "pairingCodeInvalid": "This pairing code is incomplete. Run `baya pair` again on the computer.",
+  "notAPairingCode": "That is not a Baya pairing code. Scan the code `baya pair` shows."
 }

@@ -208,7 +208,7 @@ void main() {
       vm.dispose();
     });
 
-    test('invalid QR is ignored — stays PairingScanning', () async {
+    test('a QR that is not a pairing code explains itself', () async {
       final storage = _FakeStorage();
       final bridge = await _bootedBridge(storage);
       final vm = PairingViewModel(
@@ -219,7 +219,10 @@ void main() {
         bridge,
       );
       await vm.onQrScanned('https://example.com/not-a-qr');
-      expect(vm.state, isA<PairingScanning>());
+      expect(vm.state, isA<PairingError>());
+      vm.retry();
+      await vm.onQrScanned('baya://pair?t=AAAA');
+      expect((vm.state as PairingError).message, contains('incomplete'));
       vm.dispose();
     });
 

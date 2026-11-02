@@ -18,6 +18,16 @@ void main() {
     expect(qr.epkBytes, hasLength(32));
   });
 
+  test('accepts tokens of 16 to 64 bytes', () {
+    const long = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'; // 24 bytes
+    expect(
+      QrPairPayload.tryParse(
+        'baya://pair?t=$long&epk=$epk&n=Review&rm=room1&r=$relay',
+      ),
+      isNotNull,
+    );
+  });
+
   test('rejects other schemes and incomplete or malformed codes', () {
     for (final raw in [
       'remotepi://pair?t=$token&epk=$epk&n=Review&rm=room1&r=$relay',
