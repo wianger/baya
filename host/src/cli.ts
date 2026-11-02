@@ -33,6 +33,7 @@ import {
   BAYA_HOME,
   ensureBayaHome,
   loadConfig,
+  resolvePublicRelayUrl,
   resolveRelayUrl,
   saveConfig,
   validateRelayUrl,
@@ -83,7 +84,7 @@ ${bold("Host")}
   baya logs [-f]          Show the host log  ${dim("-f follows it")}
   baya doctor             Check relay, identity, agents and pairing
   baya agents             Which agents are installed
-  baya relay [url]        Show or set the relay
+  baya relay [url]        Show or set the relay  ${dim("--public <url> if phones reach it by another name")}
   baya autostart on|off   Start Baya when you log in  ${dim("(no admin rights)")}
 
 ${dim("Add --json to status, devices, agents, pair or doctor for machine-readable output.")}
@@ -328,7 +329,7 @@ async function pairingUri(invite: PairInvite): Promise<string> {
     publicKey: identity.publicKey,
     sessionName: invite.session_name,
     roomId: invite.room_id,
-    relayUrl: resolveRelayUrl().url,
+    relayUrl: resolvePublicRelayUrl().url,
   });
 }
 
@@ -473,14 +474,22 @@ async function agents(args: ParsedArgs): Promise<void> {
 
 async function relayCommand(args: ParsedArgs): Promise<void> {
   const value = args.positionals[0];
-  if (!value) {
+  const publicValue = stringFlag(args, "public");
+  if (!value && !publicValue) {
     const relay = resolveRelayUrl();
-    return out(`${relay.url} ${dim(`(${relay.source})`)}`);
+    const shared = resolvePublicRelayUrl();
+    out(`${relay.url} ${dim(`(${relay.source})`)}`);
+    if (shared.url !== relay.url) out(dim(`phones use ${shared.url} (${shared.source})`));
+    return;
   }
-  const url = validateRelayUrl(value);
-  if (!(await relayReachable(url))) out(warn(`${url} did not answer /health; saving anyway.`));
-  saveConfig({ relay: url });
-  out(ok(`Relay set to ${url}`));
+  const url = value ? validateRelayUrl(value) : undefined;
+  const publicUrl = publicValue ? validateRelayUrl(publicValue) : undefined;
+  if (url && !(await relayReachable(url))) {
+    out(warn(`${url} did not answer /health from this computer; saving anyway.`));
+  }
+  saveConfig({ ...(url ? { relay: url } : {}), ...(publicUrl ? { publicRelay: publicUrl } : {}) });
+  if (url) out(ok(`Host connects to ${url}`));
+  if (publicUrl) out(ok(`Phones use ${publicUrl}`));
   if (await hostStatus()) out(hint("baya restart  (phones adopt it from the next pairing code)"));
 }
 

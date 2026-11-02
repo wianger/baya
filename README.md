@@ -91,7 +91,7 @@ private infrastructure, build the included relay and point Baya at it:
 ```powershell
 docker build -t baya-relay relay
 docker run -d --name baya-relay -p 3000:3000 -v baya-data:/data baya-relay
-baya relay http://127.0.0.1:3000
+baya relay http://127.0.0.1:3000 --public https://relay.your-tailnet.ts.net
 ```
 
 Messages between the phone and the computer are end-to-end encrypted

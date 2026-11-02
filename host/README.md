@@ -18,7 +18,7 @@ baya start | stop | restart
 baya logs [-f]           host log
 baya doctor              relay, identity, agents and pairing checks with fixes
 baya agents              installed agents
-baya relay [url]         show or set the relay
+baya relay [url]         show or set the relay  (--public <url> for what phones use)
 baya autostart on|off    start at login
 ```
 

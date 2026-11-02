@@ -6,7 +6,10 @@ export const DEFAULT_RELAY_URL = "https://wiang-1.tail171f4a.ts.net";
 export const BAYA_HOME = process.env["BAYA_HOME"]?.trim() || join(homedir(), ".baya");
 
 export interface BayaConfig {
+  /** Where this host connects (may be a local address like 127.0.0.1). */
   relay?: string;
+  /** Where phones connect; written into pairing codes. Defaults to `relay`. */
+  publicRelay?: string;
   defaultAgent?: "pi" | "codex" | "deepseek";
 }
 
@@ -24,6 +27,9 @@ function readConfig(path: string): BayaConfig | null {
     const cfg: BayaConfig = {};
     if (typeof record["relay"] === "string" && record["relay"].trim()) {
       cfg.relay = record["relay"].trim();
+    }
+    if (typeof record["publicRelay"] === "string" && record["publicRelay"].trim()) {
+      cfg.publicRelay = record["publicRelay"].trim();
     }
     const agent = record["defaultAgent"];
     if (agent === "pi" || agent === "codex" || agent === "deepseek") {
@@ -58,6 +64,19 @@ export function resolveRelayUrl(): ResolvedRelay {
   if (current) return { url: current, source: "config" };
 
   return { url: DEFAULT_RELAY_URL, source: "default" };
+}
+
+/**
+ * The relay address phones should use. It differs from [resolveRelayUrl]
+ * when the relay runs on this machine: the host dials 127.0.0.1 while
+ * phones reach it through a public or tailnet name.
+ */
+export function resolvePublicRelayUrl(): ResolvedRelay {
+  const override = process.env["BAYA_PUBLIC_RELAY"]?.trim();
+  if (override) return { url: override, source: "env" };
+  const configured = loadConfig().publicRelay;
+  if (configured) return { url: configured, source: "config" };
+  return resolveRelayUrl();
 }
 
 export function toWebSocketUrl(url: string): string {
