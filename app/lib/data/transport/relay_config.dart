@@ -6,6 +6,7 @@
 // [toWsRelayUrl] and the mesh client uses them as-is.
 
 import 'package:app/data/preferences/preferences.dart';
+import 'package:app/pairing/storage.dart';
 
 /// The project relay, used until a pairing QR or Settings names another.
 const String kDefaultRelayUrl = 'https://wiang-1.tail171f4a.ts.net';
@@ -28,6 +29,17 @@ const String kRelayUrlInvalidGeneric =
 /// Always returns an `http(s)://` URL — caller is responsible for
 /// applying [toWsRelayUrl] when opening a WebSocket.
 String resolveRelayUrl(Preferences prefs) => prefs.relayUrl ?? kDefaultRelayUrl;
+
+/// `true` for a host's own address (paired over Tailscale), e.g.
+/// `https://pc.tail1234.ts.net/baya-pair/windows/direct`: the app talks to
+/// that host straight, with no relay in between.
+bool isDirectEndpoint(String url) =>
+    Uri.tryParse(url)?.path.endsWith('/direct') ?? false;
+
+/// Where [peer] is reached: its own address when paired directly, otherwise
+/// the relay.
+String endpointFor(PeerRecord peer, Preferences prefs) =>
+    isDirectEndpoint(peer.relayUrl) ? peer.relayUrl : resolveRelayUrl(prefs);
 
 /// Translates the canonical HTTP-form relay URL into the WebSocket
 /// form expected by the underlying transport. `https://` → `wss://`,

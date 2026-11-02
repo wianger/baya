@@ -23,6 +23,15 @@ class TailnetHost {
     required this.key,
     required this.pairUri,
   });
+
+  /// Where the app reaches this host without a relay: the pairing listener
+  /// also speaks the relay protocol, at `…/direct`.
+  String get endpoint {
+    final path = pairUri.path;
+    return pairUri
+        .replace(path: '${path.substring(0, path.length - 'pair'.length)}direct')
+        .toString();
+  }
 }
 
 const _labels = ['wsl', 'windows', 'linux', 'macos'];
@@ -106,7 +115,9 @@ Future<List<TailnetHost>> discoverTailnetHosts(
   return byKey.values.toList();
 }
 
-/// A fresh pairing code from [host], used exactly like a scanned one.
+/// A fresh pairing code from [host], used exactly like a scanned one, except
+/// that it names the host itself instead of its relay: hosts paired over
+/// Tailscale are reached directly.
 Future<String> fetchTailnetPairingCode(
   TailnetHost host, {
   http.Client? client,
@@ -122,7 +133,12 @@ Future<String> fetchTailnetPairingCode(
   switch (response.statusCode) {
     case 200:
       final body = jsonDecode(response.body);
-      if (body is Map && body['uri'] is String) return body['uri'] as String;
+      if (body is Map && body['uri'] is String) {
+        final code = Uri.parse(body['uri'] as String);
+        return code
+            .replace(queryParameters: {...code.queryParameters, 'r': host.endpoint})
+            .toString();
+      }
       throw const TailnetPairingException(TailnetPairingFailure.notReady);
     case 403:
       throw const TailnetPairingException(TailnetPairingFailure.notYourAccount);

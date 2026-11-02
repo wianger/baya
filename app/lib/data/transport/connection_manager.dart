@@ -76,6 +76,8 @@ class StatusOffline extends ConnectionStatus {
 
 const _kBackoff = [1, 2, 5, 10, 30];
 
+String _sameEndpoint(PeerRecord _) => '';
+
 Duration _backoffFor(int attempt) =>
     Duration(seconds: _kBackoff[attempt.clamp(0, _kBackoff.length - 1)]);
 
@@ -96,6 +98,21 @@ class CancelToken {
   void cancel() => _cancelled = true;
 }
 
+/// A status-only connection to an address other than the active one: a
+/// directly paired computer, or the relay while a direct computer is active.
+/// It carries presence and room updates for the computers behind it.
+class _Watcher {
+  _Watcher(this.via);
+  PeerRecord via;
+  List<String> epks = const [];
+  IChannel? channel;
+  final subs = <StreamSubscription<Object?>>[];
+  CancelToken? connecting;
+  Timer? retry;
+  int attempt = 0;
+  bool closed = false;
+}
+
 // ---------------------------------------------------------------------------
 // ConnectionManager
 // ---------------------------------------------------------------------------
@@ -103,6 +120,12 @@ class CancelToken {
 class ConnectionManager extends Service {
   final ConnectionFactory _factory;
   final PairingStorage _storage;
+  // Where each computer is reached. Computers sharing an address share a
+  // connection; the active computer's address is the main channel, every
+  // other address gets a [_Watcher].
+  final String Function(PeerRecord peer) _endpointOf;
+  final Map<String, _Watcher> _watchers = {};
+  Map<String, String> _endpointByKey = const {};
 
   final _statusController = StreamController<ConnectionStatus>.broadcast();
   // Presence: map per remote_epk + a broadcast stream the UI
@@ -167,7 +190,9 @@ class ConnectionManager extends Service {
     Duration emitDebounce = const Duration(milliseconds: 50),
     Duration connectTimeout = const Duration(seconds: 10),
     Duration channelCloseTimeout = const Duration(seconds: 2),
-  }) : // Public parameter names are part of the constructor API.
+    String Function(PeerRecord peer)? endpointOf,
+  }) : _endpointOf = endpointOf ?? _sameEndpoint,
+       // Public parameter names are part of the constructor API.
        // ignore: prefer_initializing_formals
        _factory = factory,
        // ignore: prefer_initializing_formals
@@ -312,15 +337,29 @@ class ConnectionManager extends Service {
   void subscribeToPeers(List<String> epks) {
     final standard = epks.map(toStandardB64).toList();
     _subscribedEpks = standard;
+    unawaited(_syncWatchers());
     final link = _controlLink;
     if (link == null) {
       return;
     }
-    link.sendControl(subscribePresenceFrame(standard));
-    link.sendControl(subscribeRoomsFrame(standard));
-    if (standard.isNotEmpty) {
-      link.sendControl(presenceCheckFrame(standard));
-      link.sendControl(roomsCheckFrame(standard));
+    _subscribe(link, _activeEpks());
+  }
+
+  /// Subscribed computers reached through the active connection.
+  List<String> _activeEpks() {
+    final active = _activePeer == null ? null : _endpointOf(_activePeer!);
+    return [
+      for (final key in _subscribedEpks)
+        if (_endpointByKey[key] == null || _endpointByKey[key] == active) key,
+    ];
+  }
+
+  void _subscribe(IControlLink link, List<String> epks) {
+    link.sendControl(subscribePresenceFrame(epks));
+    link.sendControl(subscribeRoomsFrame(epks));
+    if (epks.isNotEmpty) {
+      link.sendControl(presenceCheckFrame(epks));
+      link.sendControl(roomsCheckFrame(epks));
     }
   }
 
@@ -328,9 +367,139 @@ class ConnectionManager extends Service {
   void refreshPresence([List<String>? epks]) {
     final link = _controlLink;
     if (link == null) return;
-    final list = (epks ?? _subscribedEpks).map(toStandardB64).toList();
+    final list = (epks ?? _activeEpks()).map(toStandardB64).toList();
     if (list.isEmpty) return;
     link.sendControl(presenceCheckFrame(list));
+  }
+
+  // ---- Other addresses ------------------------------------------------
+
+  /// Opens a watcher for every address other than the active one and closes
+  /// the ones no longer needed. Without an active computer there are none.
+  Future<void> _syncWatchers() async {
+    final List<PeerRecord> peers;
+    try {
+      peers = await _storage.listPeers();
+    } catch (_) {
+      return; // Unreadable storage: keep the current watchers until next time.
+    }
+    if (_statusController.isClosed) return;
+    final groups = <String, List<PeerRecord>>{};
+    final byKey = <String, String>{};
+    for (final peer in peers) {
+      final endpoint = _endpointOf(peer);
+      byKey[toStandardB64(peer.remoteEpk)] = endpoint;
+      (groups[endpoint] ??= []).add(peer);
+    }
+    final routingChanged = !_mapEquals(byKey, _endpointByKey);
+    _endpointByKey = byKey;
+    final active = _activePeer;
+    if (active == null) {
+      groups.clear();
+    } else {
+      groups.remove(_endpointOf(active));
+    }
+    for (final endpoint in _watchers.keys.toList()) {
+      if (!groups.containsKey(endpoint)) {
+        _closeWatcher(_watchers.remove(endpoint)!);
+      }
+    }
+    groups.forEach((endpoint, members) {
+      final watcher = _watchers[endpoint] ??= _Watcher(members.first);
+      watcher.via = members.first;
+      final epks = [for (final p in members) toStandardB64(p.remoteEpk)];
+      final changed = !_listEquals(epks, watcher.epks);
+      watcher.epks = epks;
+      final channel = watcher.channel;
+      if (channel != null) {
+        if (changed && channel is IControlLink) {
+          _subscribe(channel as IControlLink, epks);
+        }
+      } else if (watcher.connecting == null && watcher.retry == null) {
+        unawaited(_openWatcher(watcher));
+      }
+    });
+    if (routingChanged) _replaySubscriptions();
+  }
+
+  Future<void> _openWatcher(_Watcher watcher) async {
+    final token = CancelToken();
+    watcher.connecting = token;
+    try {
+      final channel = await _openWithTimeout(watcher.via, token);
+      if (token.isCancelled || watcher.closed || channel is! IControlLink) {
+        await _closeChannel(channel);
+        return;
+      }
+      final link = channel as IControlLink;
+      watcher.channel = channel;
+      void lost([Object? _]) => _watcherLost(watcher, channel);
+      watcher.subs
+        ..add(link.controlFrames.listen(_onControl, onError: lost, onDone: lost))
+        ..add(channel.serverMessages.listen(
+          (_) => watcher.attempt = 0,
+          onError: lost,
+          onDone: lost,
+        ));
+      _subscribe(link, watcher.epks);
+      _scheduleRoomsEmit();
+    } catch (_) {
+      if (!token.isCancelled && !watcher.closed) _retryWatcher(watcher);
+    } finally {
+      if (identical(watcher.connecting, token)) watcher.connecting = null;
+    }
+  }
+
+  /// The connection to a watched address dropped: everything behind it is
+  /// offline until it comes back.
+  void _watcherLost(_Watcher watcher, IChannel channel) {
+    if (!identical(watcher.channel, channel)) return;
+    _dropWatcherChannel(watcher);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final key in watcher.epks) {
+      _presence[key] = PresenceOffline(sinceTs: now);
+      _liveRoomIds.remove(key);
+    }
+    _schedulePresenceEmit();
+    _scheduleRoomsEmit();
+    if (!watcher.closed) _retryWatcher(watcher);
+  }
+
+  void _retryWatcher(_Watcher watcher) {
+    watcher.retry?.cancel();
+    watcher.retry = Timer(_backoffFor(watcher.attempt++), () {
+      watcher.retry = null;
+      if (!watcher.closed) unawaited(_openWatcher(watcher));
+    });
+  }
+
+  void _dropWatcherChannel(_Watcher watcher) {
+    for (final sub in watcher.subs) {
+      unawaited(sub.cancel());
+    }
+    watcher.subs.clear();
+    final channel = watcher.channel;
+    watcher.channel = null;
+    if (channel != null) unawaited(_closeChannel(channel));
+  }
+
+  void _closeWatcher(_Watcher watcher) {
+    watcher.closed = true;
+    watcher.connecting?.cancel();
+    watcher.retry?.cancel();
+    watcher.retry = null;
+    _dropWatcherChannel(watcher);
+  }
+
+  /// Whether fresh state for [key] is arriving: through the active channel
+  /// or through the watcher for its address.
+  bool _reachable(String key) {
+    final endpoint = _endpointByKey[key];
+    final active = _activePeer;
+    if (endpoint == null || active == null || endpoint == _endpointOf(active)) {
+      return _status is StatusOnline;
+    }
+    return _watchers[endpoint]?.channel != null;
   }
 
   /// Current online channel cast to its control side, when supported.
@@ -436,6 +605,7 @@ class ConnectionManager extends Service {
     _watchChannel(peer, channel);
     _watchControl(channel);
     _replaySubscriptions();
+    unawaited(_syncWatchers());
   }
 
   // Permanently disconnect and go to NoPeer.
@@ -460,6 +630,7 @@ class ConnectionManager extends Service {
     if (emitNoPeer) {
       _activePeer = null;
       _emit(const StatusNoPeer());
+      unawaited(_syncWatchers());
     }
     // When emitNoPeer is false, `_connect` will immediately overwrite
     // `_activePeer` and emit `StatusConnecting`, so we deliberately leave
@@ -483,6 +654,10 @@ class ConnectionManager extends Service {
     _channelSub = null;
     _controlSub?.cancel();
     _controlSub = null;
+    for (final watcher in _watchers.values) {
+      _closeWatcher(watcher);
+    }
+    _watchers.clear();
     _statusController.close();
     _presenceController.close();
   }
@@ -525,6 +700,7 @@ class ConnectionManager extends Service {
       }
     }
     _emit(const StatusConnecting());
+    unawaited(_syncWatchers());
 
     try {
       final ch = await _openWithTimeout(peer, token);
@@ -880,8 +1056,9 @@ class ConnectionManager extends Service {
   /// re-pushes the rooms snapshot which repopulates the live set
   /// and tiles go green again.
   bool isRoomLive(String epk, String roomId) {
-    if (_status is! StatusOnline) return false;
-    final live = _liveRoomIds[toStandardB64(epk)];
+    final key = toStandardB64(epk);
+    if (!_reachable(key)) return false;
+    final live = _liveRoomIds[key];
     return live != null && live.contains(roomId);
   }
 
@@ -897,8 +1074,9 @@ class ConnectionManager extends Service {
   /// we have no fresh signal, so we report not-working and let the tile
   /// fall back to the amber "reconnecting" / grey state.
   bool isRoomWorking(String epk, String roomId) {
-    if (_status is! StatusOnline) return false;
-    final list = _roomsByPeer[toStandardB64(epk)];
+    final key = toStandardB64(epk);
+    if (!_reachable(key)) return false;
+    final list = _roomsByPeer[key];
     if (list == null) return false;
     for (final r in list) {
       if (r.roomId == roomId) return r.working;
@@ -1044,10 +1222,7 @@ class ConnectionManager extends Service {
     if (_subscribedEpks.isEmpty) return;
     final link = _controlLink;
     if (link == null) return;
-    link.sendControl(subscribePresenceFrame(_subscribedEpks));
-    link.sendControl(presenceCheckFrame(_subscribedEpks));
-    link.sendControl(subscribeRoomsFrame(_subscribedEpks));
-    link.sendControl(roomsCheckFrame(_subscribedEpks));
+    _subscribe(link, _activeEpks());
   }
 
   void _watchChannel(PeerRecord peer, IChannel ch) {
@@ -1173,6 +1348,12 @@ class ConnectionManager extends Service {
       _roomsController.add(_roomsSnapshot());
     }
   }
+
+  static bool _listEquals(List<String> a, List<String> b) =>
+      a.length == b.length && a.indexed.every((e) => b[e.$1] == e.$2);
+
+  static bool _mapEquals(Map<String, String> a, Map<String, String> b) =>
+      a.length == b.length && a.entries.every((e) => b[e.key] == e.value);
 
   static int _idCounter = 0;
   static String _newId() => 'ping_${++_idCounter}';

@@ -85,10 +85,26 @@ void main() {
     final code = await fetchTailnetPairingCode(
       host,
       client: MockClient(
-        (_) async => http.Response(jsonEncode({'uri': 'baya://pair?t=z'}), 200),
+        (_) async => http.Response(
+          jsonEncode({'uri': 'baya://pair?t=z&r=https://relay'}),
+          200,
+        ),
       ),
     );
-    expect(code, 'baya://pair?t=z');
+    // The code names the host itself: it is reached without the relay.
+    expect(Uri.parse(code).queryParameters, {
+      't': 'z',
+      'r': 'https://box.t.ts.net/baya-pair/windows/direct',
+    });
+    expect(
+      TailnetHost(
+        label: 'linux',
+        name: 'box',
+        key: 'k',
+        pairUri: Uri.parse('http://box:7480/pair'),
+      ).endpoint,
+      'http://box:7480/direct',
+    );
     expect(tailnetSuffixOf('https://example.com'), isNull);
   });
 }

@@ -570,6 +570,77 @@ void main() {
       cm.dispose();
     });
 
+    test(
+      'a computer at another address is watched on its own connection',
+      () async {
+        const relayed = PeerRecord(
+          remoteEpk: 'epkA',
+          sessionName: 'A',
+          relayUrl: 'https://relay',
+          pairedAt: '2026-01-01T00:00:00Z',
+        );
+        const direct = PeerRecord(
+          remoteEpk: 'epkB',
+          sessionName: 'B',
+          relayUrl: 'https://pc/baya-pair/windows/direct',
+          pairedAt: '2026-01-02T00:00:00Z',
+        );
+        final opened = <String, List<_ControllableChannel>>{};
+        final cm = ConnectionManager(
+          factory: (peer, _) async {
+            final ch = _ControllableChannel();
+            (opened[peer.relayUrl] ??= []).add(ch);
+            return ch;
+          },
+          storage: _FakeStorage([relayed, direct]),
+          emitDebounce: Duration.zero,
+          endpointOf: (peer) => peer.relayUrl,
+        );
+        await cm.boot(preferredEpk: 'epkA');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        final main = opened['https://relay']!.single;
+        final watcher = opened['https://pc/baya-pair/windows/direct']!.single;
+        List<Object?> subscribed(_ControllableChannel ch) =>
+            ch.sentControl.lastWhere(
+                  (m) => m['type'] == 'subscribe_presence',
+                )['peers']
+                as List<Object?>;
+        expect(subscribed(main), ['epkA']);
+        expect(subscribed(watcher), ['epkB']);
+
+        watcher
+          ..pushControl(const PeerOnline(peer: 'epkB'))
+          ..pushControl(
+            const RoomsSnapshot(
+              peer: 'epkB',
+              rooms: [
+                RoomInfo(roomId: 'r1', name: 'w', cwd: '/', startedAt: 1),
+              ],
+            ),
+          );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(cm.presenceFor('epkB'), isA<PresenceOnline>());
+        expect(cm.isRoomLive('epkB', 'r1'), isTrue);
+
+        await watcher.close();
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(cm.presenceFor('epkB'), isA<PresenceOffline>());
+        expect(cm.isRoomLive('epkB', 'r1'), isFalse);
+        expect(cm.status, isA<StatusOnline>(), reason: 'the active link stays');
+
+        await Future<void>.delayed(const Duration(milliseconds: 1100));
+        expect(opened['https://pc/baya-pair/windows/direct'], hasLength(2));
+
+        // Switching to the direct computer makes the relay the watched one.
+        await cm.switchTo(direct);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(opened['https://relay'], hasLength(2));
+        expect(subscribed(opened['https://relay']!.last), ['epkA']);
+        cm.dispose();
+      },
+    );
+
     test('peer_online frame → presence map updates + stream emits', () async {
       final ch = _ControllableChannel();
       final cm = ConnectionManager(

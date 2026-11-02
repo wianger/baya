@@ -95,6 +95,7 @@ final class AppServices {
   late final connection = ConnectionManager(
     factory: _productionConnectionFactory,
     storage: storage,
+    endpointOf: (peer) => endpointFor(peer, prefs),
   );
   // Owns a broadcast sound-level stream that outlives chat screens.
   late final SpeechService speech = SpeechToTextService();
@@ -193,8 +194,8 @@ Future<IChannel> _productionConnectionFactory(
   // its retry/backoff path, which is observable as `StatusRetrying` and
   // renders a "reconnecting" banner rather than an empty spinner.
   const wsConnectTimeout = Duration(seconds: 10);
-  // One relay for every peer: the QR-adopted or Settings URL, else default.
-  final relayUrl = resolveRelayUrl(services.prefs);
+  // The host itself when paired directly, otherwise the relay.
+  final relayUrl = endpointFor(peer, services.prefs);
   final transport =
       await WsTransport.connect(
         relayUrl: relayUrl,
