@@ -6,6 +6,7 @@ import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
+import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -91,6 +92,7 @@ class SettingsPage extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const _KeyBackupEntry(),
                     const SizedBox(height: 22),
                     _SettingsSectionLabel(context.l10n.chatAndAppearance),
                     _SettingsEntryCard(
@@ -564,6 +566,44 @@ class _SettingsEntry extends StatelessWidget {
       ),
       trailing: Icon(LucideIcons.chevronRight, size: 18, color: colors.muted),
       onTap: onTap,
+    );
+  }
+}
+
+/// Shows whether the owner key survives a phone change. Never blocks: without
+/// Google Backup the app works, the pairing just lives on this phone only.
+class _KeyBackupEntry extends StatelessWidget {
+  const _KeyBackupEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    final BackedUpOwnerIdentityStore store;
+    try {
+      store = context.watch<BackedUpOwnerIdentityStore>();
+    } on ProviderNotFoundException {
+      return const SizedBox.shrink();
+    }
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: _SettingsEntryCard(
+        child: _SettingsEntry(
+          key: const Key('settings-key-backup'),
+          icon: store.backedUp
+              ? LucideIcons.cloudCheck
+              : LucideIcons.cloudAlert,
+          title: l10n.keyBackup,
+          subtitle: store.backedUp ? l10n.keyBackedUp : l10n.keyNotBackedUp,
+          onTap: () async {
+            if (await store.retryBackup() || !context.mounted) return;
+            await showBayaNotice(
+              context,
+              title: l10n.keyBackup,
+              message: l10n.keyBackupHowTo,
+            );
+          },
+        ),
+      ),
     );
   }
 }

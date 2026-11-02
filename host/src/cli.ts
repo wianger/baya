@@ -197,6 +197,11 @@ async function runForeground(args: ParsedArgs): Promise<void> {
   process.stdout.write(
     `[baya] Host ${info.pid} online on 127.0.0.1:${info.port}; state ${BAYA_HOME}\n`,
   );
+  // First run in a terminal: nothing to configure, just scan.
+  if (process.stdout.isTTY && (await listPeers()).length === 0) {
+    process.stdout.write("\n[baya] No phone is paired yet. Scan this code with the Baya app:\n");
+    await printPairingCode(manager.pair());
+  }
 }
 
 async function pair(args: ParsedArgs): Promise<void> {
@@ -213,18 +218,22 @@ async function pair(args: ParsedArgs): Promise<void> {
     ...(args.positionals[0] ? { id: args.positionals[0] } : {}),
     ...(ttlSeconds === undefined ? {} : { ttl_ms: Math.floor(ttlSeconds * 1000) }),
   });
+  await printPairingCode(response);
+}
+
+async function printPairingCode(invite: ReturnType<BayaManager["pair"]>): Promise<void> {
   const identity = await getOrCreateEd25519Keypair();
   const relayUrl = resolveRelayUrl().url;
   const uri = buildQRUri({
-    token: response.token,
+    token: invite.token,
     publicKey: identity.publicKey,
-    sessionName: response.session_name,
-    roomId: response.room_id,
+    sessionName: invite.session_name,
+    roomId: invite.room_id,
     relayUrl,
   });
   process.stdout.write(`Relay: ${relayUrl}\n`);
-  process.stdout.write(`Session: ${response.session_name} (${response.session_id})\n`);
-  process.stdout.write(`Expires: ${new Date(response.expires_at).toLocaleString()}\n`);
+  process.stdout.write(`Session: ${invite.session_name} (${invite.session_id})\n`);
+  process.stdout.write(`Expires: ${new Date(invite.expires_at).toLocaleString()}\n`);
   displayQR(uri);
   process.stdout.write(`Pairing URI:\n${uri}\n`);
 }

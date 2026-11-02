@@ -26,7 +26,6 @@ import 'package:app/ui/settings/settings_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/ui/session_files/session_files_page.dart';
 import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
-import 'package:app/ui/sync_required/sync_required_page.dart';
 import 'package:flutter/material.dart';
 import 'package:app/ui/chat/context/viewmodels/context_usage_viewmodel.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
@@ -39,13 +38,11 @@ class _BootState extends ChangeNotifier {
   bool _ready = false;
   bool _hasPeer = false;
   bool _onboarded = false;
-  bool _syncAvailable = true;
   bool _identityWasGenerated = false;
 
   bool get ready => _ready;
   bool get hasPeer => _hasPeer;
   bool get onboarded => _onboarded;
-  bool get syncAvailable => _syncAvailable;
 
   /// True when this run is the very first time the Owner key materialised
   /// on this account (the bridge just generated it). Restored identities
@@ -69,21 +66,10 @@ class _BootState extends ChangeNotifier {
   }) async {
     await prefs.load();
 
-    // Block bootstrap until the platform's key-sync surface
-    // (Block Store) is usable AND we have an
-    // Owner-key (loaded or freshly generated). If sync is off, the
-    // router redirects to /sync-required and the user retries from
-    // there once they flip the toggle in Settings.
+    // The owner key always lives on this phone; Block Store only backs
+    // it up, so boot never blocks on Google Backup.
     final ownerResult = await ownerBridge.boot();
-    if (ownerResult is SyncUnavailableResult) {
-      _syncAvailable = false;
-      _ready = true;
-      notifyListeners();
-      return;
-    }
-    _syncAvailable = true;
-    _identityWasGenerated =
-        ownerResult is IdentityReady && ownerResult.generated;
+    _identityWasGenerated = ownerResult.generated;
 
     // Install the platform-sync watcher *after* boot completes so its
     // initial-emit race (see OwnerIdentityBridge.startWatching) can't
@@ -196,23 +182,17 @@ GoRouter buildRouter(
     refreshListenable: boot,
     redirect: (context, state) {
       if (!boot.ready) return '/boot';
-      // Sync-required gate is sticky until the user turns Google
-      // Backup on and taps "Check again". Don't redirect away from
-      // /sync-required while the bridge still reports unavailable.
-      if (!boot.syncAvailable) {
-        return state.uri.path == '/sync-required' ? null : '/sync-required';
-      }
       // Onboarding stepper only runs on a truly fresh install — when
       // the Owner key was generated this run AND there is no
-      // membership to inherit. Restored identities (iCloud Keychain /
-      // Block Store handed us back the key, including the
+      // membership to inherit. Restored identities (Block Store handed
+      // us back the key, including the
       // "reinstalled on the same device" case) skip straight to home,
       // even if peers are empty. Home has a first-pair empty state
       // that covers that case more cleanly than re-running the welcome
       // wizard a second time.
       final shouldOnboard = boot.identityWasGenerated && !boot.hasPeer;
       final target = shouldOnboard ? '/onboarding' : '/home';
-      if (state.uri.path == '/sync-required' || state.uri.path == '/boot') {
+      if (state.uri.path == '/boot') {
         return target;
       }
       return null;
@@ -220,13 +200,6 @@ GoRouter buildRouter(
     routes: [
       // Splash while boot.load() is in flight
       GoRoute(path: '/boot', builder: (ctx, st) => const _BootSplash()),
-
-      // First-launch gate when Google Backup is off. Sticky route: redirect keeps the user here
-      // until the bridge reports sync available.
-      GoRoute(
-        path: '/sync-required',
-        builder: (ctx, st) => const SyncRequiredPage(),
-      ),
 
       GoRoute(
         path: '/home',

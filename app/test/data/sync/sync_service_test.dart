@@ -671,7 +671,7 @@ void main() {
       final errorTexts = messages(s.epk)
           .where((m) => m.role == MsgRole.assistant)
           .map((m) => m.text);
-      expect(errorTexts, contains(startsWith('⚠ internal_error:')));
+      expect(errorTexts, contains('⚠ No active Pi context to abort'));
       s.conn.dispose();
       s.sync.dispose();
     },
@@ -1274,5 +1274,11 @@ void main() {
       s.conn.dispose();
       s.sync.dispose();
     });
+  });
+
+  test('known error codes read as plain language', () {
+    expect(friendlyServerError('clock_skew', 'skew 9 min'), contains('clock'));
+    expect(friendlyServerError('internal_error', 'Pi crashed'), 'Pi crashed');
+    expect(friendlyServerError('weird_code', ''), 'weird_code');
   });
 }

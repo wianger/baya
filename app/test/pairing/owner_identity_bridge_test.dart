@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:cryptography/cryptography.dart';
@@ -77,10 +78,8 @@ Future<OwnerIdentity> _freshIdentity() async {
   );
 }
 
-/// Reproduces the shape: the pre-flight reports "unavailable"
-/// (on iOS the old ubiquity-token check was ALWAYS false in App Store
-/// builds) while the real read/write path works fine — iCloud Keychain
-/// needs no entitlement.
+/// The pre-flight reports "unavailable" while the real read/write path
+/// works fine.
 class _FalsePreflightStore implements OwnerIdentityStore {
   final InMemoryOwnerIdentityStore _inner;
   _FalsePreflightStore(this._inner);
@@ -110,7 +109,7 @@ void main() {
       final result = await bridge.boot();
 
       expect(result, isA<IdentityReady>());
-      expect((result as IdentityReady).generated, isTrue);
+      expect(result.generated, isTrue);
       expect(bridge.currentOwnerPk, isNotNull);
     });
 
@@ -129,24 +128,66 @@ void main() {
         final result = await bridge.boot();
 
         expect(result, isA<IdentityReady>());
-        expect((result as IdentityReady).generated, isFalse);
+        expect(result.generated, isFalse);
         expect(bridge.currentOwnerPk, id.ownerPk);
       },
     );
+  });
 
-    test('boot still gates when the real load/save path throws '
-        'SyncUnavailable (Android Block Store parity)', () async {
-      final store = InMemoryOwnerIdentityStore(syncAvailable: false);
+  group('BackedUpOwnerIdentityStore — backup never blocks the app', () {
+    test('without Google Backup the key is kept on the phone', () async {
+      final local = _FakeSecureStorage();
+      final store = BackedUpOwnerIdentityStore(
+        InMemoryOwnerIdentityStore(syncAvailable: false),
+        local,
+      );
       final bridge = OwnerIdentityBridge(
         store,
         PairingStorage(_FakeSecureStorage()),
       );
 
-      final result = await bridge.boot();
+      final first = await bridge.boot();
+      expect(first.generated, isTrue);
+      expect(store.backedUp, isFalse);
 
-      expect(result, isA<SyncUnavailableResult>());
-      expect(bridge.currentOwnerPk, isNull);
+      // Next launch finds the same key locally.
+      final again = await OwnerIdentityBridge(
+        BackedUpOwnerIdentityStore(
+          InMemoryOwnerIdentityStore(syncAvailable: false),
+          local,
+        ),
+        PairingStorage(_FakeSecureStorage()),
+      ).boot();
+      expect(again.generated, isFalse);
+      expect(again.identity.ownerPk, first.identity.ownerPk);
     });
+
+    test(
+      'a restored phone adopts the Block Store key and mirrors new keys',
+      () async {
+        final id = await _freshIdentity();
+        final restored = BackedUpOwnerIdentityStore(
+          InMemoryOwnerIdentityStore(initial: id),
+          _FakeSecureStorage(),
+        );
+        final result = await OwnerIdentityBridge(
+          restored,
+          PairingStorage(_FakeSecureStorage()),
+        ).boot();
+        expect(result.generated, isFalse);
+        expect(result.identity.ownerPk, id.ownerPk);
+        expect(restored.backedUp, isTrue);
+
+        final backup = InMemoryOwnerIdentityStore();
+        final fresh = BackedUpOwnerIdentityStore(backup, _FakeSecureStorage());
+        final created = await OwnerIdentityBridge(
+          fresh,
+          PairingStorage(_FakeSecureStorage()),
+        ).boot();
+        expect(fresh.backedUp, isTrue);
+        expect((await backup.load())!.ownerPk, created.identity.ownerPk);
+      },
+    );
   });
 
   group('OwnerIdentityBridge.startWatching — initial emit race fix', () {

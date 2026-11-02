@@ -27,6 +27,7 @@ import 'package:app/domain/contracts/agent_commands_repository.dart';
 import 'package:app/domain/contracts/context_usage_repository.dart';
 import 'package:app/domain/session_files/session_files_repository.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
+import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/pair_request_flow.dart';
 import 'package:app/pairing/qr_scanner.dart';
@@ -79,10 +80,13 @@ final class AppServices {
   late final storage = PairingStorage();
   // Boxes are opened and the runtime box wiped in bootstrap before this.
   late final boxes = LocalBoxes();
-  late final ownerBridge = OwnerIdentityBridge(
+
+  /// The owner key: kept on this phone, backed up to Block Store when
+  /// Google Backup allows it.
+  late final identityStore = BackedUpOwnerIdentityStore(
     MethodChannelOwnerIdentityStore(),
-    storage,
   );
+  late final ownerBridge = OwnerIdentityBridge(identityStore, storage);
   // The relay's `/mesh` endpoint shares host and port with the WebSocket.
   late final meshClient = MeshClient(
     baseUrlProvider: () => resolveRelayUrl(prefs),

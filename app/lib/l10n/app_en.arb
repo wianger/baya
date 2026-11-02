@@ -241,15 +241,6 @@
   "hideToolCalls": "Hide tool calls in chat",
   "hideToolCallsHint": "Only show your messages and assistant replies.",
   "enterRelayUrl": "Enter a URL or clear the field to use the default relay.",
-  "syncRequired": "Sync required",
-  "toEnableOnDevice": "TO ENABLE ON THIS DEVICE",
-  "checkAgain": "Check again",
-  "setUpScreenLock": "Set up a screen lock",
-  "screenLockPath": "Settings › Security › Screen lock",
-  "screenLockNote": "PIN, pattern or biometrics — required by Block Store.",
-  "turnOnGoogleBackup": "Turn on Google Backup",
-  "signInGoogle": "Sign in to a Google account",
-  "signInGooglePath": "Settings › Passwords & accounts › Add account › Google",
   "appUpdates": "App updates",
   "updateKeepsData": "Open the download to update this app. Your pairings and settings are kept.",
   "chooseFolderHint": "Choose a folder on your computer. A fresh agent session will start there.",
@@ -601,15 +592,6 @@
       }
     }
   },
-  "syncWhy": "{app} keeps your Ed25519 owner key in Google Block Store so you can restore it on a new phone through Google Backup without losing your paired computers.",
-  "@syncWhy": {
-    "placeholders": {
-      "app": {
-        "type": "String"
-      }
-    }
-  },
-  "googleBackupPath": "Settings › System › Backup\n(Samsung: Settings › Accounts and backup › Backup data)",
   "startingAgent": "Starting {agent}…",
   "@startingAgent": {
     "placeholders": {
@@ -697,5 +679,13 @@
   },
   "yourAgent": "your agent",
   "workspaceNeedsName": "A workspace needs a name.",
-  "pasteCodeHint": "Can't scan the code? Paste the text `baya pair` printed. It starts with baya://pair?…"
+  "pasteCodeHint": "Can't scan the code? Paste the text `baya pair` printed. It starts with baya://pair?…",
+  "errorClockSkew": "This phone's clock is off from the computer. Turn on automatic date & time, then try again.",
+  "errorRateLimited": "The agent is rate-limited right now. Wait a moment and try again.",
+  "errorTooLarge": "That message is too large to send. Try a smaller image or shorter text.",
+  "errorTimeout": "The computer took too long to answer. Try again.",
+  "keyBackup": "Key backup",
+  "keyBackedUp": "Backed up with Google Backup. A new phone keeps your pairings.",
+  "keyNotBackedUp": "Only on this phone. Tap to back up.",
+  "keyBackupHowTo": "Set up a screen lock and turn on Google Backup (Settings › System › Backup), then tap again. Until then Baya works normally, but a new phone has to pair again."
 }

@@ -6,27 +6,10 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:baya_identity/baya_identity.dart';
 
-/// Outcome of a `bridge.boot()` call. The router uses this to decide
-/// between "show sync-required gate" and "boot normally".
-sealed class OwnerIdentityBootResult {
-  const OwnerIdentityBootResult();
-}
-
-/// Platform key-sync surface is off — caller must surface the
-/// platform-specific config instructions and *not* generate a local
-/// identity (would silently diverge with sync later).
-final class SyncUnavailableResult extends OwnerIdentityBootResult {
-  const SyncUnavailableResult();
-}
-
-/// Either loaded from sync or freshly generated. Carries the
-/// 32-byte public key so callers can stash it before challenge-response
-/// time; the private key stays on-disk to avoid keeping it in heap.
-final class IdentityReady extends OwnerIdentityBootResult {
+/// Outcome of `bridge.boot()`: the owner identity, and whether this run
+/// created it (a fresh install goes through onboarding).
+final class IdentityReady {
   final OwnerIdentity identity;
-
-  /// True when this run generated the keypair instead of loading it.
-  /// Surfaced for telemetry / "fresh install" UX decisions.
   final bool generated;
   const IdentityReady(this.identity, {required this.generated});
 }
@@ -59,34 +42,20 @@ class OwnerIdentityBridge extends ChangeNotifier {
   /// guard logic.
   Uint8List? get currentOwnerPk => _current?.ownerPk;
 
-  /// Load (or generate) the Owner identity.
-  /// Idempotent — repeated calls are cheap once `_current` is populated.
-  ///
-  /// The `isSyncAvailable()` pre-flight is deliberately NOT a gate here:
-  /// it can report false negatives. The real capability check is the load/save path — the store
-  /// throws [SyncUnavailable] when the platform sync surface genuinely
-  /// can't hold the key (e.g. Android Block Store without backup), and
-  /// only that verdict sends the router to /sync-required.
-  Future<OwnerIdentityBootResult> boot() async {
+  /// Load the Owner identity, or create one on first run.
+  Future<IdentityReady> boot() async {
     try {
       final loaded = await _store.load();
       if (loaded != null) {
         _current = loaded;
         return IdentityReady(loaded, generated: false);
       }
-    } on SyncUnavailable {
-      return const SyncUnavailableResult();
     } on IdentityStoreError {
-      // Load failed — fall through and generate a fresh identity.
+      // Unreadable: start over with a fresh identity.
     }
-
-    try {
-      final generated = await _generateAndSave();
-      _current = generated;
-      return IdentityReady(generated, generated: true);
-    } on SyncUnavailable {
-      return const SyncUnavailableResult();
-    }
+    final generated = await _generateAndSave();
+    _current = generated;
+    return IdentityReady(generated, generated: true);
   }
 
   Future<OwnerIdentity> _generateAndSave() async {

@@ -9,6 +9,9 @@
 // the finalized message lands in the box on `agent_done`.
 
 import 'dart:async';
+
+import 'package:app/l10n/l10n.dart';
+
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -751,7 +754,7 @@ class SyncService extends Service {
             id: 'err_$seq',
             seq: seq,
             role: MsgRole.assistant,
-            text: '⚠ $code: $message',
+            text: '⚠ ${friendlyServerError(code, message)}',
             ts: DateTime.now(),
           ),
         );
@@ -1343,4 +1346,17 @@ class SyncService extends Service {
     _workingController.close();
     _queuedController.close();
   }
+}
+
+/// Turns a protocol error into something a person can act on. Unknown codes
+/// keep the host's own message, which is already written for people.
+String friendlyServerError(String code, String message) {
+  final l10n = appL10n;
+  return switch (code) {
+    'clock_skew' => l10n.errorClockSkew,
+    'rate_limited' => l10n.errorRateLimited,
+    'too_large' => l10n.errorTooLarge,
+    'timeout' => l10n.errorTimeout,
+    _ => message.isEmpty ? code : message,
+  };
 }

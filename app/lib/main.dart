@@ -7,6 +7,7 @@ import 'package:app/routing/app_router.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/themes/app_font_licenses.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -84,6 +85,9 @@ class _RemotePiAppState extends State<RemotePiApp> with WidgetsBindingObserver {
         ),
         // Shell layout state — lets the adaptive shell collapse the split
         // into a single centered pane on zero-state Home (no Pi / empty).
+        ChangeNotifierProvider<BackedUpOwnerIdentityStore>.value(
+          value: services.identityStore,
+        ),
         ChangeNotifierProvider<ShellLayout>.value(value: services.shellLayout),
       ],
       // Theme is reactive: toggling the mode in Settings notifies
