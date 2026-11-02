@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/config/dependencies.dart';
 import 'package:app/data/local/boxes.dart';
@@ -8,6 +10,7 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/themes/app_font_licenses.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
+import 'package:app_links/app_links.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -22,17 +25,17 @@ void main() async {
   // Eagerly construct the SSOT writer so it's consuming the channel from boot
   // (messages can arrive before the chat screen mounts).
   services.sync;
-  runApp(const RemotePiApp());
+  runApp(const BayaApp());
 }
 
-class RemotePiApp extends StatefulWidget {
-  const RemotePiApp({super.key});
+class BayaApp extends StatefulWidget {
+  const BayaApp({super.key});
 
   @override
-  State<RemotePiApp> createState() => _RemotePiAppState();
+  State<BayaApp> createState() => _BayaAppState();
 }
 
-class _RemotePiAppState extends State<RemotePiApp> with WidgetsBindingObserver {
+class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
   late final _router = buildRouter(
     services.storage,
     services.connection,
@@ -41,14 +44,35 @@ class _RemotePiAppState extends State<RemotePiApp> with WidgetsBindingObserver {
     services.meshSync,
   );
 
+  StreamSubscription<Uri>? _links;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Includes the link that cold-started the app.
+    _links = AppLinks().uriLinkStream.listen(_openLink);
+  }
+
+  /// `baya://pair?…` opens pairing with the code already filled in. A link
+  /// that arrives during boot waits until the router has left /boot.
+  void _openLink(Uri uri) {
+    if (uri.scheme != 'baya' || uri.host != 'pair') return;
+    String path() => _router.routerDelegate.currentConfiguration.uri.path;
+    void open() => _router.push('/pair', extra: uri.toString());
+    if (path() != '/boot') return open();
+    void whenBooted() {
+      if (path() == '/boot') return;
+      _router.routerDelegate.removeListener(whenBooted);
+      open();
+    }
+
+    _router.routerDelegate.addListener(whenBooted);
   }
 
   @override
   void dispose() {
+    _links?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     disposeDependencies();
     super.dispose();

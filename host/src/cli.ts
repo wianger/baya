@@ -47,6 +47,7 @@ import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/sto
 import { packageVersion } from "./runtime/version.ts";
 import { installStartup, uninstallStartup } from "./service.ts";
 import { findSession, listSessions, removeSession } from "./session/registry.ts";
+import { TailnetPairingServer, tailnetSelf } from "./tailnet/pairing_server.ts";
 import { workspaceAgentDefinition } from "./workspace/agents.ts";
 import { availableAgents, resolveDirectory } from "./workspace/directories.ts";
 import type { WorkspaceAgent } from "./workspace/types.ts";
@@ -56,6 +57,7 @@ interface HostStatus {
   version: string;
   started_at: number;
   relay: { url: string; connected: boolean };
+  tailnet: string | null;
   sessions: SessionStatus[];
 }
 
@@ -170,6 +172,13 @@ async function printStatus(status: HostStatus): Promise<void> {
       ? ok(`${peers.length} phone${peers.length === 1 ? "" : "s"} paired`)
       : warn("No phone paired"),
   );
+  if (status.tailnet) {
+    out(
+      ok(
+        `Tailscale pairing on ${dim(`— in the app, choose "Use Tailscale" and type ${status.tailnet}`)}`,
+      ),
+    );
+  }
   if (!status.relay.connected) out(hint("baya doctor"));
   if (peers.length === 0) out(hint("baya pair"));
   out("", bold("Sessions"));
@@ -230,7 +239,13 @@ async function up(args: ParsedArgs): Promise<void> {
   if (!already) out(ok(`Baya started in ${dim(process.cwd())}`), "");
   await printStatus(status);
   if ((await listPeers()).length === 0) {
-    out("", bold("Pair your phone"), "Open the Baya app and scan this code:");
+    out(
+      "",
+      bold("Pair your phone"),
+      status.tailnet
+        ? `In the Baya app, choose "Use Tailscale" and type ${bold(status.tailnet)}, or scan:`
+        : "Open the Baya app and scan this code:",
+    );
     await printPairingCode(await controlCall<PairInvite>("pair"));
   }
 }
@@ -262,9 +277,24 @@ async function runForeground(args: ParsedArgs): Promise<void> {
   control = new ControlServer(manager, () => void shutdown());
   const info = await control.start();
   out(`[baya] Host ${info.pid} online; state ${BAYA_HOME}`);
+  await startTailnetPairing(manager, control);
   if (process.stdout.isTTY && (await listPeers()).length === 0) {
     out("", "No phone is paired yet. Scan this code with the Baya app:");
     await printPairingCode(manager.pair());
+  }
+}
+
+/** Lets phones on the same Tailscale account pair by typing this name. */
+async function startTailnetPairing(manager: BayaManager, control: ControlServer): Promise<void> {
+  const self = await tailnetSelf();
+  if (!self) return;
+  const server = new TailnetPairingServer(() => pairingUri(manager.pair()));
+  try {
+    await server.start(self);
+    control.tailnetName = self.name;
+    out(`[baya] Tailscale pairing on ${self.ip}; phones can type "${self.name}"`);
+  } catch (error) {
+    out(`[baya] Tailscale pairing unavailable: ${error instanceof Error ? error.message : error}`);
   }
 }
 
@@ -566,6 +596,12 @@ async function main(): Promise<void> {
     }
   }
 }
+
+// `baya status | head` closes the pipe early; that is not an error.
+process.stdout.on("error", (error: NodeJS.ErrnoException) => {
+  if (error.code === "EPIPE") process.exit(0);
+  throw error;
+});
 
 main().catch((error: unknown) => {
   process.stderr.write(`${red("✗")} ${error instanceof Error ? error.message : String(error)}\n`);

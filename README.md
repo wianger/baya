@@ -42,6 +42,15 @@ cd C:\code\project
 baya
 ```
 
+Three ways to pair, all equally secure:
+
+- **Scan** the QR code it prints.
+- **Tailscale**: if the phone and the computer share a Tailscale account,
+  tap *Use Tailscale* in the app and type the computer's name. The host
+  serves pairing codes on its tailnet address (port 7480) only to devices
+  `tailscale whois` attributes to the same account.
+- **Link**: tap the `baya://pair?…` link on the phone, or paste it.
+
 Manage paired phones. Unpairing takes effect immediately, including for a
 stream that is already running:
 

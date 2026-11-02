@@ -16,6 +16,8 @@ export class ControlServer {
   private server: Server | null = null;
   private readonly token = randomBytes(32).toString("base64url");
   private readonly startedAt = Date.now();
+  /** Short tailnet name phones can type to pair, when Tailscale pairing runs. */
+  tailnetName: string | null = null;
 
   private readonly manager: BayaManager;
   private readonly stopProcess: () => void;
@@ -120,6 +122,7 @@ export class ControlServer {
           version: packageVersion(),
           started_at: this.startedAt,
           relay: { url: resolveRelayUrl().url, connected: relayHub().connected },
+          tailnet: this.tailnetName,
           sessions: this.manager.list(),
         };
       case "list":

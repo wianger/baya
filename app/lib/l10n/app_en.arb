@@ -691,5 +691,20 @@
   "compactUnavailable": "Compact unavailable",
   "compactUnavailableHint": "This agent manages its context automatically and does not expose manual compaction.",
   "pairingCodeInvalid": "This pairing code is incomplete. Run `baya pair` again on the computer.",
-  "notAPairingCode": "That is not a Baya pairing code. Scan the code `baya pair` shows."
+  "notAPairingCode": "That is not a Baya pairing code. Scan the code `baya pair` shows.",
+  "pairOverTailscale": "Pair over Tailscale",
+  "pairOverTailscaleHint": "Type the computer's Tailscale name. It works when this phone and the computer are signed in to the same Tailscale account and Baya is running there.",
+  "computerNameHint": "Computer name, e.g. my-laptop",
+  "useTailscale": "Use Tailscale",
+  "pasteCode": "Paste code",
+  "tailnetNotYourAccount": "That computer is signed in to a different Tailscale account.",
+  "tailnetNotReady": "Baya on that computer is not ready yet. Try again in a moment.",
+  "tailnetUnreachable": "Can't reach {name}. Check that Tailscale is on here and that Baya is running on that computer.",
+  "@tailnetUnreachable": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -9,6 +9,7 @@ import 'package:app/ui/pairing/states/pairing_state.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
 import 'package:app/ui/pairing/widgets/nickname_sheet.dart';
 import 'package:app/ui/pairing/widgets/paste_qr_sheet.dart';
+import 'package:app/ui/pairing/widgets/tailnet_pair_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -20,7 +21,10 @@ import 'package:provider/provider.dart';
 // ---------------------------------------------------------------------------
 
 class PairingPage extends StatefulWidget {
-  const PairingPage({super.key});
+  const PairingPage({super.key, this.initialCode});
+
+  /// A `baya://pair` link the app was opened with; paired right away.
+  final String? initialCode;
 
   @override
   State<PairingPage> createState() => _PairingPageState();
@@ -33,6 +37,17 @@ class _PairingPageState extends State<PairingPage> {
   // is rebroadcast on every `applyNickname` emit, and we only want to
   // open the sheet once per pairing.
   bool _postPairStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final code = widget.initialCode;
+    if (code != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _submitRaw(code);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -59,6 +74,10 @@ class _PairingPageState extends State<PairingPage> {
 
   Future<void> _openPasteSheet() async {
     await showPasteQrSheet(context, onSubmit: _submitRaw);
+  }
+
+  Future<void> _openTailnetSheet() async {
+    await showTailnetPairSheet(context, onSubmit: _submitRaw);
   }
 
   @override
@@ -191,27 +210,26 @@ class _PairingPageState extends State<PairingPage> {
             bottom: 32,
             left: 32,
             right: 32,
-            child: OutlinedButton.icon(
-              onPressed: _openPasteSheet,
-              icon: Icon(
-                LucideIcons.clipboardPaste,
-                size: 16,
-                color: colors.accent,
-              ),
-              label: Text(
-                "Can't scan? Paste code instead",
-                style: TextStyle(
-                  color: colors.accent,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+            child: Row(
+              children: [
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    key: const Key('pair-tailscale'),
+                    onPressed: _openTailnetSheet,
+                    icon: const Icon(LucideIcons.network, size: 16),
+                    label: Text(context.l10n.useTailscale),
+                  ),
                 ),
-              ),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: colors.glassFill,
-                side: BorderSide(color: colors.accent, width: 1),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: const StadiumBorder(),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    key: const Key('pair-paste'),
+                    onPressed: _openPasteSheet,
+                    icon: const Icon(LucideIcons.clipboardPaste, size: 16),
+                    label: Text(context.l10n.pasteCode),
+                  ),
+                ),
+              ],
             ),
           ),
       ],

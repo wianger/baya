@@ -1,7 +1,7 @@
 name: app
 description: "Baya mobile client for computers running the standalone Baya host."
 publish_to: "none"
-version: 1.3.1+80
+version: 1.3.2+81
 
 environment:
   sdk: ^3.13.0
@@ -20,6 +20,9 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   web_socket_channel: ^3.0.1
   go_router: ^18.1.2
+
+  # baya://pair links open the app straight into pairing.
+  app_links: ^7.2.0
 
   # Material You: wallpaper-derived color schemes on Android 12+.
   dynamic_color: ^1.7.0

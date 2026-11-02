@@ -5,6 +5,7 @@ import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
 import 'package:app/ui/pairing/widgets/paste_qr_sheet.dart';
+import 'package:app/ui/pairing/widgets/tailnet_pair_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -143,25 +144,30 @@ class _PairStepState extends State<PairStep> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Camera-less fallback: paste the QR payload as text.
+              // Camera-less fallbacks: Tailscale name or pasted code.
               if (state is PairingScanning || state is PairingIdle)
-                TextButton.icon(
-                  onPressed: () => _openPasteSheet(vm),
-                  icon: Icon(
-                    LucideIcons.clipboardPaste,
-                    size: 16,
-                    color: colors.accent,
-                  ),
-                  label: Text(
-                    "Can't scan? Paste code instead",
-                    style: context.typo.sansBody.copyWith(
-                      fontSize: 13,
-                      color: colors.accent,
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        key: const Key('onboarding-pair-tailscale'),
+                        onPressed: () => showTailnetPairSheet(
+                          context,
+                          onSubmit: (raw) => _submitRaw(raw, vm),
+                        ),
+                        icon: const Icon(LucideIcons.network, size: 16),
+                        label: Text(context.l10n.useTailscale),
+                      ),
                     ),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        onPressed: () => _openPasteSheet(vm),
+                        icon: const Icon(LucideIcons.clipboardPaste, size: 16),
+                        label: Text(context.l10n.pasteCode),
+                      ),
+                    ),
+                  ],
                 ),
               const SizedBox(height: 8),
               Row(

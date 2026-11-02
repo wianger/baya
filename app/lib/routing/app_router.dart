@@ -236,8 +236,11 @@ GoRouter buildRouter(
       // QR pairing flow
       GoRoute(
         path: '/pair',
-        builder: (ctx, st) =>
-            ViewmodelProvider<PairingViewModel>(child: const PairingPage()),
+        builder: (ctx, st) => ViewmodelProvider<PairingViewModel>(
+          child: PairingPage(
+            initialCode: st.extra is String ? st.extra as String : null,
+          ),
+        ),
       ),
 
       // Onboarding — 3-step flow shown when the app has
