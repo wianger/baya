@@ -1,12 +1,13 @@
 // Relay endpoint resolution.
 //
-// The app talks to one relay at a time: `prefs.relayUrl` when set (the
-// pairing QR sets it, Settings can change it), otherwise [kDefaultRelayUrl].
+// Each computer is reached at the endpoint its pairing code named: its own
+// address over Tailscale, or a relay. `prefs.relayUrl` is the relay this
+// phone uses for the mesh store and for relayed computers' pairing; a code
+// naming a relay sets it, Settings can change it.
 // URLs are stored as http(s)://; the WebSocket transport converts them with
 // [toWsRelayUrl] and the mesh client uses them as-is.
 
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/pairing/storage.dart';
 
 /// The project relay, used until a pairing QR or Settings names another.
 const String kDefaultRelayUrl = 'https://wiang-1.tail171f4a.ts.net';
@@ -30,16 +31,11 @@ const String kRelayUrlInvalidGeneric =
 /// applying [toWsRelayUrl] when opening a WebSocket.
 String resolveRelayUrl(Preferences prefs) => prefs.relayUrl ?? kDefaultRelayUrl;
 
-/// `true` for a host's own address (paired over Tailscale), e.g.
-/// `https://pc.tail1234.ts.net/baya-pair/windows/direct`: the app talks to
-/// that host straight, with no relay in between.
+/// `true` for a host's own address (reached over Tailscale), e.g.
+/// `https://pc.tail1234.ts.net/baya-pair/windows/direct`, rather than a
+/// relay.
 bool isDirectEndpoint(String url) =>
     Uri.tryParse(url)?.path.endsWith('/direct') ?? false;
-
-/// Where [peer] is reached: its own address when paired directly, otherwise
-/// the relay.
-String endpointFor(PeerRecord peer, Preferences prefs) =>
-    isDirectEndpoint(peer.relayUrl) ? peer.relayUrl : resolveRelayUrl(prefs);
 
 /// Translates the canonical HTTP-form relay URL into the WebSocket
 /// form expected by the underlying transport. `https://` → `wss://`,

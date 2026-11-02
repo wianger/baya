@@ -52,6 +52,6 @@ PeerRecord phoneTestPeer({
   remoteEpk: base64Encode(List.filled(32, 5)),
   sessionName: 'PC',
   roomId: room,
-  relayUrl: 'https://example.invalid',
+  endpoint: 'https://example.invalid',
   pairedAt: '2026-10-30',
 );

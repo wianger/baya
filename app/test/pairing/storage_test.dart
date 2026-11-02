@@ -93,14 +93,14 @@ void main() {
       const record = PeerRecord(
         remoteEpk: 'pk_ed25519',
         sessionName: 'test',
-        relayUrl: 'ws://localhost',
+        endpoint: 'ws://localhost',
         pairedAt: '2026-01-01T00:00:00Z',
       );
 
       final json = record.toJson();
       expect(json['remote_epk'], 'pk_ed25519');
       expect(json['session_name'], 'test');
-      expect(json['relay_url'], 'ws://localhost');
+      expect(json['endpoint'], 'ws://localhost');
       expect(json['paired_at'], '2026-01-01T00:00:00Z');
       expect(json['nickname'], isNull);
 
@@ -114,7 +114,7 @@ void main() {
       const record = PeerRecord(
         remoteEpk: 'pk1',
         sessionName: 'remote_pi · main',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
         nickname: 'Mac de casa',
       );
@@ -127,7 +127,7 @@ void main() {
       final restored = PeerRecord.fromJson({
         'remote_epk': 'pk1',
         'session_name': 'name',
-        'relay_url': 'ws://x',
+        'endpoint': 'ws://x',
         'paired_at': '2026-01-01T00:00:00Z',
       });
       expect(restored.nickname, isNull);
@@ -137,7 +137,7 @@ void main() {
       const record = PeerRecord(
         remoteEpk: 'pk1',
         sessionName: 'n',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
         nickname: 'old',
       );
@@ -153,7 +153,7 @@ void main() {
       const record = PeerRecord(
         remoteEpk: 'pk1',
         sessionName: 'name',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
         harness: PiHarness(name: 'Pi coding agent', version: '0.4.2'),
       );
@@ -169,7 +169,7 @@ void main() {
       final restored = PeerRecord.fromJson({
         'remote_epk': 'pk1',
         'session_name': 'name',
-        'relay_url': 'ws://x',
+        'endpoint': 'ws://x',
         'paired_at': '2026-01-01T00:00:00Z',
       });
       expect(restored.harness, isNull);
@@ -179,7 +179,7 @@ void main() {
       const record = PeerRecord(
         remoteEpk: 'pk1',
         sessionName: 'n',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
         nickname: 'Macbook',
         harness: PiHarness(name: 'Pi coding agent', version: '0.4.0'),
@@ -199,7 +199,7 @@ void main() {
       const r = PeerRecord(
         remoteEpk: 'epk1',
         sessionName: 'sess',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
       );
       await storage.savePeer(r);
@@ -222,13 +222,13 @@ void main() {
       const a = PeerRecord(
         remoteEpk: 'epk-a',
         sessionName: 'A',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
       );
       const b = PeerRecord(
         remoteEpk: 'epk-b',
         sessionName: 'B',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
       );
       await storage.savePeer(a);

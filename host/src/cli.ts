@@ -48,16 +48,16 @@ import { packageVersion } from "./runtime/version.ts";
 import { installStartup, uninstallStartup } from "./service.ts";
 import { findSession, listSessions, removeSession } from "./session/registry.ts";
 import {
+  directEndpoint,
   hostLabel,
-  servePath,
+  serveCommand,
   TailnetPairingServer,
-  tailnetPairPort,
   tailnetSelf,
 } from "./tailnet/pairing_server.ts";
+import { workspaceAgentDefinition } from "./workspace/agents.ts";
 
 const LABEL_NAMES = { windows: "Windows", wsl: "WSL", linux: "Linux", macos: "macOS" } as const;
 
-import { workspaceAgentDefinition } from "./workspace/agents.ts";
 import { availableAgents, resolveDirectory } from "./workspace/directories.ts";
 import type { WorkspaceAgent } from "./workspace/types.ts";
 
@@ -310,8 +310,11 @@ async function startTailnetPairing(manager: BayaManager, control: ControlServer)
   try {
     await server.start(self);
     control.tailnetName = self.name;
+    const direct = await directEndpoint(self, label);
     out(
-      `[baya] Tailscale pairing (${label}) on port ${tailnetPairPort(label)}; phones type "${self.name}"`,
+      direct
+        ? `[baya] Direct over Tailscale at ${direct}; phones type "${self.name}"`
+        : `[baya] Tailscale needs one route to reach this host: ${serveCommand(label)}`,
     );
   } catch (error) {
     out(`[baya] Tailscale pairing unavailable: ${error instanceof Error ? error.message : error}`);
@@ -372,14 +375,17 @@ async function pair(args: ParsedArgs): Promise<void> {
   await printPairingCode(invite);
 }
 
+/** A pairing code naming this host itself when Tailscale reaches it, else the relay. */
 async function pairingUri(invite: PairInvite): Promise<string> {
   const identity = await getOrCreateEd25519Keypair();
+  const self = await tailnetSelf();
+  const direct = self ? await directEndpoint(self) : null;
   return buildQRUri({
     token: invite.token,
     publicKey: identity.publicKey,
     sessionName: invite.session_name,
     roomId: invite.room_id,
-    relayUrl: resolvePublicRelayUrl().url,
+    relayUrl: direct ?? resolvePublicRelayUrl().url,
   });
 }
 
@@ -490,18 +496,16 @@ async function doctor(args: ParsedArgs): Promise<void> {
   else if (!host.relay.connected) {
     lines.push(warn("Host is not connected to the relay yet"), hint("baya logs"));
   }
-  if (host?.tailnet) {
-    lines.push(ok(`Tailscale pairing: phones type ${host.tailnet}`));
-    const label = hostLabel();
-    if (label === "wsl" || label === "windows") {
-      const path = servePath(label);
-      lines.push(
-        dim("  phones reach it through tailscale serve; on Windows, once:"),
-        dim(
-          `    tailscale serve --bg --set-path ${path} http://127.0.0.1:${tailnetPairPort(label)}${path}`,
-        ),
-      );
-    }
+  const self = await tailnetSelf();
+  const direct = self ? await directEndpoint(self) : null;
+  if (direct) {
+    lines.push(ok(`Direct over Tailscale ${dim(direct)}`));
+  } else if (self) {
+    const where = hostLabel() === "wsl" ? "on Windows" : "on this computer";
+    lines.push(
+      warn("Tailscale is on, but phones can't reach this host directly"),
+      hint(`${where}, once: ${serveCommand()}`),
+    );
   }
   lines.push(peers.length ? ok(`${peers.length} phone(s) paired`) : warn("No phone paired"));
   if (!peers.length) lines.push(hint("baya pair"));

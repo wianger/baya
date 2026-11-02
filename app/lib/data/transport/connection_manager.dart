@@ -76,8 +76,6 @@ class StatusOffline extends ConnectionStatus {
 
 const _kBackoff = [1, 2, 5, 10, 30];
 
-String _sameEndpoint(PeerRecord _) => '';
-
 Duration _backoffFor(int attempt) =>
     Duration(seconds: _kBackoff[attempt.clamp(0, _kBackoff.length - 1)]);
 
@@ -120,10 +118,8 @@ class _Watcher {
 class ConnectionManager extends Service {
   final ConnectionFactory _factory;
   final PairingStorage _storage;
-  // Where each computer is reached. Computers sharing an address share a
-  // connection; the active computer's address is the main channel, every
-  // other address gets a [_Watcher].
-  final String Function(PeerRecord peer) _endpointOf;
+  // Computers sharing an endpoint share a connection: the active computer's
+  // endpoint is the main channel, every other endpoint gets a [_Watcher].
   final Map<String, _Watcher> _watchers = {};
   Map<String, String> _endpointByKey = const {};
 
@@ -190,9 +186,7 @@ class ConnectionManager extends Service {
     Duration emitDebounce = const Duration(milliseconds: 50),
     Duration connectTimeout = const Duration(seconds: 10),
     Duration channelCloseTimeout = const Duration(seconds: 2),
-    String Function(PeerRecord peer)? endpointOf,
-  }) : _endpointOf = endpointOf ?? _sameEndpoint,
-       // Public parameter names are part of the constructor API.
+  }) : // Public parameter names are part of the constructor API.
        // ignore: prefer_initializing_formals
        _factory = factory,
        // ignore: prefer_initializing_formals
@@ -347,7 +341,7 @@ class ConnectionManager extends Service {
 
   /// Subscribed computers reached through the active connection.
   List<String> _activeEpks() {
-    final active = _activePeer == null ? null : _endpointOf(_activePeer!);
+    final active = _activePeer?.endpoint;
     return [
       for (final key in _subscribedEpks)
         if (_endpointByKey[key] == null || _endpointByKey[key] == active) key,
@@ -387,7 +381,7 @@ class ConnectionManager extends Service {
     final groups = <String, List<PeerRecord>>{};
     final byKey = <String, String>{};
     for (final peer in peers) {
-      final endpoint = _endpointOf(peer);
+      final endpoint = peer.endpoint;
       byKey[toStandardB64(peer.remoteEpk)] = endpoint;
       (groups[endpoint] ??= []).add(peer);
     }
@@ -397,7 +391,7 @@ class ConnectionManager extends Service {
     if (active == null) {
       groups.clear();
     } else {
-      groups.remove(_endpointOf(active));
+      groups.remove(active.endpoint);
     }
     for (final endpoint in _watchers.keys.toList()) {
       if (!groups.containsKey(endpoint)) {
@@ -435,12 +429,16 @@ class ConnectionManager extends Service {
       watcher.channel = channel;
       void lost([Object? _]) => _watcherLost(watcher, channel);
       watcher.subs
-        ..add(link.controlFrames.listen(_onControl, onError: lost, onDone: lost))
-        ..add(channel.serverMessages.listen(
-          (_) => watcher.attempt = 0,
-          onError: lost,
-          onDone: lost,
-        ));
+        ..add(
+          link.controlFrames.listen(_onControl, onError: lost, onDone: lost),
+        )
+        ..add(
+          channel.serverMessages.listen(
+            (_) => watcher.attempt = 0,
+            onError: lost,
+            onDone: lost,
+          ),
+        );
       _subscribe(link, watcher.epks);
       _scheduleRoomsEmit();
     } catch (_) {
@@ -496,7 +494,7 @@ class ConnectionManager extends Service {
   bool _reachable(String key) {
     final endpoint = _endpointByKey[key];
     final active = _activePeer;
-    if (endpoint == null || active == null || endpoint == _endpointOf(active)) {
+    if (endpoint == null || active == null || endpoint == active.endpoint) {
       return _status is StatusOnline;
     }
     return _watchers[endpoint]?.channel != null;

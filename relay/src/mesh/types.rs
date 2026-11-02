@@ -24,7 +24,7 @@ pub struct MeshEnvelope {
 #[derive(Debug, Deserialize)]
 pub(crate) struct MeshMemberHeader {
     pub(crate) remote_epk: String,
-    pub(crate) relay_url: String,
+    pub(crate) endpoint: String,
     pub(crate) paired_at: String,
     pub(crate) nickname: Option<String>,
 }

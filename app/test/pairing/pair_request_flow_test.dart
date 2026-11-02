@@ -53,7 +53,7 @@ const _qr = QrPairPayload(
   epk: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
   sessionName: 'Pi',
   roomId: 'room-from-qr',
-  relayUrl: 'https://relay.example',
+  endpoint: 'https://relay.example',
 );
 
 void main() {
@@ -93,7 +93,7 @@ void main() {
     );
     expect(result.peer.sessionName, 'Review');
     expect(result.peer.roomId, 'room-from-pair-ok');
-    expect(result.peer.relayUrl, 'https://relay.example');
+    expect(result.peer.endpoint, 'https://relay.example');
     expect(result.hostnameHint, 'workstation');
     expect(storage.saved.single.roomId, 'room-from-pair-ok');
   });

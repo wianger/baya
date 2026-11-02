@@ -111,7 +111,7 @@ void main() {
       PeerRecord peer(int seed, String label) => PeerRecord(
         remoteEpk: base64Encode(List.filled(32, seed)),
         sessionName: label,
-        relayUrl: 'https://example.invalid',
+        endpoint: 'https://example.invalid',
         pairedAt: '2026-10-30',
       );
       final laptop = peer(7, 'Laptop'), empty = peer(8, 'Empty device');
@@ -393,7 +393,7 @@ void main() {
     final pc = PeerRecord(
       remoteEpk: rawEpk,
       sessionName: 'PC',
-      relayUrl: 'https://example.invalid',
+      endpoint: 'https://example.invalid',
       pairedAt: '2026-10-30',
     );
     final prefs = Preferences();

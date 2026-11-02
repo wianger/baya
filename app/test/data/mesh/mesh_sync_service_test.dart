@@ -130,7 +130,7 @@ void main() {
         PeerRecord(
           remoteEpk: urlSafe,
           sessionName: 'Workstation',
-          relayUrl: 'https://r',
+          endpoint: 'https://r',
           pairedAt: '2026-11-02T12:49:26Z',
           roomId: 'room1',
         ),
@@ -142,7 +142,7 @@ void main() {
         members: [
           MeshMember(
             remoteEpk: base64.encode(key),
-            relayUrl: 'https://r',
+            endpoint: 'https://r',
             pairedAt: '2026-11-02T12:49:26Z',
           ),
         ],
@@ -188,7 +188,7 @@ void main() {
         members: const [
           MeshMember(
             remoteEpk: 'epk-a',
-            relayUrl: 'wss://r',
+            endpoint: 'wss://r',
             pairedAt: '2026-05-15T10:30:00Z',
             nickname: 'Work mac',
           ),
@@ -255,7 +255,7 @@ void main() {
         const PeerRecord(
           remoteEpk: 'epk-removed',
           sessionName: 'old',
-          relayUrl: 'wss://r',
+          endpoint: 'wss://r',
           pairedAt: '2026-05-01T00:00:00Z',
         ),
       );
@@ -269,7 +269,7 @@ void main() {
         members: const [
           MeshMember(
             remoteEpk: 'epk-kept',
-            relayUrl: 'wss://r',
+            endpoint: 'wss://r',
             pairedAt: '2026-05-15T10:30:00Z',
           ),
         ],
@@ -329,7 +329,7 @@ void main() {
         const PeerRecord(
           remoteEpk: 'epk-local',
           sessionName: 'local',
-          relayUrl: 'wss://r',
+          endpoint: 'wss://r',
           pairedAt: '2026-05-15T10:30:00Z',
         ),
       );
@@ -345,7 +345,7 @@ void main() {
         members: const [
           MeshMember(
             remoteEpk: 'epk-local',
-            relayUrl: 'wss://r',
+            endpoint: 'wss://r',
             pairedAt: '2026-05-15T10:30:00Z',
           ),
         ],
@@ -452,7 +452,7 @@ void main() {
           const PeerRecord(
             remoteEpk: 'epk-stale',
             sessionName: 'old',
-            relayUrl: 'wss://r',
+            endpoint: 'wss://r',
             pairedAt: '2026-04-01T00:00:00Z',
           ),
         );
@@ -470,7 +470,7 @@ void main() {
           members: const [
             MeshMember(
               remoteEpk: 'epk-new',
-              relayUrl: 'wss://r',
+              endpoint: 'wss://r',
               pairedAt: '2026-05-15T10:30:00Z',
             ),
           ],
@@ -531,7 +531,7 @@ void main() {
         const PeerRecord(
           remoteEpk: 'epk-seed',
           sessionName: 'seed',
-          relayUrl: 'wss://r',
+          endpoint: 'wss://r',
           pairedAt: '2026-05-01T00:00:00Z',
         ),
       );
@@ -581,7 +581,7 @@ void main() {
         const PeerRecord(
           remoteEpk: 'epk-only',
           sessionName: 'only',
-          relayUrl: 'wss://r',
+          endpoint: 'wss://r',
           pairedAt: '2026-05-01T00:00:00Z',
         ),
       );
@@ -649,7 +649,7 @@ void main() {
           const PeerRecord(
             remoteEpk: urlSafeEpk,
             sessionName: 'pi',
-            relayUrl: 'https://r',
+            endpoint: 'https://r',
             pairedAt: '2026-05-15T10:30:00Z',
           ),
         );
@@ -694,7 +694,7 @@ void main() {
           PeerRecord(
             remoteEpk: expectedStandard,
             sessionName: 'pi',
-            relayUrl: 'https://r',
+            endpoint: 'https://r',
             pairedAt: '2026-05-15T10:30:00Z',
           ),
         );
@@ -749,7 +749,7 @@ void main() {
         const PeerRecord(
           remoteEpk: 'epk-fresh',
           sessionName: 'fresh',
-          relayUrl: 'wss://r',
+          endpoint: 'wss://r',
           pairedAt: '2026-05-15T10:30:00Z',
         ),
       );

@@ -84,7 +84,7 @@ class PeerRecord {
   // base64 Ed25519 pubkey of the Pi — the only peer identifier post-rollback.
   final String remoteEpk;
   final String sessionName;
-  final String relayUrl;
+  final String endpoint;
   final String pairedAt; // ISO-8601
   // Local-only display label (Pi does not know about this). Renders in
   // place of [sessionName] when set; null = use sessionName everywhere.
@@ -105,7 +105,7 @@ class PeerRecord {
   const PeerRecord({
     required this.remoteEpk,
     required this.sessionName,
-    required this.relayUrl,
+    required this.endpoint,
     required this.pairedAt,
     this.nickname,
     this.roomId,
@@ -115,7 +115,7 @@ class PeerRecord {
   Map<String, dynamic> toJson() => {
     'remote_epk': remoteEpk,
     'session_name': sessionName,
-    'relay_url': relayUrl,
+    'endpoint': endpoint,
     'paired_at': pairedAt,
     'nickname': nickname,
     'room_id': roomId,
@@ -127,7 +127,7 @@ class PeerRecord {
     return PeerRecord(
       remoteEpk: j['remote_epk'] as String,
       sessionName: j['session_name'] as String,
-      relayUrl: j['relay_url'] as String,
+      endpoint: j['endpoint'] as String,
       pairedAt: j['paired_at'] as String,
       nickname: j['nickname'] as String?,
       roomId: j['room_id'] as String?,
@@ -146,7 +146,7 @@ class PeerRecord {
   }) => PeerRecord(
     remoteEpk: remoteEpk,
     sessionName: sessionName ?? this.sessionName,
-    relayUrl: relayUrl,
+    endpoint: endpoint,
     pairedAt: pairedAt,
     nickname: identical(nickname, _unset) ? this.nickname : nickname as String?,
     roomId: identical(roomId, _unset) ? this.roomId : roomId as String?,
@@ -158,7 +158,7 @@ class PeerRecord {
       other is PeerRecord &&
       other.remoteEpk == remoteEpk &&
       other.sessionName == sessionName &&
-      other.relayUrl == relayUrl &&
+      other.endpoint == endpoint &&
       other.pairedAt == pairedAt &&
       other.nickname == nickname &&
       other.roomId == roomId &&
@@ -168,7 +168,7 @@ class PeerRecord {
   int get hashCode => Object.hash(
     remoteEpk,
     sessionName,
-    relayUrl,
+    endpoint,
     pairedAt,
     nickname,
     roomId,
@@ -267,11 +267,18 @@ class PairingStorage extends ChangeNotifier {
   Future<List<PeerRecord>> listPeers() async {
     final all = await _store.readAll();
     final prefix = '$_kPeersService:';
-    return [
-      for (final entry in all.entries)
-        if (entry.key.startsWith(prefix))
+    final peers = <PeerRecord>[];
+    for (final entry in all.entries) {
+      if (!entry.key.startsWith(prefix)) continue;
+      try {
+        peers.add(
           PeerRecord.fromJson(jsonDecode(entry.value) as Map<String, dynamic>),
-    ];
+        );
+      } catch (_) {
+        // Written by an earlier development build: unreadable, pair again.
+      }
+    }
+    return peers;
   }
 
   /// Wipe every peer + every persisted room map. Used by the

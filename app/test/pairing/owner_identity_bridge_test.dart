@@ -204,7 +204,7 @@ void main() {
         const PeerRecord(
           remoteEpk: 'epk-precious',
           sessionName: 'pi',
-          relayUrl: 'https://r',
+          endpoint: 'https://r',
           pairedAt: '2026-05-15T10:30:00Z',
         ),
       );
@@ -240,7 +240,7 @@ void main() {
         const PeerRecord(
           remoteEpk: 'epk-old',
           sessionName: 'pi',
-          relayUrl: 'https://r',
+          endpoint: 'https://r',
           pairedAt: '2026-05-15T10:30:00Z',
         ),
       );
@@ -282,7 +282,7 @@ void main() {
           const PeerRecord(
             remoteEpk: 'epk-stable',
             sessionName: 'pi',
-            relayUrl: 'https://r',
+            endpoint: 'https://r',
             pairedAt: '2026-05-15T10:30:00Z',
           ),
         );

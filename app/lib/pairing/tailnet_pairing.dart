@@ -23,30 +23,18 @@ class TailnetHost {
     required this.key,
     required this.pairUri,
   });
-
-  /// Where the app reaches this host without a relay: the pairing listener
-  /// also speaks the relay protocol, at `…/direct`.
-  String get endpoint {
-    final path = pairUri.path;
-    return pairUri
-        .replace(path: '${path.substring(0, path.length - 'pair'.length)}direct')
-        .toString();
-  }
 }
 
 const _labels = ['wsl', 'windows', 'linux', 'macos'];
-const _directPorts = [7480, 7481];
 const _timeout = Duration(seconds: 8);
 
-/// Finds the Baya hosts on the computer called [name].
+/// Finds the Baya hosts on the computer called [name] (a short name is
+/// completed with [tailnetSuffix]).
 ///
-/// Each host answers `…/info` only to devices of the same Tailscale account
-/// and only inside the tailnet, so what comes back is as trustworthy as a
-/// scanned code. Probed in parallel:
-/// - `https://<full name>/baya-pair/<label>/info` through the computer's
-///   `tailscale serve` (works even when inbound connections are firewalled,
-///   as on WSL). A short name is completed with [tailnetSuffix];
-/// - `http://<name>:<port>/info` on each host's direct tailnet listener.
+/// Each host is published by the computer's `tailscale serve` at
+/// `https://<full name>/baya-pair/<label>` and answers `…/info` only to
+/// devices of the same Tailscale account, so what comes back is as
+/// trustworthy as a scanned code. All labels are probed in parallel.
 Future<List<TailnetHost>> discoverTailnetHosts(
   String name, {
   String? tailnetSuffix,
@@ -56,22 +44,14 @@ Future<List<TailnetHost>> discoverTailnetHosts(
   final fullName = host.contains('.')
       ? host
       : (tailnetSuffix == null ? null : '$host.$tailnetSuffix');
-  final probes = <({Uri info, Uri pair})>[
-    if (fullName != null) ...[
-      for (final label in _labels)
-        (
-          info: Uri.https(fullName, '/baya-pair/$label/info'),
-          pair: Uri.https(fullName, '/baya-pair/$label/pair'),
-        ),
+  if (fullName == null) {
+    throw const TailnetPairingException(TailnetPairingFailure.unreachable);
+  }
+  final probes = [
+    for (final label in _labels)
       (
-        info: Uri.https(fullName, '/baya-pair/info'),
-        pair: Uri.https(fullName, '/baya-pair/pair'),
-      ),
-    ],
-    for (final port in _directPorts)
-      (
-        info: Uri(scheme: 'http', host: host, port: port, path: '/info'),
-        pair: Uri(scheme: 'http', host: host, port: port, path: '/pair'),
+        info: Uri.https(fullName, '/baya-pair/$label/info'),
+        pair: Uri.https(fullName, '/baya-pair/$label/pair'),
       ),
   ];
   final http_ = client ?? http.Client();
@@ -100,7 +80,7 @@ Future<List<TailnetHost>> discoverTailnetHosts(
       }
     }),
   );
-  // The same host can answer on several paths; keep the first (HTTPS) one.
+  // One entry per host.
   final byKey = <String, TailnetHost>{};
   for (final found in results.whereType<TailnetHost>()) {
     byKey.putIfAbsent(found.key, () => found);
@@ -115,9 +95,8 @@ Future<List<TailnetHost>> discoverTailnetHosts(
   return byKey.values.toList();
 }
 
-/// A fresh pairing code from [host], used exactly like a scanned one, except
-/// that it names the host itself instead of its relay: hosts paired over
-/// Tailscale are reached directly.
+/// A fresh pairing code from [host], used exactly like a scanned one. It
+/// names the host's own address, so the computer is reached directly.
 Future<String> fetchTailnetPairingCode(
   TailnetHost host, {
   http.Client? client,
@@ -133,12 +112,7 @@ Future<String> fetchTailnetPairingCode(
   switch (response.statusCode) {
     case 200:
       final body = jsonDecode(response.body);
-      if (body is Map && body['uri'] is String) {
-        final code = Uri.parse(body['uri'] as String);
-        return code
-            .replace(queryParameters: {...code.queryParameters, 'r': host.endpoint})
-            .toString();
-      }
+      if (body is Map && body['uri'] is String) return body['uri'] as String;
       throw const TailnetPairingException(TailnetPairingFailure.notReady);
     case 403:
       throw const TailnetPairingException(TailnetPairingFailure.notYourAccount);

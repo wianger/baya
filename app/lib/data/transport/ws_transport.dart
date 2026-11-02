@@ -43,7 +43,7 @@ class WsTransport implements PeerTransport, IControlLink {
 
   // Connect, authenticate with relay, and return a ready transport.
   static Future<WsTransport> connect({
-    required String relayUrl,
+    required String endpoint,
     required String peerPubkey, // base64 standard or url — destination peer
     required SimpleKeyPair ed25519Key, // this device's Ed25519 long-term key
   }) async {
@@ -57,7 +57,7 @@ class WsTransport implements PeerTransport, IControlLink {
     // Accept http(s) URLs in the user-facing form but always speak
     // ws(s) on the wire — IOWebSocketChannel rejects http schemes.
     final WebSocketChannel ws = IOWebSocketChannel.connect(
-      Uri.parse(toWsRelayUrl(relayUrl)),
+      Uri.parse(toWsRelayUrl(endpoint)),
       pingInterval: const Duration(seconds: 20),
     );
     final transport = WsTransport._(ws);

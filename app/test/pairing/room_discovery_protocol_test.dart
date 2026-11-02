@@ -39,7 +39,7 @@ void main() {
       const peer = PeerRecord(
         remoteEpk: 'epk_A',
         sessionName: 'Pi',
-        relayUrl: 'wss://relay.example',
+        endpoint: 'wss://relay.example',
         pairedAt: '2026-01-01T00:00:00Z',
         roomId: 'room-xyz',
       );
@@ -53,7 +53,7 @@ void main() {
       final j = {
         'remote_epk': 'epk_legacy',
         'session_name': 'Pi',
-        'relay_url': 'wss://relay.example',
+        'endpoint': 'wss://relay.example',
         'paired_at': '2025-12-01T00:00:00Z',
         // No 'room_id' key — pre-fix records.
       };
@@ -66,7 +66,7 @@ void main() {
       const peer = PeerRecord(
         remoteEpk: 'epk_A',
         sessionName: 'Pi',
-        relayUrl: 'wss://relay.example',
+        endpoint: 'wss://relay.example',
         pairedAt: '2026-01-01T00:00:00Z',
         roomId: 'room-old',
       );
@@ -85,7 +85,7 @@ void main() {
       const peer = PeerRecord(
         remoteEpk: 'epk_A',
         sessionName: 'Pi',
-        relayUrl: 'wss://relay.example',
+        endpoint: 'wss://relay.example',
         pairedAt: '2026-01-01T00:00:00Z',
       );
       final j = peer.toJson();

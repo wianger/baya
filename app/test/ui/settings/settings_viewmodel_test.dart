@@ -100,7 +100,7 @@ class _FakeSecureStorage implements FlutterSecureStorage {
 PeerRecord _peerA() => const PeerRecord(
   remoteEpk: 'epk_A',
   sessionName: 'Pi A',
-  relayUrl: 'ws://localhost',
+  endpoint: 'ws://localhost',
   pairedAt: '2026-01-01T00:00:00Z',
 );
 

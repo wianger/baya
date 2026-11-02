@@ -147,7 +147,7 @@ mod tests {
             &owner_pk,
             vec![serde_json::json!({
                 "remote_epk": "not base64",
-                "relay_url": "wss://relay.example.test",
+                "endpoint": "wss://relay.example.test",
                 "paired_at": "2025-01-01T00:00:00.000Z",
             })],
         );

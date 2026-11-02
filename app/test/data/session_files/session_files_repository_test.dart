@@ -87,7 +87,7 @@ void main() {
       remoteEpk: base64Encode(List.filled(32, 7)),
       sessionName: 'project',
       roomId: 'room',
-      relayUrl: 'https://example.invalid',
+      endpoint: 'https://example.invalid',
       pairedAt: '2026-11-01',
     );
     conn.adopt(channel, peer);

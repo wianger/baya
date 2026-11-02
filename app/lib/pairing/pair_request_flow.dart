@@ -91,7 +91,7 @@ Future<PairingResult> performPairing({
     final peer = PeerRecord(
       remoteEpk: qr.epk,
       sessionName: pairOk.sessionName,
-      relayUrl: qr.relayUrl,
+      endpoint: qr.endpoint,
       pairedAt: DateTime.now().toUtc().toIso8601String(),
       roomId: pairOk.roomId,
       harness: pairOk.harness,

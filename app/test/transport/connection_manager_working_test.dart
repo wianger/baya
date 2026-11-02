@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 PeerRecord _fakePeer() => const PeerRecord(
   remoteEpk: 'epk_test',
   sessionName: 'pi',
-  relayUrl: 'ws://localhost',
+  endpoint: 'ws://localhost',
   pairedAt: '2026-01-01T00:00:00Z',
 );
 

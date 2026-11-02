@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 PeerRecord _peer(String epk, {String name = 'Pi'}) => PeerRecord(
   remoteEpk: epk,
   sessionName: name,
-  relayUrl: 'ws://x',
+  endpoint: 'ws://x',
   pairedAt: '2026-01-01T00:00:00Z',
 );
 

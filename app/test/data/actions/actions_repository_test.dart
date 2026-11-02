@@ -65,7 +65,7 @@ _setup({Duration timeout = const Duration(seconds: 5)}) async {
     const PeerRecord(
       remoteEpk: 'epk_actions',
       sessionName: 'pi',
-      relayUrl: 'ws://localhost',
+      endpoint: 'ws://localhost',
       pairedAt: '2026-01-01T00:00:00Z',
     ),
   );

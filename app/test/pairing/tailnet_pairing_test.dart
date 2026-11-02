@@ -22,11 +22,6 @@ void main() {
             'wsl',
             'k1',
           ),
-          // Legacy serve mapping reaches the same WSL host.
-          'https://wiang-1.tail1234.ts.net/baya-pair/info' => _info(
-            'wsl',
-            'k1',
-          ),
           'https://wiang-1.tail1234.ts.net/baya-pair/windows/info' => _info(
             'windows',
             'k2',
@@ -42,23 +37,10 @@ void main() {
     );
   });
 
-  test('falls back to the direct tailnet port', () async {
-    final hosts = await discoverTailnetHosts(
-      'box',
-      client: MockClient((request) async {
-        if (request.url.toString() == 'http://box:7480/info') {
-          return _info('linux', 'k');
-        }
-        throw http.ClientException('unreachable');
-      }),
-    );
-    expect(hosts.single.pairUri.toString(), 'http://box:7480/pair');
-  });
-
   test('explains refusals and silence', () async {
     Future<TailnetPairingFailure?> reason(http.Client client) async {
       try {
-        await discoverTailnetHosts('box', client: client);
+        await discoverTailnetHosts('box.t.ts.net', client: client);
         return null;
       } on TailnetPairingException catch (e) {
         return e.reason;
@@ -91,20 +73,7 @@ void main() {
         ),
       ),
     );
-    // The code names the host itself: it is reached without the relay.
-    expect(Uri.parse(code).queryParameters, {
-      't': 'z',
-      'r': 'https://box.t.ts.net/baya-pair/windows/direct',
-    });
-    expect(
-      TailnetHost(
-        label: 'linux',
-        name: 'box',
-        key: 'k',
-        pairUri: Uri.parse('http://box:7480/pair'),
-      ).endpoint,
-      'http://box:7480/direct',
-    );
+    expect(code, 'baya://pair?t=z&r=https://relay');
     expect(tailnetSuffixOf('https://example.com'), isNull);
   });
 }

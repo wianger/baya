@@ -12,13 +12,13 @@ import 'mesh_envelope.dart';
 @immutable
 class MeshMember {
   final String remoteEpk;
-  final String relayUrl;
+  final String endpoint;
   final String pairedAt;
   final String? nickname;
 
   const MeshMember({
     required this.remoteEpk,
-    required this.relayUrl,
+    required this.endpoint,
     required this.pairedAt,
     this.nickname,
   });
@@ -29,17 +29,17 @@ class MeshMember {
   /// relay side.
   Map<String, Object?> toJson() => {
     'paired_at': pairedAt,
-    'relay_url': relayUrl,
+    'endpoint': endpoint,
     'remote_epk': remoteEpk,
     if (nickname != null) 'nickname': nickname,
   };
 
   static MeshMember fromJson(Map<String, Object?> json) {
     final remoteEpk = json['remote_epk'];
-    final relayUrl = json['relay_url'];
+    final endpoint = json['endpoint'];
     final pairedAt = json['paired_at'];
     final nickname = json['nickname'];
-    if (remoteEpk is! String || relayUrl is! String || pairedAt is! String) {
+    if (remoteEpk is! String || endpoint is! String || pairedAt is! String) {
       throw const FormatException('MeshMember: missing required string fields');
     }
     if (nickname != null && nickname is! String) {
@@ -49,7 +49,7 @@ class MeshMember {
     }
     return MeshMember(
       remoteEpk: remoteEpk,
-      relayUrl: relayUrl,
+      endpoint: endpoint,
       pairedAt: pairedAt,
       nickname: nickname as String?,
     );
@@ -60,12 +60,12 @@ class MeshMember {
       identical(this, other) ||
       (other is MeshMember &&
           other.remoteEpk == remoteEpk &&
-          other.relayUrl == relayUrl &&
+          other.endpoint == endpoint &&
           other.pairedAt == pairedAt &&
           other.nickname == nickname);
 
   @override
-  int get hashCode => Object.hash(remoteEpk, relayUrl, pairedAt, nickname);
+  int get hashCode => Object.hash(remoteEpk, endpoint, pairedAt, nickname);
 }
 
 /// Signed-membership payload published to the relay's
@@ -76,7 +76,7 @@ class MeshMember {
 /// ```json
 /// {
 ///   "issued_at": 1747958400000,
-///   "members": [{"paired_at":"…","relay_url":"…","remote_epk":"…"}],
+///   "members": [{"paired_at":"…","endpoint":"…","remote_epk":"…"}],
 ///   "owner_pk": "<base64>",
 ///   "version": 18
 /// }

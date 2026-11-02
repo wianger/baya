@@ -21,7 +21,7 @@ void main() {
     test('toJson omits nickname when null', () {
       const m = MeshMember(
         remoteEpk: 'epk',
-        relayUrl: 'wss://r',
+        endpoint: 'wss://r',
         pairedAt: '2026-05-15T10:30:00Z',
       );
       expect(m.toJson().containsKey('nickname'), isFalse);
@@ -30,7 +30,7 @@ void main() {
     test('toJson includes nickname when set', () {
       const m = MeshMember(
         remoteEpk: 'epk',
-        relayUrl: 'wss://r',
+        endpoint: 'wss://r',
         pairedAt: '2026-05-15T10:30:00Z',
         nickname: 'Mac',
       );
@@ -63,34 +63,34 @@ void main() {
         members: const [
           MeshMember(
             remoteEpk: 'epk-z',
-            relayUrl: 'wss://r',
+            endpoint: 'wss://r',
             pairedAt: 't',
             nickname: 'n',
           ),
         ],
       );
       final canon = utf8.decode(blob.toCanonicalBytes());
-      // member object: keys must come as nickname, paired_at, relay_url, remote_epk
+      // member object: keys must come as endpoint, nickname, paired_at, remote_epk
       final memberMatch = RegExp(r'\{[^}]*"remote_epk"[^}]*\}')
           .firstMatch(canon);
       expect(memberMatch, isNotNull);
       final obj = memberMatch!.group(0)!;
-      final keyOrder = RegExp(r'"(nickname|paired_at|relay_url|remote_epk)"')
+      final keyOrder = RegExp(r'"(nickname|paired_at|endpoint|remote_epk)"')
           .allMatches(obj)
           .map((m) => m.group(1))
           .toList();
-      expect(keyOrder, ['nickname', 'paired_at', 'relay_url', 'remote_epk']);
+      expect(keyOrder, ['endpoint', 'nickname', 'paired_at', 'remote_epk']);
     });
 
     test('toCanonicalBytes is deterministic across constructions', () {
       final a = _blob(
         members: const [
-          MeshMember(remoteEpk: 'epk-a', relayUrl: 'wss://r', pairedAt: 't'),
+          MeshMember(remoteEpk: 'epk-a', endpoint: 'wss://r', pairedAt: 't'),
         ],
       );
       final b = _blob(
         members: const [
-          MeshMember(remoteEpk: 'epk-a', relayUrl: 'wss://r', pairedAt: 't'),
+          MeshMember(remoteEpk: 'epk-a', endpoint: 'wss://r', pairedAt: 't'),
         ],
       );
       expect(a.toCanonicalBytes(), equals(b.toCanonicalBytes()));
@@ -99,7 +99,7 @@ void main() {
     test('toCanonicalBytes contains no whitespace', () {
       final blob = _blob(
         members: const [
-          MeshMember(remoteEpk: 'epk', relayUrl: 'wss://r', pairedAt: 't'),
+          MeshMember(remoteEpk: 'epk', endpoint: 'wss://r', pairedAt: 't'),
         ],
       );
       final bytes = blob.toCanonicalBytes();
@@ -115,13 +115,13 @@ void main() {
         members: const [
           MeshMember(
             remoteEpk: 'epk-a',
-            relayUrl: 'wss://r',
+            endpoint: 'wss://r',
             pairedAt: '2026-05-15T10:30:00Z',
             nickname: 'Mac',
           ),
           MeshMember(
             remoteEpk: 'epk-b',
-            relayUrl: 'wss://r2',
+            endpoint: 'wss://r2',
             pairedAt: '2026-05-16T10:30:00Z',
           ),
         ],
@@ -164,7 +164,7 @@ void main() {
           issuedAt: 1700000000000,
           ownerPk: Uint8List.fromList(pub.bytes),
           members: const [
-            MeshMember(remoteEpk: 'epk', relayUrl: 'wss://r', pairedAt: 't'),
+            MeshMember(remoteEpk: 'epk', endpoint: 'wss://r', pairedAt: 't'),
           ],
         );
         final envelope = await blob.signWith(keyPair);

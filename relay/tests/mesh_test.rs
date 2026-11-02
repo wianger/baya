@@ -71,7 +71,7 @@ fn pk_hash(pk: &[u8]) -> String {
 fn full_member(remote_epk: &str) -> Value {
     json!({
         "remote_epk": remote_epk,
-        "relay_url": "wss://relay.example.test",
+        "endpoint": "wss://relay.example.test",
         "paired_at": "2025-01-01T00:00:00.000Z",
     })
 }
@@ -196,7 +196,7 @@ async fn malformed_member_shape_rejects_whole_upload() {
         ("missing members", Malformation::MissingMembers),
         ("non-array members", Malformation::NonArrayMembers),
         ("missing remote_epk", Malformation::MissingRemoteEpk),
-        ("missing relay_url", Malformation::MissingRelayUrl),
+        ("missing endpoint", Malformation::MissingRelayUrl),
         ("missing paired_at", Malformation::MissingPairedAt),
         ("wrong-typed nickname", Malformation::WrongTypedNickname),
         ("invalid member key", Malformation::InvalidMemberKey),
@@ -233,7 +233,7 @@ async fn malformed_member_shape_rejects_whole_upload() {
                 second_member_mut(&mut blob).remove("remote_epk");
             }
             Malformation::MissingRelayUrl => {
-                second_member_mut(&mut blob).remove("relay_url");
+                second_member_mut(&mut blob).remove("endpoint");
             }
             Malformation::MissingPairedAt => {
                 second_member_mut(&mut blob).remove("paired_at");

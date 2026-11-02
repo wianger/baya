@@ -54,7 +54,7 @@ void main() {
         remoteEpk: base64Encode(List.filled(32, byte)),
         sessionName: room,
         roomId: room,
-        relayUrl: 'https://example.invalid',
+        endpoint: 'https://example.invalid',
         pairedAt: '2026-10-30',
       );
       final a = peer(1, 'room-A'), b = peer(2, 'room-B');
@@ -105,7 +105,7 @@ void main() {
       remoteEpk: base64Encode(List.filled(32, byte)),
       sessionName: room,
       roomId: room,
-      relayUrl: 'https://example.invalid',
+      endpoint: 'https://example.invalid',
       pairedAt: '2026-10-30',
     );
     final a = peer(1, 'room-A'), b = peer(2, 'room-B');

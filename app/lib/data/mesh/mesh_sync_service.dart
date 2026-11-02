@@ -111,7 +111,7 @@ class MeshSyncService extends ChangeNotifier {
   /// Overwrite local peers + nicknames with what the relay says.
   /// Implements the "relay is source of truth" contract:
   /// any peer in the local cache but absent from `blob.members` is
-  /// removed; renamed nicknames propagate; relay_url updates.
+  /// removed; renamed nicknames propagate; endpoint updates.
   ///
   /// Uses the **silent** variants of save/delete so the mutation hook
   /// (which republishes) does not fire. Otherwise every pull would
@@ -137,7 +137,7 @@ class MeshSyncService extends ChangeNotifier {
       final next = PeerRecord(
         remoteEpk: m.remoteEpk,
         sessionName: prev?.sessionName ?? m.nickname ?? 'Computer',
-        relayUrl: m.relayUrl,
+        endpoint: m.endpoint,
         pairedAt: m.pairedAt,
         nickname: m.nickname,
         roomId: prev?.roomId,
@@ -159,7 +159,7 @@ class MeshSyncService extends ChangeNotifier {
   /// relay version arrives unchanged.
   bool _peerEqualsForMesh(PeerRecord a, PeerRecord b) =>
       toStandardB64(a.remoteEpk) == toStandardB64(b.remoteEpk) &&
-      a.relayUrl == b.relayUrl &&
+      a.endpoint == b.endpoint &&
       a.pairedAt == b.pairedAt &&
       a.nickname == b.nickname;
 
@@ -226,7 +226,7 @@ class MeshSyncService extends ChangeNotifier {
         .map(
           (p) => MeshMember(
             remoteEpk: toStandardB64(p.remoteEpk),
-            relayUrl: p.relayUrl,
+            endpoint: p.endpoint,
             pairedAt: p.pairedAt,
             nickname: p.nickname,
           ),

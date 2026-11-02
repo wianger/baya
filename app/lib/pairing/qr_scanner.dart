@@ -12,14 +12,14 @@ class QrPairPayload {
   final String epk;
   final String sessionName;
   final String roomId;
-  final String relayUrl;
+  final String endpoint;
 
   const QrPairPayload({
     required this.token,
     required this.epk,
     required this.sessionName,
     required this.roomId,
-    required this.relayUrl,
+    required this.endpoint,
   });
 
   static QrPairPayload? tryParse(String raw) {
@@ -38,7 +38,7 @@ class QrPairPayload {
         epk: epk,
         sessionName: n,
         roomId: rm,
-        relayUrl: r,
+        endpoint: r,
       );
     } catch (_) {
       return null;

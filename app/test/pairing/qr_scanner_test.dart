@@ -14,7 +14,7 @@ void main() {
     expect(qr.epk, epk);
     expect(qr.sessionName, 'Review');
     expect(qr.roomId, 'room1');
-    expect(qr.relayUrl, 'https://relay.example');
+    expect(qr.endpoint, 'https://relay.example');
     expect(qr.epkBytes, hasLength(32));
   });
 

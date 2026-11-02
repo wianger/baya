@@ -55,13 +55,13 @@ import 'package:provider/provider.dart';
 const _computer = PeerRecord(
   remoteEpk: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
   sessionName: 'Windows PC',
-  relayUrl: 'https://example.invalid',
+  endpoint: 'https://example.invalid',
   pairedAt: '2026-10-30',
 );
 const _linux = PeerRecord(
   remoteEpk: 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=',
   sessionName: 'Ubuntu WSL',
-  relayUrl: 'https://example.invalid',
+  endpoint: 'https://example.invalid',
   pairedAt: '2026-10-30',
 );
 const _room = RoomInfo(

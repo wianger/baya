@@ -95,7 +95,6 @@ final class AppServices {
   late final connection = ConnectionManager(
     factory: _productionConnectionFactory,
     storage: storage,
-    endpointOf: (peer) => endpointFor(peer, prefs),
   );
   // Owns a broadcast sound-level stream that outlives chat screens.
   late final SpeechService speech = SpeechToTextService();
@@ -194,17 +193,16 @@ Future<IChannel> _productionConnectionFactory(
   // its retry/backoff path, which is observable as `StatusRetrying` and
   // renders a "reconnecting" banner rather than an empty spinner.
   const wsConnectTimeout = Duration(seconds: 10);
-  // The host itself when paired directly, otherwise the relay.
-  final relayUrl = endpointFor(peer, services.prefs);
+  final endpoint = peer.endpoint;
   final transport =
       await WsTransport.connect(
-        relayUrl: relayUrl,
+        endpoint: endpoint,
         peerPubkey: peer.remoteEpk,
         ed25519Key: ownerKey,
       ).timeout(
         wsConnectTimeout,
         onTimeout: () => throw TimeoutException(
-          'WS connect to $relayUrl timed out after '
+          'WS connect to $endpoint timed out after '
           '${wsConnectTimeout.inSeconds}s',
         ),
       );
@@ -226,7 +224,7 @@ Future<PeerTransport> _productionPairingTransportFactory(
   SimpleKeyPair deviceEd25519,
 ) async {
   return WsTransport.connect(
-    relayUrl: qr.relayUrl,
+    endpoint: qr.endpoint,
     peerPubkey: qr.epk,
     ed25519Key: deviceEd25519,
   );

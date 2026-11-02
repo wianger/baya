@@ -73,9 +73,9 @@ class PairingViewModel extends ViewModel<PairingState> {
       // The host's QR names its relay; adopt it so nobody types a URL. A
       // host paired over Tailscale names itself instead and keeps that
       // address on its own record.
-      if (!isDirectEndpoint(qr.relayUrl)) {
+      if (!isDirectEndpoint(qr.endpoint)) {
         await _prefs.setRelayUrl(
-          qr.relayUrl == kDefaultRelayUrl ? null : qr.relayUrl,
+          qr.endpoint == kDefaultRelayUrl ? null : qr.endpoint,
         );
       }
 

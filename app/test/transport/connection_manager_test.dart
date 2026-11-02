@@ -19,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 PeerRecord _fakePeer() => const PeerRecord(
   remoteEpk: 'epk_test',
   sessionName: 'test session',
-  relayUrl: 'ws://localhost:8080',
+  endpoint: 'ws://localhost:8080',
   pairedAt: '2026-01-01T00:00:00Z',
 );
 
@@ -289,7 +289,7 @@ void main() {
       const other = PeerRecord(
         remoteEpk: 'epk_other',
         sessionName: 'Other',
-        relayUrl: 'ws://localhost:8080',
+        endpoint: 'ws://localhost:8080',
         pairedAt: '2026-01-02T00:00:00Z',
       );
       final cm = ConnectionManager(
@@ -318,7 +318,7 @@ void main() {
         const other = PeerRecord(
           remoteEpk: 'epk_other',
           sessionName: 'Other',
-          relayUrl: 'ws://localhost:8080',
+          endpoint: 'ws://localhost:8080',
           pairedAt: '2026-01-02T00:00:00Z',
         );
         final never = Completer<IChannel>();
@@ -343,7 +343,7 @@ void main() {
       const other = PeerRecord(
         remoteEpk: 'epk_other',
         sessionName: 'Other',
-        relayUrl: 'ws://localhost:8080',
+        endpoint: 'ws://localhost:8080',
         pairedAt: '2026-01-02T00:00:00Z',
       );
       final cm = ConnectionManager(
@@ -370,13 +370,13 @@ void main() {
       const a = PeerRecord(
         remoteEpk: 'epk_A',
         sessionName: 'A',
-        relayUrl: 'ws://localhost',
+        endpoint: 'ws://localhost',
         pairedAt: '2026-01-01T00:00:00Z',
       );
       const b = PeerRecord(
         remoteEpk: 'epk_B',
         sessionName: 'B',
-        relayUrl: 'ws://localhost',
+        endpoint: 'ws://localhost',
         pairedAt: '2026-01-02T00:00:00Z',
       );
 
@@ -542,13 +542,13 @@ void main() {
       const a = PeerRecord(
         remoteEpk: 'epk_A',
         sessionName: 'A',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
       );
       const b = PeerRecord(
         remoteEpk: 'epk_B',
         sessionName: 'B',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-02T00:00:00Z',
       );
       final ch = _ControllableChannel();
@@ -576,25 +576,24 @@ void main() {
         const relayed = PeerRecord(
           remoteEpk: 'epkA',
           sessionName: 'A',
-          relayUrl: 'https://relay',
+          endpoint: 'https://relay',
           pairedAt: '2026-01-01T00:00:00Z',
         );
         const direct = PeerRecord(
           remoteEpk: 'epkB',
           sessionName: 'B',
-          relayUrl: 'https://pc/baya-pair/windows/direct',
+          endpoint: 'https://pc/baya-pair/windows/direct',
           pairedAt: '2026-01-02T00:00:00Z',
         );
         final opened = <String, List<_ControllableChannel>>{};
         final cm = ConnectionManager(
           factory: (peer, _) async {
             final ch = _ControllableChannel();
-            (opened[peer.relayUrl] ??= []).add(ch);
+            (opened[peer.endpoint] ??= []).add(ch);
             return ch;
           },
           storage: _FakeStorage([relayed, direct]),
           emitDebounce: Duration.zero,
-          endpointOf: (peer) => peer.relayUrl,
         );
         await cm.boot(preferredEpk: 'epkA');
         await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -827,13 +826,13 @@ void main() {
         const a = PeerRecord(
           remoteEpk: 'epk_A',
           sessionName: 'A',
-          relayUrl: 'ws://x',
+          endpoint: 'ws://x',
           pairedAt: '2026-01-01T00:00:00Z',
         );
         const b = PeerRecord(
           remoteEpk: 'epk_B',
           sessionName: 'B',
-          relayUrl: 'ws://x',
+          endpoint: 'ws://x',
           pairedAt: '2026-01-02T00:00:00Z',
         );
         final connects = <String>[];
@@ -860,13 +859,13 @@ void main() {
       const a = PeerRecord(
         remoteEpk: 'epk_A',
         sessionName: 'A',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
       );
       const b = PeerRecord(
         remoteEpk: 'epk_B',
         sessionName: 'B',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-02T00:00:00Z',
       );
       final connects = <String>[];
@@ -891,7 +890,7 @@ void main() {
       const a = PeerRecord(
         remoteEpk: 'epk_A',
         sessionName: 'A',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
       );
       final connects = <String>[];
@@ -916,13 +915,13 @@ void main() {
       const a = PeerRecord(
         remoteEpk: 'epk_A',
         sessionName: 'A',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
       );
       const b = PeerRecord(
         remoteEpk: 'epk_B',
         sessionName: 'B',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-02T00:00:00Z',
       );
       final cm = ConnectionManager(
@@ -983,7 +982,7 @@ void main() {
       const peer = PeerRecord(
         remoteEpk: urlSafe,
         sessionName: 'Pi',
-        relayUrl: 'ws://x',
+        endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
       );
       final ch = _ControllableChannel();
@@ -1337,7 +1336,7 @@ void _registerRoomsTests() {
         const PeerRecord(
           remoteEpk: 'epk_room_aware',
           sessionName: 'Pi',
-          relayUrl: 'wss://x',
+          endpoint: 'wss://x',
           pairedAt: '2026-01-01T00:00:00Z',
           roomId: 'cwd-A',
         ),
@@ -1365,7 +1364,7 @@ void _registerRoomsTests() {
         const peer = PeerRecord(
           remoteEpk: 'epk_explicit',
           sessionName: 'Pi',
-          relayUrl: 'wss://x',
+          endpoint: 'wss://x',
           pairedAt: '2026-01-01T00:00:00Z',
           roomId: 'robflow',
         );
@@ -1408,7 +1407,7 @@ void _registerRoomsTests() {
         const peer = PeerRecord(
           remoteEpk: 'epk_explicit_snapshot',
           sessionName: 'Pi',
-          relayUrl: 'wss://x',
+          endpoint: 'wss://x',
           pairedAt: '2026-01-01T00:00:00Z',
           roomId: 'robflow',
         );
@@ -1573,7 +1572,7 @@ void _registerRoomsTests() {
         const peerB = PeerRecord(
           remoteEpk: 'epk_test',
           sessionName: 'test session',
-          relayUrl: 'ws://localhost:8080',
+          endpoint: 'ws://localhost:8080',
           pairedAt: '2026-01-01T00:00:00Z',
           roomId: 'channel-B',
         );
