@@ -48,8 +48,18 @@ int _counter = 0;
 
 late Directory _dir;
 
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 30));
+/// Every SyncService a test created, so [_settle] can wait for its writes.
+final _live = <SyncService>[];
+
+/// Lets inbound frames be handled and their real Hive writes land. Waits on
+/// the services' write queues instead of a fixed sleep, which raced under a
+/// loaded parallel test run.
+Future<void> _settle() async {
+  for (var i = 0; i < 3; i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future.wait(_live.map((sync) => sync.debugIdle));
+  }
+}
 
 void main() {
   setUpAll(() async {
@@ -80,6 +90,7 @@ void main() {
       boxes,
       pendingSendTimeout: pendingSendTimeout,
     );
+    _live.add(sync);
     final epk = 'epk_sync_${++_counter}';
     conn.adopt(
       ch,
@@ -236,9 +247,9 @@ void main() {
       s.ch.push(AgentDone(inReplyTo: 'user'));
       await _settle();
       expect(
-        messages(
-          s.epk,
-        ).where((m) => m.role == MsgRole.thinking).every((m) => !m.pending),
+        messages(s.epk)
+            .where((m) => m.role == MsgRole.thinking)
+            .every((m) => !m.pending),
         true,
       );
       s.sync.dispose();
@@ -369,36 +380,33 @@ void main() {
     s.sync.dispose();
   });
 
-  test(
-    'steer send keeps active working target and sets streaming behavior on wire',
-    () async {
-      final s = await setup();
-      s.ch.push(UserInput(id: 'u1', text: 'primary'));
-      await _settle();
+  test('steer send keeps active working target and sets streaming behavior on wire', () async {
+    final s = await setup();
+    s.ch.push(UserInput(id: 'u1', text: 'primary'));
+    await _settle();
 
-      await s.sync.sendMessage(
-        'refine this',
-        streamingBehavior: UserMessageStreamingBehavior.steer,
-      );
-      await _settle();
+    await s.sync.sendMessage(
+      'refine this',
+      streamingBehavior: UserMessageStreamingBehavior.steer,
+    );
+    await _settle();
 
-      final sent = s.ch.sent.whereType<UserMessage>().lastWhere(
-        (m) => m.text == 'refine this',
-      );
-      expect(sent.streamingBehavior, UserMessageStreamingBehavior.steer);
-      final steerRow = messages(s.epk).singleWhere((r) => r.id == sent.id);
-      expect(steerRow.pending, isTrue);
-      expect(steerRow.steering, isTrue);
-      expect((steerRow.toChatMessage() as UserMsg).steering, isTrue);
-      expect(s.sync.workingReplyTo, 'u1');
-      expect(s.sync.streaming, isNotNull);
-      expect(s.sync.streaming!.inReplyTo, 'u1');
-      expect(s.sync.isWorking, isTrue);
+    final sent = s.ch.sent.whereType<UserMessage>().lastWhere(
+      (m) => m.text == 'refine this',
+    );
+    expect(sent.streamingBehavior, UserMessageStreamingBehavior.steer);
+    final steerRow = messages(s.epk).singleWhere((r) => r.id == sent.id);
+    expect(steerRow.pending, isTrue);
+    expect(steerRow.steering, isTrue);
+    expect((steerRow.toChatMessage() as UserMsg).steering, isTrue);
+    expect(s.sync.workingReplyTo, 'u1');
+    expect(s.sync.streaming, isNotNull);
+    expect(s.sync.streaming!.inReplyTo, 'u1');
+    expect(s.sync.isWorking, isTrue);
 
-      s.conn.dispose();
-      s.sync.dispose();
-    },
-  );
+    s.conn.dispose();
+    s.sync.dispose();
+  });
 
   test('steer echo confirms row without replacing working turn', () async {
     final s = await setup();
@@ -594,9 +602,9 @@ void main() {
     s.ch.push(AgentDone(inReplyTo: 'r1'));
     await _settle();
 
-    final assistant = messages(
-      s.epk,
-    ).where((m) => m.role == MsgRole.assistant).toList();
+    final assistant = messages(s.epk)
+        .where((m) => m.role == MsgRole.assistant)
+        .toList();
     expect(assistant, hasLength(1));
     expect(assistant.first.text, 'done text');
     expect(s.sync.streaming, isNull);
@@ -680,9 +688,9 @@ void main() {
       expect(s.sync.streaming, isNull);
       expect(s.sync.isWorking, isFalse);
       expect(index(s.epk)?.status, SessionActivity.idle);
-      final errorTexts = messages(
-        s.epk,
-      ).where((m) => m.role == MsgRole.assistant).map((m) => m.text);
+      final errorTexts = messages(s.epk)
+          .where((m) => m.role == MsgRole.assistant)
+          .map((m) => m.text);
       expect(errorTexts, contains(startsWith('⚠ internal_error:')));
       s.conn.dispose();
       s.sync.dispose();
@@ -823,11 +831,12 @@ void main() {
       await _settle();
 
       final m = messages(s.epk);
-      expect(
-        m.map((r) => r.role),
-        [MsgRole.user, MsgRole.assistant, MsgRole.tool, MsgRole.assistant],
-        reason: 'pre-tool text, then tool, then post-tool text — in order',
-      );
+      expect(m.map((r) => r.role), [
+        MsgRole.user,
+        MsgRole.assistant,
+        MsgRole.tool,
+        MsgRole.assistant,
+      ], reason: 'pre-tool text, then tool, then post-tool text — in order');
       expect(m[1].text, 'let me check');
       expect(m[2].tool?.tool, 'Read');
       expect(m[3].text, 'all done');
@@ -856,9 +865,9 @@ void main() {
       );
       await _settle();
 
-      final assistantRows = messages(
-        s.epk,
-      ).where((message) => message.role == MsgRole.assistant).toList();
+      final assistantRows = messages(s.epk)
+          .where((message) => message.role == MsgRole.assistant)
+          .toList();
       expect(assistantRows.map((message) => message.text), [
         'let me check',
         'all done',
@@ -916,54 +925,51 @@ void main() {
     s.sync.dispose();
   });
 
-  test(
-    'switching the writer to a new session: a late frame from the OLD '
-    "connection is dropped — it neither writes the new box nor appears in the "
-    "new session's read projection",
-    () async {
-      final s = await setup(); // bound to s.epk (peer A)
-      s.ch.push(UserInput(id: 'a1', text: 'from chat1'));
-      await _settle();
-      expect(messages(s.epk), hasLength(1));
+  test('switching the writer to a new session: a late frame from the OLD '
+      "connection is dropped — it neither writes the new box nor appears in the "
+      "new session's read projection", () async {
+    final s = await setup(); // bound to s.epk (peer A)
+    s.ch.push(UserInput(id: 'a1', text: 'from chat1'));
+    await _settle();
+    expect(messages(s.epk), hasLength(1));
 
-      // Switch the writer to chat 2 (epkB) WITHOUT a new channel — simulates
-      // the window where the chat calls activate(epkB) before switchTo tears
-      // the old peer's channel down. _activeEpk moves; the old channel (origin
-      // = peer A) is still draining.
-      const epkB = 'epk_chat2_zzz';
-      final read = SessionReadRepository(LocalBoxes());
-      final seenLens = <int>[];
-      final sub = read
-          .watchMessages(epkB, 'main')
-          .listen((rows) => seenLens.add(rows.length));
-      await s.sync.activate(epkB, 'main');
-      await _settle();
+    // Switch the writer to chat 2 (epkB) WITHOUT a new channel — simulates
+    // the window where the chat calls activate(epkB) before switchTo tears
+    // the old peer's channel down. _activeEpk moves; the old channel (origin
+    // = peer A) is still draining.
+    const epkB = 'epk_chat2_zzz';
+    final read = SessionReadRepository(LocalBoxes());
+    final seenLens = <int>[];
+    final sub = read
+        .watchMessages(epkB, 'main')
+        .listen((rows) => seenLens.add(rows.length));
+    await s.sync.activate(epkB, 'main');
+    await _settle();
 
-      // Straggler frame on the OLD (peer A) channel.
-      s.ch.push(UserInput(id: 'late', text: 'late chat1'));
-      await _settle();
+    // Straggler frame on the OLD (peer A) channel.
+    s.ch.push(UserInput(id: 'late', text: 'late chat1'));
+    await _settle();
 
-      expect(
-        messages(epkB),
-        isEmpty,
-        reason: 'old-connection frame must not bleed into the new box',
-      );
-      expect(
-        seenLens.every((n) => n == 0),
-        isTrue,
-        reason: "chat 2's projection never shows chat 1 rows",
-      );
-      expect(
-        messages(s.epk),
-        hasLength(1),
-        reason: 'chat 1 box keeps exactly its own row (late frame dropped)',
-      );
+    expect(
+      messages(epkB),
+      isEmpty,
+      reason: 'old-connection frame must not bleed into the new box',
+    );
+    expect(
+      seenLens.every((n) => n == 0),
+      isTrue,
+      reason: "chat 2's projection never shows chat 1 rows",
+    );
+    expect(
+      messages(s.epk),
+      hasLength(1),
+      reason: 'chat 1 box keeps exactly its own row (late frame dropped)',
+    );
 
-      await sub.cancel();
-      s.conn.dispose();
-      s.sync.dispose();
-    },
-  );
+    await sub.cancel();
+    s.conn.dispose();
+    s.sync.dispose();
+  });
 
   test('compaction ServerMessage writes a system row that projects to a '
       'CompactionMsg system bubble', () async {
@@ -1095,7 +1101,9 @@ void main() {
   // A sent message whose echo never comes back must not
   // spin forever; the optimistic bubble is removed SILENTLY after the timeout.
   group('no-echo send timeout', () {
-    const short = Duration(milliseconds: 60);
+    // Far above _settle() so the "still pending" checks never race the
+    // timer, even when the whole suite runs in parallel.
+    const short = Duration(milliseconds: 400);
 
     test(
       '(a) pending bubble is removed silently when no echo arrives',
@@ -1109,7 +1117,7 @@ void main() {
         expect(s.sync.streaming, isNotNull, reason: 'thinking cursor seeded');
 
         // No echo — wait past the timeout window.
-        await Future<void>.delayed(const Duration(milliseconds: 140));
+        await Future<void>.delayed(const Duration(milliseconds: 700));
         await _settle();
 
         expect(
@@ -1155,7 +1163,7 @@ void main() {
         );
 
         // Wait PAST the timeout — the cancelled timer must NOT remove the row.
-        await Future<void>.delayed(const Duration(milliseconds: 140));
+        await Future<void>.delayed(const Duration(milliseconds: 700));
         await _settle();
         expect(
           messages(s.epk),
@@ -1211,6 +1219,7 @@ void main() {
         storage: _FakeStorage(),
       );
       final sync = SyncService(conn, LocalBoxes(), pendingSendTimeout: short);
+      _live.add(sync);
       final epk = 'epk_offline_${++_counter}';
       await sync.activate(epk, 'main');
       await _settle();
@@ -1225,7 +1234,7 @@ void main() {
         reason: 'reaper armed offline',
       );
 
-      await Future<void>.delayed(const Duration(milliseconds: 140));
+      await Future<void>.delayed(const Duration(milliseconds: 700));
       await _settle();
       expect(
         messages(epk),
@@ -1236,50 +1245,47 @@ void main() {
       sync.dispose();
     });
 
-    test(
-      '(e) returning to a session reaps a bubble already past the window',
-      () async {
-        // Quick exit then return: the live timer is cancelled on switch-away,
-        // but _loadIndex re-arms on return using the saved ts → an already-stale
-        // row fires immediately. Covers app-restart + quick-switch orphans.
-        final s = await setup(pendingSendTimeout: short);
-        await s.sync.sendMessage('hi');
-        await _settle();
-        expect(messages(s.epk), hasLength(1));
+    test('(e) returning to a session reaps a bubble already past the window', () async {
+      // Quick exit then return: the live timer is cancelled on switch-away,
+      // but _loadIndex re-arms on return using the saved ts → an already-stale
+      // row fires immediately. Covers app-restart + quick-switch orphans.
+      final s = await setup(pendingSendTimeout: short);
+      await s.sync.sendMessage('hi');
+      await _settle();
+      expect(messages(s.epk), hasLength(1));
 
-        // Leave quickly → live timer cancelled; row stays pending in the box.
-        await s.sync.activate('epk_away_${++_counter}', 'main');
-        await _settle();
-        expect(
-          s.sync.debugPendingSendTimerCount,
-          0,
-          reason: 'timers cleared on switch',
-        );
-        expect(
-          messages(s.epk),
-          hasLength(1),
-          reason: 'orphaned row still in box',
-        );
+      // Leave quickly → live timer cancelled; row stays pending in the box.
+      await s.sync.activate('epk_away_${++_counter}', 'main');
+      await _settle();
+      expect(
+        s.sync.debugPendingSendTimerCount,
+        0,
+        reason: 'timers cleared on switch',
+      );
+      expect(
+        messages(s.epk),
+        hasLength(1),
+        reason: 'orphaned row still in box',
+      );
 
-        // Time passes beyond the window while away from the session.
-        await Future<void>.delayed(const Duration(milliseconds: 140));
-        expect(
-          messages(s.epk),
-          hasLength(1),
-          reason: 'no live timer reaps it while away',
-        );
+      // Time passes beyond the window while away from the session.
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      expect(
+        messages(s.epk),
+        hasLength(1),
+        reason: 'no live timer reaps it while away',
+      );
 
-        // Return → load re-arms by ts → already stale → reaped on arrival.
-        await s.sync.activate(s.epk, 'main');
-        await _settle();
-        expect(
-          messages(s.epk),
-          isEmpty,
-          reason: 'stale pending reaped on return',
-        );
-        s.conn.dispose();
-        s.sync.dispose();
-      },
-    );
+      // Return → load re-arms by ts → already stale → reaped on arrival.
+      await s.sync.activate(s.epk, 'main');
+      await _settle();
+      expect(
+        messages(s.epk),
+        isEmpty,
+        reason: 'stale pending reaped on return',
+      );
+      s.conn.dispose();
+      s.sync.dispose();
+    });
   });
 }

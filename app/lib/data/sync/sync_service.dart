@@ -286,6 +286,10 @@ class SyncService extends Service {
     _pendingSendTimers.clear();
   }
 
+  /// Test seam — completes once every queued box write has landed.
+  @visibleForTesting
+  Future<void> get debugIdle => _writeChain;
+
   /// Test seam — number of armed no-echo timers (asserts no leak on reset).
   @visibleForTesting
   int get debugPendingSendTimerCount => _pendingSendTimers.length;
