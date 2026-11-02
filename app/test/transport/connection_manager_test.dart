@@ -21,6 +21,7 @@ PeerRecord _fakePeer() => const PeerRecord(
   sessionName: 'test session',
   endpoint: 'ws://localhost:8080',
   pairedAt: '2026-01-01T00:00:00Z',
+  roomId: 'main',
 );
 
 class _FakeStorage extends PairingStorage {
@@ -291,6 +292,7 @@ void main() {
         sessionName: 'Other',
         endpoint: 'ws://localhost:8080',
         pairedAt: '2026-01-02T00:00:00Z',
+        roomId: 'main',
       );
       final cm = ConnectionManager(
         factory: (peer, _) async {
@@ -320,6 +322,7 @@ void main() {
           sessionName: 'Other',
           endpoint: 'ws://localhost:8080',
           pairedAt: '2026-01-02T00:00:00Z',
+          roomId: 'main',
         );
         final never = Completer<IChannel>();
         final cm = ConnectionManager(
@@ -345,6 +348,7 @@ void main() {
         sessionName: 'Other',
         endpoint: 'ws://localhost:8080',
         pairedAt: '2026-01-02T00:00:00Z',
+        roomId: 'main',
       );
       final cm = ConnectionManager(
         factory: (_, _) async => _makeChannel(),
@@ -372,12 +376,14 @@ void main() {
         sessionName: 'A',
         endpoint: 'ws://localhost',
         pairedAt: '2026-01-01T00:00:00Z',
+        roomId: 'main',
       );
       const b = PeerRecord(
         remoteEpk: 'epk_B',
         sessionName: 'B',
         endpoint: 'ws://localhost',
         pairedAt: '2026-01-02T00:00:00Z',
+        roomId: 'main',
       );
 
       // Factory hangs forever — simulates a slow WS connect.
@@ -481,7 +487,7 @@ void main() {
         expect(cm.channel, same(chB));
 
         cm.statusStream.listen(lostStates.add);
-        // Now simulate chA's `onDone` firing late (the relay killed the
+        // Now simulate chA's `onDone` firing late (the host killed the
         // old WS after the new one authenticated). Without the stale
         // guard this would emit StatusRetrying.
         await chA.closeStream();
@@ -503,7 +509,7 @@ void main() {
         '(rather than escalating)', () async {
       // Multiple controllable channels, each closes mid-flight before
       // delivering any inbound — simulates the death-spiral scenario
-      // where the relay keeps kicking us.
+      // where the host keeps kicking us.
       final channels = <_ControllableChannel>[];
       var idx = 0;
       final cm = ConnectionManager(
@@ -544,12 +550,14 @@ void main() {
         sessionName: 'A',
         endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
+        roomId: 'main',
       );
       const b = PeerRecord(
         remoteEpk: 'epk_B',
         sessionName: 'B',
         endpoint: 'ws://x',
         pairedAt: '2026-01-02T00:00:00Z',
+        roomId: 'main',
       );
       final ch = _ControllableChannel();
       final cm = ConnectionManager(
@@ -573,17 +581,19 @@ void main() {
     test(
       'a computer at another address is watched on its own connection',
       () async {
-        const relayed = PeerRecord(
+        const first = PeerRecord(
           remoteEpk: 'epkA',
           sessionName: 'A',
-          endpoint: 'https://relay',
+          endpoint: 'https://pc-a/baya-pair/wsl/direct',
           pairedAt: '2026-01-01T00:00:00Z',
+          roomId: 'main',
         );
         const direct = PeerRecord(
           remoteEpk: 'epkB',
           sessionName: 'B',
           endpoint: 'https://pc/baya-pair/windows/direct',
           pairedAt: '2026-01-02T00:00:00Z',
+          roomId: 'main',
         );
         final opened = <String, List<_ControllableChannel>>{};
         final cm = ConnectionManager(
@@ -592,13 +602,13 @@ void main() {
             (opened[peer.endpoint] ??= []).add(ch);
             return ch;
           },
-          storage: _FakeStorage([relayed, direct]),
+          storage: _FakeStorage([first, direct]),
           emitDebounce: Duration.zero,
         );
         await cm.boot(preferredEpk: 'epkA');
         await Future<void>.delayed(const Duration(milliseconds: 20));
 
-        final main = opened['https://relay']!.single;
+        final main = opened['https://pc-a/baya-pair/wsl/direct']!.single;
         final watcher = opened['https://pc/baya-pair/windows/direct']!.single;
         List<Object?> subscribed(_ControllableChannel ch) =>
             ch.sentControl.lastWhere(
@@ -631,11 +641,13 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 1100));
         expect(opened['https://pc/baya-pair/windows/direct'], hasLength(2));
 
-        // Switching to the direct computer makes the relay the watched one.
+        // Switching to the direct computer makes the first computer the watched one.
         await cm.switchTo(direct);
         await Future<void>.delayed(const Duration(milliseconds: 20));
-        expect(opened['https://relay'], hasLength(2));
-        expect(subscribed(opened['https://relay']!.last), ['epkA']);
+        expect(opened['https://pc-a/baya-pair/wsl/direct'], hasLength(2));
+        expect(subscribed(opened['https://pc-a/baya-pair/wsl/direct']!.last), [
+          'epkA',
+        ]);
         cm.dispose();
       },
     );
@@ -712,7 +724,7 @@ void main() {
     });
 
     test('dedup: repeated identical peer_online does not emit again '
-        '(relay firehose mitigation)', () async {
+        '(repeated pushes)', () async {
       final ch = _ControllableChannel();
       final cm = ConnectionManager(
         factory: (_, _) async => ch,
@@ -828,12 +840,14 @@ void main() {
           sessionName: 'A',
           endpoint: 'ws://x',
           pairedAt: '2026-01-01T00:00:00Z',
+          roomId: 'main',
         );
         const b = PeerRecord(
           remoteEpk: 'epk_B',
           sessionName: 'B',
           endpoint: 'ws://x',
           pairedAt: '2026-01-02T00:00:00Z',
+          roomId: 'main',
         );
         final connects = <String>[];
         final cm = ConnectionManager(
@@ -861,12 +875,14 @@ void main() {
         sessionName: 'A',
         endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
+        roomId: 'main',
       );
       const b = PeerRecord(
         remoteEpk: 'epk_B',
         sessionName: 'B',
         endpoint: 'ws://x',
         pairedAt: '2026-01-02T00:00:00Z',
+        roomId: 'main',
       );
       final connects = <String>[];
       final cm = ConnectionManager(
@@ -892,6 +908,7 @@ void main() {
         sessionName: 'A',
         endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
+        roomId: 'main',
       );
       final connects = <String>[];
       final cm = ConnectionManager(
@@ -917,12 +934,14 @@ void main() {
         sessionName: 'A',
         endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
+        roomId: 'main',
       );
       const b = PeerRecord(
         remoteEpk: 'epk_B',
         sessionName: 'B',
         endpoint: 'ws://x',
         pairedAt: '2026-01-02T00:00:00Z',
+        roomId: 'main',
       );
       final cm = ConnectionManager(
         factory: (_, _) async => _ControllableChannel(),
@@ -974,7 +993,7 @@ void main() {
 
     test('boot() normalises _subscribedEpks: replay frames go out in standard '
         '(regression — url-safe leak caused inconsistent Home dots)', () async {
-      // PeerRecord stores url-safe (with `_`). The relay indexes by
+      // PeerRecord stores url-safe (with `_`). The host indexes by
       // standard (with `/`). Boot's `_replaySubscriptions` runs after
       // _connect succeeds; assert the FIRST replay payload is already
       // standard, not url-safe.
@@ -984,6 +1003,7 @@ void main() {
         sessionName: 'Pi',
         endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
+        roomId: 'main',
       );
       final ch = _ControllableChannel();
       final cm = ConnectionManager(
@@ -1003,7 +1023,7 @@ void main() {
       expect(
         wire.contains('_'),
         isFalse,
-        reason: 'url-safe `_` leaked into the relay-bound payload',
+        reason: 'url-safe `_` leaked into the host-bound payload',
       );
       expect(wire.contains('-'), isFalse);
       expect(
@@ -1066,7 +1086,7 @@ void main() {
       await cm.boot();
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      // Relay pushes presence with the STANDARD form (what the relay
+      // The host pushes presence with the STANDARD form (what the host
       // sees in `hello.pubkey`).
       const standard = 'Bz02uLiwrmQZ0S8qiwtFJAt0KzUvrgepYO/oMQ6yyQE=';
       ch.pushControl(const PeerOnline(peer: standard));
@@ -1327,7 +1347,7 @@ void _registerRoomsTests() {
     });
 
     test('_connect adopts peer.roomId (bind room on the '
-        'first frame so the relay routes correctly)', () async {
+        'first frame so the host routes correctly)', () async {
       final ch = _ControllableChannel();
       final cm = ConnectionManager(
         factory: (_, _) async => ch,

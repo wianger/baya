@@ -10,6 +10,7 @@ void main() {
               'type': 'room_announced',
               'peer': 'host',
               'room_id': 'r1',
+              'agent': 'codex',
               'name': 'baya',
               'cwd': '/code/baya',
               'model': 'gpt-5',
@@ -23,6 +24,7 @@ void main() {
       frame.room,
       const RoomInfo(
         roomId: 'r1',
+        agent: 'codex',
         name: 'baya',
         cwd: '/code/baya',
         model: 'gpt-5',
@@ -53,8 +55,18 @@ void main() {
               'type': 'rooms',
               'peer': 'host',
               'rooms': [
-                {'room_id': 'a', 'started_at': 1, 'working': false},
-                {'room_id': 'b', 'started_at': 2, 'working': true},
+                {
+                  'room_id': 'a',
+                  'agent': 'pi',
+                  'started_at': 1,
+                  'working': false,
+                },
+                {
+                  'room_id': 'b',
+                  'agent': 'pi',
+                  'started_at': 2,
+                  'working': true,
+                },
               ],
             })!
             as RoomsSnapshot;
@@ -76,6 +88,7 @@ void main() {
   test('unknown thinking levels are dropped, unknown frames ignored', () {
     final room = RoomInfo.fromJson({
       'room_id': 'r',
+      'agent': 'pi',
       'started_at': 1,
       'thinking': 'turbo',
       'working': false,

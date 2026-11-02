@@ -99,12 +99,14 @@ const _peerA = PeerRecord(
   sessionName: 'Pi A',
   endpoint: 'ws://localhost',
   pairedAt: '2026-01-01T00:00:00Z',
+  roomId: 'main',
 );
 const _peerB = PeerRecord(
   remoteEpk: 'epk_B',
   sessionName: 'Pi B',
   endpoint: 'ws://localhost',
   pairedAt: '2026-01-02T00:00:00Z',
+  roomId: 'main',
 );
 
 class _NoopTransport implements PeerTransport {
@@ -118,7 +120,7 @@ class _NoopTransport implements PeerTransport {
 
 PlainPeerChannel _channel() => PlainPeerChannel(transport: _NoopTransport());
 
-/// Lets a test inject relay control frames (presence / rooms / working)
+/// Lets a test inject control frames (presence / rooms / working)
 /// into a real ConnectionManager.
 class _ControllableChannel implements IChannel, IControlLink {
   final _serverCtrl = StreamController<ServerMessage>.broadcast();
@@ -150,60 +152,57 @@ ConnectionManager _conn({_FakeStorage? storage}) {
 
 void main() {
   group('HomeViewModel', () {
-    test(
-      'isRoomWorking follows the relay meta.working broadcast for ANY room — '
-      'including one that is NOT the connected session, and clears when the '
-      'relay says the turn ended',
-      () async {
-        // Reproduces the smoke-test bugs in sequence:
-        //  1) the dot only lit for the active chat (working came from the
-        //     connected peer's message channel), and
-        //  2) a session that FINISHED while the app was on another chat
-        //     stayed blue forever (the DB session index never got idled).
-        // Home now reads ONLY ConnectionManager.isRoomWorking — the relay's
-        // per-room broadcast — which has no such blind spot.
-        final ch = _ControllableChannel();
-        final storage = _FakeStorage([_peerA]);
-        final conn = ConnectionManager(
-          factory: (_, _) async => ch,
-          storage: storage,
-          emitDebounce: Duration.zero,
-        );
-        final prefs = Preferences(_FakeSecureStorage());
-        final vm = HomeViewModel(storage, prefs, conn);
-        await conn.connectTo(_peerA);
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+    test('isRoomWorking follows the host meta.working broadcast for ANY room — '
+        'including one that is NOT the connected session, and clears when the '
+        'host says the turn ended', () async {
+      // Reproduces the smoke-test bugs in sequence:
+      //  1) the dot only lit for the active chat (working came from the
+      //     connected peer's message channel), and
+      //  2) a session that FINISHED while the app was on another chat
+      //     stayed blue forever (the DB session index never got idled).
+      // Home now reads ONLY ConnectionManager.isRoomWorking — the host's
+      // per-room broadcast — which has no such blind spot.
+      final ch = _ControllableChannel();
+      final storage = _FakeStorage([_peerA]);
+      final conn = ConnectionManager(
+        factory: (_, _) async => ch,
+        storage: storage,
+        emitDebounce: Duration.zero,
+      );
+      final prefs = Preferences(_FakeSecureStorage());
+      final vm = HomeViewModel(storage, prefs, conn);
+      await conn.connectTo(_peerA);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        // Room comes online idle.
-        ch.pushControl(
-          const RoomAnnounced(
-            peer: 'epk_A',
-            room: RoomInfo(roomId: 'r1', startedAt: 1),
-          ),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        expect(vm.isRoomWorking('epk_A', 'r1'), isFalse);
+      // Room comes online idle.
+      ch.pushControl(
+        const RoomAnnounced(
+          peer: 'epk_A',
+          room: RoomInfo(roomId: 'r1', startedAt: 1),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(vm.isRoomWorking('epk_A', 'r1'), isFalse);
 
-        // turn_start → relay broadcasts meta.working=true.
-        ch.pushControl(
-          const RoomMetaUpdated(peer: 'epk_A', roomId: 'r1', working: true),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        expect(vm.isRoomWorking('epk_A', 'r1'), isTrue);
+      // turn_start → the host pushes working=true.
+      ch.pushControl(
+        const RoomMetaUpdated(peer: 'epk_A', roomId: 'r1', working: true),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(vm.isRoomWorking('epk_A', 'r1'), isTrue);
 
-        // turn_end → meta.working=false → dot goes back off (this is the
-        // case that previously stayed blue forever).
-        ch.pushControl(
-          const RoomMetaUpdated(peer: 'epk_A', roomId: 'r1', working: false),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        expect(vm.isRoomWorking('epk_A', 'r1'), isFalse);
+      // turn_end → meta.working=false → dot goes back off (this is the
+      // case that previously stayed blue forever).
+      ch.pushControl(
+        const RoomMetaUpdated(peer: 'epk_A', roomId: 'r1', working: false),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(vm.isRoomWorking('epk_A', 'r1'), isFalse);
 
-        vm.dispose();
-        await conn.disconnect();
-        conn.dispose();
-      },
-    );
+      vm.dispose();
+      await conn.disconnect();
+      conn.dispose();
+    });
 
     test('initial state is HomeLoading', () {
       final storage = _FakeStorage([_peerA]);
@@ -449,65 +448,60 @@ void main() {
       vm.dispose();
     });
 
-    test('complete inventory prunes only missing session-bound rooms from its peer', () async {
-      final ch = _ControllableChannel();
-      final storage = _FakeStorage([_peerA, _peerB]);
-      final conn = ConnectionManager(
-        factory: (_, _) async => ch,
-        storage: storage,
-        emitDebounce: Duration.zero,
-      );
-      final prefs = Preferences(_FakeSecureStorage());
-      final vm = HomeViewModel(storage, prefs, conn);
-      await conn.connectTo(_peerA);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+    test(
+      'complete inventory prunes only rooms its computer no longer has',
+      () async {
+        final ch = _ControllableChannel();
+        final storage = _FakeStorage([_peerA, _peerB]);
+        final conn = ConnectionManager(
+          factory: (_, _) async => ch,
+          storage: storage,
+          emitDebounce: Duration.zero,
+        );
+        final prefs = Preferences(_FakeSecureStorage());
+        final vm = HomeViewModel(storage, prefs, conn);
+        await conn.connectTo(_peerA);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      const kept = 'pi_AAAAAAAAAAAAAAAA_d_project';
-      const deleted = 'pi_BBBBBBBBBBBBBBBB_i_project';
-      const future = 'pi_CCCCCCCCCCCCCCCC_i_project';
-      const legacy = 'legacy-room';
-      ch.pushControl(
-        const RoomAnnounced(
-          peer: 'epk_A',
-          room: RoomInfo(roomId: kept, startedAt: 100),
-        ),
-      );
-      ch.pushControl(
-        const RoomAnnounced(
-          peer: 'epk_A',
-          room: RoomInfo(roomId: deleted, startedAt: 100),
-        ),
-      );
-      ch.pushControl(
-        const RoomAnnounced(
-          peer: 'epk_A',
-          room: RoomInfo(roomId: future, startedAt: 300),
-        ),
-      );
-      ch.pushControl(
-        const RoomAnnounced(
-          peer: 'epk_A',
-          room: RoomInfo(roomId: legacy, startedAt: 100),
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        const kept = 'AAAAAAAAAAAA';
+        const deleted = 'BBBBBBBBBBBB';
+        const future = 'CCCCCCCCCCCC';
+        ch.pushControl(
+          const RoomAnnounced(
+            peer: 'epk_A',
+            room: RoomInfo(roomId: kept, startedAt: 100),
+          ),
+        );
+        ch.pushControl(
+          const RoomAnnounced(
+            peer: 'epk_A',
+            room: RoomInfo(roomId: deleted, startedAt: 100),
+          ),
+        );
+        ch.pushControl(
+          const RoomAnnounced(
+            peer: 'epk_A',
+            room: RoomInfo(roomId: future, startedAt: 300),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      final removed = await vm.reconcileSessionInventoryForPeer(
-        'epk_A',
-        sessionKeys: const {'AAAAAAAAAAAAAAAA'},
-        scannedAt: 200,
-      );
+        final removed = await vm.reconcileSessionInventoryForPeer(
+          'epk_A',
+          roomIds: const {kept},
+          scannedAt: 200,
+        );
 
-      expect(removed, 1);
-      expect(prefs.isSessionHidden('epk_A', deleted), isTrue);
-      expect(prefs.isSessionHidden('epk_A', kept), isFalse);
-      expect(prefs.isSessionHidden('epk_A', future), isFalse);
-      expect(prefs.isSessionHidden('epk_A', legacy), isFalse);
+        expect(removed, 1);
+        expect(prefs.isSessionHidden('epk_A', deleted), isTrue);
+        expect(prefs.isSessionHidden('epk_A', kept), isFalse);
+        expect(prefs.isSessionHidden('epk_A', future), isFalse);
 
-      vm.dispose();
-      await conn.disconnect();
-      conn.dispose();
-      prefs.dispose();
-    });
+        vm.dispose();
+        await conn.disconnect();
+        conn.dispose();
+        prefs.dispose();
+      },
+    );
   });
 }

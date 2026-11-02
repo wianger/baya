@@ -115,7 +115,7 @@ class _PairingPageState extends State<PairingPage> {
   /// Opens the post-pair nickname sheet, persists
   /// whatever the user picked, then navigates home. Modal is
   /// dismissible; either Save, Skip or drag-down all produce a usable
-  /// label so the mesh blob carries a real string for other devices.
+  /// label.
   Future<void> _runPostPairFlow(String? hostnameHint) async {
     final vm = context.read<PairingViewModel>();
     final nickname = await showNicknameSheet(

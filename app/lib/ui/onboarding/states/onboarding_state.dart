@@ -1,7 +1,7 @@
 // Sealed state for OnboardingViewModel. Switch exhaustively in
 // OnboardingPage.build().
 
-/// Welcome, then scan. The relay comes from the pairing QR.
+/// Welcome, then pair (scan, or type the computer's Tailscale name).
 enum OnboardingStep { welcome, pair }
 
 sealed class OnboardingState {

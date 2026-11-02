@@ -8,8 +8,8 @@
 //   box = 0xBE 0x01 || nonce(12) || ChaCha20-Poly1305(ts_ms(8) || json)
 //   aad = "baya-e2e-v1|" + ("p2h" | "h2p") + "|" + host room id
 //
-// The relay sees only ciphertext and cannot forge frames: it never holds
-// either private key.
+// Anything in between (`tailscale serve`, a proxy) sees only ciphertext and
+// cannot forge frames: it never holds either private key.
 
 import 'dart:convert';
 import 'dart:math';

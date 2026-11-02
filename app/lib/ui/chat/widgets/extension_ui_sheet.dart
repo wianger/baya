@@ -49,7 +49,7 @@ class _ExtensionUiSheetState extends State<ExtensionUiSheet> {
   final TextEditingController _textController = TextEditingController();
   bool _submitting = false;
   // Backstop so a submit/cancel that never gets a `completed`/error
-  // (relay drop, pi-ask gone) doesn't strand the user on a spinner forever.
+  // (connection drop, pi-ask gone) doesn't strand the user on a spinner forever.
   Timer? _submitTimeout;
   bool _awaitHint = false;
 

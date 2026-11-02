@@ -9,7 +9,7 @@ class WorkspaceAgent {
     this.available = true,
     this.unavailableReason,
   });
-  // Convenient legacy identities, not a whitelist of supported catalog entries.
+  // The agents the host knows; the catalog it reports may differ.
   static const pi = WorkspaceAgent(
     id: 'pi',
     label: 'Pi',
@@ -37,32 +37,14 @@ class WorkspaceAgent {
   int get hashCode => id.hashCode;
 }
 
-const _workspaceAgentPrefixes = <String, String>{
-  'Pi': 'Pi',
-  'Codex': 'Codex',
-  'DeepSeek': 'DeepSeek',
+/// Display label of an agent id (`codex` → `Codex`).
+String workspaceAgentLabel(String? agent) => switch (agent) {
+  null || '' => '',
+  'pi' => WorkspaceAgent.pi.label,
+  'codex' => WorkspaceAgent.codex.label,
+  'deepseek' => WorkspaceAgent.deepseek.label,
+  _ => agent[0].toUpperCase() + agent.substring(1),
 };
-
-/// Agent label encoded in a legacy room name such as `Codex · project`.
-String? workspaceAgentLabelFromRoomName(String? roomName) {
-  if (roomName == null) return null;
-  for (final label in _workspaceAgentPrefixes.keys) {
-    if (roomName.startsWith('$label · ')) return label;
-  }
-  return null;
-}
-
-/// Room title without the agent prefix. Unprefixed Pi rooms stay unchanged.
-String workspaceSessionTitle(String? roomName) {
-  final label = workspaceAgentLabelFromRoomName(roomName);
-  return label == null
-      ? (roomName ?? '')
-      : roomName!.substring(label.length + 3);
-}
-
-/// Agent label for a room, preserving the legacy unprefixed Pi convention.
-String workspaceAgentLabelForRoom(String? roomName) =>
-    workspaceAgentLabelFromRoomName(roomName) ?? 'Pi';
 
 class WorkspaceHost {
   const WorkspaceHost({

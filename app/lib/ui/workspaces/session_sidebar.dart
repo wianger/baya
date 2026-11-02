@@ -506,8 +506,8 @@ class _SessionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final agentLabel = workspaceAgentLabelForRoom(item.room.name);
-    final title = workspaceSessionTitle(displayName);
+    final agentLabel = workspaceAgentLabel(item.room.agent);
+    final title = displayName;
     final statusColor = working
         ? colors.working
         : online

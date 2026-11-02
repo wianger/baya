@@ -71,7 +71,7 @@ describe("direct server", () => {
     const lines: string[] = [];
     const link = direct.open(
       "room1",
-      { name: "Review", cwd: "/code" },
+      { name: "Review", cwd: "/code", agent: "pi" },
       {
         onEnvelope: (peer, ct) => lines.push(JSON.stringify({ peer, ct })),
       },
@@ -88,7 +88,13 @@ describe("direct server", () => {
     p.send({ type: "rooms_check", peers: [hostKey] });
     const rooms = await p.next((f) => f["type"] === "rooms");
     expect(rooms["rooms"]).toEqual([
-      expect.objectContaining({ room_id: "room1", name: "Review", cwd: "/code", working: false }),
+      expect.objectContaining({
+        room_id: "room1",
+        agent: "pi",
+        name: "Review",
+        cwd: "/code",
+        working: false,
+      }),
     ]);
 
     p.send({ peer: hostKey, room: "room1", ct: "AA==" });
@@ -118,7 +124,7 @@ describe("direct server", () => {
     const lines: string[] = [];
     direct.open(
       "room1",
-      { name: "Review", cwd: "/code" },
+      { name: "Review", cwd: "/code", agent: "pi" },
       { onEnvelope: (peer, ct) => lines.push(JSON.stringify({ peer, ct })) },
     );
     const p = await phone(port);

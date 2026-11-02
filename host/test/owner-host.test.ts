@@ -50,7 +50,7 @@ describe("end-to-end encryption", () => {
     const received: unknown[] = [];
     const host = new OwnerHost({
       roomId: "room1",
-      roomMeta: { name: "Baya", cwd: home },
+      roomMeta: { name: "Baya", cwd: home, agent: "pi" },
       direct,
       onMessage: (sender, message) => {
         received.push(message);

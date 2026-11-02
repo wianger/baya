@@ -203,13 +203,13 @@ void main() {
       final m = ServerMessage.fromJson({
         'type': 'sessions_inventory',
         'in_reply_to': 'r8',
-        'session_keys': ['session-a', 'session-b'],
+        'room_ids': ['session-a', 'session-b'],
         'scanned_at': 1234,
         'complete': true,
       });
       final inventory = m as SessionsInventoryReply;
       expect(inventory.inReplyTo, 'r8');
-      expect(inventory.sessionKeys, {'session-a', 'session-b'});
+      expect(inventory.roomIds, {'session-a', 'session-b'});
       expect(inventory.scannedAt, 1234);
       expect(inventory.complete, isTrue);
     });

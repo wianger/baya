@@ -133,13 +133,16 @@ const Object _kRoomInfoUnset = Object();
 /// Snapshot of a single Pi room (one cwd / session).
 class RoomInfo {
   final String roomId;
+
+  /// The agent driving the session (`pi`, `codex`, `deepseek`); null only
+  /// for rooms built in tests.
+  final String? agent;
   final String? name;
   final String? cwd;
   final int startedAt;
 
-  /// Display model the Pi-extension is running with (e.g.
-  /// `claude-sonnet-4.5`, `gpt-4o`). Optional; Pi-ext may omit and
-  /// the app falls back to `last paired` in the subtitle.
+  /// Display model of the session (e.g. `gpt-5`), when the agent reports
+  /// one.
   final String? model;
 
   /// Current thinking level, when the agent reports one. Drives the
@@ -154,6 +157,7 @@ class RoomInfo {
   const RoomInfo({
     required this.roomId,
     required this.startedAt,
+    this.agent,
     this.name,
     this.cwd,
     this.model,
@@ -165,6 +169,7 @@ class RoomInfo {
     final rawThinking = j['thinking'] as String?;
     return RoomInfo(
       roomId: j['room_id'] as String,
+      agent: j['agent'] as String,
       name: j['name'] as String?,
       cwd: j['cwd'] as String?,
       startedAt: (j['started_at'] as num).toInt(),
@@ -178,6 +183,7 @@ class RoomInfo {
 
   Map<String, dynamic> toJson() => {
     'room_id': roomId,
+    'agent': agent,
     'name': name,
     'cwd': cwd,
     'started_at': startedAt,
@@ -195,6 +201,7 @@ class RoomInfo {
     bool? working,
   }) => RoomInfo(
     roomId: roomId,
+    agent: agent,
     name: name ?? this.name,
     cwd: cwd ?? this.cwd,
     startedAt: startedAt ?? this.startedAt,
@@ -209,6 +216,7 @@ class RoomInfo {
   bool operator ==(Object other) =>
       other is RoomInfo &&
       other.roomId == roomId &&
+      other.agent == agent &&
       other.name == name &&
       other.cwd == cwd &&
       other.startedAt == startedAt &&
@@ -217,8 +225,16 @@ class RoomInfo {
       other.working == working;
 
   @override
-  int get hashCode =>
-      Object.hash(roomId, name, cwd, startedAt, model, thinking, working);
+  int get hashCode => Object.hash(
+    roomId,
+    agent,
+    name,
+    cwd,
+    startedAt,
+    model,
+    thinking,
+    working,
+  );
 }
 
 class RoomAnnounced extends ControlInbound {
@@ -316,8 +332,8 @@ sealed class ClientMessage {
 }
 
 /// One image carried inline on a `user_message` (base64 + mime).
-/// Mirrors `WireImage` in `pi-extension/src/protocol/types.ts` and the SDK's
-/// `ImageContent`. The relay forwards it opaquely inside the existing `ct`.
+/// Mirrors `WireImage` in `host/src/protocol/types.ts` and the SDK's
+/// `ImageContent`.
 class WireImage {
   final String data; // base64, no data-URI prefix
   final String mime; // e.g. image/jpeg
@@ -358,8 +374,7 @@ class UserMessage extends ClientMessage {
   final String id;
   final String text;
 
-  /// Optional steering behavior for this message. Omitted when null for
-  /// compatibility with older Pi extensions.
+  /// Optional steering behavior for this message; omitted when null.
   final UserMessageStreamingBehavior? streamingBehavior;
 
   /// Optional attached images. The feature sends at most one, but
@@ -494,8 +509,7 @@ class SessionSync extends ClientMessage {
 
 /// Curated catalogue of actions the app can dispatch on the
 /// Pi-side session. Each value matches an `action_ok`/`action_error`
-/// reply emitted by the pi-extension handlers in
-/// `pi-extension/src/actions/handlers.ts`.
+/// reply from the host's agent adapters.
 enum ActionName {
   sessionNew('session_new'),
   sessionCompact('session_compact'),
@@ -540,7 +554,7 @@ enum ThinkingLevel {
 
 /// Wire shape for one entry in the model picker. Subset of
 /// the SDK's `Model` interface; matches the `WireModel` declared in
-/// `pi-extension/src/protocol/types.ts`.
+/// `host/src/protocol/types.ts`.
 class WireModel {
   /// Stable id inside the provider's catalog (e.g. `claude-opus-4-7`).
   final String id;
@@ -783,17 +797,14 @@ sealed class ServerMessage {
       'pong' => Pong.fromJson(json),
       'pair_ok' => PairOk.fromJson(json),
       'pair_error' => PairError.fromJson(json),
-      // Truth + follow-up: Pi rebroadcasts
-      // every accepted user_message via this stream. Some Pi-extension
-      // versions emit `type: "user_input"` (mirror of a terminal-side
-      // input), others reuse the original `user_message` type when
-      // echoing back. Treat both as the same payload — `UserInput`
-      // here is the "user-text-arrived" event regardless of origin.
+      // The host echoes every accepted `user_message` and reports input
+      // typed on the computer as `user_input`; both mean "user text
+      // arrived".
       'user_input' || 'user_message' => UserInput.fromJson(json),
       'queued_message_state' => QueuedMessageState.fromJson(json),
       'steer_consumed' => SteerConsumed.fromJson(json),
       'agent_message' => AgentMessage.fromJson(json),
-      // Pi-extension emits this when a context compaction finishes.
+      // A context compaction finished.
       'compaction' => Compaction.fromJson(json),
       'session_history' => SessionHistory.fromJson(json),
       'bye' => Bye.fromJson(json),
@@ -877,15 +888,15 @@ class SessionFileError extends ServerMessage {
 class SessionsInventoryReply extends ServerMessage {
   const SessionsInventoryReply({
     required this.inReplyTo,
-    required this.sessionKeys,
+    required this.roomIds,
     required this.scannedAt,
     required this.complete,
   });
 
   final String inReplyTo;
 
-  /// Stable source-session hashes embedded in session-bound room IDs.
-  final Set<String> sessionKeys;
+  /// The room of every session on the computer.
+  final Set<String> roomIds;
 
   /// Epoch-ms scan boundary. Rooms started after this instant are preserved.
   final int scannedAt;
@@ -895,13 +906,11 @@ class SessionsInventoryReply extends ServerMessage {
   factory SessionsInventoryReply.fromJson(Map<String, dynamic> json) =>
       SessionsInventoryReply(
         inReplyTo: json['in_reply_to'] as String,
-        sessionKeys: {
-          for (final key
-              in (json['session_keys'] as List<dynamic>? ?? const []))
-            key as String,
+        roomIds: {
+          for (final id in json['room_ids'] as List<dynamic>) id as String,
         },
-        scannedAt: (json['scanned_at'] as num?)?.toInt() ?? 0,
-        complete: json['complete'] == true,
+        scannedAt: (json['scanned_at'] as num).toInt(),
+        complete: json['complete'] as bool,
       );
 }
 
@@ -1012,25 +1021,6 @@ class Pong extends ServerMessage {
       Pong(inReplyTo: j['in_reply_to'] as String);
 }
 
-/// The agent harness a paired computer runs, e.g. "Pi coding agent 0.70".
-class PiHarness {
-  final String name;
-  final String version;
-  const PiHarness({required this.name, required this.version});
-
-  Map<String, dynamic> toJson() => {'name': name, 'version': version};
-
-  static PiHarness fromJson(Map<String, dynamic> j) =>
-      PiHarness(name: j['name'] as String, version: j['version'] as String);
-
-  @override
-  bool operator ==(Object other) =>
-      other is PiHarness && other.name == name && other.version == version;
-
-  @override
-  int get hashCode => Object.hash(name, version);
-}
-
 class PairOk extends ServerMessage {
   final String inReplyTo;
   final String sessionName;
@@ -1040,7 +1030,6 @@ class PairOk extends ServerMessage {
 
   /// The session's room, stored on the PeerRecord so reconnects address it.
   final String roomId;
-  final PiHarness harness;
 
   /// The computer's hostname, the default name in the app.
   final String hostname;
@@ -1049,7 +1038,6 @@ class PairOk extends ServerMessage {
     required this.sessionName,
     required this.sessionStartedAt,
     required this.roomId,
-    required this.harness,
     required this.hostname,
   });
 
@@ -1058,7 +1046,6 @@ class PairOk extends ServerMessage {
     sessionName: j['session_name'] as String,
     sessionStartedAt: (j['session_started_at'] as num).toInt(),
     roomId: j['room_id'] as String,
-    harness: PiHarness.fromJson(j['harness'] as Map<String, dynamic>),
     hostname: j['hostname'] as String,
   );
 }
@@ -1191,7 +1178,7 @@ class AgentMessage extends ServerMessage {
   );
 }
 
-/// Emitted by the Pi-extension when a context compaction finishes.
+/// Emitted by the host when a context compaction finishes.
 /// Rendered as a system bubble in the chat (✓ Contexto compactado + summary +
 /// the token count that was reclaimed). `ts` is optional (epoch millis).
 class Compaction extends ServerMessage {

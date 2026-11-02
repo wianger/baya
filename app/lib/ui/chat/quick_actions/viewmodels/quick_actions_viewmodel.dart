@@ -199,7 +199,7 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
   }
 
   /// React to a room-meta snapshot. Adopts the
-  /// thinking level (always — the relay is the source of truth) and
+  /// thinking level (always — the host is the source of truth) and
   /// the model name (when present). Leaves the structured
   /// [currentModel] alone because the meta only carries a display
   /// name, not the full [WireModel]; the picker can call

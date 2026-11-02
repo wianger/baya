@@ -89,10 +89,9 @@ class SyncService extends Service {
   final StreamController<bool> _workingController =
       StreamController<bool>.broadcast();
 
-  // Safety net: if the relay never echoes a sent message back, the
+  // Safety net: if the host never echoes a sent message back, the
   // optimistic `pending:true` bubble would spin forever. After this window we
-  // remove the bubble SILENTLY (no "failed" state, no spinner). The real fix
-  // lives in the relay; this is the app-side backstop. Per-message (`id`)
+  // remove the bubble SILENTLY (no "failed" state, no spinner). Per-message (`id`)
   // timers are armed only when a send is actually attempted online, and
   // cancelled on echo, user-cancel, session switch, and dispose.
   final Duration pendingSendTimeout;
@@ -154,8 +153,8 @@ class SyncService extends Service {
     // bleed into the next chat (the bug where chat 2 looked "working"
     // because chat 1 was mid-turn). We deliberately do NOT clear the
     // durable session index — the previous room may still be running on
-    // the Pi, and Home keeps showing it via the relay's per-room
-    // `meta.working` broadcast.
+    // the computer, and Home keeps showing it via the host's per-room
+    // `working` updates.
     _resetTurnState();
     _activeEpk = epk;
     _activeRoomId = room;
@@ -385,7 +384,7 @@ class SyncService extends Service {
     });
   }
 
-  /// Only phone-local data is removed. The relay and computer are untouched.
+  /// Only phone-local data is removed. The computer is untouched.
   Future<void> removeCachedSession(String epk, String room) async {
     if (_activeEpk == epk && _activeRoomId == room) {
       _syncDebounce?.cancel();
@@ -834,14 +833,10 @@ class SyncService extends Service {
       ];
       // Reconcile the box to `desired` with the MINIMUM number of writes.
       //
-      // The old path did `box.clear()` + re-put every row. Hive emits a watch
-      // event per deleted AND per put key, so the read repo re-emitted ~2N
-      // times — tearing the whole list down to EMPTY and rebuilding it — on
-      // EVERY SessionHistory the relay re-delivered (which it does on every
-      // reconnect). That was the flicker/"embaralha e some". Diffing instead
-      // means a re-sent identical history produces ZERO box writes → ZERO
-      // emits → no rebuild; a changed history only rewrites the rows that
-      // actually differ.
+      // Diff instead of clear + re-put: Hive emits a watch event per write,
+      // and the host re-sends history on every reconnect. An identical
+      // history produces zero writes and no rebuild; a changed one rewrites
+      // only the rows that differ.
       for (final k in box.keys.toList()) {
         if ((k as num).toInt() >= desired.length) {
           await box.delete(k);
@@ -901,8 +896,8 @@ class SyncService extends Service {
           );
         case AgentMessageEvt(:final inReplyTo, :final text):
           // Pi history identifies every text segment in a turn by the user
-          // message id. Tools can split one answer into several segments, so
-          // retain the first id for compatibility and suffix later segments.
+          // message id. Tools can split one answer into several segments: the
+          // first keeps that id, later ones get a suffix.
           final segment = assistantSegmentCounts.update(
             inReplyTo,
             (count) => count + 1,

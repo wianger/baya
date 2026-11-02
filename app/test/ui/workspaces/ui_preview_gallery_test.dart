@@ -57,12 +57,14 @@ const _computer = PeerRecord(
   sessionName: 'Windows PC',
   endpoint: 'https://example.invalid',
   pairedAt: '2026-10-30',
+  roomId: 'main',
 );
 const _linux = PeerRecord(
   remoteEpk: 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=',
   sessionName: 'Ubuntu WSL',
   endpoint: 'https://example.invalid',
   pairedAt: '2026-10-30',
+  roomId: 'main',
 );
 const _room = RoomInfo(
   roomId: 'codex-project',
@@ -144,8 +146,6 @@ class _Home extends ViewModel<HomeState> implements HomeViewModel {
   @override
   List<HomeItem> get workspaceItems =>
       allItems.where((item) => item.peer.remoteEpk == selectedDevice).toList();
-  @override
-  bool get isRelayConnected => true;
   @override
   bool isRoomLive(String epk, String roomId) => roomId != 'website';
   @override

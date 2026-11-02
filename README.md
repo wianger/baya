@@ -2,7 +2,7 @@
 
 Baya is a standalone host and Android client for controlling coding-agent
 conversations from a phone. It no longer depends on being installed as a Pi
-extension. The `baya` CLI owns local sessions, pairing, relay connectivity, and
+extension. The `baya` CLI owns local sessions, pairing, phone connections, and
 workspace/file access; Pi, Codex, and DeepSeek Harness are launched as ordinary
 child processes.
 
@@ -12,7 +12,6 @@ child processes.
 |---|---|
 | `host/` | Standalone TypeScript CLI and resident session host, published as the `baya` executable |
 | `app/` | Android Flutter client (`dev.wianger.baya`) |
-| `relay/` | Self-hostable Rust relay for the Baya protocol |
 | `branding/` | Baya SVG and PNG identity assets |
 | `PROTOCOL.md` | Canonical wire protocol and security model |
 
@@ -23,6 +22,8 @@ Requirements:
 - Node.js 22.19 or newer
 - pnpm 10 or newer
 - At least one agent on `PATH`: `pi`, `codex`, or DeepSeek Harness `dsh`
+- [Tailscale](https://tailscale.com/download) on the computer and the phone,
+  signed in to the same account
 
 Build and link the CLI:
 
@@ -32,6 +33,14 @@ pnpm install --ignore-scripts
 pnpm build
 pnpm add --global .
 baya doctor
+```
+
+Phones reach the computer over Tailscale, with nothing in between. Publish
+the host once with `tailscale serve` (`baya doctor` prints the exact command;
+from WSL, run it on Windows):
+
+```powershell
+tailscale serve --bg --set-path /baya-pair/windows http://127.0.0.1:7481/baya-pair/windows
 ```
 
 Start Baya in a project folder. The first time, it prints a pairing code;
@@ -45,13 +54,10 @@ baya
 Three ways to pair, all equally secure:
 
 - **Scan** the QR code it prints.
-- **Tailscale**: if the phone and the computer share a Tailscale account,
-  tap *Use Tailscale* in the app and type the computer's name. The host
-  issues pairing codes only to devices of the same Tailscale account: on its
-  tailnet address (port 7480, checked with `tailscale whois`) and, where
-  inbound connections are firewalled (WSL), through
-  `tailscale serve --bg --set-path /baya-pair http://127.0.0.1:7480/baya-pair`
-  (HTTPS; the caller is named by serve's `Tailscale-User-Login`).
+- **Tailscale name**: tap *Use Tailscale* in the app and type the computer's
+  name. The host issues pairing codes only to devices of the same Tailscale
+  account (serve names the caller in `Tailscale-User-Login`). A Windows and a
+  WSL Baya on one computer both appear, and the app stays connected to both.
 - **Link**: tap the `baya://pair?…` link on the phone, or paste it.
 
 Manage paired phones. Unpairing takes effect immediately, including for a
@@ -95,22 +101,12 @@ The package ID is `dev.wianger.baya`. Release artifacts are named
 `Baya-Android.apk` and published from this repository; the app checks them for
 updates.
 
-## Relay
+## Security
 
-The default configuration uses the existing compatible public relay. For
-private infrastructure, build the included relay and point Baya at it:
-
-```powershell
-docker build -t baya-relay relay
-docker run -d --name baya-relay -p 3000:3000 -v baya-data:/data baya-relay
-baya relay http://127.0.0.1:3000 --public https://relay.your-tailnet.ts.net
-```
-
-Messages between the phone and the computer are end-to-end encrypted
-(X25519 + ChaCha20-Poly1305, keyed by the paired Ed25519 identities), so the
-relay only routes ciphertext and cannot forge messages. Update the host and
-the app together: each refuses unencrypted traffic. See
-[PROTOCOL.md](PROTOCOL.md#end-to-end-encryption-v1).
+Every frame between the phone and the computer is end-to-end encrypted
+(X25519 + ChaCha20-Poly1305, keyed by the paired Ed25519 identities), on top
+of Tailscale's own encryption, so not even `tailscale serve` can read or forge
+it. See [PROTOCOL.md](PROTOCOL.md#end-to-end-encryption-v1).
 
 ## Validation
 
@@ -124,7 +120,4 @@ cd ..\app
 flutter pub get
 flutter analyze
 flutter test
-
-cd ..\relay
-cargo test
 ```

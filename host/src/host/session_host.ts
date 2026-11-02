@@ -1,8 +1,7 @@
 import type { AgentAdapter } from "../adapters/types.ts";
 import { PairingService } from "../pairing/service.ts";
 import type { ClientMessage, ServerMessage } from "../protocol/types.ts";
-import { roomIdFor, sessionKeyForId } from "../rooms.ts";
-import { packageVersion } from "../runtime/version.ts";
+import { roomIdFor } from "../rooms.ts";
 import { type BayaSessionRecord, listSessions } from "../session/registry.ts";
 import { OwnerHost } from "../transport/owner_host.ts";
 import type { PeerChannel } from "../transport/peer_channel.ts";
@@ -22,13 +21,13 @@ export function roomIdForBayaSession(
  */
 export function sessionInventoryResponse(
   inReplyTo: string,
-  sessions: ReadonlyArray<Pick<BayaSessionRecord, "id">> = listSessions(),
+  sessions: ReadonlyArray<Pick<BayaSessionRecord, "id" | "cwd" | "agent">> = listSessions(),
   scannedAt = Date.now(),
 ): Extract<ServerMessage, { type: "sessions_inventory" }> {
   return {
     type: "sessions_inventory",
     in_reply_to: inReplyTo,
-    session_keys: sessions.map((session) => sessionKeyForId(session.id)),
+    room_ids: sessions.map(roomIdForBayaSession),
     scanned_at: scannedAt,
     complete: true,
   };
@@ -53,7 +52,7 @@ export class ManagedSessionHost {
     this.roomId = roomIdForBayaSession(record);
     this.room = new OwnerHost({
       roomId: this.roomId,
-      roomMeta: { name: record.name, cwd: record.cwd },
+      roomMeta: { name: record.name, cwd: record.cwd, agent: record.agent },
       onMessage: (sender, message) => this.onMessage(sender, message),
     });
   }
@@ -94,8 +93,6 @@ export class ManagedSessionHost {
           roomId: this.roomId,
           sessionName: this.record.name,
           sessionStartedAt: this.record.created_at,
-          harnessName: `Baya · ${this.record.agent}`,
-          harnessVersion: packageVersion(),
         });
         return;
       }

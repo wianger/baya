@@ -53,11 +53,11 @@ const _qr = QrPairPayload(
   epk: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
   sessionName: 'Pi',
   roomId: 'room-from-qr',
-  endpoint: 'https://relay.example',
+  endpoint: 'https://pc.example/baya-pair/wsl/direct',
 );
 
 void main() {
-  test('pair_ok is persisted with its room and the QR relay', () async {
+  test('pair_ok is persisted with its room and endpoint', () async {
     final q1 = _Q();
     final q2 = _Q();
     final host = _MemTransport(send: q1, recv: q2);
@@ -74,7 +74,6 @@ void main() {
           utf8.encode(
             jsonEncode({
               'type': 'pair_ok',
-              'harness': {'name': 'Pi coding agent', 'version': '1'},
               'in_reply_to': req['id'],
               'session_name': 'Review',
               'session_started_at': 1700000000000,
@@ -94,7 +93,7 @@ void main() {
     );
     expect(result.peer.sessionName, 'Review');
     expect(result.peer.roomId, 'room-from-pair-ok');
-    expect(result.peer.endpoint, 'https://relay.example');
+    expect(result.peer.endpoint, 'https://pc.example/baya-pair/wsl/direct');
     expect(result.hostnameHint, 'workstation');
     expect(storage.saved.single.roomId, 'room-from-pair-ok');
   });

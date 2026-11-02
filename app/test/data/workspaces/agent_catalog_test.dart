@@ -34,8 +34,10 @@ void main() {
     expect(agents.last.label, 'unnamed');
   });
 
-  test('room names split into agent label and title', () {
-    expect(workspaceSessionTitle('DeepSeek · project'), 'project');
-    expect(workspaceAgentLabelForRoom('DeepSeek · project'), 'DeepSeek');
+  test('agent ids map to their labels', () {
+    expect(workspaceAgentLabel('deepseek'), 'DeepSeek');
+    expect(workspaceAgentLabel('pi'), 'Pi');
+    expect(workspaceAgentLabel('opencode'), 'Opencode');
+    expect(workspaceAgentLabel(null), '');
   });
 }

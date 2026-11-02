@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 /// platform-native key sync (Block Store).
 ///
 /// This is the **only** thing the plugin persists. Higher-level state
-/// — paired peers, mesh versions, revocation propagation — lives in
-/// the app/relay layers, not here.
+/// — paired peers, revocation — lives in
+/// the app, not here.
 ///
 /// The serialized form is a fixed 64-byte buffer: `ownerPk || ownerSk`.
 /// Fixed-width and version-less by design — there is nothing to

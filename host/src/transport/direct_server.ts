@@ -8,6 +8,8 @@ import { getOrCreateEd25519Keypair, isPairedKey, listPeers } from "../pairing/st
 export interface RoomMeta {
   name: string;
   cwd: string;
+  /** The agent driving the session: `pi`, `codex` or `deepseek`. */
+  agent: string;
   model?: string;
 }
 
@@ -218,9 +220,10 @@ export class DirectServer {
   }
 
   private roomFrame(roomId: string, room: Room): Record<string, unknown> {
-    const { name, cwd, model, thinking, working } = room.meta;
+    const { name, cwd, agent, model, thinking, working } = room.meta;
     return {
       room_id: roomId,
+      agent,
       ...(name ? { name } : {}),
       ...(cwd ? { cwd } : {}),
       ...(model ? { model } : {}),

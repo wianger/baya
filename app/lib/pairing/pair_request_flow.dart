@@ -46,10 +46,8 @@ class PairingError implements Exception {
 
 /// Wraps the persisted [PeerRecord] plus side hints the post-pair UI
 /// (nickname modal) needs but that don't belong on the PeerRecord
-/// itself. [hostnameHint] lets the modal pre-fill the computer's name
-/// instead of the generic "Pi"; legacy hosts
-/// that don't emit `hostname` leave it null and the modal falls back
-/// to `peer.sessionName`.
+/// itself. [hostnameHint] (the computer's hostname) pre-fills the
+/// nickname modal.
 class PairingResult {
   final PeerRecord peer;
   final String? hostnameHint;
@@ -94,7 +92,6 @@ Future<PairingResult> performPairing({
       endpoint: qr.endpoint,
       pairedAt: DateTime.now().toUtc().toIso8601String(),
       roomId: pairOk.roomId,
-      harness: pairOk.harness,
     );
     await storage.savePeer(peer);
     return PairingResult(peer: peer, hostnameHint: pairOk.hostname);

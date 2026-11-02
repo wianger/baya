@@ -16,10 +16,8 @@ sealed class ChatMessage {
 /// came from `session_history` / another device's echo); `failed` =
 /// 15s elapsed without echo, user can retry.
 ///
-/// Default is `confirmed` for back-compat — every persisted UserMsg
-/// from before this fix was effectively confirmed (the Pi wasn't
-/// rebroadcasting then, but the local cache treated it as
-/// authoritative).
+/// Default is `confirmed`: history and other devices' echoes are already
+/// authoritative.
 enum UserMsgStatus { pending, confirmed, failed }
 
 /// An image attached to a user message. Carries the JPEG bytes

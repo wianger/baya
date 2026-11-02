@@ -19,7 +19,7 @@ final class IdentityReady {
 ///
 /// - Boot-time decision: sync available? identity present?
 /// - `currentIdentity` getter for callers that need the Owner-sk for
-///   relay challenge-response (production transport factory).
+///   the host's challenge-response (production transport factory).
 /// - Watch-on-sync hook: when the platform delivers a different
 ///   Owner-key (restored on a new device, owner re-installed elsewhere),
 ///   wipe local peer/room caches because the previous device's
@@ -99,10 +99,7 @@ class OwnerIdentityBridge extends ChangeNotifier {
   /// channel as soon as we `.listen()`. If we subscribed before
   /// [boot] populated `_current`, that initial emit would look like
   /// a "different owner_pk" (because current is null) and trigger a
-  /// spurious `wipeAll`. That cleared the freshly-paired peer set,
-  /// and a downstream room adoption (driven by an incoming
-  /// `room_announced`) would then re-publish v=N+1 with members=[],
-  /// causing the pi-extension to self-revoke ~60s later.
+  /// spurious `wipeAll` of the freshly-paired peer set.
   ///
   /// Defence: when `_current` is null at observation time, treat the
   /// event as the platform's initial-snapshot and *adopt without

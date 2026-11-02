@@ -77,12 +77,6 @@ class _BootState extends ChangeNotifier {
 
     final peers = await storage.listPeers();
     _hasPeer = peers.isNotEmpty;
-    // A user who already has a peer is implicitly onboarded —
-    // they paired in an earlier app version that predates the
-    // onboarding flow. Auto-flip the flag so they don't re-run it.
-    if (_hasPeer && !prefs.onboardingCompleted) {
-      await prefs.setOnboardingCompleted(true);
-    }
     _onboarded = prefs.onboardingCompleted;
     _ready = true;
     notifyListeners();

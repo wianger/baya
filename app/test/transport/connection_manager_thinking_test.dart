@@ -15,6 +15,7 @@ PeerRecord _fakePeer() => const PeerRecord(
   sessionName: 'pi',
   endpoint: 'ws://localhost',
   pairedAt: '2026-01-01T00:00:00Z',
+  roomId: 'main',
 );
 
 class _FakeStorage extends PairingStorage {
@@ -99,6 +100,5 @@ void main() {
 
       cm.dispose();
     });
-
   });
 }

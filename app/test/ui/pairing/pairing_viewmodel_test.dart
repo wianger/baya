@@ -229,7 +229,6 @@ void main() {
         'type': 'pair_ok',
         'room_id': 'main',
         'session_started_at': 1,
-        'harness': {'name': 'Pi coding agent', 'version': '1'},
         'hostname': 'studio',
         'session_name': 'test session',
       });
@@ -323,7 +322,6 @@ void main() {
         'type': 'pair_ok',
         'room_id': 'main',
         'session_started_at': 1,
-        'harness': {'name': 'Pi coding agent', 'version': '1'},
         'hostname': 'studio',
         'session_name': 'test session',
       });

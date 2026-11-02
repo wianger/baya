@@ -23,7 +23,7 @@ if (identity == null) {
 ```
 
 `OwnerIdentity` serializes to exactly 64 bytes (`ownerPk || ownerSk`). This
-package does not generate keys, perform relay authentication, or manage paired
+package does not generate keys, perform host authentication, or manage paired
 computers.
 
 ## Android requirements

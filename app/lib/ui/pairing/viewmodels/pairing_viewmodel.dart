@@ -120,8 +120,7 @@ class PairingViewModel extends ViewModel<PairingState> {
   /// Persist a nickname on the just-paired peer. Called by the
   /// post-pair nickname modal — `null` or empty
   /// leaves the existing record unchanged, anything else is written
-  /// back through [PairingStorage.savePeer], whose mutation hook
-  /// republishes `mesh_versions` so other devices learn the label.
+  /// back through [PairingStorage.savePeer].
   ///
   /// The trimmed nickname is also reflected on the in-state peer so
   /// the post-frame navigation to /home shows the chosen label

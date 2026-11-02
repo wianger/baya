@@ -23,8 +23,8 @@ class ChatReady extends ChatState {
   final List<ChatMessage> messages;
   final StreamingMessage? streaming;
   final bool isOffline; // true → input disabled, banner visible
-  // True once the Mac signalled this device is no longer in peers.json
-  // (relay returned an `unknown_peer` error). Stays true until the user
+  // True once the computer signalled this device is no longer in
+  // peers.json (an `unknown_peer` error). Stays true until the user
   // re-pairs or revokes; suppresses input and surfaces a re-pair banner.
   final bool pairingRevoked;
   // Set when the Pi sent a `bye` (graceful disconnect). Stops retry,
@@ -32,15 +32,15 @@ class ChatReady extends ChatState {
   // raw wire reason (peer_stop / session_replaced / shutdown / …).
   final String? peerOfflineReason;
 
-  /// Live relay-reported presence of the active peer. When the peer is
+  /// Live presence of the active peer. When the peer is
   /// [PresenceOffline] the chat enters read-only mode (history visible,
-  /// input disabled). Defaults to [PresenceUnknown] until the relay
+  /// input disabled). Defaults to [PresenceUnknown] until the host
   /// reports.
   final PresenceState peerPresence;
 
   /// Whether the room this chat is viewing has an in-flight
   /// agent turn (drives the working pill + input-lock + stop button).
-  /// Part of the state identity so a relay `meta.working` flip (which is
+  /// Part of the state identity so a `working` flip (which is
   /// per-room, like Home) actually triggers a rebuild even when nothing
   /// else changed. See [ChatViewModel.isWorking].
   final bool isWorking;

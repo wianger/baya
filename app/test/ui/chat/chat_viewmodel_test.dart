@@ -80,6 +80,7 @@ const _peer = PeerRecord(
   sessionName: 'Pi',
   endpoint: 'ws://localhost',
   pairedAt: '2026-01-01T00:00:00Z',
+  roomId: 'main',
 );
 
 class _FakeStorage extends PairingStorage {
@@ -364,7 +365,7 @@ void main() {
     },
   );
 
-  test('working pill follows the relay per-room broadcast (same mechanism as '
+  test('working pill follows the host per-room broadcast (same mechanism as '
       'Home) and the flip rebuilds the state', () async {
     final ch = _FakeChannel();
     final storage = _FakeStorage();
@@ -395,7 +396,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(vm.isWorking, isFalse);
 
-    // The relay broadcasts meta.working=true for this room (turn_start) —
+    // The host broadcasts meta.working=true for this room (turn_start) —
     // no local send/echo, purely the per-room signal that also drives Home.
     ch.pushControl(
       const RoomMetaUpdated(peer: 'epk_chat', roomId: 'main', working: true),
@@ -404,7 +405,7 @@ void main() {
     expect(
       vm.isWorking,
       isTrue,
-      reason: 'relay per-room working drives the pill',
+      reason: 'host per-room working drives the pill',
     );
     expect(
       (vm.state as ChatReady).isWorking,
@@ -429,7 +430,7 @@ void main() {
     final sentCancel = ch.sent.whereType<Cancel>().last;
     expect(sentCancel.targetId, 'working');
 
-    // If the app sees agent_done but the relay's meta.working=false
+    // If the app sees agent_done but the host's meta.working=false
     // broadcast is delayed/missed, the active chat must not stay stuck on
     // the stop button. The local channel observation clears the room flag.
     ch.push(AgentDone(inReplyTo: 'u1'));

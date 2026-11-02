@@ -8,8 +8,6 @@ export interface PairingContext {
   roomId: string;
   sessionName: string;
   sessionStartedAt: number;
-  harnessName: string;
-  harnessVersion: string;
 }
 
 export class PairingService {
@@ -62,10 +60,6 @@ export class PairingService {
       session_name: context.sessionName,
       session_started_at: context.sessionStartedAt,
       room_id: context.roomId,
-      harness: {
-        name: context.harnessName,
-        version: context.harnessVersion,
-      },
       hostname: hostname(),
     };
     sender.send(reply);

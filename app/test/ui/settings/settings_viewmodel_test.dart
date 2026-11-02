@@ -96,6 +96,7 @@ PeerRecord _peerA() => const PeerRecord(
   sessionName: 'Pi A',
   endpoint: 'ws://localhost',
   pairedAt: '2026-01-01T00:00:00Z',
+  roomId: 'main',
 );
 
 void main() {

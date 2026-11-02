@@ -1,15 +1,14 @@
 // WebSocket-based PeerTransport.
 //
 // Flow per connection:
-//   1. Connect to relay WS
+//   1. Connect to the host's `…/direct` WebSocket
 //   2. Ed25519 challenge-response (hello → challenge → auth)
 //   3. After auth, two parallel streams of inbound frames:
 //        - envelope frames `{peer, ct}` → decoded to the peer queue
 //        - control frames (top-level `type`, no `peer`) → control stream
 //      Outbound `subscribe_presence` / `presence_check` go raw too.
 //
-// `peer` is standard base64 of the destination's Ed25519 pubkey (matches
-// the relay registry, populated from the peer's hello). `ct` is base64 of
+// `peer` is standard base64 of the destination's Ed25519 pubkey. `ct` is base64 of
 // the end-to-end encrypted inner frame (see e2e.dart).
 
 import 'dart:async';
@@ -40,7 +39,7 @@ class WsTransport implements PeerTransport, IControlLink {
 
   WsTransport._(this._ws);
 
-  // Connect, authenticate with relay, and return a ready transport.
+  // Connect, authenticate with the host, and return a ready transport.
   static Future<WsTransport> connect({
     required String endpoint,
     required String peerPubkey, // base64 standard or url — destination peer
@@ -52,7 +51,7 @@ class WsTransport implements PeerTransport, IControlLink {
     // and surfaces a dead WS as `onDone` / `onError` instead of
     // letting it silently linger until the next user action. The
     // protocol-level Ping/Pong handled by ConnectionManager covers
-    // app↔Pi liveness; this one covers app↔relay TCP liveness.
+    // agent liveness; this one covers the socket.
     // Accept http(s) URLs in the user-facing form but always speak
     // ws(s) on the wire — IOWebSocketChannel rejects http schemes.
     final WebSocketChannel ws = IOWebSocketChannel.connect(
@@ -66,11 +65,8 @@ class WsTransport implements PeerTransport, IControlLink {
 
     final sub = ws.stream.listen(
       (raw) {
-        // Volume probe: log every frame the relay pushes onto this
-        // socket so we can spot firehose patterns (e.g. presence
-        // churn, repeated room snapshots) by counting prefix
-        // occurrences — body kept compact so the log stays grep-able
-        // even when the relay is chatty.
+        // Volume probe: log every frame's size and kind so repeated
+        // pushes stand out in the log.
         final rawStr = raw is String ? raw : raw.toString();
         if (!authDone) {
           debugPrint('[ws-in] bytes=${rawStr.length} stage=preauth');
@@ -144,7 +140,7 @@ class WsTransport implements PeerTransport, IControlLink {
         peerPublic: base64.decode(transport._peerPubkey),
       );
 
-      // 1. Hello (standard base64 — matches relay registry format).
+      // 1. Hello (standard base64).
       // App is a client (no cwd) and always announces itself
       // on the canonical 'main' room. Pi-side hellos include their own
       // room_id (one per cwd) AND room_meta; that's not our concern here.
@@ -224,7 +220,7 @@ class WsTransport implements PeerTransport, IControlLink {
   void _receiveSealed(Uint8List bytes, String room) {
     _inbound = _inbound
         .then((_) async {
-          // Plaintext could have been written by the relay: never trust it.
+          // Plaintext could have been written by anyone in between: never trust it.
           if (!isSealed(bytes)) return;
           final opened = await open(
             _key,
@@ -322,8 +318,7 @@ Uint8List _b64Decode(String s) {
   }
 }
 
-// Relay registry uses standard base64 (from each peer's hello). QR/storage
-// may carry url-safe encoding — re-encode to standard so the relay matches.
+// The wire uses standard base64; QR/storage may carry url-safe encoding.
 String _normalizeToStandard(String pubkey) {
   try {
     final pad = (4 - pubkey.length % 4) % 4;

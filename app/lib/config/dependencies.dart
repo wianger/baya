@@ -175,7 +175,7 @@ Future<IChannel> _productionConnectionFactory(
 
   // Defensive timeout: without this the
   // WebSocket connect + Ed25519 challenge round-trip can hang
-  // indefinitely if the relay is unreachable — ChatViewModel would sit
+  // indefinitely if the computer is unreachable — ChatViewModel would sit
   // in `ChatConnecting` forever. Throwing here pushes the manager into
   // its retry/backoff path, which is observable as `StatusRetrying` and
   // renders a "reconnecting" banner rather than an empty spinner.

@@ -1,7 +1,7 @@
 # Baya Wire Protocol
 
-This document describes the protocol implemented by the standalone Baya host,
-the Baya Android client, and the compatible relay in this repository.
+This document describes the protocol between the standalone Baya host and the
+Baya Android client. Phones connect to each host directly over Tailscale.
 
 The host is independent of any agent: Pi, Codex and DeepSeek Harness run as
 ordinary child processes.
@@ -12,20 +12,30 @@ Each computer has one long-lived Ed25519 identity. The identity is stored in
 the operating-system keyring, with a protected file fallback for headless
 environments. Each mobile installation also has an Ed25519 Owner identity.
 
-All WebSocket connections authenticate with a challenge-response:
+### Reaching the host
+
+The host listens on loopback; `tailscale serve` publishes it at
+`https://<computer>.<tailnet>.ts.net/baya-pair/<label>`, where the label is
+`windows`, `wsl`, `linux` or `macos`, so two hosts can share one computer.
+Under that path:
+
+- `GET …/info` → `{"label","name","key"}` and `GET …/pair` → a pairing code,
+  only for callers whose `Tailscale-User-Login` is the computer's own account
+  (403 otherwise);
+- `…/direct` is the phone's WebSocket.
+
+The WebSocket authenticates the phone with a challenge-response:
 
 ```json
-{"type":"hello","pubkey":"base64-ed25519","room_id":"...","room_meta":{"name":"...","cwd":"..."}}
+{"type":"hello","pubkey":"base64-ed25519","room_id":"main"}
 {"type":"challenge","nonce":"base64-32-bytes"}
 {"type":"auth","sig":"base64-ed25519-signature"}
 ```
 
-The relay accepts routing traffic for a paired computer only from a saved peer
-key. Pairing requests are the only pre-pair message admitted to the host.
-
-The relay cannot route without valid Ed25519 authentication, and every routed
-message is end-to-end encrypted between the phone and the computer, so the
-relay can neither read nor forge application traffic.
+Only paired phone keys may read presence and rooms or reach a session;
+pairing requests are the only frames admitted from other keys. Every
+application frame is end-to-end encrypted between the phone and the computer,
+so `tailscale serve` or any proxy in between can neither read nor forge it.
 
 ### End-to-end encryption (v1)
 
@@ -42,8 +52,8 @@ aad   = "baya-e2e-v1|" + ("p2h" | "h2p") + "|" + computer room id
 ```
 
 The phone learns the computer key from the pairing QR, and the computer learns
-the phone key from the authenticated relay sender, so even `pair_request` is
-encrypted and the relay cannot substitute keys. The direction and room in the
+the phone key from the authenticated WebSocket, so even `pair_request` is
+encrypted and nothing in between can substitute keys. The direction and room in the
 AAD stop reflection to the sender and replay into another session. Receivers
 drop frames whose timestamp is more than five minutes off or whose nonce they
 have already seen; the computer answers a stale but authentic frame with
@@ -54,16 +64,14 @@ traffic. Rotating the computer identity and re-pairing replaces it.
 
 Plaintext frames are dropped on both sides. The shared test vector is `.orchestration/contracts/e2e_v1.json`.
 
-## Relay envelope
+## Envelope
 
-After authentication, routed application messages use one JSON object per
-WebSocket text frame:
+After authentication, application messages use one JSON object per WebSocket
+text frame. The phone addresses a session room; the host answers from it:
 
 ```json
-{
-  "peer": "destination-mobile-ed25519-public-key",
-  "ct": "base64-sealed-box"
-}
+{"peer":"computer-ed25519-public-key","room":"room-id","ct":"base64-sealed-box"}
+{"peer":"computer-ed25519-public-key","room":"room-id","to_room":"main","ct":"base64-sealed-box"}
 ```
 
 `ct` opens to one of the message types below. Unknown fields are ignored by
@@ -76,11 +84,11 @@ the current clients. Unknown message types receive an `error` or
 The CLI renders a QR code and a copyable URI:
 
 ```text
-baya://pair?t=<token>&epk=<computer-public-key>&n=<session-name>&rm=<room-id>&r=<relay-url>
+baya://pair?t=<token>&epk=<computer-public-key>&n=<session-name>&rm=<room-id>&e=<endpoint>
 ```
 
-`r` is the relay the computer uses; the phone adopts it when it scans, so the
-user never types a relay address.
+`e` is the host's `…/direct` address; the phone stores it with the pairing and
+connects there from then on. The same code is returned by `GET …/pair`.
 
 The mobile client sends:
 
@@ -98,7 +106,6 @@ the authenticated sender key. It replies:
   "session_name":"Baya",
   "session_started_at":1790000000000,
   "room_id":"room-id",
-  "harness":{"name":"Baya · pi","version":"2.0.0"},
   "hostname":"example"
 }
 ```
@@ -125,25 +132,34 @@ The host registry stores each logical session as:
 The room id is derived from the canonical `cwd` and a namespaced session key.
 Every session has an independent host room and child-agent process.
 
-### One socket, many rooms
+### Presence and rooms
 
-The host serves all of its rooms over one authenticated relay socket. The
-first room rides in `hello`; the others join and leave with control frames:
+On its connection the phone subscribes to the computer and asks for the
+current state:
 
 ```json
-{"type":"room_open","room_id":"room-b","room_meta":{"name":"...","cwd":"..."}}
-{"type":"room_opened","room_id":"room-b"}
-{"type":"room_close","room_id":"room-b"}
+{"type":"subscribe_presence","peers":["computer-key"]}
+{"type":"presence_check","peers":["computer-key"]}
+{"type":"subscribe_rooms","peers":["computer-key"]}
+{"type":"rooms_check","peers":["computer-key"]}
 ```
 
-Envelopes delivered to a socket carry `to_room` (the destination room), and a
-socket that owns several rooms names the sender room with `from_room`; the
-relay ignores a `from_room` the socket does not own. Older clients ignore
-`to_room`.
+The host answers `peer_online` / `presence`, a `rooms` snapshot, and then
+pushes changes:
 
-`sessions_inventory` returns the native session keys visible to the current
-adapter. A complete inventory allows the mobile client to remove stale cached
-rooms; incomplete scans must not delete history.
+```json
+{"type":"room_announced","peer":"computer-key","room_id":"room-id","agent":"pi","name":"Review","cwd":"/code/project","model":"gpt-5","working":false,"started_at":1790000000000}
+{"type":"room_meta_updated","peer":"computer-key","room_id":"room-id","meta":{"model":"gpt-5","working":true}}
+{"type":"room_ended","peer":"computer-key","room_id":"room-id","since_ts":1790000000000}
+```
+
+`room_meta_updated` always carries the room's full current `model`,
+`thinking` and `working`. A phone paired with several computers keeps one
+connection per computer; a computer whose connection drops is shown offline.
+
+`sessions_inventory` returns `room_ids`, the room of every session on the
+host. A complete inventory lets the phone remove cached rooms of sessions that
+no longer exist; incomplete scans must not delete history.
 
 ## Chat
 
@@ -196,8 +212,8 @@ fragments:
 ```
 
 All fragments share `in_reply_to`. Only the last has `eos: true`. The host
-batches around 1 MiB of JSON and rejects a single event larger than the relay's
-clean 4 MiB ceiling rather than sending an incomplete transcript.
+batches around 1 MiB of JSON and rejects a single event larger than 4 MiB
+rather than sending an incomplete transcript.
 
 History event types:
 

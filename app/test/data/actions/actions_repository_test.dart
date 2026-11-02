@@ -67,6 +67,7 @@ _setup({Duration timeout = const Duration(seconds: 5)}) async {
       sessionName: 'pi',
       endpoint: 'ws://localhost',
       pairedAt: '2026-01-01T00:00:00Z',
+      roomId: 'main',
     ),
   );
   // Let the StatusOnline emit propagate into the repo.
@@ -182,14 +183,14 @@ void main() {
         s.ch.push(
           SessionsInventoryReply(
             inReplyTo: sent.id,
-            sessionKeys: const {'session-a', 'session-b'},
+            roomIds: const {'session-a', 'session-b'},
             scannedAt: 1234,
             complete: true,
           ),
         );
 
         final inventory = await future;
-        expect(inventory.sessionKeys, {'session-a', 'session-b'});
+        expect(inventory.roomIds, {'session-a', 'session-b'});
         expect(inventory.scannedAt, 1234);
         s.cm.dispose();
       },

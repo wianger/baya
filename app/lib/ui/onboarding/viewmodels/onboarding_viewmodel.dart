@@ -2,8 +2,8 @@ import 'package:app/data/preferences/preferences.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/onboarding/states/onboarding_state.dart';
 
-/// Two-step onboarding: welcome, then scan the code `baya pair` prints. The
-/// QR carries the relay, so there is nothing to configure by hand.
+/// Two-step onboarding: welcome, then pair. The pairing code carries the
+/// computer's address, so there is nothing to configure by hand.
 class OnboardingViewModel extends ViewModel<OnboardingState> {
   final Preferences _prefs;
 

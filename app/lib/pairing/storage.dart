@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:app/data/transport/epk_encoding.dart';
-import 'package:app/protocol/protocol.dart' show PiHarness;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -9,12 +8,13 @@ const _kPeersService = 'dev.wianger.baya.peers';
 const _kRoomsService = 'dev.wianger.baya.rooms';
 
 /// Persisted snapshot of every room we have ever
-/// learned about for a peer (relay-announced via `room_announced` /
-/// `rooms` push). Allows Home to keep showing the same tiles after a
-/// cold start while the relay is still warming up + lets the user
+/// learned about for a peer (via `room_announced` / `rooms` pushes).
+/// Allows Home to keep showing the same tiles after a cold start before
+/// the host answers, and lets the user
 /// open a chat offline and read history.
 class PersistedRoom {
   final String roomId;
+  final String? agent;
   final String? name;
   final String? cwd;
   final int startedAt;
@@ -23,13 +23,14 @@ class PersistedRoom {
   /// in UI (long-press rename).
   final String? localName;
 
-  /// Last-known model the Pi-extension is running with.
+  /// Last-known model of the session.
   /// Persisted so the subtitle survives cold starts.
   final String? model;
 
   const PersistedRoom({
     required this.roomId,
     required this.startedAt,
+    this.agent,
     this.name,
     this.cwd,
     this.localName,
@@ -38,6 +39,7 @@ class PersistedRoom {
 
   Map<String, dynamic> toJson() => {
     'room_id': roomId,
+    'agent': agent,
     'name': name,
     'cwd': cwd,
     'started_at': startedAt,
@@ -47,6 +49,7 @@ class PersistedRoom {
 
   factory PersistedRoom.fromJson(Map<String, dynamic> j) => PersistedRoom(
     roomId: j['room_id'] as String,
+    agent: j['agent'] as String?,
     name: j['name'] as String?,
     cwd: j['cwd'] as String?,
     startedAt: (j['started_at'] as num).toInt(),
@@ -62,6 +65,7 @@ class PersistedRoom {
     Object? model = _unset,
   }) => PersistedRoom(
     roomId: roomId,
+    agent: agent,
     name: name ?? this.name,
     cwd: cwd ?? this.cwd,
     startedAt: startedAt ?? this.startedAt,
@@ -81,7 +85,7 @@ class PersistedRoom {
 const Object _unset = Object();
 
 class PeerRecord {
-  // base64 Ed25519 pubkey of the Pi — the only peer identifier post-rollback.
+  // base64 Ed25519 public key of the computer's host — its identity.
   final String remoteEpk;
   final String sessionName;
   final String endpoint;
@@ -91,25 +95,16 @@ class PeerRecord {
   final String? nickname;
 
   /// Room of the session this pairing addresses (from `pair_ok`, then the
-  /// last opened session). `null` only for records built by mesh sync before
-  /// a session is chosen.
-  final String? roomId;
-
-  /// Agent harness reported by the PC at pair time.
-  /// Surfaced as the "via Pi coding agent" subtitle on the PiCard.
-  /// `null` for PeerRecords saved before the field existed; consumers
-  /// fall back to [PiHarness.piCodingAgentUnknown] so the UI never
-  /// renders an empty subtitle.
-  final PiHarness? harness;
+  /// last opened session).
+  final String roomId;
 
   const PeerRecord({
     required this.remoteEpk,
     required this.sessionName,
     required this.endpoint,
     required this.pairedAt,
+    required this.roomId,
     this.nickname,
-    this.roomId,
-    this.harness,
   });
 
   Map<String, dynamic> toJson() => {
@@ -119,38 +114,29 @@ class PeerRecord {
     'paired_at': pairedAt,
     'nickname': nickname,
     'room_id': roomId,
-    if (harness != null) 'harness': harness!.toJson(),
   };
 
-  factory PeerRecord.fromJson(Map<String, dynamic> j) {
-    final harnessJson = j['harness'];
-    return PeerRecord(
-      remoteEpk: j['remote_epk'] as String,
-      sessionName: j['session_name'] as String,
-      endpoint: j['endpoint'] as String,
-      pairedAt: j['paired_at'] as String,
-      nickname: j['nickname'] as String?,
-      roomId: j['room_id'] as String?,
-      harness: harnessJson is Map<String, dynamic>
-          ? PiHarness.fromJson(harnessJson)
-          : null,
-    );
-  }
+  factory PeerRecord.fromJson(Map<String, dynamic> j) => PeerRecord(
+    remoteEpk: j['remote_epk'] as String,
+    sessionName: j['session_name'] as String,
+    endpoint: j['endpoint'] as String,
+    pairedAt: j['paired_at'] as String,
+    nickname: j['nickname'] as String?,
+    roomId: j['room_id'] as String,
+  );
 
   PeerRecord copyWith({
     String? sessionName,
     // Sentinel-typed so the caller can pass `nickname: null` to clear.
     Object? nickname = _unset,
-    Object? roomId = _unset,
-    Object? harness = _unset,
+    String? roomId,
   }) => PeerRecord(
     remoteEpk: remoteEpk,
     sessionName: sessionName ?? this.sessionName,
     endpoint: endpoint,
     pairedAt: pairedAt,
     nickname: identical(nickname, _unset) ? this.nickname : nickname as String?,
-    roomId: identical(roomId, _unset) ? this.roomId : roomId as String?,
-    harness: identical(harness, _unset) ? this.harness : harness as PiHarness?,
+    roomId: roomId ?? this.roomId,
   );
 
   @override
@@ -161,19 +147,11 @@ class PeerRecord {
       other.endpoint == endpoint &&
       other.pairedAt == pairedAt &&
       other.nickname == nickname &&
-      other.roomId == roomId &&
-      other.harness == harness;
+      other.roomId == roomId;
 
   @override
-  int get hashCode => Object.hash(
-    remoteEpk,
-    sessionName,
-    endpoint,
-    pairedAt,
-    nickname,
-    roomId,
-    harness,
-  );
+  int get hashCode =>
+      Object.hash(remoteEpk, sessionName, endpoint, pairedAt, nickname, roomId);
 }
 
 // ---------------------------------------------------------------------------

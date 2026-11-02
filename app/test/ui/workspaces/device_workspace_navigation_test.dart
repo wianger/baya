@@ -117,6 +117,7 @@ void main() {
         sessionName: label,
         endpoint: 'https://example.invalid',
         pairedAt: '2026-10-30',
+        roomId: 'main',
       );
       final laptop = peer(7, 'Laptop'), empty = peer(8, 'Empty device');
       final prefs = Preferences();
@@ -404,6 +405,7 @@ void main() {
       sessionName: 'PC',
       endpoint: 'https://example.invalid',
       pairedAt: '2026-10-30',
+      roomId: 'main',
     );
     final prefs = Preferences();
     await prefs.load();

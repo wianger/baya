@@ -44,16 +44,16 @@ class ModelsCatalogue {
 /// Complete persisted-session inventory for the active paired computer.
 class SessionInventorySnapshot {
   const SessionInventorySnapshot({
-    required this.sessionKeys,
+    required this.roomIds,
     required this.scannedAt,
   });
 
-  final Set<String> sessionKeys;
+  final Set<String> roomIds;
   final int scannedAt;
 }
 
-/// Snapshot of the active room's meta, as broadcast
-/// by the relay. Forwarded by [ActionsRepository.activeRoomMeta] so
+/// Snapshot of the active room's meta, as pushed by
+/// the host. Forwarded by [ActionsRepository.activeRoomMeta] so
 /// the QuickActions ViewModel can hydrate its current model / thinking
 /// without a round-trip.
 class ActiveRoomMeta {
@@ -69,11 +69,7 @@ class ActiveRoomMeta {
   /// `null` until the Pi publishes it (or while disconnected).
   final String? model;
 
-  /// Current thinking level from `meta.thinking`. Forward-compat — the
-  /// relay does not yet flatten this field, so until the relay update
-  /// ships this is always `null` in production. Kept on the API
-  /// surface so the app stack lights up the moment the relay catches
-  /// up, no further app changes required.
+  /// Current thinking level, `null` until the host reports one.
   final ThinkingLevel? thinking;
   const ActiveRoomMeta({
     this.peerEpk,
@@ -212,7 +208,7 @@ class ActionsRepository extends Repository implements IActionsRepository {
         }
       case SessionsInventoryReply(
         :final inReplyTo,
-        :final sessionKeys,
+        :final roomIds,
         :final scannedAt,
         :final complete,
       ):
@@ -229,10 +225,7 @@ class ActionsRepository extends Repository implements IActionsRepository {
         }
         if (!p.completer.isCompleted) {
           p.completer.complete(
-            SessionInventorySnapshot(
-              sessionKeys: sessionKeys,
-              scannedAt: scannedAt,
-            ),
+            SessionInventorySnapshot(roomIds: roomIds, scannedAt: scannedAt),
           );
         }
       default:

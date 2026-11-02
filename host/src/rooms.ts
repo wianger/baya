@@ -19,8 +19,3 @@ export function roomIdFor(cwd: string, sessionKey: string): string {
     .digest("base64url")
     .slice(0, 12);
 }
-
-/** Short stable key the phone compares against its cached sessions. */
-export function sessionKeyForId(sessionId: string): string {
-  return createHash("sha256").update(sessionId).digest("base64url").slice(0, 16);
-}

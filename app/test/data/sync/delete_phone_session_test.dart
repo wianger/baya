@@ -48,12 +48,12 @@ void main() {
       isSessionHidden: prefs.isSessionHidden,
     );
     final home = HomeViewModel(storage, prefs, conn, sync);
-    await sync.activate(peer.remoteEpk, peer.roomId!);
+    await sync.activate(peer.remoteEpk, peer.roomId);
     channel.control.add(
       RoomAnnounced(
         peer: peer.remoteEpk,
         room: RoomInfo(
-          roomId: peer.roomId!,
+          roomId: peer.roomId,
           name: 'Task',
           cwd: '/code/project',
           startedAt: 1,
@@ -62,7 +62,7 @@ void main() {
     );
     await Future<void>.delayed(const Duration(milliseconds: 30));
     await sync.sendMessage('cached conversation');
-    final box = await boxes.msgsBox(peer.remoteEpk, peer.roomId!);
+    final box = await boxes.msgsBox(peer.remoteEpk, peer.roomId);
     expect(box.isNotEmpty, isTrue);
     final sentBeforeDelete = channel.sent.length;
     final deletedSession = home.allItems.single;
@@ -81,7 +81,7 @@ void main() {
       RoomAnnounced(
         peer: peer.remoteEpk,
         room: RoomInfo(
-          roomId: peer.roomId!,
+          roomId: peer.roomId,
           name: 'Task',
           cwd: '/code/project',
           startedAt: 1,
@@ -98,7 +98,7 @@ void main() {
     );
     final restoredPrefs = Preferences();
     await restoredPrefs.load();
-    expect(restoredPrefs.isSessionHidden(peer.remoteEpk, peer.roomId!), isTrue);
+    expect(restoredPrefs.isSessionHidden(peer.remoteEpk, peer.roomId), isTrue);
     expect(restoredPrefs.isCustomWorkspace(workspace), isFalse);
     final homeAfterRestart = HomeViewModel(storage, restoredPrefs, conn);
     final syncAfterRestart = SyncService(
@@ -110,7 +110,7 @@ void main() {
     expect(homeAfterRestart.allItems, isEmpty);
     expect(homeAfterRestart.workspaces[workspace], 'No sessions yet');
     expect(box.isEmpty, isTrue);
-    await restoredPrefs.restoreSession(peer.remoteEpk, peer.roomId!);
+    await restoredPrefs.restoreSession(peer.remoteEpk, peer.roomId);
     expect(
       homeAfterRestart.allItems,
       hasLength(1),

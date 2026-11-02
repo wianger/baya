@@ -206,6 +206,7 @@ void main() {
           sessionName: 'pi',
           endpoint: 'https://r',
           pairedAt: '2026-05-15T10:30:00Z',
+          roomId: 'main',
         ),
       );
       final bridge = OwnerIdentityBridge(store, storage);
@@ -242,6 +243,7 @@ void main() {
           sessionName: 'pi',
           endpoint: 'https://r',
           pairedAt: '2026-05-15T10:30:00Z',
+          roomId: 'main',
         ),
       );
       final bridge = OwnerIdentityBridge(store, storage);
@@ -284,6 +286,7 @@ void main() {
             sessionName: 'pi',
             endpoint: 'https://r',
             pairedAt: '2026-05-15T10:30:00Z',
+            roomId: 'main',
           ),
         );
         final bridge = OwnerIdentityBridge(store, storage);

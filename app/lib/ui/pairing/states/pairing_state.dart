@@ -23,11 +23,8 @@ class PairingConnecting extends PairingState {
 /// Pi confirmed; channel adopted. UI navigates straight to chat
 /// after the post-pair nickname modal is dismissed.
 ///
-/// [hostnameHint] is what the pi-extension reported
-/// as its OS hostname in `pair_ok.hostname`. The post-pair nickname
-/// modal pre-fills its input with it (e.g. "Mac do Jacob") instead
-/// of the generic "Pi" placeholder. `null` on legacy Pis that
-/// haven't been upgraded yet.
+/// [hostnameHint] is the computer's hostname from `pair_ok.hostname`; the
+/// post-pair nickname modal pre-fills its input with it.
 class PairingPaired extends PairingState {
   final PeerRecord peer;
   final String? hostnameHint;

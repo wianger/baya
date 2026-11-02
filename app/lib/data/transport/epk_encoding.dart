@@ -1,18 +1,17 @@
 // Single point of truth for the epk wire-format coercion.
 //
 //   - QR payload + PairingStorage use base64url (RFC 4648 §5; `-_` chars).
-//   - Relay's registry / hello / `peer` envelope field use base64 standard
+//   - The wire (hello / `peer` envelope field) uses base64 standard
 //     (RFC 4648 §4; `+/` chars, `=` padding).
 //
-// Until storage moves to standard base64, every
-// transport-bound epk goes through [toStandardB64]; every inbound
-// relay-reported epk goes through [toAppEpk] so it matches the key
+// Every transport-bound epk goes through [toStandardB64]; every inbound
+// epk goes through [toAppEpk] so it matches the key
 // `PairingStorage` already uses.
 
 import 'dart:convert';
 
 /// Convert an epk (possibly base64url from QR/storage) to base64 standard
-/// for wire frames the relay reads. Idempotent — already-standard epks
+/// for wire frames. Idempotent — already-standard epks
 /// pass through unchanged. Unparseable input returned as-is so we never
 /// silently drop a bad-looking peer id.
 String toStandardB64(String b64) {
@@ -28,7 +27,7 @@ String toStandardB64(String b64) {
   }
 }
 
-/// Convert an epk reported by the relay (standard base64) back to the
+/// Convert an epk from the wire (standard base64) back to the
 /// format the app's stores use internally. Today that's base64url so the
 /// key matches `PairingStorage`/`PeerRecord.remoteEpk`. Idempotent.
 String toAppEpk(String b64) {

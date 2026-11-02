@@ -734,7 +734,7 @@ void main() {
     );
 
     // The previous session's DURABLE index must stay "working" — the Pi
-    // may still be mid-turn and Home reflects it (relay broadcast + DB).
+    // may still be mid-turn and Home reflects it (host update + DB).
     // Clearing the in-memory signals must NOT idle the box row.
     expect(
       index(s.epk)?.status,
@@ -868,7 +868,7 @@ void main() {
   );
 
   test('re-applying an IDENTICAL SessionHistory is idempotent — no box churn, '
-      'so the relay re-sending history on every reconnect no longer tears the '
+      'so the host re-sending history on every reconnect no longer tears the '
       'list down and rebuilds it', () async {
     final s = await setup();
     final read = SessionReadRepository(LocalBoxes());
@@ -897,7 +897,7 @@ void main() {
       MsgRole.tool,
     ]);
 
-    // Relay re-delivers the SAME history (different in_reply_to, identical
+    // The host re-delivers the SAME history (different in_reply_to, identical
     // events) — the reconcile must write nothing → no watch event → no emit.
     s.ch.push(hist('sync2'));
     await _settle();
@@ -1035,7 +1035,7 @@ void main() {
   );
 
   test(
-    'relay working=false clears stale active-chat local working state',
+    'host working=false clears stale active-chat local working state',
     () async {
       final s = await setup();
       s.ch.push(UserInput(id: 'u1', text: 'hi'));

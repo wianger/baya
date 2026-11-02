@@ -27,7 +27,6 @@ app/android/app/build/
 app/packages/**/.dart_tool/
 
 # Rust
-relay/target/
 
 # Tooling and operating-system files
 .idea/

@@ -6,8 +6,8 @@ sealed class SessionEvent {
   const SessionEvent();
 }
 
-/// The Mac dropped this device from its `peers.json` — the chat is dead and
-/// the user must re-pair (relay returned an `unknown_peer` error).
+/// The computer dropped this device from its `peers.json` — the chat is dead
+/// and the user must re-pair (the host returned an `unknown_peer` error).
 class PairingRevoked extends SessionEvent {
   const PairingRevoked();
 }

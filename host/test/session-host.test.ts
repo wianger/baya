@@ -1,23 +1,18 @@
 import { describe, expect, test } from "vitest";
-import { sessionInventoryResponse } from "../src/host/session_host.ts";
-import { sessionKeyForId } from "../src/rooms.ts";
+import { roomIdForBayaSession, sessionInventoryResponse } from "../src/host/session_host.ts";
 
 describe("managed host session inventory", () => {
-  test("returns every registered Baya session as one complete snapshot", () => {
-    const response = sessionInventoryResponse(
-      "inventory-request",
-      [{ id: "session-a" }, { id: "session-b" }],
-      42,
-    );
-
-    expect(response).toEqual({
+  test("returns the room of every registered Baya session", () => {
+    const sessions = [
+      { id: "session-a", cwd: "/code/a", agent: "pi" as const },
+      { id: "session-b", cwd: "/code/b", agent: "codex" as const },
+    ];
+    expect(sessionInventoryResponse("inventory-request", sessions, 42)).toEqual({
       type: "sessions_inventory",
       in_reply_to: "inventory-request",
-      session_keys: [sessionKeyForId("session-a"), sessionKeyForId("session-b")],
+      room_ids: sessions.map(roomIdForBayaSession),
       scanned_at: 42,
       complete: true,
     });
-    expect(response.session_keys).toHaveLength(2);
-    expect(response.session_keys[0]).toMatch(/^[A-Za-z0-9_-]{16}$/);
   });
 });

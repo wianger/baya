@@ -75,18 +75,18 @@ void main() {
       final prefs = Preferences();
       final repo = WorkspaceRepository(conn, storage, prefs);
       conn.adopt(channelA, a);
-      conn.switchRoom(a.roomId!);
+      conn.switchRoom(a.roomId);
       channelA.control.add(
         RoomAnnounced(
           peer: b.remoteEpk,
-          room: RoomInfo(roomId: b.roomId!, startedAt: 1),
+          room: RoomInfo(roomId: b.roomId, startedAt: 1),
         ),
       );
       await Future<void>.delayed(Duration.zero);
       final browse = repo.browse(b.remoteEpk);
       final rejected = expectLater(browse, throwsA(isA<WorkspaceFailure>()));
       await bStarted.future;
-      final restore = repo.restore(WorkspaceSelection(a.remoteEpk, a.roomId!));
+      final restore = repo.restore(WorkspaceSelection(a.remoteEpk, a.roomId));
       bConnected.complete(channelB);
       await Future.wait([restore, rejected]);
       expect(conn.activePeer!.remoteEpk, a.remoteEpk);
@@ -149,17 +149,17 @@ void main() {
     final prefs = Preferences();
     final repo = WorkspaceRepository(conn, storage, prefs);
     conn.adopt(channelA, a);
-    conn.switchRoom(a.roomId!);
+    conn.switchRoom(a.roomId);
     channelA.control.add(
       RoomAnnounced(
         peer: a.remoteEpk,
-        room: RoomInfo(roomId: a.roomId!, startedAt: 1),
+        room: RoomInfo(roomId: a.roomId, startedAt: 1),
       ),
     );
     channelA.control.add(
       RoomAnnounced(
         peer: b.remoteEpk,
-        room: RoomInfo(roomId: b.roomId!, startedAt: 1),
+        room: RoomInfo(roomId: b.roomId, startedAt: 1),
       ),
     );
     await Future<void>.delayed(Duration.zero);

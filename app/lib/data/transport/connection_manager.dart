@@ -1,4 +1,4 @@
-// ConnectionManager — lifecycle of the relay connection.
+// ConnectionManager — lifecycle of the connections to paired computers.
 //
 // State machine:
 //
@@ -17,13 +17,11 @@
 //
 // Invariants that keep the loop from spinning while offline:
 //
-//  A) `_channelSub` is stored and cancelled on every transition. The old
-//     channel's `onDone` (triggered by the relay killing it on duplicate
-//     auth) can no longer leak into a retry storm.
-//  B) `_retryAttempt` is no longer reset on factory success — only when
-//     the channel listener receives real inbound traffic. With the Pi down
-//     the WS keeps re-authenticating against the relay; without this fix
-//     the backoff stayed pinned at 1s.
+//  A) `_channelSub` is stored and cancelled on every transition, so an old
+//     channel's `onDone` cannot leak into a retry storm.
+//  B) `_retryAttempt` resets only when the channel receives real inbound
+//     traffic, not when a socket merely opens, so a host that accepts and
+//     then drops connections still backs off.
 //  C) `_startPing` increments `_missedPings` per tick before sending the
 //     ping. Inbound (`_watchChannel` listener) is the only path that
 //     zeroes it; with the Pi offline two ticks elapse and we transition
@@ -96,9 +94,8 @@ class CancelToken {
   void cancel() => _cancelled = true;
 }
 
-/// A status-only connection to an address other than the active one: a
-/// directly paired computer, or the relay while a direct computer is active.
-/// It carries presence and room updates for the computers behind it.
+/// A status-only connection to a computer other than the active one. It
+/// carries presence and room updates for the computers at its endpoint.
 class _Watcher {
   _Watcher(this.via);
   PeerRecord via;
@@ -134,7 +131,7 @@ class ConnectionManager extends Service {
   // presence map). Each value is the canonical room list for that peer.
   // `_roomsByPeer` is the CANONICAL set (cached +
   // currently announced). `_liveRoomIds` tracks which roomIds are
-  // alive RIGHT NOW (in the relay snapshot). Rooms in `_roomsByPeer`
+  // alive RIGHT NOW (in the host's last push). Rooms in `_roomsByPeer`
   // but not in `_liveRoomIds` are "offline" (last-seen state).
   final Map<String, List<RoomInfo>> _roomsByPeer = <String, List<RoomInfo>>{};
   final Map<String, Set<String>> _liveRoomIds = <String, Set<String>>{};
@@ -166,10 +163,8 @@ class ConnectionManager extends Service {
   // whether a connect is in flight (without poking at the live token).
   bool _connectInFlight = false;
 
-  // Debounce timers — relay's control-frame firehose (peer_online +
-  // presence + rooms snapshots, often dozens per second when multiple
-  // devices reconnect) is filtered upstream by the dedup in
-  // [_onControl], but legitimate changes still arrive in tight bursts
+  // Debounce timers — control frames are deduplicated in [_onControl],
+  // but legitimate changes still arrive in tight bursts
   // (e.g. cwd switch publishes a new RoomAnnounced + RoomsSnapshot
   // back-to-back). Coalesce those into a single emit per window so
   // downstream listeners (HomeViewModel → Flutter widget rebuilds)
@@ -294,8 +289,7 @@ class ConnectionManager extends Service {
   }
 
   void _propagateActiveRoom(String roomId, IChannel link) {
-    // Sends a synthetic control frame ourselves NOT to the relay — we
-    // just need a hook into the transport. PlainPeerChannel exposes
+    // A hook into the transport, not a frame. PlainPeerChannel exposes
     // `setActiveRoom` via a hidden interface; for typing simplicity we
     // try the dynamic call. If the transport doesn't support it, we
     // silently skip and the default 'main' room is used.
@@ -306,28 +300,14 @@ class ConnectionManager extends Service {
     }
   }
 
-  /// Subscribe (or re-subscribe) the relay to push presence AND room
-  /// updates for [epks] (`peer_online` / `peer_offline` and
-  /// `room_announced` / `room_ended` / `rooms` snapshot). Idempotent.
-  /// Stored so the subscription is replayed automatically on
-  /// reconnect via [_replaySubscriptions].
+  /// Subscribe (or re-subscribe) to presence AND room updates for [epks]
+  /// (`peer_online` / `peer_offline` and `room_announced` / `room_ended` /
+  /// `rooms`), on the active connection and the watchers. Idempotent;
+  /// replayed on reconnect via [_replaySubscriptions].
   ///
-  /// Both subscriptions are sent together — historically this method
-  /// only emitted `subscribe_presence`, which left a hole after the
-  /// first pairing: `adopt()` runs before [_BootState] has had a
-  /// chance to call this with the new peer, so `_subscribedEpks` is
-  /// empty and `_replaySubscriptions` short-circuits. Home then
-  /// subscribed (here) for presence only — never asking the relay to
-  /// push rooms — and the first session tile only appeared after the
-  /// next cold start (when boot() runs the full subscribe + connect
-  /// path). Keeping presence/rooms in lockstep here closes that hole.
-  ///
-  /// IMPORTANT: every epk on the wire is base64 STANDARD — the relay's
-  /// registry is keyed by what comes in `hello.pubkey` (always standard).
-  /// Callers may pass url-safe (PairingStorage default) and we normalise
-  /// once here. The internal cache (`_subscribedEpks`, `_presence` keys)
-  /// is also kept in standard form so lookups don't have to coerce again.
-  /// See `epk_encoding.dart` for the recurring-bug history.
+  /// Every epk on the wire is base64 STANDARD. Callers may pass url-safe
+  /// (PairingStorage default); we normalise once here, and the internal
+  /// cache (`_subscribedEpks`, `_presence` keys) stays standard too.
   void subscribeToPeers(List<String> epks) {
     final standard = epks.map(toStandardB64).toList();
     _subscribedEpks = standard;
@@ -518,10 +498,9 @@ class ConnectionManager extends Service {
   /// retrying). In that case we still re-subscribe presence with the
   /// full peer list, since the storage may have changed.
   Future<void> boot({String? preferredEpk}) async {
-    // Restore cached rooms from disk FIRST so
-    // Home tiles render with last-known state even before the relay
-    // pushes a fresh snapshot. Idempotent so reentrant boots are
-    // harmless.
+    // Restore cached rooms from disk FIRST so Home tiles render with
+    // last-known state before the host pushes a fresh snapshot.
+    // Idempotent so reentrant boots are harmless.
     await _restoreCachedRooms();
     if (_activePeer != null) {
       final peers = await _storage.listPeers();
@@ -534,15 +513,7 @@ class ConnectionManager extends Service {
       _emit(const StatusNoPeer());
       return;
     }
-    // IMPORTANT: route through `subscribeToPeers` so the epks land in
-    // `_subscribedEpks` already normalised to standard base64. Direct
-    // assignment used to leave url-safe values here, and the
-    // `_replaySubscriptions` call inside `_connect` would then send
-    // `subscribe_presence` with the wrong encoding — relay indexes its
-    // PresenceManager by standard (from `hello.pubkey`), would not
-    // match, and Home dots stayed cinza intermittently (race with
-    // `HomeViewModel._load` which DOES normalise). The WS isn't online
-    // yet here, so subscribeToPeers will just store + defer; the actual
+    // Through `subscribeToPeers` so the epks are stored normalised; the
     // frames go out via `_replaySubscriptions` once `_connect` succeeds.
     subscribeToPeers(peers.map((p) => p.remoteEpk).toList());
     PeerRecord target;
@@ -596,7 +567,7 @@ class ConnectionManager extends Service {
     }
     _retryAttempt = 0;
     _missedPings = 0;
-    _activeRoomId = peer.roomId ?? 'main';
+    _activeRoomId = peer.roomId;
     _activePeer = peer;
     _emit(StatusOnline(channel));
     _startPing(peer, channel);
@@ -674,13 +645,8 @@ class ConnectionManager extends Service {
     final token = CancelToken();
     _connectCancel = token;
     _connectInFlight = true;
-    // Set the destination room from the persisted
-    // PeerRecord BEFORE emitting StatusOnline so the very first send
-    // after connect goes to the right (peer, room) on the relay. If
-    // the PeerRecord predates this fix (`roomId == null`), we keep
-    // `_activeRoomId = 'main'` and rely on the discovery flow in
-    // `_onControl` to learn the real room from a subsequent
-    // `room_announced` push and then update _activeRoomId + persist.
+    // Set the destination room from the persisted PeerRecord BEFORE
+    // emitting StatusOnline so the very first send goes to the right room.
     //
     // Same-peer reconnect (WS retry after backgrounding): the `peer`
     // argument is often a stale capture from `_watchChannel` while
@@ -688,11 +654,11 @@ class ConnectionManager extends Service {
     // is viewing. Trust the live selection — never clobber it from a
     // lagging peer.roomId (fixes header=cwd-A, messages/sync=cwd-B).
     final samePeer = _activePeer?.remoteEpk == peer.remoteEpk;
-    if (samePeer && _activePeer?.roomId != null) {
+    if (samePeer) {
       _activePeer = peer.copyWith(roomId: _activeRoomId);
     } else {
       _activePeer = peer;
-      final boundRoom = peer.roomId ?? 'main';
+      final boundRoom = peer.roomId;
       if (boundRoom != _activeRoomId) {
         _activeRoomId = boundRoom;
       }
@@ -774,20 +740,13 @@ class ConnectionManager extends Service {
   }
 
   void _onControl(ControlInbound c) {
-    // Relay-reported epks are base64 STANDARD (they came in from the
-    // remote peer's `hello.pubkey`). Normalise once on insert so the map
-    // is always keyed in the same canonical form regardless of what we
-    // received on the wire — and so consumer-side lookups via
+    // Epks are normalised to standard base64 on insert so lookups via
     // `presenceFor` (which coerces) round-trip.
     //
-    // Dedup contract: relay re-pushes `peer_online`, `presence`, and
-    // `rooms` aggressively (every reconnect of every device, every
-    // pi-extension restart, periodically as keep-alive). Without
-    // de-duplication every push fires `_presenceController` /
-    // `_roomsController`, which propagates to `HomeViewModel`, which
-    // rebuilds the whole list, which keeps the CPU busy and the
-    // device hot. Each case below only flips its `*Dirty` flag if
-    // the incoming payload actually changes our cached view.
+    // Dedup: the host repeats `peer_online`, `presence` and `rooms` on
+    // every (re)subscribe. Each case below only flips its `*Dirty` flag if
+    // the payload changes our cached view, so Home does not rebuild for
+    // nothing.
     var presenceDirty = false;
     var roomsDirty = false;
     switch (c) {
@@ -968,17 +927,12 @@ class ConnectionManager extends Service {
   );
 
   /// Returns `true` if `roomId` is currently announced live for the
-  /// peer (the relay's last `room_announced` / `rooms` push included
-  /// it). Cached rooms not in the live set return `false`. Used by
-  /// the chat AppBar to render the online dot.
+  /// peer (the host's last `room_announced` / `rooms` push included it).
+  /// Cached rooms not in the live set return `false`.
   ///
-  /// Gated by `_status is StatusOnline`. When the
-  /// WS to the relay drops (retrying / offline), we have no fresh
-  /// signal that any room is reachable, so EVERY room is reported
-  /// offline regardless of the cached `_liveRoomIds`. Home tiles +
-  /// chat AppBar flip to grey immediately. On reconnect, the relay
-  /// re-pushes the rooms snapshot which repopulates the live set
-  /// and tiles go green again.
+  /// Gated on the connection that carries this peer: while it is down we
+  /// have no fresh signal, so every room behind it reports offline. On
+  /// reconnect the host pushes its rooms again and the live set refills.
   bool isRoomLive(String epk, String roomId) {
     final key = toStandardB64(epk);
     if (!_reachable(key)) return false;
@@ -986,17 +940,11 @@ class ConnectionManager extends Service {
     return live != null && live.contains(roomId);
   }
 
-  /// `true` when the relay's last room-meta broadcast for
-  /// `(epk, roomId)` carried `working: true` (an in-flight agent turn).
-  /// Unlike the DB session-index signal (which only covers the single
-  /// connected room), this reflects EVERY subscribed room because the
-  /// relay broadcasts `meta.working` to all room subscribers — the same
-  /// fan-out as presence. Drives the blue Home dot on non-active
-  /// sessions.
+  /// `true` when the host's last room update for `(epk, roomId)` carried
+  /// `working: true` (an in-flight agent turn). The host pushes it for
+  /// every room, so it drives the Home dot on non-active sessions too.
   ///
-  /// Gated on `StatusOnline` (same as [isRoomLive]): a dropped WS means
-  /// we have no fresh signal, so we report not-working and let the tile
-  /// fall back to the amber "reconnecting" / grey state.
+  /// Gated like [isRoomLive]: without a connection we report not-working.
   bool isRoomWorking(String epk, String roomId) {
     final key = toStandardB64(epk);
     if (!_reachable(key)) return false;
@@ -1010,7 +958,7 @@ class ConnectionManager extends Service {
 
   /// App-side correction for the connected room's working flag.
   ///
-  /// The relay remains the source for non-active rooms, but the active channel
+  /// The host's room updates remain the source for other rooms, but the active channel
   /// also sees the actual `user_input` / `agent_done` frames. Use that local
   /// observation as a backstop so a missed or delayed `meta.working=false`
   /// broadcast cannot leave the active chat/Home tile stuck as working.
@@ -1026,9 +974,8 @@ class ConnectionManager extends Service {
     _persistRoomsForPeer(key);
   }
 
-  /// Hydrate `_roomsByPeer` from disk on boot so
-  /// Home tiles persist across cold starts even before the relay
-  /// pushes a fresh snapshot. Idempotent.
+  /// Hydrate `_roomsByPeer` from disk on boot so Home tiles persist across
+  /// cold starts before the host pushes a fresh snapshot. Idempotent.
   Future<void> _restoreCachedRooms() async {
     if (_roomsRestored) return;
     _roomsRestored = true;
@@ -1041,6 +988,7 @@ class ConnectionManager extends Service {
           .map(
             (c) => RoomInfo(
               roomId: c.roomId,
+              agent: c.agent,
               name: c.localName ?? c.name,
               cwd: c.cwd,
               startedAt: c.startedAt,
@@ -1049,7 +997,7 @@ class ConnectionManager extends Service {
           )
           .toList();
       // Note: nothing in _liveRoomIds yet — those rooms are "offline"
-      // until the relay announces them again.
+      // until the host announces them again.
     }
     if (!_roomsController.isClosed) {
       _roomsController.add(_roomsSnapshot());
@@ -1080,6 +1028,7 @@ class ConnectionManager extends Service {
         .map(
           (r) => PersistedRoom(
             roomId: r.roomId,
+            agent: r.agent,
             name: r.name,
             cwd: r.cwd,
             startedAt: r.startedAt,
@@ -1136,12 +1085,8 @@ class ConnectionManager extends Service {
     }
   }
 
-  /// On (re)connect, re-send the last subscribe_presence so the relay
-  /// pushes updates again for our current peer list. Also
-  /// subscribe to rooms for the same peer set — the relay pushes
-  /// `room_announced` / `room_ended` / `rooms` (snapshot) the same way
-  /// presence does. Single subscription covers all per-cwd sessions on
-  /// every paired Mac.
+  /// On (re)connect, re-send the presence and room subscriptions for the
+  /// computers this connection carries.
   void _replaySubscriptions() {
     if (_subscribedEpks.isEmpty) return;
     final link = _controlLink;
@@ -1167,10 +1112,7 @@ class ConnectionManager extends Service {
     if (_status is! StatusOnline) return;
     final cur = (_status as StatusOnline).channel;
     if (!identical(cur, ch)) {
-      // Stale: this onDone came from a channel we already replaced. The
-      // relay typically kicks the previous WS when our retry authenticates
-      // again — that close would otherwise trigger an immediate
-      // self-sustaining retry loop.
+      // Stale: this onDone came from a channel we already replaced.
       return;
     }
     _cancelPing();
@@ -1193,25 +1135,12 @@ class ConnectionManager extends Service {
   void _startPing(PeerRecord peer, IChannel ch) {
     _pingTimer = Timer.periodic(const Duration(seconds: 25), (_) async {
       if (_status is! StatusOnline) return;
-      // DECOUPLED Pi-liveness from WS-liveness.
-      //
-      // Before: 3 missed Pongs from the Pi triggered `_onChannelLost`,
-      // which tore down the WS to the relay. The relay only frees
-      // the slot when its own `sink.send` returns an error (which
-      // can take MINUTES on certain network failures — half-open
-      // TCP), so every reconnect attempt during that window hit
-      // `room_already_open` and the app sat permanently offline.
-      // [ORCH:19-heartbeat-investigate] reported this.
-      //
-      // After: the WS↔relay keep-alive is now exclusively handled
-      // by RFC 6455 Ping/Pong (IOWebSocketChannel.pingInterval).
-      // Protocol Ping/Pong here is a Pi-LIVENESS probe — when it
-      // fails, we mark the active room as offline locally so Home /
-      // chat reflect it; the WS stays online for presence updates
-      // and other rooms. A real WS failure surfaces via the catch
-      // below (ping SEND fails) or via the channel listener's
-      // onError / onDone, both of which still trigger
-      // `_onChannelLost`.
+      // Agent liveness, not socket liveness: the socket is kept alive by
+      // WebSocket ping frames (IOWebSocketChannel.pingInterval). Missed
+      // protocol Pongs mark the active room offline locally; the socket
+      // stays up for presence and other rooms. A real socket failure
+      // surfaces via the catch below or the channel listener's
+      // onError / onDone, both of which trigger `_onChannelLost`.
       _missedPings++;
       if (_missedPings == 3) {
         _markActiveRoomOffline();
@@ -1231,9 +1160,8 @@ class ConnectionManager extends Service {
     });
   }
 
-  /// When the Pi stops responding to protocol
-  /// Pings, mark its current cwd-room as offline locally so the UI
-  /// reflects the degraded state. The WS↔relay stays up.
+  /// When the agent stops answering protocol Pings, mark its room offline
+  /// locally so the UI reflects it. The socket stays up.
   void _markActiveRoomOffline() {
     final activeEpk = _activePeer?.remoteEpk;
     if (activeEpk == null) return;
@@ -1263,7 +1191,7 @@ class ConnectionManager extends Service {
     // StatusOnline, every room's "live" answer changes too (see
     // `isRoomLive` gate). Re-emit the rooms snapshot so subscribers
     // (Home, Chat AppBar) re-evaluate dot color immediately, without
-    // waiting for the relay's next push.
+    // waiting for the host's next push.
     final wasOnline = _status is StatusOnline;
     final nowOnline = s is StatusOnline;
     _status = s;

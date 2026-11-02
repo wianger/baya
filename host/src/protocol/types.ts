@@ -290,8 +290,6 @@ export type ServerMessage =
       session_name: string;
       session_started_at: number;
       room_id: string;
-      /** The agent driving this session and its version. */
-      harness: { name: string; version: string };
       /** `os.hostname()` of this computer, the default name in the app. */
       hostname: string;
     }
@@ -368,8 +366,8 @@ export type ServerMessage =
   | {
       type: "sessions_inventory";
       in_reply_to: string;
-      /** Stable 16-char hash embedded in every session-bound room id. */
-      session_keys: string[];
+      /** The room of every session on this host. */
+      room_ids: string[];
       /** Epoch-ms boundary: rooms started after this scan are not pruned. */
       scanned_at: number;
       /** Present and true only after a complete successful scan. */

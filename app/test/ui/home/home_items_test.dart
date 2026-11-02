@@ -11,12 +11,13 @@ PeerRecord _peer(String epk, {String name = 'Pi'}) => PeerRecord(
   sessionName: name,
   endpoint: 'ws://x',
   pairedAt: '2026-01-01T00:00:00Z',
+  roomId: 'main',
 );
 
 void main() {
   group('HomeList.items()', () {
     test('peer without announced rooms produces ZERO items — Home only '
-        'shows what is currently live on the relay (no ghost "main" tile)', () {
+        'shows what is currently live on the host (no ghost "main" tile)', () {
       final list = HomeList(peers: [_peer('A')]);
       final items = list.items();
       expect(items, isEmpty);

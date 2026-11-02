@@ -139,7 +139,7 @@ class ChatPage extends StatelessWidget {
         ? prefs.sessionName(peer.remoteEpk, room.roomId)
         : null;
     final displayName = localName ?? roomName;
-    final title = workspaceSessionTitle(displayName);
+    final title = displayName;
     final device = _peerDisplayName(peer, initialDevice);
     final statusColor = working
         ? colors.working
@@ -504,7 +504,7 @@ class ChatPage extends StatelessWidget {
     final isOffline = isReady && state.isOffline;
     final isRevoked = isReady && state.pairingRevoked;
     final isPeerOffline = isReady && state.peerOfflineReason != null;
-    // Live relay-reported offline (no `bye`): Pi is just not reachable.
+    // Reported offline (no `bye`): the computer is just not reachable.
     final isPresenceOffline = isReady && state.peerPresence is PresenceOffline;
     // The composer is locked + the send button becomes "stop" for
     // the WHOLE working turn (send/echo → agent_done), not just the narrow
@@ -530,9 +530,7 @@ class ChatPage extends StatelessWidget {
 
     return InputBar(
       key: const ValueKey('chat-floating-composer'),
-      agentLabel: workspaceAgentLabelForRoom(
-        vm.activeRoom?.name ?? initialTitle,
-      ),
+      agentLabel: workspaceAgentLabel(vm.activeRoom?.agent),
       modelLabel:
           quickActions.currentModelName ??
           vm.activeRoom?.model ??

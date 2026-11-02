@@ -35,14 +35,10 @@ class HomeViewModel extends ViewModel<HomeState> {
   StreamSubscription<Map<String, PresenceState>>? _presenceSub;
   StreamSubscription<Map<String, List<RoomInfo>>>? _roomsSub;
   StreamSubscription<ConnectionStatus>? _statusSub;
-  bool _relayConnected = false;
+  bool _connected = false;
   bool _disposed = false;
   bool _inventoryRefreshInFlight = false;
   DateTime? _lastInventoryRefresh;
-
-  static final RegExp _sessionRoomPrefix = RegExp(
-    r'^pi_([A-Za-z0-9_-]{16})_[di]_',
-  );
 
   HomeViewModel(
     this._storage,
@@ -51,7 +47,7 @@ class HomeViewModel extends ViewModel<HomeState> {
     this._sync,
     this._actions,
   ]) : super(const HomeLoading()) {
-    _relayConnected = _conn.status is StatusOnline;
+    _connected = _conn.status is StatusOnline;
     _load();
     _presenceSub = _conn.presenceStream.listen(_onPresence);
     _roomsSub = _conn.roomsStream.listen(_onRooms);
@@ -367,14 +363,13 @@ class HomeViewModel extends ViewModel<HomeState> {
   /// Reconcile phone-local session caches against the active computer's
   /// persisted Pi session catalog.
   ///
-  /// This is intentionally fail-closed: an offline channel, an older Pi, a
-  /// timed-out request, or an incomplete response leaves every cache intact.
-  /// A successful response prunes only session-bound room ids whose exact
-  /// conversation key is absent. Legacy room ids remain untouched.
+  /// Fail-closed: an offline channel, a timed-out request, or an incomplete
+  /// response leaves every cache intact. A complete response prunes the
+  /// cached sessions whose room the computer no longer has.
   Future<void> refreshComputerSessionInventory({bool force = false}) async {
     final actions = _actions;
     final peer = _conn.activePeer;
-    if (actions == null || !_relayConnected || peer == null) return;
+    if (actions == null || !_connected || peer == null) return;
     if (_inventoryRefreshInFlight) return;
     final last = _lastInventoryRefresh;
     if (!force &&
@@ -394,13 +389,12 @@ class HomeViewModel extends ViewModel<HomeState> {
       }
       await reconcileSessionInventoryForPeer(
         expectedEpk,
-        sessionKeys: inventory.sessionKeys,
+        roomIds: inventory.roomIds,
         scannedAt: inventory.scannedAt,
       );
       _lastInventoryRefresh = DateTime.now();
     } catch (_) {
-      // Older Pi builds do not implement the request. Keep the cache and try
-      // again on the next connect/foreground transition.
+      // Keep the cache and try again on the next connect/foreground.
     } finally {
       _inventoryRefreshInFlight = false;
     }
@@ -413,7 +407,7 @@ class HomeViewModel extends ViewModel<HomeState> {
   /// mistaken for a deleted one.
   Future<int> reconcileSessionInventoryForPeer(
     String peerEpk, {
-    required Set<String> sessionKeys,
+    required Set<String> roomIds,
     required int scannedAt,
   }) async {
     if (scannedAt <= 0) return 0;
@@ -424,9 +418,7 @@ class HomeViewModel extends ViewModel<HomeState> {
     var removed = 0;
     for (final item in snapshot) {
       if (item.room.startedAt > scannedAt) continue;
-      final match = _sessionRoomPrefix.firstMatch(item.room.roomId);
-      final sessionKey = match?.group(1);
-      if (sessionKey == null || sessionKeys.contains(sessionKey)) continue;
+      if (roomIds.contains(item.room.roomId)) continue;
       try {
         await deleteSession(item);
         removed++;
@@ -442,24 +434,12 @@ class HomeViewModel extends ViewModel<HomeState> {
     _load();
   }
 
-  /// `true` when the app's WS to the relay is alive (StatusOnline).
-  /// When `false`, every room dot should render in the "reconnecting"
-  /// colour (amber) regardless of `isRoomLive`, because the app has
-  /// no fresh signal on any room.
-  bool get isRelayConnected => _relayConnected;
-
   /// `true` when `(epk, roomId)`'s agent is currently mid-turn. Drives
   /// the blue "working" dot on the Home tile.
   ///
-  /// Single source of truth: the relay broadcasts `meta.working`
-  /// (turn_start/turn_end from the Pi-extension) to ALL subscribed rooms,
-  /// exactly like presence, so this reflects EVERY session — connected or
-  /// not. We deliberately do NOT OR the DB session index here: that row is
-  /// only kept fresh for the currently-connected room (the SyncService
-  /// writer follows the active connection), so a session that finishes
-  /// while the app is on a DIFFERENT chat would never get its index idled
-  /// and the dot would stay blue forever. The relay flag has no such blind
-  /// spot.
+  /// The host pushes `working` for every room, so this reflects every
+  /// session, connected or not. The DB session index is deliberately not
+  /// consulted: it only stays fresh for the connected room.
   bool isRoomWorking(String epk, String roomId) =>
       _conn.isRoomWorking(epk, roomId);
 
@@ -470,10 +450,7 @@ class HomeViewModel extends ViewModel<HomeState> {
       emit(const HomeNoPeer());
       return;
     }
-    // Make sure the relay is pushing updates for everyone we know about;
-    // the call is idempotent so this is safe even mid-session. The same
-    // subscribe also covers rooms (replay block in
-    // ConnectionManager sends both presence and rooms subscribes).
+    // Subscribe presence and rooms for every computer; idempotent.
     _conn.subscribeToPeers(peers.map((p) => p.remoteEpk).toList());
     emit(
       HomeList(
@@ -482,7 +459,7 @@ class HomeViewModel extends ViewModel<HomeState> {
         roomsByPeer: _visibleRooms(_conn.roomsSnapshot),
       ),
     );
-    if (_relayConnected) {
+    if (_connected) {
       // ignore: unawaited_futures
       refreshComputerSessionInventory();
     }
@@ -502,8 +479,8 @@ class HomeViewModel extends ViewModel<HomeState> {
 
   void _onStatus(ConnectionStatus status) {
     final next = status is StatusOnline;
-    final changed = next != _relayConnected;
-    _relayConnected = next;
+    final changed = next != _connected;
+    _connected = next;
     if (next) {
       // ignore: unawaited_futures
       refreshComputerSessionInventory();
@@ -539,13 +516,10 @@ class HomeViewModel extends ViewModel<HomeState> {
     emit(s.copyWith(filter: filter));
   }
 
-  /// `true` when `(epk, roomId)` is live on the relay AND the relay itself
-  /// is reachable. The single source of truth for the Online/Offline split.
-  /// [ConnectionManager.isRoomLive] is already gated on `StatusOnline`, so
-  /// the `_relayConnected &&` is belt-and-suspenders that also documents
-  /// intent: "online" requires a live relay.
+  /// `true` when `(epk, roomId)` is live on its computer, through whichever
+  /// connection carries it. The single source for the Online/Offline split.
   bool _online(HomeItem it) =>
-      _relayConnected && _conn.isRoomLive(it.peer.remoteEpk, it.room.roomId);
+      _conn.isRoomLive(it.peer.remoteEpk, it.room.roomId);
 
   /// The items the current [HomeList.filter] keeps. A pure
   /// view over `state.items()`; returns `const []` outside a list state.
@@ -570,20 +544,9 @@ class HomeViewModel extends ViewModel<HomeState> {
     return (all: all.length, online: online, offline: all.length - online);
   }
 
-  /// Remember which (peer, room) the user picked. Falls back to
-  /// `roomId='main'` when the caller doesn't supply one (legacy /
-  /// pre-room-announce). Also flips the ConnectionManager's active
-  /// room so subsequent sends carry the right outer envelope.
-  ///
-  /// When the peer record in storage has no
-  /// `roomId` yet (post-mesh-restore: the mesh blob doesn't carry
-  /// per-device room data, so `PeerRecord.roomId` is null until the
-  /// relay announces the room and `ConnectionManager`
-  /// catches up), persist the tapped roomId on the PeerRecord too.
-  /// Without this, the next cold-start reads `peer.roomId=null` →
-  /// `ConnectionManager._connect` falls back to room `'main'` → Pi
-  /// never sees the frame → ChatViewModel sits on Connecting/offline
-  /// even though the WS is alive.
+  /// Remember which (peer, room) the user picked, persist it on the
+  /// PeerRecord so the next cold start reconnects to it, and switch the
+  /// ConnectionManager's active room.
   Future<void> openSession(String epk, {String? roomId}) async {
     final peers = await _storage.listPeers();
     if (_disposed) return;
@@ -611,9 +574,8 @@ class HomeViewModel extends ViewModel<HomeState> {
   /// for indexing into [HomeList.roomsByPeer] / [HomeList.statusByEpk].
   static String normalizeEpkForLookup(String epk) => toStandardB64(epk);
 
-  /// `true` if `(epk, roomId)` is currently live on
-  /// the relay. Drives the presence dot on each tile (per-room, not
-  /// per-peer anymore).
+  /// `true` if `(epk, roomId)` is currently live on its computer. Drives
+  /// the presence dot on each tile.
   bool isRoomLive(String epk, String roomId) => _conn.isRoomLive(epk, roomId);
 
   /// Long-press menu — rename a single room locally (Pi never sees it).

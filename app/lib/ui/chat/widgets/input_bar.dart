@@ -20,9 +20,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 // InputBar — bottom message composer.
 // - Disabled (grayed) when offline.
 // - During streaming, empty composer shows Stop; typed text sends steering.
-// - Plan/28 — the quiet model/thinking control stays available beside the
+// - The quiet model/thinking control stays available beside the
 //   attach button while a draft or image is present.
-// - Plan/29 — when [voice] is provided, the mic becomes hold-to-talk:
+// - When [voice] is provided, the mic becomes hold-to-talk:
 //   long-press starts recording (a WhatsApp-style RecordingStrip replaces
 //   the row), slide left past the threshold cancels, release transcribes
 //   and drops the text into the (empty) field for manual review/send. The
@@ -67,8 +67,7 @@ class InputBar extends StatefulWidget {
   final void Function(String text)? onSetQueued;
   final void Function(String id)? onClearQueued;
 
-  /// Voice-input ViewModel. When null the mic falls back to the
-  /// legacy [onStartAudio] tap (and existing tests pump InputBar without it).
+  /// Voice-input ViewModel. When null the mic calls [onStartAudio].
   final VoiceInputViewModel? voice;
 
   /// Surfaces actionable voice hints to the host page.
@@ -951,7 +950,7 @@ class _ComposerActionButton extends StatelessWidget {
   final VoidCallback? onCancel;
   final VoidCallback? onStartAudio;
 
-  // Plan/29 voice wiring.
+  // Voice wiring.
   final bool voiceEnabled;
   final bool voiceUnsupported;
   final VoidCallback onVoiceLongPressStart;

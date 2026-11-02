@@ -73,7 +73,7 @@ class _FakeRepo implements IActionsRepository {
 
   @override
   Future<SessionInventorySnapshot> listSessionsInventory() async =>
-      const SessionInventorySnapshot(sessionKeys: {}, scannedAt: 0);
+      const SessionInventorySnapshot(roomIds: {}, scannedAt: 0);
 
   @override
   void dispose() {}

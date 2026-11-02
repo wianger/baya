@@ -17,8 +17,7 @@ import 'package:flutter/material.dart';
 /// - Drag-down dismiss          → returns null (caller treats as Skip too).
 ///
 /// Caller is responsible for calling `PeerRecord.copyWith(nickname:)`
-/// and writing back to storage — the mesh-publish hook on
-/// [PairingStorage] picks it up automatically.
+/// and writing back to storage.
 Future<String?> showNicknameSheet(
   BuildContext context, {
   required String? defaultName,

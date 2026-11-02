@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- INTERNET is required for the relay WebSocket. Debug and profile
+    <!-- INTERNET is required for the WebSocket to each computer. Debug and profile
          manifests already declare it for hot-reload, but the release
          build inherits only from src/main; without this line a signed
          APK ships with no network access at all. ACCESS_NETWORK_STATE

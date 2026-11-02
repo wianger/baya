@@ -76,7 +76,7 @@ export class BayaManager {
     const record = addSession({
       cwd: path,
       agent: definition.id,
-      name: defaultSessionName(path, definition.id),
+      name: defaultSessionName(path),
     });
     await this.startSession(record);
     return {

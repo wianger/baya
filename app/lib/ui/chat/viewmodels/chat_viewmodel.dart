@@ -77,7 +77,7 @@ class ChatViewModel extends ViewModel<ChatState> {
     _bootstrap();
   }
 
-  // --- AppBar-facing getters (relay/connection queries, not message data) ---
+  // --- AppBar-facing getters (connection queries, not message data) ---
 
   PeerRecord? get activePeer => _activePeer;
 
@@ -97,14 +97,13 @@ class ChatViewModel extends ViewModel<ChatState> {
   }
 
   /// Whole-turn working signal for the room THIS chat is viewing — the
-  /// same mechanism as the Home dot. The relay broadcasts `meta.working`
-  /// per-room (turn_start/turn_end), so switching to another chat never
-  /// inherits the previous one's working state (previously `_working`
-  /// was a single global flag that leaked across sessions).
+  /// same mechanism as the Home dot. The host pushes `working` per room,
+  /// so switching to another chat never inherits the previous one's
+  /// working state.
   ///
   /// OR'd with the local SyncService signals for the CONNECTED session:
-  /// `_working` is set optimistically on send (before the relay's
-  /// turn_start round-trips) and `_streaming != null` keeps the pill blue
+  /// `_working` is set optimistically on send (before the host's update
+  /// round-trips) and `_streaming != null` keeps the pill blue
   /// during token flow — both are reset by [SyncService.activate] on a
   /// session switch, so they only ever refer to the current chat.
   bool get isWorking {

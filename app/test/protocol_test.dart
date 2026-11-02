@@ -273,7 +273,7 @@ void main() {
       expect(msg.sessionName, contains('remote_pi'));
     });
 
-    test('PairOk.fromJson decodes harness + hostname', () {
+    test('PairOk.fromJson decodes hostname', () {
       final msg = PairOk.fromJson({
         'type': 'pair_ok',
         'in_reply_to': 'req-1',
@@ -281,11 +281,8 @@ void main() {
         'session_started_at': 1700000000000,
         'room_id': 'room-xyz',
         'hostname': 'Mac do Jacob',
-        'harness': {'name': 'Pi coding agent', 'version': '0.4.2'},
       });
       expect(msg.hostname, 'Mac do Jacob');
-      expect(msg.harness.name, 'Pi coding agent');
-      expect(msg.harness.version, '0.4.2');
     });
 
     test('PairError fixture parses', () {
@@ -565,7 +562,6 @@ void main() {
       expect(back.vision, isTrue);
       expect(back.thinkingLevels, m.thinkingLevels);
       expect(back, m);
-
     });
   });
 }

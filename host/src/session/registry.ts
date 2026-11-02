@@ -33,16 +33,13 @@ export function normalizeCwd(input: string): string {
   }
 }
 
-export function defaultSessionName(cwd: string, agent: WorkspaceAgent): string {
-  const folder = basename(normalizeCwd(cwd)) || "workspace";
-  if (agent === "pi") return folder;
-  if (agent === "codex") return `Codex · ${folder}`;
-  if (agent === "deepseek") return `DeepSeek · ${folder}`;
-  return `${agent} · ${folder}`;
+/** A new session is named after its folder. */
+export function defaultSessionName(cwd: string): string {
+  return basename(normalizeCwd(cwd)) || "workspace";
 }
 
 export function sessionIdFor(cwd: string, agent: WorkspaceAgent, name?: string): string {
-  const logicalName = name?.trim() || defaultSessionName(cwd, agent);
+  const logicalName = name?.trim() || defaultSessionName(cwd);
   return createHash("sha256")
     .update(normalizeCwd(cwd))
     .update("\0")
@@ -115,7 +112,7 @@ export function addSession(input: {
   id?: string;
 }): BayaSessionRecord {
   const cwd = normalizeCwd(input.cwd);
-  const name = input.name?.trim() || defaultSessionName(cwd, input.agent);
+  const name = input.name?.trim() || defaultSessionName(cwd);
   const id = input.id || randomUUID();
   const document = readRegistry();
   const existing = document.sessions.find((entry) => entry.id === id);

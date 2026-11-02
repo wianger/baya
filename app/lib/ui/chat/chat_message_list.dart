@@ -52,8 +52,8 @@ class ToolRunItem {
 ///
 /// Tool and thinking boundaries split one logical answer across several
 /// bubbles. Steering input is part of the active turn rather than a new user
-/// turn. The result uses identity equality because legacy Pi history can
-/// contain several segments with the same protocol id.
+/// turn. The result uses identity equality so segments are told apart
+/// even when ids repeat.
 Set<AssistantMsg> assistantCopyOwnersForTurns(List<ChatMessage> messages) {
   final owners = Set<AssistantMsg>.identity();
   AssistantMsg? lastAssistant;
@@ -264,8 +264,6 @@ class _ChatMessageListState extends State<ChatMessageList> {
     final itemCount = items.length + leadingRows;
     // One copy action per assistant turn: tool calls can split a single reply
     // into several text segments, but only the final segment gets the button.
-    // Identity equality also protects chats cached by older builds where those
-    // segments shared one protocol id.
     final copyOwners = assistantCopyOwnersForTurns(widget.messages);
 
     // Follow the measured composer height (includes attachment previews, queued

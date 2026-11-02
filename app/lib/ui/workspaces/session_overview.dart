@@ -294,7 +294,7 @@ class _WorkspaceOverview extends StatelessWidget {
               _FocusSessionCard(
                 item: focus,
                 displayName: vm.displayNameOf(focus),
-                agent: workspaceAgentLabelForRoom(focus.room.name),
+                agent: workspaceAgentLabel(focus.room.agent),
                 working: focusWorking,
                 online: vm.isRoomLive(focus.peer.remoteEpk, focus.room.roomId),
                 onOpen: () => openSession(context, focus),
@@ -441,7 +441,7 @@ class PreviousSessionsSheet extends StatelessWidget {
                     ),
                   ),
                   title: Text(
-                    workspaceSessionTitle(vm.displayNameOf(item)),
+                    vm.displayNameOf(item),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.typo.sansBody.copyWith(
@@ -449,7 +449,7 @@ class PreviousSessionsSheet extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(
-                    '${workspaceAgentLabelForRoom(item.room.name)} · $status'
+                    '${workspaceAgentLabel(item.room.agent)} · $status'
                     '${item.room.cwd == null ? '' : ' · ${item.room.cwd}'}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -581,7 +581,7 @@ class _FocusSessionCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        workspaceSessionTitle(displayName),
+                        displayName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: context.typo.sansBody.copyWith(

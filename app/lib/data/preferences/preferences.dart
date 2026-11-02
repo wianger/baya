@@ -58,10 +58,8 @@ class Preferences extends ChangeNotifier {
   /// Under the new rooms model the persisted value carries an
   /// optional `:roomId` suffix (e.g. `Bz02uLi…:main` or
   /// `Bz02uLi…:room-uuid-xyz`). The getter returns only the EPK; use
-  /// [selectedRoomId] for the room half. Legacy values without the
-  /// `:room` suffix transparently fall through (the value is the epk
-  /// and `selectedRoomId` returns null → falls back to 'main' at the
-  /// caller).
+  /// [selectedRoomId] for the room half (null when only a computer is
+  /// selected).
   String? get selectedPeerEpk {
     final raw = _selectedPeerEpk;
     if (raw == null) return null;
@@ -69,8 +67,7 @@ class Preferences extends ChangeNotifier {
     return ix < 0 ? raw : raw.substring(0, ix);
   }
 
-  /// The room half of the persisted selected target. Returns
-  /// null for legacy values (caller defaults to 'main').
+  /// The room half of the persisted selected target, if any.
   String? get selectedRoomId {
     final raw = _selectedPeerEpk;
     if (raw == null) return null;

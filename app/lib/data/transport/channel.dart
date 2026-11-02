@@ -7,8 +7,8 @@ abstract class IChannel {
   Future<void> close();
 }
 
-/// Optional capability mixed into a channel that also speaks raw relay
-/// control frames.
+/// Optional capability mixed into a channel that also speaks raw control
+/// frames (presence and rooms).
 /// ConnectionManager does an `is IControlLink` cast to drive presence;
 /// channels that don't implement it simply skip the subsystem.
 abstract class IControlLink {

@@ -12,7 +12,7 @@ sealed class HomeState {
 /// reload or regroup data. Default is [online] (see [HomeList.filter]).
 ///
 ///   - [all]     — every known session (live + cached/offline).
-///   - [online]  — only sessions live on the relay right now.
+///   - [online]  — only sessions live on their computer right now.
 ///   - [offline] — only cached sessions that aren't live.
 enum HomeFilter { all, online, offline }
 
@@ -24,10 +24,7 @@ class HomeNoPeer extends HomeState {
   const HomeNoPeer();
 }
 
-/// Single row on Home: a Pi room (per-cwd session) bound to
-/// a paired Mac. Multiple HomeItems per peer when the Mac runs more
-/// than one Pi session. When `roomId == 'main'` (the only room from a
-/// legacy/single-cwd Pi), the UI may collapse the cwd subtitle.
+/// Single row on Home: one session's room on a paired computer.
 class HomeItem {
   final PeerRecord peer;
   final RoomInfo room;
@@ -60,10 +57,8 @@ class HomeItem {
   int get hashCode => Object.hash(peer.remoteEpk, room);
 }
 
-/// Paired peers + their live rooms + presence. Items are derived from
-/// `roomsByPeer`: a peer with no announced rooms yet still gets one
-/// synthetic item (`roomId='main'`) so the user can enter chat — that
-/// covers legacy Pis and the pre-room-announce window after reconnect.
+/// Paired peers + their rooms + presence. Items are derived from
+/// `roomsByPeer`.
 class HomeList extends HomeState {
   final List<PeerRecord> peers;
   final Map<String, PresenceState> statusByEpk;
@@ -94,18 +89,13 @@ class HomeList extends HomeState {
   );
 
   /// Flatten to a single ordered list of items: one row per (peer, room).
-  /// Peers without any currently-announced rooms
-  /// produce ZERO items. Earlier behaviour created a synthetic 'main'
-  /// tile for legacy compatibility, but that tile pointed at a (peer,
-  /// 'main') destination the Pi was no longer listening on — sending
-  /// there got dropped by the relay AND the row felt like a ghost. The
-  /// user only wants live rooms in the list.
+  /// Peers without rooms produce no items.
   ///
   /// Ordering: peers are sorted by display name (nickname → sessionName
   /// → epk prefix), case-insensitive. Within each peer, rooms are
   /// sorted by their display name (room.name → cwd basename → roomId),
-  /// also case-insensitive. Keeps the list stable and predictable as
-  /// the relay reorders its push payloads.
+  /// also case-insensitive, so the list stays stable whatever order the
+  /// host pushes.
   List<HomeItem> items({String Function(String)? normalizeEpk}) {
     final sortedPeers = [...peers]
       ..sort(
