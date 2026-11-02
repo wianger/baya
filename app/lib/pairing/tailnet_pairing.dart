@@ -4,7 +4,14 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 /// Why a Tailscale pairing request failed, for a precise message.
-enum TailnetPairingFailure { notYourAccount, unreachable, notReady }
+enum TailnetPairingFailure {
+  notYourAccount,
+  unreachable,
+  notReady,
+
+  /// A short name was typed but the tailnet domain could not be found.
+  unknownTailnet,
+}
 
 class TailnetPairingException implements Exception {
   final TailnetPairingFailure reason;
@@ -32,9 +39,8 @@ const _timeout = Duration(seconds: 8);
 /// Finds the Baya hosts on the computer called [name].
 ///
 /// A short name is completed with [tailnetSuffix] (the tailnet of an earlier
-/// pairing) or else through MagicDNS: the name resolves to the computer's
-/// tailnet address, whose reverse lookup is the full `*.ts.net` name the
-/// HTTPS certificate is issued for.
+/// pairing) or else [findTailnetDomain], because the HTTPS certificate is
+/// issued for the full `*.ts.net` name.
 ///
 /// Each host is published by the computer's `tailscale serve` at
 /// `https://<full name>/baya-pair/<label>` and answers `…/info` only to
@@ -44,16 +50,18 @@ Future<List<TailnetHost>> discoverTailnetHosts(
   String name, {
   String? tailnetSuffix,
   http.Client? client,
-  Future<String?> Function(String shortName) resolveFullName = magicDnsFullName,
+  Future<String?> Function() findTailnetDomain = tailnetDomainOfThisPhone,
 }) async {
   final host = name.trim().toLowerCase();
-  final fullName = host.contains('.')
-      ? host
-      : tailnetSuffix != null
-      ? '$host.$tailnetSuffix'
-      : await resolveFullName(host);
-  if (fullName == null) {
-    throw const TailnetPairingException(TailnetPairingFailure.unreachable);
+  final String fullName;
+  if (host.contains('.')) {
+    fullName = host;
+  } else {
+    final domain = tailnetSuffix ?? await findTailnetDomain();
+    if (domain == null) {
+      throw const TailnetPairingException(TailnetPairingFailure.unknownTailnet);
+    }
+    fullName = '$host.$domain';
   }
   final probes = [
     for (final label in _labels)
@@ -137,18 +145,100 @@ String? tailnetSuffixOf(String url) {
   return parts.sublist(parts.length - 3).join('.');
 }
 
-/// The full MagicDNS name of a tailnet computer typed by its short name, or
-/// null when Tailscale cannot resolve it.
-Future<String?> magicDnsFullName(String shortName) async {
+/// The tailnet domain (e.g. `tail1234.ts.net`) of the Tailscale account this
+/// phone is signed in to: the MagicDNS name of the phone's own tailnet
+/// address, asked of Tailscale's resolver directly. Null when Tailscale is
+/// off.
+Future<String?> tailnetDomainOfThisPhone() async {
   try {
-    final addresses = await InternetAddress.lookup(shortName).timeout(_timeout);
-    for (final address in addresses) {
-      final named = await address.reverse().timeout(_timeout);
-      final host = named.host.replaceFirst(RegExp(r'\.$'), '').toLowerCase();
-      if (host.endsWith('.ts.net')) return host;
+    final interfaces = await NetworkInterface.list(
+      type: InternetAddressType.IPv4,
+    );
+    for (final address in interfaces.expand((i) => i.addresses)) {
+      if (!isTailnetAddress(address.address)) continue;
+      final name = await _askMagicDns(ptrQuery(address.address));
+      final domain = name == null ? null : tailnetSuffixOf('https://$name');
+      if (domain != null) return domain;
     }
   } catch (_) {
-    // Not resolvable: the caller reports the computer as unreachable.
+    // No usable answer: the caller asks for the full name.
   }
   return null;
+}
+
+/// Tailscale addresses are in 100.64.0.0/10.
+bool isTailnetAddress(String ipv4) {
+  final parts = ipv4.split('.').map(int.tryParse).toList();
+  return parts.length == 4 &&
+      parts[0] == 100 &&
+      (parts[1] ?? 0) >= 64 &&
+      (parts[1] ?? 0) < 128;
+}
+
+/// A DNS query (id 0xBA1A, recursion desired) for the PTR of [ipv4].
+List<int> ptrQuery(String ipv4) {
+  final name = '${ipv4.split('.').reversed.join('.')}.in-addr.arpa';
+  return [
+    0xBA, 0x1A, 0x01, 0x00, 0, 1, 0, 0, 0, 0, 0, 0, // header, 1 question
+    for (final label in name.split('.')) ...[label.length, ...label.codeUnits],
+    0, 0, 12, 0, 1, // root, type PTR, class IN
+  ];
+}
+
+/// The first PTR target in a DNS [response], without the trailing dot.
+String? ptrAnswer(List<int> response) {
+  if (response.length < 12 || response[0] != 0xBA || response[1] != 0x1A) {
+    return null;
+  }
+  final answers = response[6] << 8 | response[7];
+  var offset = 12;
+  offset = _skipName(response, offset) + 4; // question name, type, class
+  for (var i = 0; i < answers; i++) {
+    offset = _skipName(response, offset);
+    final type = response[offset] << 8 | response[offset + 1];
+    final length = response[offset + 8] << 8 | response[offset + 9];
+    offset += 10;
+    if (type == 12) return _readName(response, offset);
+    offset += length;
+  }
+  return null;
+}
+
+int _skipName(List<int> bytes, int offset) {
+  while (bytes[offset] != 0) {
+    if (bytes[offset] & 0xC0 == 0xC0) return offset + 2;
+    offset += bytes[offset] + 1;
+  }
+  return offset + 1;
+}
+
+String _readName(List<int> bytes, int offset) {
+  final labels = <String>[];
+  for (var guard = 0; guard < 64 && bytes[offset] != 0; guard++) {
+    if (bytes[offset] & 0xC0 == 0xC0) {
+      offset = (bytes[offset] & 0x3F) << 8 | bytes[offset + 1];
+      continue;
+    }
+    final length = bytes[offset];
+    labels.add(String.fromCharCodes(bytes, offset + 1, offset + 1 + length));
+    offset += length + 1;
+  }
+  return labels.join('.');
+}
+
+/// Sends [query] to Tailscale's resolver (100.100.100.100) over UDP.
+Future<String?> _askMagicDns(List<int> query) async {
+  final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+  try {
+    final answer = socket
+        .where((event) => event == RawSocketEvent.read)
+        .map((_) => socket.receive())
+        .where((datagram) => datagram != null)
+        .map((datagram) => ptrAnswer(datagram!.data))
+        .first;
+    socket.send(query, InternetAddress('100.100.100.100'), 53);
+    return await answer.timeout(const Duration(seconds: 3));
+  } finally {
+    socket.close();
+  }
 }

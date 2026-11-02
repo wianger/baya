@@ -683,5 +683,13 @@
       }
     }
   },
+  "tailnetTypeFullName": "Couldn't find your tailnet. Type the full name, e.g. {name}.tail1234.ts.net (shown in the Tailscale app).",
+  "@tailnetTypeFullName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "chooseBaya": "This computer runs more than one Baya. Which one?"
 }

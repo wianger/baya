@@ -39,20 +39,79 @@ void main() {
     );
   });
 
-  test('a short name with no known tailnet is completed by MagicDNS', () async {
-    final hosts = await discoverTailnetHosts(
-      'Wiang-1',
-      resolveFullName: (short) async =>
-          short == 'wiang-1' ? 'wiang-1.tail9.ts.net' : null,
-      client: MockClient(
-        (request) async =>
-            request.url.toString() ==
-                'https://wiang-1.tail9.ts.net/baya-pair/wsl/info'
-            ? _info('wsl', 'k')
-            : http.Response('', 404),
+  test(
+    'a short name with no known tailnet uses this phone\'s tailnet',
+    () async {
+      final hosts = await discoverTailnetHosts(
+        'Wiang-1',
+        findTailnetDomain: () async => 'tail9.ts.net',
+        client: MockClient(
+          (request) async =>
+              request.url.toString() ==
+                  'https://wiang-1.tail9.ts.net/baya-pair/wsl/info'
+              ? _info('wsl', 'k')
+              : http.Response('', 404),
+        ),
+      );
+      expect(hosts.single.label, 'wsl');
+    },
+  );
+
+  test('asks for the full name when the tailnet is unknown', () async {
+    await expectLater(
+      discoverTailnetHosts('box', findTailnetDomain: () async => null),
+      throwsA(
+        isA<TailnetPairingException>().having(
+          (e) => e.reason,
+          'reason',
+          TailnetPairingFailure.unknownTailnet,
+        ),
       ),
     );
-    expect(hosts.single.label, 'wsl');
+  });
+
+  test('reads this phone\'s name from a MagicDNS PTR answer', () {
+    final query = ptrQuery('100.65.103.80');
+    // Answer: the question echoed, then one PTR whose owner is a pointer to
+    // the question name (0xC00C).
+    final target = 'pixel.tail9.ts.net'
+        .split('.')
+        .expand((l) => [l.length, ...l.codeUnits])
+        .toList();
+    final response = [
+      0xBA,
+      0x1A,
+      0x81,
+      0x80,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      ...query.sublist(12),
+      0xC0,
+      0x0C,
+      0,
+      12,
+      0,
+      1,
+      0,
+      0,
+      0,
+      60,
+      0,
+      target.length + 1,
+      ...target,
+      0,
+    ];
+    expect(ptrAnswer(response), 'pixel.tail9.ts.net');
+    expect(ptrAnswer([0, 0, ...response.sublist(2)]), isNull);
+    expect(isTailnetAddress('100.65.103.80'), isTrue);
+    expect(isTailnetAddress('100.128.0.1'), isFalse);
+    expect(isTailnetAddress('192.168.1.2'), isFalse);
   });
 
   test('explains refusals and silence', () async {
@@ -61,7 +120,7 @@ void main() {
         await discoverTailnetHosts(
           'box',
           client: client,
-          resolveFullName: (_) async => 'box.t.ts.net',
+          findTailnetDomain: () async => 't.ts.net',
         );
         return null;
       } on TailnetPairingException catch (e) {

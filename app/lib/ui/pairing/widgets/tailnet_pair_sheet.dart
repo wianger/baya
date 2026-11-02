@@ -90,6 +90,9 @@ class _TailnetPairBodyState extends State<_TailnetPairBody> {
           TailnetPairingFailure.notYourAccount => l10n.tailnetNotYourAccount,
           TailnetPairingFailure.unreachable => l10n.tailnetUnreachable(name),
           TailnetPairingFailure.notReady => l10n.tailnetNotReady,
+          TailnetPairingFailure.unknownTailnet => l10n.tailnetTypeFullName(
+            name,
+          ),
         };
       });
     } finally {
