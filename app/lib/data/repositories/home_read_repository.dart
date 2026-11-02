@@ -1,4 +1,4 @@
-// Plan/31 — read-only projection of the cross-session index for Home. Watches
+// Read-only projection of the cross-session index for Home. Watches
 // the durable `sessions_index` box; INCREMENTAL projection per BoxEvent.
 
 import 'dart:async';

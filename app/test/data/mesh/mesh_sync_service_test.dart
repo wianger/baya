@@ -368,7 +368,7 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // Plan/24-fix-app-publish-race: pull-and-apply must NOT loop back into
+  // Pull-and-apply must NOT loop back into
   // publish, and publish must refuse to overwrite an existing membership
   // with an empty members list (which would trigger pi-extension
   // self-revoke for every paired Pi).

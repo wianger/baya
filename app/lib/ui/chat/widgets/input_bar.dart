@@ -18,9 +18,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 // InputBar — bottom message composer.
 // - Disabled (grayed) when offline.
 // - During streaming, empty composer shows Stop; typed text sends steering.
-// - Plan/28 — the quiet model/thinking control stays available beside the
+// - The quiet model/thinking control stays available beside the
 //   attach button while a draft or image is present.
-// - Plan/29 — when [voice] is provided, the mic becomes hold-to-talk:
+// - When [voice] is provided, the mic becomes hold-to-talk:
 //   long-press starts recording (a WhatsApp-style RecordingStrip replaces
 //   the row), slide left past the threshold cancels, release transcribes
 //   and drops the text into the (empty) field for manual review/send. The
@@ -58,18 +58,18 @@ class InputBar extends StatefulWidget {
   final void Function(String text)? onSetQueued;
   final void Function(String id)? onClearQueued;
 
-  /// Plan/29 — voice-input ViewModel. When null the mic falls back to the
+  /// Voice-input ViewModel. When null the mic falls back to the
   /// legacy [onStartAudio] tap (and existing tests pump InputBar without it).
   final VoiceInputViewModel? voice;
 
-  /// Plan/29 — surfaces actionable voice hints to the host page.
+  /// Surfaces actionable voice hints to the host page.
   final void Function(VoiceHint hint)? onVoiceHint;
 
-  /// Plan/30 — image-attachment ViewModel (preview state + model vision).
+  /// Image-attachment ViewModel (preview state + model vision).
   /// Null in tests / when attachments aren't wired.
   final AttachmentViewModel? attachment;
 
-  /// Plan/30 — open the Camera/Gallery sheet. Null disables the attach
+  /// Open the Camera/Gallery sheet. Null disables the attach
   /// button (offline/streaming); vision/has-image gating is internal.
   final VoidCallback? onOpenAttach;
 
@@ -189,7 +189,7 @@ class _InputBarState extends State<InputBar> {
   void _submit() {
     if (widget.disabled) return;
     final text = _controller.text.trim();
-    // Plan/30 — an attached image makes an empty-caption send valid.
+    // An attached image makes an empty-caption send valid.
     final hasImage = widget.attachment?.hasImage ?? false;
     if (text.isEmpty && !hasImage) return;
     _controller.clear();
@@ -338,7 +338,7 @@ class _InputBarState extends State<InputBar> {
         voiceState is VoiceUnavailable &&
         voiceState.reason == VoiceUnavailableReason.unsupported;
 
-    // Plan/30 — attachment.
+    // Attachment.
     final hasImage = attachState is AttachmentAttached;
     final visionBlocked = attachState?.attachBlockedByVision ?? false;
     final hasContent = !_empty || hasImage;
@@ -672,7 +672,7 @@ class _InlineStopButton extends StatelessWidget {
   }
 }
 
-/// Plan/30 — the attach (paperclip) button. Always visible; greyed + inert
+/// The attach (paperclip) button. Always visible; greyed + inert
 /// when [enabled] is false (offline/streaming, a text-only model #9, or an
 /// image is already attached).
 class _AttachButton extends StatelessWidget {
@@ -711,7 +711,7 @@ class _AttachButton extends StatelessWidget {
   }
 }
 
-/// Plan/30 — the composer image preview: a rounded thumbnail with an "X" to
+/// The composer image preview: a rounded thumbnail with an "X" to
 /// discard before sending (decision #4).
 class _AttachmentPreview extends StatelessWidget {
   const _AttachmentPreview({required this.image, required this.onRemove});
@@ -948,7 +948,7 @@ class _ComposerActionButton extends StatelessWidget {
   final VoidCallback? onCancel;
   final VoidCallback? onStartAudio;
 
-  // Plan/29 voice wiring.
+  // Voice wiring.
   final bool voiceEnabled;
   final bool voiceUnsupported;
   final VoidCallback onVoiceLongPressStart;

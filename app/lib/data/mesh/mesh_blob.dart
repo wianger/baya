@@ -9,7 +9,6 @@ import 'mesh_envelope.dart';
 /// One member of an Owner's mesh — exactly one paired Pi, with its
 /// local nickname and the relay URL where the pairing happened.
 ///
-/// Mirrors the shape documented in plan/24 § "Estrutura do mesh blob".
 @immutable
 class MeshMember {
   final String remoteEpk;
@@ -71,7 +70,7 @@ class MeshMember {
   int get hashCode => Object.hash(remoteEpk, relayUrl, pairedAt, nickname);
 }
 
-/// Plan 24 — signed-membership payload published to the relay's
+/// Signed-membership payload published to the relay's
 /// `POST /mesh/<owner_pk_hash>` endpoint.
 ///
 /// Canonical JSON shape (keys sorted lexicographically, no whitespace):

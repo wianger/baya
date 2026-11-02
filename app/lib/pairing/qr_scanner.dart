@@ -5,13 +5,13 @@ import 'dart:convert';
 //
 // Fields:
 //   t   — token efêmero (16 bytes, base64url), single-use, valid 60s
-//   epk — Ed25519 pubkey do Pi (32 bytes) — único peer ID no relay
+//   epk — host Ed25519 public key (32 bytes), its relay peer id
 //   n   — session name (max 80 chars)
-//   r   — relay WebSocket URL (OPTIONAL since plan 14: app uses its own
+//   r   — relay WebSocket URL (optional; the app uses its own
 //         configured relay; legacy QR codes that carry `r` are tolerated
-//         and trigger a "trocar relay?" modal if the value mismatches
+//         and trigger a "switch relay?" prompt if the value mismatches
 //         the user's configured relay).
-//   rm  — Pi-side room id this QR was generated FROM (plan 17 fix —
+//   rm  — Pi-side room id this QR was generated FROM —
 //         lets the app address the right cwd-session on the very first
 //         pair_request, otherwise the relay drops with
 //         "dest (peer, room) not found"). Optional; legacy QRs without
@@ -25,9 +25,9 @@ class QrPairPayload {
   /// Use `pair_request_flow` to detect mismatch vs `Preferences.relayUrl`.
   final String? relayUrl;
   final String sessionName;
-  /// Plan 17 fix: Pi-side room id (cwd-session). Used as the outer
+  /// Pi-side room id (cwd-session). Used as the outer
   /// envelope's `room` on pair_request so the relay can route to the
-  /// right Pi-WS. `null` for pre-plan-17 QRs — caller must fall back to
+  /// right Pi-WS. `null` for legacy QRs — caller must fall back to
   /// `'main'` and discover the real room id via subscribe_rooms.
   final String? roomId;
 
@@ -47,9 +47,8 @@ class QrPairPayload {
       final epk = uri.queryParameters['epk'];
       final r = uri.queryParameters['r']; // legacy/optional
       final n = uri.queryParameters['n'];
-      final rm = uri.queryParameters['rm']; // plan 17 — Pi-side room
-      // r is no longer required — plan 14 dropped it from the canonical
-      // contract. Legacy QRs continue to include it; we capture it for
+      final rm = uri.queryParameters['rm']; // host-side room
+      // r is no longer part of the canonical contract. Legacy QRs continue to include it; we capture it for
       // mismatch detection but don't reject when absent.
       // rm is optional too — legacy pi-extension didn't emit it, and
       // the app falls back to 'main' / discovery in that case.

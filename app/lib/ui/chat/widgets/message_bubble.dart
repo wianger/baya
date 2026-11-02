@@ -21,14 +21,14 @@ class UserBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Plan/24-fix-app-source-of-truth: render the lifecycle stage of
+    // Render the lifecycle stage of
     // the bubble. `pending` (sent over WS, Pi hasn't echoed yet) gets
     // reduced opacity + a small spinner; `failed` (no echo in 15s) gets
     // a red exclamation badge so the user knows to retry.
     final isPending = message.status == UserMsgStatus.pending;
     final isFailed = message.status == UserMsgStatus.failed;
     final isSteering = message.steering;
-    // Plan/30 — when an image is attached the bubble becomes an ImageBubble
+    // When an image is attached the bubble becomes an ImageBubble
     // (thumbnail + caption); otherwise the existing text card.
     final image = message.image;
     final colors = context.colors;
@@ -128,7 +128,7 @@ class UserBubble extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// CompactionBubble — centered system card (plan/32)
+// CompactionBubble — centered system card
 // ---------------------------------------------------------------------------
 
 /// A system message distinct from user/assistant: shows that the Pi compacted
@@ -213,7 +213,7 @@ class AssistantBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Plan/32b — agent output is rendered as Markdown (GFM + code blocks),
+    // Agent output is rendered as Markdown (GFM + code blocks),
     // spanning the FULL content width (the message list already pads 16px on
     // each side) — unlike the user's right-aligned chat bubble, which stays
     // capped. Selectable so prose/code can be copied.

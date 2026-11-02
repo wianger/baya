@@ -1,4 +1,4 @@
-// Plan/31 — read repos project the DB reactively. Write to a box → the watch
+// Read repos project the DB reactively. Write to a box → the watch
 // stream emits the updated list (incremental projection).
 
 import 'dart:io';

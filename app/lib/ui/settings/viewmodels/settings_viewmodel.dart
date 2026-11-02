@@ -8,7 +8,7 @@ import 'package:app/ui/settings/states/settings_state.dart';
 
 /// Settings is config-only (nickname + revoke). The peer switcher moved
 /// to Home; the connection itself is shared and owned by
-/// [ConnectionManager] from app boot (plano 12). Revoke side-effect:
+/// [ConnectionManager] from app boot. Revoke side-effect:
 /// re-subscribe the relay's presence push so the removed epk is dropped.
 class SettingsViewModel extends ViewModel<SettingsState> {
   final PairingStorage _storage;

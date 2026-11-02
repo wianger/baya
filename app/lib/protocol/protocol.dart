@@ -1,7 +1,7 @@
 // ignore_for_file: lines_longer_than_80_chars
 
 // ---------------------------------------------------------------------------
-// Control frames (plano 12 — presence)
+// Control frames
 //
 // These travel raw over the WS (no outer envelope) and are routed by the
 // relay itself, not the Pi. They never enter the inner-message switch.
@@ -26,14 +26,14 @@ sealed class ControlInbound {
             .toList(),
       ),
       'room_announced' => () {
-        // Plan/28 Wave D — thinking arrives either as a top-level
+        // Thinking arrives either as a top-level
         // field (post-relay-flatten) or nested under `meta.thinking`
         // (pre-flatten relay forwarding the Pi's room_meta verbatim).
         // Read both so the app stays forward-compat with either side.
         final metaJson = j['meta'] as Map<String, dynamic>?;
         final rawThinking =
             (j['thinking'] as String?) ?? (metaJson?['thinking'] as String?);
-        // Plan/32 — `working` arrives top-level (RoomMeta serializes flat)
+        // `working` arrives top-level (RoomMeta serializes flat)
         // or nested under `meta.working`; read both for forward-compat.
         final rawWorking =
             (j['working'] as bool?) ?? (metaJson?['working'] as bool?);
@@ -73,7 +73,7 @@ sealed class ControlInbound {
           thinking: rawThinking != null
               ? ThinkingLevel.fromWire(rawThinking)
               : null,
-          // Plan/32 — `working` has no "clear to null" state (false IS the
+          // `working` has no "clear to null" state (false IS the
           // cleared state), so a plain nullable bool models the patch:
           // null = absent (preserve current), true/false = set.
           working: meta?['working'] as bool?,
@@ -152,7 +152,7 @@ Map<String, dynamic> roomsCheckFrame(List<String> peers) => {
 };
 
 // ---------------------------------------------------------------------------
-// Rooms (plan 17 — multi-cwd per Mac)
+// Rooms
 //
 // Each Pi-extension instance opens one room per active session (cwd).
 // The relay tracks room metadata per peer and pushes:
@@ -175,19 +175,19 @@ class RoomInfo {
   final String? cwd;
   final int startedAt;
 
-  /// Plan 18 — display model the Pi-extension is running with (e.g.
+  /// Display model the Pi-extension is running with (e.g.
   /// `claude-sonnet-4.5`, `gpt-4o`). Optional; Pi-ext may omit and
   /// the app falls back to `last paired` in the subtitle.
   final String? model;
 
-  /// Plan/28 Wave D — current thinking level the Pi-extension session
+  /// Current thinking level the Pi-extension session
   /// is running with. Optional; Pi-ext may omit when it cannot resolve
   /// it from the SDK, and legacy Pis don't publish this field at all.
   /// Drives the initial highlight of the Quick Actions thinking
   /// segmented control.
   final ThinkingLevel? thinking;
 
-  /// Plan/32 — `true` when the room currently has an in-flight agent
+  /// `true` when the room currently has an in-flight agent
   /// turn. The relay broadcasts `meta.working` for EVERY subscribed room
   /// (like presence), so Home can light the blue "working" dot on any
   /// session — not just the single connected one. Defaults to `false`
@@ -271,15 +271,15 @@ class RoomAnnounced extends ControlInbound {
   final String? cwd;
   final int startedAt;
 
-  /// Plan 18 — display model the Pi-extension is running with.
+  /// Display model the Pi-extension is running with.
   final String? model;
 
-  /// Plan/28 Wave D — current thinking level the Pi seeds at
+  /// Current thinking level the Pi seeds at
   /// session start. Parsed from `meta.thinking` or top-level
   /// `thinking` depending on whether the relay flattens metadata.
   final ThinkingLevel? thinking;
 
-  /// Plan/32 — in-flight agent turn at announce time. `null` when the
+  /// In-flight agent turn at announce time. `null` when the
   /// frame omitted it (legacy relay); the ConnectionManager then keeps
   /// any previously-known value instead of forcing `false`.
   final bool? working;
@@ -312,7 +312,7 @@ class RoomsSnapshot extends ControlInbound {
   const RoomsSnapshot({required this.peer, required this.rooms});
 }
 
-/// Plan 18 — incremental update to a room's metadata (model is the
+/// Incremental update to a room's metadata (model is the
 /// only field for now, but the `meta` envelope is open-ended). The
 /// relay pushes this when the Pi-extension swaps its model
 /// mid-session.
@@ -321,13 +321,13 @@ class RoomMetaUpdated extends ControlInbound {
   final String roomId;
   final String? model;
 
-  /// Plan/28 Wave D — current thinking level, parsed from
+  /// Current thinking level, parsed from
   /// `meta.thinking`. Null when the Pi only published a model change.
   /// The app treats both fields as independently optional so an update
   /// for only one of them doesn't clobber the other on the cache side.
   final ThinkingLevel? thinking;
 
-  /// Plan/28 Wave D — `true` when the `meta` envelope carried a `model`
+  /// `true` when the `meta` envelope carried a `model`
   /// key (even if value is null). Lets the ConnectionManager handler
   /// distinguish "model was not part of this update" from "model was
   /// explicitly cleared", which matters now that updates can be
@@ -339,10 +339,10 @@ class RoomMetaUpdated extends ControlInbound {
   /// presence-of-key boolean instead.
   final bool hasModel;
 
-  /// Plan/28 Wave D — same convention for `thinking`.
+  /// Same convention for `thinking`.
   final bool hasThinking;
 
-  /// Plan/32 — in-flight agent turn for this room. `null` = the update
+  /// In-flight agent turn for this room. `null` = the update
   /// did not carry `working` (preserve the cached value); non-null =
   /// set. No separate `hasWorking` flag is needed because `working` can
   /// never be "explicitly null" on the wire — `false` is the off state.
@@ -411,7 +411,7 @@ sealed class ClientMessage {
   Map<String, dynamic> toJson();
 }
 
-/// Plan/30 — one image carried inline on a `user_message` (base64 + mime).
+/// One image carried inline on a `user_message` (base64 + mime).
 /// Mirrors `WireImage` in `pi-extension/src/protocol/types.ts` and the SDK's
 /// `ImageContent`. The relay forwards it opaquely inside the existing `ct`.
 class WireImage {
@@ -458,7 +458,7 @@ class UserMessage extends ClientMessage {
   /// compatibility with older Pi extensions.
   final UserMessageStreamingBehavior? streamingBehavior;
 
-  /// Plan/30 — optional attached images. The feature sends at most one, but
+  /// Optional attached images. The feature sends at most one, but
   /// the wire shape is a list to mirror the SDK's `(TextContent|ImageContent)[]`
   /// and stay forward-compatible. Omitted entirely when empty (retro-compat).
   final List<WireImage>? images;
@@ -568,7 +568,7 @@ class PairRequest extends ClientMessage {
 }
 
 /// Sent on reconnect / re-entry to request the current view of Pi's
-/// session. With the mirror-cache strategy (plan/16) the app no longer
+/// session. With the mirror-cache strategy the app no longer
 /// negotiates incremental since_ts; it just asks for the latest N
 /// events and replaces local state with whatever Pi returns.
 class SessionSync extends ClientMessage {
@@ -585,10 +585,10 @@ class SessionSync extends ClientMessage {
 }
 
 // ---------------------------------------------------------------------------
-// Plan/28 — Typed app actions
+// Typed app actions
 // ---------------------------------------------------------------------------
 
-/// Plan/28 — Curated catalogue of actions the app can dispatch on the
+/// Curated catalogue of actions the app can dispatch on the
 /// Pi-side session. Each value matches an `action_ok`/`action_error`
 /// reply emitted by the pi-extension handlers in
 /// `pi-extension/src/actions/handlers.ts`.
@@ -610,7 +610,7 @@ enum ActionName {
   }
 }
 
-/// Plan/28 — Mirror of the SDK's `ThinkingLevel`. The wire format is the
+/// Mirror of the SDK's `ThinkingLevel`. The wire format is the
 /// lower-case string. Providers expose different subsets; model metadata in
 /// [WireModel.thinkingLevels] tells the picker which levels are meaningful.
 enum ThinkingLevel {
@@ -634,7 +634,7 @@ enum ThinkingLevel {
   }
 }
 
-/// Plan/28 — Wire shape for one entry in the model picker. Subset of
+/// Wire shape for one entry in the model picker. Subset of
 /// the SDK's `Model` interface; matches the `WireModel` declared in
 /// `pi-extension/src/protocol/types.ts`.
 class WireModel {
@@ -661,7 +661,7 @@ class WireModel {
   /// Context window in tokens — surfaced as picker subtitle.
   final int contextWindow;
 
-  /// Plan/30 — whether the model accepts image input (multimodal). Derived
+  /// Whether the model accepts image input (multimodal). Derived
   /// pi-side from `model.input.includes("image")`. Drives the attach
   /// button's enabled state (#9): a text-only model greys it out.
   final bool vision;
@@ -906,7 +906,7 @@ sealed class ServerMessage {
       'pong' => Pong.fromJson(json),
       'pair_ok' => PairOk.fromJson(json),
       'pair_error' => PairError.fromJson(json),
-      // Plan/24-fix-app-source-of-truth + follow-up: Pi rebroadcasts
+      // Truth + follow-up: Pi rebroadcasts
       // every accepted user_message via this stream. Some Pi-extension
       // versions emit `type: "user_input"` (mirror of a terminal-side
       // input), others reuse the original `user_message` type when
@@ -916,7 +916,7 @@ sealed class ServerMessage {
       'queued_message_state' => QueuedMessageState.fromJson(json),
       'steer_consumed' => SteerConsumed.fromJson(json),
       'agent_message' => AgentMessage.fromJson(json),
-      // Plan/32 — Pi-extension emits this when a context compaction finishes.
+      // Pi-extension emits this when a context compaction finishes.
       'compaction' => Compaction.fromJson(json),
       'session_history' => SessionHistory.fromJson(json),
       'bye' => Bye.fromJson(json),
@@ -950,7 +950,7 @@ sealed class ServerMessage {
         inReplyTo: json['in_reply_to'] as String,
         error: json['error'] as String,
       ),
-      // Plan/57 — interactive extension prompt (ask_user via pi-ask). Mirrors
+      // Interactive extension prompt (ask_user via pi-ask). Mirrors
       // the SDK's extension_ui_request RPC contract; optional `ask` envelope
       // carries pi-ask's full question so the app renders multi/preview/notes.
       'extension_ui_request' => ExtensionUiRequest.fromJson(json),
@@ -1135,7 +1135,7 @@ class Pong extends ServerMessage {
       Pong(inReplyTo: j['in_reply_to'] as String);
 }
 
-/// Plan/27 Wave A — identifies the agent harness the paired PC is
+/// Identifies the agent harness the paired PC is
 /// running. Surfaced as a subtitle on the PiCard ("via Pi coding
 /// agent"). Pi-extension is expected to publish this in `pair_ok`
 /// (contract for the next pi-extension dispatch); the app falls back
@@ -1177,20 +1177,20 @@ class PairOk extends ServerMessage {
   /// changed) and replace the cache instead of appending stale events.
   final int sessionStartedAt;
 
-  /// Plan 17 fix — Pi-side room id (cwd-session) that confirmed this
+  /// Pi-side room id (cwd-session) that confirmed this
   /// pair. The app persists this on the PeerRecord so subsequent
   /// reconnects can address the right (peer, room) directly without
   /// having to wait for subscribe_rooms / discovery. Legacy Pis that
   /// don't emit `room_id` fall back to `'main'`.
   final String roomId;
 
-  /// Plan/27 Wave A — agent harness identification. `null` when the
+  /// Agent harness identification. `null` when the
   /// pi-extension hasn't been upgraded to publish it; consumers fall
   /// back to [PiHarness.piCodingAgentUnknown] so the UI never renders
   /// an empty subtitle.
   final PiHarness? harness;
 
-  /// Plan/27 Wave A — hostname hint for the post-pair nickname modal.
+  /// Hostname hint for the post-pair nickname modal.
   /// The pi-extension reports its OS hostname so the modal can
   /// pre-fill a sensible placeholder ("Mac do Jacob") instead of a
   /// generic "Pi". `null` on legacy Pis.
@@ -1316,7 +1316,7 @@ class UserInput extends ServerMessage {
   /// for steering).
   final UserMessageStreamingBehavior? streamingBehavior;
 
-  /// Plan/30 — echoed-back attached image (the Pi rebroadcasts `images`).
+  /// Echoed-back attached image (the Pi rebroadcasts `images`).
   final WireImage? image;
 
   UserInput({
@@ -1355,7 +1355,7 @@ class AgentMessage extends ServerMessage {
   );
 }
 
-/// Plan/32 — emitted by the Pi-extension when a context compaction finishes.
+/// Emitted by the Pi-extension when a context compaction finishes.
 /// Rendered as a system bubble in the chat (✓ Contexto compactado + summary +
 /// the token count that was reclaimed). `ts` is optional (epoch millis).
 class Compaction extends ServerMessage {
@@ -1389,7 +1389,7 @@ class HistoryStreamingSnapshot {
 /// Reply to a `session_sync`. May arrive in batches; the final batch
 /// sets `eos: true`. `truncated: true` indicates Pi had more events
 /// than the requested `limit` and dropped the oldest — surfaced to
-/// logs only (no UI affordance per plan/16 D1=B).
+/// logs only.
 class SessionHistory extends ServerMessage {
   final String inReplyTo;
   final int sessionStartedAt;
@@ -1464,7 +1464,7 @@ sealed class SessionHistoryEvent {
         text: (j['text'] as String?) ?? '',
         complete: (j['complete'] as bool?) ?? true,
       ),
-      // Plan/32 — compaction replayed from history so the system bubble
+      // Compaction replayed from history so the system bubble
       // survives a re-sync.
       'compaction' => CompactionEvt(
         ts: ts,
@@ -1492,7 +1492,7 @@ class UserInputEvt extends SessionHistoryEvent {
   final String id;
   final String text;
 
-  /// Plan/30 — image replayed from history (decision #8 — bytes always
+  /// Image replayed from history (decision #8 — bytes always
   /// travel, so the bubble reconstructs on cold start / reconnect).
   final WireImage? image;
 
@@ -1538,7 +1538,7 @@ class AgentMessageEvt extends SessionHistoryEvent {
   });
 }
 
-/// Plan/32 — a context compaction replayed from `session_history`.
+/// A context compaction replayed from `session_history`.
 class CompactionEvt extends SessionHistoryEvent {
   final String summary;
   final int? tokensBefore;
@@ -1573,7 +1573,7 @@ class PairError extends ServerMessage {
 enum ByeReason { peerStop, sessionReplaced, shutdown, unknown }
 
 // ---------------------------------------------------------------------------
-// Plan/28 — Replies for typed app actions.
+// Replies for typed app actions.
 //
 // `action_ok` / `action_error` use the original `ActionName` so the app
 // can demultiplex by intended action (no need to remember every
@@ -1711,7 +1711,7 @@ class Bye extends ServerMessage {
 }
 
 // ---------------------------------------------------------------------------
-// Plan/57 — extension_ui_request bridge (mirror SDK RPC contract)
+// Extension_ui_request bridge (mirror SDK RPC contract)
 //
 // Interactive extension prompts (ask_user today, via @eko24ive/pi-ask) are
 // rendered natively instead of stranding the mobile user. The wire mirrors the

@@ -14,7 +14,7 @@ import 'mesh_envelope.dart';
 /// [PairingStorage] (local cache) and the [MeshClient] (network).
 ///
 /// Single source of truth for the Owner's membership is the relay
-/// (plan/24); the local storage is a hydrated cache. Mutations:
+/// The local storage is a hydrated cache. Mutations:
 ///   1. write through to local storage immediately (UI responsiveness)
 ///   2. publish in background; on conflict/failure, the next
 ///      [pullAndApply] reconciles.
@@ -105,7 +105,7 @@ class MeshSyncService extends ChangeNotifier {
   }
 
   /// Overwrite local peers + nicknames with what the relay says.
-  /// Implements the "relay is source of truth" contract from plan/24:
+  /// Implements the "relay is source of truth" contract:
   /// any peer in the local cache but absent from `blob.members` is
   /// removed; renamed nicknames propagate; relay_url updates.
   ///
@@ -161,7 +161,7 @@ class MeshSyncService extends ChangeNotifier {
   /// Snapshot the current local peer list, bump version, sign, POST.
   /// Conflict (409) → re-fetch then publish again with the higher
   /// version. Network failure leaves the cache as-is — the next
-  /// [pullAndApply] tick will reconcile (LWW from plan/24 § Q5).
+  /// [pullAndApply] tick will reconcile.
   ///
   /// [allowEmpty] opts out of the empty-on-existing safety net (see
   /// [_publishOnce]). Used by the revoke-last-peer flow, which is the
@@ -194,7 +194,7 @@ class MeshSyncService extends ChangeNotifier {
     required bool allowEmpty,
   }) async {
     final peers = await _storage.listPeers();
-    // Safety net (plan/24-fix-app-publish-race): never overwrite a
+    // Safety net: never overwrite a
     // non-empty membership with members=[] UNLESS the caller opted in
     // via [allowEmpty]. The only legitimate "empty on top of non-zero
     // version" path is the user revoking their last paired peer
@@ -259,8 +259,8 @@ class MeshSyncService extends ChangeNotifier {
   // Polling
   // -------------------------------------------------------------------------
 
-  /// Begin periodic [pullOnDemand] every [interval] (default 60s, the
-  /// Q1 value from plan/24). Idempotent — calling twice cancels the
+  /// Begin periodic [pullOnDemand] every [interval] (default 60s).
+  /// Idempotent — calling twice cancels the
   /// previous timer first.
   ///
   /// The host (typically the router or a top-level lifecycle observer)
@@ -282,7 +282,7 @@ class MeshSyncService extends ChangeNotifier {
   }
 
   /// Reset the version watermark — used by the Owner-key-replaced
-  /// path (sync drift in plan/23) so the next fetch is unconditional.
+  /// path so the next fetch is unconditional.
   void resetVersionWatermark() {
     _lastVersion = 0;
     lastUpdatedAt = null;

@@ -1,4 +1,4 @@
-// ActionsRepository — Plan/28 typed app actions.
+// ActionsRepository — typed app actions.
 //
 // Wraps the active `IChannel` exposed by [ConnectionManager] and turns
 // the per-action wire dance into a typed Future<void> /
@@ -15,7 +15,7 @@
 //
 //   1. Local `setModel` — caller knows the cache is stale, drops it.
 //   2. External `room_meta_updated` carrying a different model than
-//      we last knew (Wave D: another app paired with this Pi, or the
+//      we last knew (e.g. another app paired with this Pi, or the
 //      TUI's `/model` switched it). Detected by listening to the
 //      ConnectionManager's `roomsStream`.
 //   3. Manual `forceRefresh: true` from the picker's pull-to-refresh.
@@ -52,7 +52,7 @@ class SessionInventorySnapshot {
   final int scannedAt;
 }
 
-/// Plan/28 Wave D — snapshot of the active room's meta, as broadcast
+/// Snapshot of the active room's meta, as broadcast
 /// by the relay. Forwarded by [ActionsRepository.activeRoomMeta] so
 /// the QuickActions ViewModel can hydrate its current model / thinking
 /// without a round-trip.
@@ -137,7 +137,7 @@ class ActionsRepository extends Repository implements IActionsRepository {
   final Map<String, _Pending> _pending = {};
   final Map<String, ModelsCatalogue> _modelsCache = {};
 
-  /// Plan/28 Wave D — last model name we observed via `roomsStream`
+  /// Last model name we observed via `roomsStream`
   /// per session key. Lets us detect "the model changed externally"
   /// without invalidating the cache on the local round-trip we just
   /// initiated (which has already cleared the cache directly).
@@ -280,7 +280,7 @@ class ActionsRepository extends Repository implements IActionsRepository {
       thinking: active?.thinking,
     );
 
-    // Plan/28 Wave D — detect external model changes. The local
+    // Detect external model changes. The local
     // `setModel` path already drops the cache directly; here we only
     // care about transitions of model name learned via room broadcasts.
     final key = '$epk|$roomId';

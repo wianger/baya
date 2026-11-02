@@ -1,4 +1,4 @@
-// Plan/32g — the Chat AppBar's line 2 (paired-device name) must render from the
+// The Chat AppBar's line 2 (paired-device name) must render from the
 // `initialDevice` hint Home passes, immediately, WITHOUT waiting for the async
 // PeerRecord. With no peer bound (activePeer == null), the device label still
 // shows — proving the subtitle no longer depends on the async load (no flicker).
@@ -105,7 +105,7 @@ void main() {
 
   testWidgets(
     'AppBar line 2 shows the device from initialDevice immediately — no '
-    'PeerRecord needed (plan/32g)',
+    'PeerRecord needed',
     (tester) async {
       final conn = ConnectionManager(
         factory: (_, _) async => _FakeChannel(),

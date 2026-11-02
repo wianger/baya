@@ -1,4 +1,4 @@
-// Plan/31 — ChatViewModel is a thin composer over the SSOT. A message written
+// ChatViewModel is a thin composer over the SSOT. A message written
 // to the DB (via the channel → SyncService) must surface in ChatState.
 
 import 'dart:async';
@@ -324,7 +324,7 @@ void main() {
 
   test(
     'an empty session reaches ChatReady with no messages → the chat shows the '
-    'default "Nothing here" placeholder (plan/32)',
+    'default "Nothing here" placeholder',
     () async {
       final ch = _FakeChannel();
       final storage = _FakeStorage();
@@ -362,7 +362,7 @@ void main() {
   );
 
   test('working pill follows the relay per-room broadcast (same mechanism as '
-      'Home) and the flip rebuilds the state (plan/32)', () async {
+      'Home) and the flip rebuilds the state', () async {
     final ch = _FakeChannel();
     final storage = _FakeStorage();
     final conn = ConnectionManager(

@@ -4,7 +4,7 @@ import 'package:app/data/voice/speech_service.dart';
 import 'package:app/ui/chat/voice/states/voice_input_state.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 
-/// Plan 29 — drives the [SpeechService] for hold-to-talk voice input.
+/// Drives the [SpeechService] for hold-to-talk voice input.
 ///
 /// Lifecycle: [startRecording] (lazy [ensureInit] → native permission prompt
 /// on first use, decision #10) → ticking [VoiceRecording] → [stopAndTranscribe]

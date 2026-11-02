@@ -55,7 +55,7 @@ QrPairPayload _qr({String? relayUrl}) => QrPairPayload(
     );
 
 void main() {
-  group('performPairing — relay mismatch (plan 14)', () {
+  group('performPairing — relay mismatch', () {
     test(
       'throws PairingError(relay_mismatch) when qr.relayUrl differs '
       'from currentRelayUrl',
@@ -119,7 +119,7 @@ void main() {
     );
 
     test(
-      'pair_ok.room_id is persisted on the PeerRecord (plan 17 fix)',
+      'pair_ok.room_id is persisted on the PeerRecord',
       () async {
         final q1 = _Q();
         final q2 = _Q();

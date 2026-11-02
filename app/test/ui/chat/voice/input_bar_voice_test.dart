@@ -1,4 +1,4 @@
-// Plan 29 — InputBar hold-to-talk wiring: long-press shows the strip, release
+// InputBar hold-to-talk wiring: long-press shows the strip, release
 // transcribes into the field, slide-to-cancel discards, tap nudges, and the
 // unavailable states hide/keep the mic.
 

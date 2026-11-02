@@ -1,4 +1,4 @@
-// Plan 29 — RecordingStrip presentational behavior: running timer, waveform
+// RecordingStrip presentational behavior: running timer, waveform
 // that reacts to level, and the slide-to-cancel hint flip.
 
 import 'dart:math' as math;

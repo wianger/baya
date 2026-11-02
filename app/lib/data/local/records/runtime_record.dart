@@ -1,4 +1,4 @@
-/// Plan/31 — VOLATILE runtime state (#3). Lives in the `runtime` box that is
+/// VOLATILE runtime state (#3). Lives in the `runtime` box that is
 /// wiped on every boot, so it never reports stale online/presence across
 /// restarts. Reduced enums (not the rich sealed `ConnectionStatus`, which
 /// carries a live channel and can't be serialized).

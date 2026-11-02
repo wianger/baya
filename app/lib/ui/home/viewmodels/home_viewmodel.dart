@@ -15,11 +15,11 @@ import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/home/states/home_state.dart';
 
 /// HomeViewModel — passive list of paired peers + live presence dots
-/// + rooms discovered on each peer (plan 17). A single tile per
+/// + rooms discovered on each peer. A single tile per
 /// (peer, room).
 ///
-/// The WS connection is owned by [ConnectionManager] from app boot (plano
-/// 12). Home only:
+/// The WS connection is owned by [ConnectionManager] from app boot.
+/// Home only:
 ///   - reads the peer list from storage
 ///   - watches `presenceStream` + `roomsStream` to render dots / rooms
 ///     in real time
@@ -459,7 +459,7 @@ class HomeViewModel extends ViewModel<HomeState> {
   /// `true` when `(epk, roomId)`'s agent is currently mid-turn. Drives
   /// the blue "working" dot on the Home tile.
   ///
-  /// Plan/32 — single source of truth: the relay broadcasts `meta.working`
+  /// Single source of truth: the relay broadcasts `meta.working`
   /// (turn_start/turn_end from the Pi-extension) to ALL subscribed rooms,
   /// exactly like presence, so this reflects EVERY session — connected or
   /// not. We deliberately do NOT OR the DB session index here: that row is
@@ -480,7 +480,7 @@ class HomeViewModel extends ViewModel<HomeState> {
     }
     // Make sure the relay is pushing updates for everyone we know about;
     // the call is idempotent so this is safe even mid-session. The same
-    // subscribe also covers rooms (plan 17 — replay block in
+    // subscribe also covers rooms (replay block in
     // ConnectionManager sends both presence and rooms subscribes).
     _conn.subscribeToPeers(peers.map((p) => p.remoteEpk).toList());
     emit(
@@ -537,7 +537,7 @@ class HomeViewModel extends ViewModel<HomeState> {
     }
   }
 
-  /// Plan-38 Fase 3 — switch the presence tab. No reload: it only swaps the
+  /// Switch the presence tab. No reload: it only swaps the
   /// `filter` in state so [visibleItems] re-derives. No-op when the state
   /// isn't a list or the filter is unchanged.
   void setFilter(HomeFilter filter) {
@@ -555,7 +555,7 @@ class HomeViewModel extends ViewModel<HomeState> {
   bool _online(HomeItem it) =>
       _relayConnected && _conn.isRoomLive(it.peer.remoteEpk, it.room.roomId);
 
-  /// Plan-38 Fase 3 — the items the current [HomeList.filter] keeps. A pure
+  /// The items the current [HomeList.filter] keeps. A pure
   /// view over `state.items()`; returns `const []` outside a list state.
   List<HomeItem> get visibleItems {
     final s = state;
@@ -568,7 +568,7 @@ class HomeViewModel extends ViewModel<HomeState> {
     };
   }
 
-  /// Plan-38 Fase 3 — per-tab counts for the filter badges. Independent of
+  /// Per-tab counts for the filter badges. Independent of
   /// the active tab (each badge always shows its own slice's size).
   ({int all, int online, int offline}) get counts {
     final s = state;
@@ -583,7 +583,7 @@ class HomeViewModel extends ViewModel<HomeState> {
   /// pre-room-announce). Also flips the ConnectionManager's active
   /// room so subsequent sends carry the right outer envelope.
   ///
-  /// Plan-24 follow-up: when the peer record in storage has no
+  /// When the peer record in storage has no
   /// `roomId` yet (post-mesh-restore: the mesh blob doesn't carry
   /// per-device room data, so `PeerRecord.roomId` is null until the
   /// relay announces the room and `ConnectionManager._maybeAdoptLegacyRoom`
@@ -619,7 +619,7 @@ class HomeViewModel extends ViewModel<HomeState> {
   /// for indexing into [HomeList.roomsByPeer] / [HomeList.statusByEpk].
   static String normalizeEpkForLookup(String epk) => toStandardB64(epk);
 
-  /// Plan-17 follow-up — `true` if `(epk, roomId)` is currently live on
+  /// `true` if `(epk, roomId)` is currently live on
   /// the relay. Drives the presence dot on each tile (per-room, not
   /// per-peer anymore).
   bool isRoomLive(String epk, String roomId) => _conn.isRoomLive(epk, roomId);

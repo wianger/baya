@@ -1,4 +1,4 @@
-// Plan/30 — ImagePickerService pick + iterative size-ceiling logic, via the
+// ImagePickerService pick + iterative size-ceiling logic, via the
 // ImagePickerBackend seam (no plugins / device).
 
 import 'dart:typed_data';

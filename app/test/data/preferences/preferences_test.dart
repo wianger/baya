@@ -133,7 +133,7 @@ void main() {
       expect(p2.onboardingCompleted, isTrue);
     });
 
-    test('selectedRoom round-trips epk + roomId composite (plan 17)', () async {
+    test('selectedRoom round-trips epk + roomId composite', () async {
       final store = _FakeSecureStorage();
       final p = Preferences(store);
       await p.setSelectedRoom(epk: 'abc123', roomId: 'room-xyz');
@@ -159,7 +159,7 @@ void main() {
       expect(p.selectedRoomId, isNull);
     });
 
-    // Issue #114 — in-app text size.
+    // In-app text size.
     test(
       'fontScale defaults to standard and round-trips through storage',
       () async {

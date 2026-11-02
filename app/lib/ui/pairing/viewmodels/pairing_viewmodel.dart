@@ -23,7 +23,7 @@ typedef PairingTransportFactory =
 class PairingViewModel extends ViewModel<PairingState> {
   final PairingStorage _storage;
   final PairingTransportFactory _transportFactory;
-  // Plan/31 — connection lifecycle (disconnect/adopt) now goes straight to
+  // Connection lifecycle (disconnect/adopt) now goes straight to
   // the ConnectionManager (the removed SessionRepository was a pass-through).
   final ConnectionManager _conn;
   final Preferences _prefs;
@@ -58,8 +58,8 @@ class PairingViewModel extends ViewModel<PairingState> {
       // peer registry, causing the old handler to unregister our new entry.
       await _conn.disconnect();
 
-      // Plan 23 — challenge-response now uses the Owner-key (synced
-      // via iCloud Keychain / Block Store). The bridge is hydrated by
+      // Challenge-response now uses the Owner-key (synced
+      // via Block Store). The bridge is hydrated by
       // the router's _BootState well before pairing is reachable, so
       // requireKeyPair() never throws here.
       final ownerKey = await _ownerBridge.requireKeyPair();
@@ -105,7 +105,7 @@ class PairingViewModel extends ViewModel<PairingState> {
   void retry() => emit(const PairingScanning());
 
   /// Persist a nickname on the just-paired peer. Called by the
-  /// post-pair nickname modal (plan/27 Wave A) — `null` or empty
+  /// post-pair nickname modal — `null` or empty
   /// leaves the existing record unchanged, anything else is written
   /// back through [PairingStorage.savePeer], whose mutation hook
   /// republishes `mesh_versions` so other devices learn the label.
@@ -143,7 +143,6 @@ class PairingViewModel extends ViewModel<PairingState> {
 
   static String _deviceName() {
     try {
-      if (Platform.isIOS) return 'iPhone';
       if (Platform.isAndroid) return 'Android device';
       return 'Mobile';
     } catch (_) {

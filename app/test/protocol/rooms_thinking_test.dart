@@ -1,4 +1,4 @@
-// Plan/28 Wave D — wire-level parsing of `meta.thinking` and the
+// Wire-level parsing of `meta.thinking` and the
 // `RoomInfo.thinking` field across `room_announced`, `room_meta_updated`
 // and `rooms` snapshots.
 

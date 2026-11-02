@@ -1,4 +1,4 @@
-// Plan/31 — SyncService is the single DB writer. Drives it through a fake
+// SyncService is the single DB writer. Drives it through a fake
 // channel adopted into a real ConnectionManager and asserts box contents.
 
 import 'dart:async';
@@ -710,7 +710,7 @@ void main() {
   });
 
   test('switching sessions resets the in-memory turn state — working/streaming '
-      'do NOT leak into the next chat (plan/32)', () async {
+      'do NOT leak into the next chat', () async {
     final s = await setup();
 
     // Session 1 is mid-turn: working flag + streaming buffer populated.
@@ -873,7 +873,7 @@ void main() {
 
   test('re-applying an IDENTICAL SessionHistory is idempotent — no box churn, '
       'so the relay re-sending history on every reconnect no longer tears the '
-      'list down and rebuilds it (plan/32 flicker fix)', () async {
+      'list down and rebuilds it', () async {
     final s = await setup();
     final read = SessionReadRepository(LocalBoxes());
     var emits = 0;
@@ -919,7 +919,7 @@ void main() {
   test(
     'switching the writer to a new session: a late frame from the OLD '
     "connection is dropped — it neither writes the new box nor appears in the "
-    "new session's read projection (plan/32f session-switch bleed)",
+    "new session's read projection",
     () async {
       final s = await setup(); // bound to s.epk (peer A)
       s.ch.push(UserInput(id: 'a1', text: 'from chat1'));
@@ -966,7 +966,7 @@ void main() {
   );
 
   test('compaction ServerMessage writes a system row that projects to a '
-      'CompactionMsg system bubble (plan/32)', () async {
+      'CompactionMsg system bubble', () async {
     final s = await setup();
     s.ch.push(
       Compaction(
@@ -990,7 +990,7 @@ void main() {
   });
 
   test('compaction event in session_history reconstructs the system row on '
-      're-sync (plan/32)', () async {
+      're-sync', () async {
     final s = await setup();
     s.ch.push(
       SessionHistory(
@@ -1092,7 +1092,7 @@ void main() {
     },
   );
 
-  // Plan/32 safety net — a sent message whose echo never comes back must not
+  // A sent message whose echo never comes back must not
   // spin forever; the optimistic bubble is removed SILENTLY after the timeout.
   group('no-echo send timeout', () {
     const short = Duration(milliseconds: 60);

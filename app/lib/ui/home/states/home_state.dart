@@ -7,7 +7,7 @@ sealed class HomeState {
   const HomeState();
 }
 
-/// Plan-38 Fase 3 — which presence slice of the Home list is shown.
+/// Which presence slice of the Home list is shown.
 /// Pure view filter over the existing (peer → room) list; the tabs never
 /// reload or regroup data. Default is [online] (see [HomeList.filter]).
 ///
@@ -24,7 +24,7 @@ class HomeNoPeer extends HomeState {
   const HomeNoPeer();
 }
 
-/// Plan 17 — single row on Home: a Pi room (per-cwd session) bound to
+/// Single row on Home: a Pi room (per-cwd session) bound to
 /// a paired Mac. Multiple HomeItems per peer when the Mac runs more
 /// than one Pi session. When `roomId == 'main'` (the only room from a
 /// legacy/single-cwd Pi), the UI may collapse the cwd subtitle.
@@ -69,7 +69,7 @@ class HomeList extends HomeState {
   final Map<String, PresenceState> statusByEpk;
   final Map<String, List<RoomInfo>> roomsByPeer;
 
-  /// Plan-38 Fase 3 — the selected presence tab. Part of the immutable
+  /// The selected presence tab. Part of the immutable
   /// state (per the `ViewModel<T>` pattern) so the choice is reactive and
   /// survives presence/rooms/status re-emits. Default [HomeFilter.online].
   final HomeFilter filter;
@@ -94,7 +94,7 @@ class HomeList extends HomeState {
   );
 
   /// Flatten to a single ordered list of items: one row per (peer, room).
-  /// **Plan-17 follow-up**: peers without any currently-announced rooms
+  /// Peers without any currently-announced rooms
   /// produce ZERO items. Earlier behaviour created a synthetic 'main'
   /// tile for legacy compatibility, but that tile pointed at a (peer,
   /// 'main') destination the Pi was no longer listening on — sending

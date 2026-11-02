@@ -1,4 +1,4 @@
-// Plan/32b — AgentMarkdown renders fenced code with a copy button.
+// AgentMarkdown renders fenced code with a copy button.
 
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:flutter/material.dart';

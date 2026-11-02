@@ -1,4 +1,4 @@
-// Plan/31 — SyncService: the SINGLE writer of the local SSOT.
+// SyncService: the SINGLE writer of the local SSOT.
 //
 // Consumes the channel (ConnectionManager status + PeerChannel
 // serverMessages) and writes row-granular records to Hive (v2 boxes). The UI
@@ -59,7 +59,7 @@ class SyncService extends Service {
   final StreamController<SessionEvent> _eventController =
       StreamController<SessionEvent>.broadcast();
 
-  // Plan/57 — transient interactive extension prompts (ask_user via pi-ask).
+  // Transient interactive extension prompts (ask_user via pi-ask).
   // Never persisted (live UI requests, not chat history); surfaced to the
   // ChatViewModel, which opens a full-screen modal.
   final StreamController<ExtensionUiRequest> _extensionUiController =
@@ -87,7 +87,7 @@ class SyncService extends Service {
   final StreamController<bool> _workingController =
       StreamController<bool>.broadcast();
 
-  // Plan/32 safety net — if the relay never echoes a sent message back, the
+  // Safety net: if the relay never echoes a sent message back, the
   // optimistic `pending:true` bubble would spin forever. After this window we
   // remove the bubble SILENTLY (no "failed" state, no spinner). The real fix
   // lives in the relay; this is the app-side backstop. Per-message (`id`)
@@ -120,7 +120,7 @@ class SyncService extends Service {
   Stream<StreamingMessage?> get streamingStream => _streamingController.stream;
   Stream<SessionEvent> get events => _eventController.stream;
 
-  /// Plan/57 — stream of interactive extension_ui_request prompts (ask_user
+  /// Stream of interactive extension_ui_request prompts (ask_user
   /// via pi-ask). Transient: not written to the DB; the ChatViewModel renders
   /// a full-screen modal and replies via [respondExtensionUi].
   Stream<ExtensionUiRequest> get extensionUiRequestStream =>
@@ -334,7 +334,7 @@ class SyncService extends Service {
     await ch.send(Cancel(id: _newId(), targetId: targetId));
   }
 
-  /// Plan/57 — respond to an interactive extension_ui_request (ask_user).
+  /// Respond to an interactive extension_ui_request (ask_user).
   /// The ChatViewModel builds the [ExtensionUiResponse] (value/confirmed/
   /// cancelled + optional `ask` envelope); the SyncService just ships it.
   /// Returns false when there is no live channel or the send fails so the
@@ -410,7 +410,7 @@ class SyncService extends Service {
     ch.send(SessionSync(id: _newId()));
   }
 
-  /// Plan/28 — `session_new` acked: wipe the active session's rows + index.
+  /// `session_new` acked: wipe the active session's rows + index.
   Future<void> clearActiveSession() async {
     final epk = _activeEpk;
     if (epk == null) return;
@@ -440,7 +440,7 @@ class SyncService extends Service {
     _msgSub?.cancel();
     _msgSub = null;
     if (s is StatusOnline) {
-      // Plan/32f — bind this stream's writes to the PEER that owns the
+      // Bind this stream's writes to the PEER that owns the
       // channel RIGHT NOW. After a `switchTo`, a late frame from the OLD
       // peer's channel must not land in the NEW session's box: `_activeEpk`
       // has already moved (the chat calls `activate()` before `switchTo`), so
@@ -474,7 +474,7 @@ class SyncService extends Service {
   }
 
   void _onServerMessage(ServerMessage msg, [String? originEpk]) {
-    // Plan/32f — drop frames from a peer whose channel is no longer the active
+    // Drop frames from a peer whose channel is no longer the active
     // session (a stale connection still draining after `switchTo`). Without
     // this, a straggler write targets `_activeEpk` — which already points at
     // the NEW chat — and bleeds the old session's messages into the new box.
@@ -759,7 +759,7 @@ class SyncService extends Service {
         _writeCompaction(summary, tokensBefore, ts);
 
       case ExtensionUiRequest():
-        // Plan/57 — transient interactive prompt (ask_user via pi-ask).
+        // Transient interactive prompt (ask_user via pi-ask).
         // Surface to the UI; never persist (it's a live request, not history).
         _extensionUiController.add(msg);
         break;
@@ -780,7 +780,7 @@ class SyncService extends Service {
     }
   }
 
-  /// Plan/32 — persist a compaction as a system row so it renders a system
+  /// Persist a compaction as a system row so it renders a system
   /// bubble in the chat and survives a re-sync. Keyed by `ts` when present so
   /// the live message and its history replay collapse to one row.
   void _writeCompaction(String summary, int? tokensBefore, int? ts) {

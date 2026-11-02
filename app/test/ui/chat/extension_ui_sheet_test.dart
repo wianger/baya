@@ -1,4 +1,4 @@
-// Plan/57 — ExtensionUiSheet behavior around submit enablement, rejection
+// ExtensionUiSheet behavior around submit enablement, rejection
 // retry, and system back. Covers the riskiest interactive logic of the
 // ask_user modal (the protocol surface is covered by
 // test/protocol/extension_ui_test.dart).

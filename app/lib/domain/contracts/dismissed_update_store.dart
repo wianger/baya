@@ -1,10 +1,9 @@
-/// Persiste qual versão de atualização o usuário **dispensou** (fechou o card).
-/// Contrato no domínio; impl (storage seguro) em `data/update/`. O card não
-/// reaparece pra essa versão, mas volta quando sair uma maior.
+/// Remembers which update the user dismissed. The notice stays hidden for
+/// that version and returns when a newer one ships.
 abstract class DismissedUpdateStore {
-  /// A última versão dispensada, ou `null` se nenhuma.
+  /// The last dismissed version, or `null`.
   Future<String?> dismissedVersion();
 
-  /// Marca [version] como dispensada.
+  /// Marks [version] as dismissed.
   Future<void> dismiss(String version);
 }

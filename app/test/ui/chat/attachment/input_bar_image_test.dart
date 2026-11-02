@@ -1,4 +1,4 @@
-// Plan/30 — InputBar image wiring: attach button gating by vision, preview +
+// InputBar image wiring: attach button gating by vision, preview +
 // remove, send-with-image. Drives a real AttachmentViewModel + fakes.
 
 import 'dart:async';

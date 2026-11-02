@@ -1,9 +1,6 @@
-import 'package:app/ui/core/branding/app_brand.dart';
-
-import 'dart:io' show Platform;
-
 import 'package:app/config/dependencies.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
+import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -11,8 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Plan 23 — first-launch gate when the platform's key-sync surface
-/// (iCloud Keychain on iOS, Google Backup / Block Store on Android) is
+/// First-launch gate when the platform's key-sync surface
+/// (Google Backup / Block Store) is
 /// not available. The app cannot proceed without it because the Owner
 /// Ed25519 keypair has no other persistence path.
 class SyncRequiredPage extends StatefulWidget {
@@ -40,15 +37,11 @@ class _SyncRequiredPageState extends State<SyncRequiredPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isIOS = Platform.isIOS;
-    final requirements = isIOS ? _iosRequirements : _androidRequirements;
-    final why = isIOS
-        ? '$kAppName keeps your Ed25519 owner key in iCloud Keychain so '
-              'you can switch iPhones or pair your iPad without scanning '
-              'a new QR.'
-        : '$kAppName keeps your Ed25519 owner key in Google Block Store '
-              'so you can restore it on a new device through Google '
-              'Backup without losing your paired Pis.';
+    const requirements = _requirements;
+    const why =
+        '$kAppName keeps your Ed25519 owner key in Google Block Store so you '
+        'can restore it on a new phone through Google Backup without losing '
+        'your paired computers.';
 
     final colors = context.colors;
     return Scaffold(
@@ -74,9 +67,7 @@ class _SyncRequiredPageState extends State<SyncRequiredPage> {
                           child: SizedBox.square(
                             dimension: 58,
                             child: Icon(
-                              isIOS
-                                  ? LucideIcons.cloudOff
-                                  : LucideIcons.cloudUpload,
+                              LucideIcons.cloudUpload,
                               color: colors.accent,
                               size: 27,
                             ),
@@ -158,7 +149,7 @@ class _Requirement {
   const _Requirement({required this.title, required this.path, this.note});
 }
 
-const _androidRequirements = <_Requirement>[
+const _requirements = <_Requirement>[
   _Requirement(
     title: 'Set up a screen lock',
     path: 'Settings › Security › Screen lock',
@@ -173,19 +164,6 @@ const _androidRequirements = <_Requirement>[
   _Requirement(
     title: 'Sign in to a Google account',
     path: 'Settings › Passwords & accounts › Add account › Google',
-  ),
-];
-
-const _iosRequirements = <_Requirement>[
-  _Requirement(
-    title: 'Sign in to iCloud',
-    path: 'Settings › [your name]',
-    note: 'If you see "Sign in to your iPhone" at the top, tap it.',
-  ),
-  _Requirement(
-    title: 'Turn on iCloud Keychain',
-    path: 'Settings › [your name] › iCloud › Passwords and Keychain',
-    note: 'Toggle "Sync this iPhone" on.',
   ),
 ];
 

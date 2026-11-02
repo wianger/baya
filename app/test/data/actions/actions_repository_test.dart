@@ -1,4 +1,4 @@
-// Plan/28 Wave C — ActionsRepository unit tests.
+// ActionsRepository unit tests.
 //
 // Covers id correlation between ClientMessage sends and the matching
 // `action_ok` / `action_error` / `models_list` replies, plus the

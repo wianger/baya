@@ -8,7 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 const _kPeersService = 'dev.remotepi.peers';
 const _kRoomsService = 'dev.remotepi.rooms';
 
-/// Plan-17 follow-up — persisted snapshot of every room we have ever
+/// Persisted snapshot of every room we have ever
 /// learned about for a peer (relay-announced via `room_announced` /
 /// `rooms` push). Allows Home to keep showing the same tiles after a
 /// cold start while the relay is still warming up + lets the user
@@ -23,7 +23,7 @@ class PersistedRoom {
   /// in UI (long-press rename).
   final String? localName;
 
-  /// Plan 18 — last-known model the Pi-extension is running with.
+  /// Last-known model the Pi-extension is running with.
   /// Persisted so the subtitle survives cold starts.
   final String? model;
 
@@ -90,14 +90,14 @@ class PeerRecord {
   // place of [sessionName] when set; null = use sessionName everywhere.
   final String? nickname;
 
-  /// Plan 17 fix — Pi-side room id (cwd-session) this pairing is bound
+  /// Pi-side room id (cwd-session) this pairing is bound
   /// to. Set from `PairOk.roomId` on pair, or discovered lazily via
   /// `subscribe_rooms` for legacy peers persisted before this fix.
   /// `null` = not yet discovered; outbound sends fall back to 'main'
   /// while ConnectionManager runs the discovery once.
   final String? roomId;
 
-  /// Plan/27 Wave A — agent harness reported by the PC at pair time.
+  /// Agent harness reported by the PC at pair time.
   /// Surfaced as the "via Pi coding agent" subtitle on the PiCard.
   /// `null` for PeerRecords saved before the field existed; consumers
   /// fall back to [PiHarness.piCodingAgentUnknown] so the UI never
@@ -131,12 +131,12 @@ class PeerRecord {
       sessionName: j['session_name'] as String,
       relayUrl: j['relay_url'] as String,
       pairedAt: j['paired_at'] as String,
-      // Legacy records (saved before plan 10.3) have no 'nickname' field.
+      // Legacy records have no 'nickname' field.
       nickname: j['nickname'] as String?,
-      // Legacy records (saved before plan 17 fix) have no 'room_id'.
+      // Legacy records have no 'room_id'.
       // Stays null until ConnectionManager discovers it via subscribe_rooms.
       roomId: j['room_id'] as String?,
-      // Plan/27 Wave A — harness was added later. Records saved before
+      // Harness was added later. Records saved before
       // it lack the field; null falls back to the default at consumer
       // side.
       harness: harnessJson is Map<String, dynamic>
@@ -198,7 +198,7 @@ class PeerRecord {
 class PairingStorage extends ChangeNotifier {
   final FlutterSecureStorage _store;
 
-  /// Plan 24 — optional fire-and-forget hook that runs after every
+  /// Optional fire-and-forget hook that runs after every
   /// peer mutation (`savePeer` / `deletePeer`). The `MeshSyncService`
   /// registers this so changes propagate to the relay's
   /// `mesh_versions` row in the background. Failures of the hook are
@@ -237,7 +237,7 @@ class PairingStorage extends ChangeNotifier {
   /// MeshSyncService when applying a verified mesh blob to the local
   /// cache — without this we'd round-trip back to the relay
   /// (pull→apply→savePeer→hook→publish) and a race could publish an
-  /// empty members list (see plan/24-fix-app-publish-race).
+  /// empty members list.
   Future<void> savePeerSilent(PeerRecord record) => _writePeer(record);
 
   Future<PeerRecord?> loadPeer(String remoteEpk) async {
@@ -333,7 +333,7 @@ class PairingStorage extends ChangeNotifier {
   }
 
   /// Wipe every peer + every persisted room map. Used by the
-  /// Owner-key bridge when iCloud / Backup sync brings a different
+  /// Owner-key bridge when Backup sync brings a different
   /// Owner-pk — the previous device's peer list is meaningless for
   /// the newly-synced identity, so we start clean rather than risk
   /// connecting against stale `remote_epk`s.
@@ -348,7 +348,7 @@ class PairingStorage extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ---- Rooms (plan 17 follow-up) -----------------------------------------
+  // ---- Rooms -----------------------------------------
 
   String _roomsKey(String remoteEpk) => '$_kRoomsService:$remoteEpk';
 

@@ -1,4 +1,4 @@
-// Plan/31 — read-only projection of the active session's rows + runtime.
+// Read-only projection of the active session's rows + runtime.
 // NO channel dependency: it only reads the DB and watches it. Projection is
 // INCREMENTAL — it mutates an in-memory map per BoxEvent rather than re-reading
 // the whole box (Risk 1 / #defaults).

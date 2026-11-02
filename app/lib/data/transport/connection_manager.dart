@@ -15,7 +15,7 @@
 // next ping; inbound traffic (handled by the channel listener) resets the
 // counter back to 0. Two consecutive misses (~50s of silence) → retrying.
 //
-// Post plan offline-loop (4 patches):
+// Invariants that keep the loop from spinning while offline:
 //
 //  A) `_channelSub` is stored and cancelled on every transition. The old
 //     channel's `onDone` (triggered by the relay killing it on duplicate
@@ -106,15 +106,15 @@ class ConnectionManager extends Service {
   final PairingStorage _storage;
 
   final _statusController = StreamController<ConnectionStatus>.broadcast();
-  // Presence (plano 12): map per remote_epk + a broadcast stream the UI
+  // Presence: map per remote_epk + a broadcast stream the UI
   // listens to. The map is emitted whole on every change for simple
   // diffing on the consumer side.
   final Map<String, PresenceState> _presence = <String, PresenceState>{};
   final _presenceController =
       StreamController<Map<String, PresenceState>>.broadcast();
-  // Plan 17 — rooms tracking. Keys are STANDARD base64 epks (matches
+  // Rooms tracking. Keys are STANDARD base64 epks (matches
   // presence map). Each value is the canonical room list for that peer.
-  // Plan-17 follow-up — `_roomsByPeer` is the CANONICAL set (cached +
+  // `_roomsByPeer` is the CANONICAL set (cached +
   // currently announced). `_liveRoomIds` tracks which roomIds are
   // alive RIGHT NOW (in the relay snapshot). Rooms in `_roomsByPeer`
   // but not in `_liveRoomIds` are "offline" (last-seen state).
@@ -125,13 +125,13 @@ class ConnectionManager extends Service {
   bool _roomsRestored = false;
   ConnectionStatus _status = const StatusNoPeer();
   PeerRecord? _activePeer;
-  // Plan 17 — active room on the destination Pi. 'main' is the implicit
+  // Active room on the destination Pi. 'main' is the implicit
   // default and matches the per-cwd room a Pi opens.
   String _activeRoomId = 'main';
 
   Timer? _retryTimer;
   Timer? _pingTimer;
-  // Plan-18 follow-up — watchdog timer that periodically checks for
+  // Watchdog timer that periodically checks for
   // "stuck offline" state (active peer set but status not online and
   // no retry / connect in flight). When detected, forces a fresh
   // _scheduleRetry. Belt-and-suspenders against any code path that
@@ -182,7 +182,7 @@ class ConnectionManager extends Service {
     _startWatchdog();
   }
 
-  /// Plan-18 follow-up — periodically checks for stuck offline state
+  /// Periodically checks for stuck offline state
   /// and forces a reconnect attempt. Runs every 15s. Cheap; only
   /// fires the actual `_scheduleRetry` when the conditions match.
   void _startWatchdog() {
@@ -210,7 +210,7 @@ class ConnectionManager extends Service {
   /// / fresh after disconnect()).
   PeerRecord? get activePeer => _activePeer;
 
-  // ---- Presence (plano 12) -------------------------------------------------
+  // ---- Presence -------------------------------------------------
 
   /// Stream of full presence-map snapshots. Subscribers should treat each
   /// event as the canonical state for all keys present in the map.
@@ -230,7 +230,7 @@ class ConnectionManager extends Service {
   Map<String, PresenceState> get presenceSnapshot =>
       Map.unmodifiable(_presence);
 
-  // ---- Rooms (plan 17) -----------------------------------------------------
+  // ---- Rooms -----------------------------------------------------
 
   /// Stream of full room-map snapshots. Each event is the canonical
   /// list of rooms per peer (standard-base64 keys).
@@ -348,7 +348,7 @@ class ConnectionManager extends Service {
   }
 
   /// Open the WS and start driving a peer. Accepts an optional
-  /// [preferredEpk] (plano 13) so the caller can express the user's
+  /// [preferredEpk] so the caller can express the user's
   /// authoritative choice — typically `Preferences.selectedPeerEpk`.
   /// When the preferred epk is not in storage (or omitted), falls back
   /// to `peers.first`.
@@ -357,7 +357,7 @@ class ConnectionManager extends Service {
   /// retrying). In that case we still re-subscribe presence with the
   /// full peer list, since the storage may have changed.
   Future<void> boot({String? preferredEpk}) async {
-    // Plan-17 follow-up — restore cached rooms from disk FIRST so
+    // Restore cached rooms from disk FIRST so
     // Home tiles render with last-known state even before the relay
     // pushes a fresh snapshot. Idempotent so reentrant boots are
     // harmless.
@@ -401,8 +401,8 @@ class ConnectionManager extends Service {
 
   /// Idempotent switch to another paired peer. If `peer` already matches
   /// [activePeer] AND we are Online, no-op. Otherwise tears down the
-  /// current channel WITHOUT emitting a transient `StatusNoPeer` (plano
-  /// 13) and starts a fresh connection — the visible transition becomes
+  /// current channel WITHOUT emitting a transient `StatusNoPeer` and
+  /// starts a fresh connection — the visible transition becomes
   /// `Online → Connecting → Online`, never landing on NoPeer.
   Future<void> switchTo(PeerRecord peer) async {
     final fromEpk = _activePeer?.remoteEpk;
@@ -507,7 +507,7 @@ class ConnectionManager extends Service {
     final token = CancelToken();
     _connectCancel = token;
     _connectInFlight = true;
-    // Plan 17 fix — set the destination room from the persisted
+    // Set the destination room from the persisted
     // PeerRecord BEFORE emitting StatusOnline so the very first send
     // after connect goes to the right (peer, room) on the relay. If
     // the PeerRecord predates this fix (`roomId == null`), we keep
@@ -670,13 +670,13 @@ class ConnectionManager extends Service {
         // (long-press rename) — only the live metadata comes from the
         // wire, the rename is local-only.
         String? preservedName;
-        // Plan/28 Wave D — also preserve a previously-learned thinking
+        // Also preserve a previously-learned thinking
         // level when the announce frame omits it. Relays that don't
         // flatten `meta.thinking` will keep `thinking == null` here;
         // the previously cached value (if any) survives until the
         // next genuine `room_meta_updated`.
         ThinkingLevel? preservedThinking;
-        // Plan/32 — same preserve convention for `working`: a legacy
+        // Same preserve convention for `working`: a legacy
         // relay that omits it (null) keeps the cached value instead of
         // forcing the room back to idle.
         var preservedWorking = false;
@@ -710,7 +710,7 @@ class ConnectionManager extends Service {
         // Persist the new view so cold restart shows the same tiles.
         // ignore: unawaited_futures
         _persistRoomsForPeer(key);
-        // Plan 17 fix — legacy discovery: if the active peer has no
+        // Legacy discovery: if the active peer has no
         // persisted roomId yet (PeerRecord saved before this fix or
         // QR without `rm`), adopt the first room we learn about as
         // the canonical one. Persists the choice on the PeerRecord
@@ -742,7 +742,7 @@ class ConnectionManager extends Service {
         final idx = list.indexWhere((r) => r.roomId == roomId);
         if (idx < 0) break;
         final current = list[idx];
-        // Plan/28 Wave D — meta is open-ended; only update the fields
+        // Meta is open-ended; only update the fields
         // the broadcast actually carried. `hasModel` / `hasThinking`
         // distinguishes "field was absent from the meta envelope"
         // (preserve previous value) from "field was explicitly null"
@@ -750,7 +750,7 @@ class ConnectionManager extends Service {
         // would clobber the previously cached model with null.
         final nextModel = hasModel ? model : current.model;
         final nextThinking = hasThinking ? thinking : current.thinking;
-        // Plan/32 — `working` is nullable-as-absent: null preserves the
+        // `working` is nullable-as-absent: null preserves the
         // cached value (e.g. a model-only update must not flip the dot),
         // non-null sets it. This is what carries the relay's
         // turn_start/turn_end broadcast to the Home dot for EVERY room.
@@ -778,7 +778,7 @@ class ConnectionManager extends Service {
         for (final r in rooms) {
           final preservedName = byId[r.roomId]?.name ?? r.name;
           final preservedModel = r.model ?? byId[r.roomId]?.model;
-          // Plan/28 Wave D — same convention as model: keep the
+          // Same convention as model: keep the
           // previously-known thinking when the snapshot omits it.
           final preservedThinking = r.thinking ?? byId[r.roomId]?.thinking;
           byId[r.roomId] = RoomInfo(
@@ -788,7 +788,7 @@ class ConnectionManager extends Service {
             startedAt: r.startedAt,
             model: preservedModel,
             thinking: preservedThinking,
-            // Plan/32 — the snapshot is authoritative for live state:
+            // The snapshot is authoritative for live state:
             // `rooms_of` reads the current registry meta, so its
             // `working` reflects the latest turn_start/turn_end.
             working: r.working,
@@ -940,7 +940,7 @@ class ConnectionManager extends Service {
   /// it). Cached rooms not in the live set return `false`. Used by
   /// the chat AppBar to render the online dot.
   ///
-  /// Plan-18 follow-up: gated by `_status is StatusOnline`. When the
+  /// Gated by `_status is StatusOnline`. When the
   /// WS to the relay drops (retrying / offline), we have no fresh
   /// signal that any room is reachable, so EVERY room is reported
   /// offline regardless of the cached `_liveRoomIds`. Home tiles +
@@ -953,7 +953,7 @@ class ConnectionManager extends Service {
     return live != null && live.contains(roomId);
   }
 
-  /// Plan/32 — `true` when the relay's last room-meta broadcast for
+  /// `true` when the relay's last room-meta broadcast for
   /// `(epk, roomId)` carried `working: true` (an in-flight agent turn).
   /// Unlike the DB session-index signal (which only covers the single
   /// connected room), this reflects EVERY subscribed room because the
@@ -992,7 +992,7 @@ class ConnectionManager extends Service {
     _persistRoomsForPeer(key);
   }
 
-  /// Plan-17 follow-up — hydrate `_roomsByPeer` from disk on boot so
+  /// Hydrate `_roomsByPeer` from disk on boot so
   /// Home tiles persist across cold starts even before the relay
   /// pushes a fresh snapshot. Idempotent.
   Future<void> _restoreCachedRooms() async {
@@ -1057,7 +1057,7 @@ class ConnectionManager extends Service {
     await _storage.saveRooms(match.remoteEpk, persisted);
   }
 
-  /// Plan-17 follow-up — long-press menu support. Override the
+  /// Long-press menu support. Override the
   /// display name of a single room locally (Pi never sees this).
   /// Reflects immediately in the rooms snapshot.
   Future<void> setRoomLocalName(String epk, String roomId, String? name) async {
@@ -1085,7 +1085,7 @@ class ConnectionManager extends Service {
     }
   }
 
-  /// Plan-17 follow-up — delete a cached room locally. Only safe when
+  /// Delete a cached room locally. Only safe when
   /// the room is offline (not live); UI gates this.
   Future<void> deleteCachedRoom(String epk, String roomId) async {
     final key = toStandardB64(epk);
@@ -1102,7 +1102,7 @@ class ConnectionManager extends Service {
     }
   }
 
-  /// Plan 17 fix — legacy migration hook for peers paired before
+  /// Legacy migration hook for peers paired before
   /// `PeerRecord.roomId` existed. When the relay tells us about rooms
   /// for the active peer, and that peer has no persisted roomId yet,
   /// we adopt the announced room as canonical:
@@ -1171,7 +1171,7 @@ class ConnectionManager extends Service {
   }
 
   /// On (re)connect, re-send the last subscribe_presence so the relay
-  /// pushes updates again for our current peer list. Plan 17: also
+  /// pushes updates again for our current peer list. Also
   /// subscribe to rooms for the same peer set — the relay pushes
   /// `room_announced` / `room_ended` / `rooms` (snapshot) the same way
   /// presence does. Single subscription covers all per-cwd sessions on
@@ -1230,7 +1230,7 @@ class ConnectionManager extends Service {
   void _startPing(PeerRecord peer, IChannel ch) {
     _pingTimer = Timer.periodic(const Duration(seconds: 25), (_) async {
       if (_status is! StatusOnline) return;
-      // Plan-18 follow-up — DECOUPLED Pi-liveness from WS-liveness.
+      // DECOUPLED Pi-liveness from WS-liveness.
       //
       // Before: 3 missed Pongs from the Pi triggered `_onChannelLost`,
       // which tore down the WS to the relay. The relay only frees
@@ -1268,7 +1268,7 @@ class ConnectionManager extends Service {
     });
   }
 
-  /// Plan-18 follow-up — when the Pi stops responding to protocol
+  /// When the Pi stops responding to protocol
   /// Pings, mark its current cwd-room as offline locally so the UI
   /// reflects the degraded state. The WS↔relay stays up.
   void _markActiveRoomOffline() {
@@ -1296,7 +1296,7 @@ class ConnectionManager extends Service {
   }
 
   void _emit(ConnectionStatus s) {
-    // Plan-18 follow-up — when the connection-status flips ON or OFF
+    // When the connection-status flips ON or OFF
     // StatusOnline, every room's "live" answer changes too (see
     // `isRoomLive` gate). Re-emit the rooms snapshot so subscribers
     // (Home, Chat AppBar) re-evaluate dot color immediately, without

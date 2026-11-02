@@ -1,4 +1,4 @@
-// Plan/28 Wave C — Quick Actions bottom sheet widget tests.
+// Quick Actions bottom sheet widget tests.
 //
 // These drive the REAL `QuickActionsSheetBody` (not a replica harness) so
 // the close-on-success, success/error toast, and `session_new` reset wiring

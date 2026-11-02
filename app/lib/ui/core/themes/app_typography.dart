@@ -5,12 +5,10 @@ import 'package:app/ui/core/themes/app_colors.dart';
 /// Bundled OFL fonts stay in place for consistent Latin rendering across
 /// Android devices. CJK continues to use the device's native sans face.
 const String kSansFamily = 'Geist';
-const String kReadingFamily = 'Source Serif 4';
 const String kMonoFamily = 'Geist Mono';
 const String kWordmarkFamily = 'Pinyon Script';
 
-/// CJK and other scripts use the device's installed sans fonts. Do not send
-/// Chinese text through a platform serif fallback when reading Latin prose.
+/// CJK and other scripts use the device's installed sans fonts.
 const List<String> kFontFallback = [
   'Noto Sans CJK SC',
   'Noto Sans SC',
@@ -80,7 +78,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
   /// Sans body text. Was `kSansBody`.
   final TextStyle sansBody;
 
-  /// Long responses use a reading face; terminal text stays monospace.
+  /// Long responses: the sans face with a looser reading rhythm.
   TextStyle get reading => sansBody.copyWith(
     fontFamily: kSansFamily,
     fontFamilyFallback: kFontFallback,

@@ -1,5 +1,5 @@
 // Regression tests for OwnerIdentityBridge's watch listener — see
-// plan/24-fix-app-publish-race (follow-up). The platform plugins
+// Race (follow-up). The platform plugins
 // emit their current blob the moment we subscribe, which used to
 // race against boot()'s population of `_current` and trigger a
 // spurious `wipeAll` of the freshly-loaded peer set.
@@ -76,7 +76,7 @@ Future<OwnerIdentity> _freshIdentity() async {
   );
 }
 
-/// Reproduces the issue #39 shape: the pre-flight reports "unavailable"
+/// Reproduces the shape: the pre-flight reports "unavailable"
 /// (on iOS the old ubiquity-token check was ALWAYS false in App Store
 /// builds) while the real read/write path works fine — iCloud Keychain
 /// needs no entitlement.
@@ -97,7 +97,7 @@ class _FalsePreflightStore implements OwnerIdentityStore {
 }
 
 void main() {
-  group('OwnerIdentityBridge.boot — issue #39 (pre-flight must not gate)', () {
+  group('OwnerIdentityBridge.boot — pre-flight must not gate', () {
     test('boot succeeds when pre-flight is false but load/save work', () async {
       // Fresh install: no stored identity, pre-flight lies "unavailable".
       final store = _FalsePreflightStore(InMemoryOwnerIdentityStore());

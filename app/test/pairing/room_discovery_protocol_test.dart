@@ -1,4 +1,4 @@
-// Plan 17 fix — protocol additions for room discovery.
+// Protocol additions for room discovery.
 
 import 'dart:convert';
 
@@ -7,7 +7,7 @@ import 'package:app/protocol/protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('PairOk — plan 17 room_id', () {
+  group('PairOk — room_id', () {
     test('parses room_id from pair_ok payload', () {
       final j = {
         'type': 'pair_ok',
@@ -34,7 +34,7 @@ void main() {
     });
   });
 
-  group('PeerRecord — plan 17 roomId', () {
+  group('PeerRecord — roomId', () {
     test('roundtrip preserves roomId', () {
       const peer = PeerRecord(
         remoteEpk: 'epk_A',

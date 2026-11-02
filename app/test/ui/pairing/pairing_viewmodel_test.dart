@@ -168,7 +168,7 @@ PairingTransportFactory _factoryReplyingWith(Map<String, dynamic> reply) {
 }
 
 // ---------------------------------------------------------------------------
-// Spy ConnectionManager — records adopt/disconnect (plan/31: PairingViewModel
+// Spy ConnectionManager — records adopt/disconnect (PairingViewModel
 // now drives the ConnectionManager directly). Overrides skip super so no
 // ping/connect timers are started.
 // ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-// Plan/31 — record roundtrips + volatile runtime wipe on boot.
+// Record roundtrips + volatile runtime wipe on boot.
 
 import 'dart:io';
 

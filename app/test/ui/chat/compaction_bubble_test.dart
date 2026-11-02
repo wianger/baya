@@ -1,4 +1,4 @@
-// Plan/32 — the compaction system bubble renders the label, the recap summary
+// The compaction system bubble renders the label, the recap summary
 // and the reclaimed token count (distinct from user/assistant bubbles).
 
 import 'package:app/domain/session_state.dart';

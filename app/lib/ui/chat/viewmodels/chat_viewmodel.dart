@@ -13,7 +13,7 @@ import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/states/chat_state.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 
-/// Plan/31 — ChatViewModel is now a thin composer over the local SSOT.
+/// ChatViewModel is now a thin composer over the local SSOT.
 ///
 /// It reads messages + runtime from [SessionReadRepository] (the DB), composes
 /// the in-memory streaming buffer from [SyncService] (#7), and issues commands
@@ -46,9 +46,9 @@ class ChatViewModel extends ViewModel<ChatState> {
   StreamingMessage? _streaming;
   bool _working = false;
   List<QueuedMsg> _queuedMessages = const [];
-  // Plan/57 — interactive extension_ui_request awaiting an answer (ask_user).
+  // Interactive extension_ui_request awaiting an answer (ask_user).
   ExtensionUiRequest? _pendingUiRequest;
-  // Plan/57 — last submit-result error for the pending request (null when none
+  // Last submit-result error for the pending request (null when none
   // / resolved). Surfaced to the modal so the user can retry instead of staring
   // at a closed/dismissed flow that's still blocked on desktop.
   String? _pendingUiError;
@@ -59,7 +59,7 @@ class ChatViewModel extends ViewModel<ChatState> {
 
   ChatViewModel(this._read, this._sync, this._conn, this._prefs, this._storage)
     : super(const ChatReady(messages: [])) {
-    // Plan/32f — do NOT seed _streaming/_working from the shared SyncService
+    // Do NOT seed _streaming/_working from the shared SyncService
     // here: it may still be bound to the PREVIOUS chat (this VM is recreated
     // on session switch, before _bootstrap rebinds via activate). Seeding now
     // would briefly paint the old chat's streaming bubble / working pill. We
@@ -171,7 +171,7 @@ class ChatViewModel extends ViewModel<ChatState> {
     // Bind the writer + watch the DB for this (peer, room).
     await _sync.activate(epk, roomId);
     if (_disposed) return;
-    // Plan/32f — now that the writer owns THIS session (activate reset the
+    // Now that the writer owns THIS session (activate reset the
     // turn state on a switch, or kept it when re-entering the same session),
     // seed the in-memory streaming/working from it. Doing this here instead of
     // the constructor avoids inheriting the previous chat's bubble/pill.
@@ -206,7 +206,7 @@ class ChatViewModel extends ViewModel<ChatState> {
     _recompute();
   }
 
-  /// Plan/32g — `true` once a real runtime (connection/presence) has been read
+  /// `true` once a real runtime (connection/presence) has been read
   /// from the box. Until then the AppBar trusts the `initialOnline` hint Home
   /// passed (the tile's live state) so the status dot doesn't flash
   /// "reconnecting" on the default runtime before the first read.
@@ -244,7 +244,7 @@ class ChatViewModel extends ViewModel<ChatState> {
     _recompute();
   }
 
-  /// Plan/57 — interactive extension_ui_request arrived (ask_user via pi-ask).
+  /// Interactive extension_ui_request arrived (ask_user via pi-ask).
   ///
   /// A `notify` whose id matches the open request is either:
   ///  - a `completed` dismiss (notify_type absent/info) → close the modal, OR
@@ -327,7 +327,7 @@ class ChatViewModel extends ViewModel<ChatState> {
   Future<void> approveTool(String toolCallId, ApproveDecision decision) =>
       _sync.approveTool(toolCallId, decision);
 
-  /// Plan/57 — submit (or cancel) an interactive extension_ui_request.
+  /// Submit (or cancel) an interactive extension_ui_request.
   ///
   /// Does NOT clear the pending request optimistically: pi-ask may reject the
   /// answer (`invalid_answer`) without emitting `completed`, which would close

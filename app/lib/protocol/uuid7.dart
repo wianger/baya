@@ -3,7 +3,7 @@
 //
 // Used as a globally-unique correlation id for protocol messages
 // (pair_request, user_message, etc). Per-device counters collide
-// across devices owned by the same human (plan/23 owner-key) — see
+// across devices owned by the same human — see
 // the symptom where Android's `cli_4` would prematurely confirm the
 // iPhone's `cli_4` pending bubble via the Pi rebroadcast.
 

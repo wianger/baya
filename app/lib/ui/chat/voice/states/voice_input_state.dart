@@ -1,4 +1,4 @@
-/// Plan 29 — voice-input state machine (decision-driven).
+/// Voice-input state machine (decision-driven).
 ///
 /// The mic is hold-to-talk: idle → recording (while held) → transcribing
 /// (brief, on release / 60s cap) → idle. Permission/locale failures land on

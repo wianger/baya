@@ -1,4 +1,4 @@
-// Plan/32 — ConnectionManager propagates `meta.working` from
+// ConnectionManager propagates `meta.working` from
 // `room_announced` / `room_meta_updated` / `rooms` into RoomInfo.working and
 // exposes it via `isRoomWorking`, so Home can show the blue "working" dot for
 // EVERY subscribed room (not just the single connected one).
@@ -80,7 +80,7 @@ Future<ConnectionManager> _connected(_ControllableChannel ch) async {
 }
 
 void main() {
-  group('ConnectionManager — Plan/32 working propagation', () {
+  group('ConnectionManager — working propagation', () {
     test('RoomAnnounced with working seeds RoomInfo.working + isRoomWorking',
         () async {
       final ch = _ControllableChannel();

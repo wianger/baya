@@ -7,11 +7,11 @@ import 'package:app/domain/session_state.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 
-/// Plan/30 — drives image attachment for the composer.
+/// Drives image attachment for the composer.
 ///
 /// Owns the picked-image preview state and tracks whether the active model
 /// accepts images (`vision`). Vision is resolved from the model catalogue the
-/// app already fetches for the quick-actions picker (plan 28): cached in
+/// app already fetches for the quick-actions picker: cached in
 /// [IActionsRepository], re-resolved whenever the active model changes.
 class AttachmentViewModel extends ViewModel<AttachmentState> {
   AttachmentViewModel(this._picker, this._actions)

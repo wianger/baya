@@ -1,8 +1,7 @@
 import 'package:app/domain/entities/update_info.dart';
 
-/// Busca o manifest de release (`latest.json`). Contrato no domínio; impl
-/// (HTTP) em `data/update/`. **Best-effort**: qualquer falha (sem rede, 404,
-/// JSON inválido, schema errado) devolve `null` — nunca lança.
+/// Fetches the release manifest. Best-effort: any failure (offline, 404,
+/// invalid JSON, wrong schema) returns `null` and never throws.
 abstract class UpdateChecker {
   Future<UpdateInfo?> fetchLatest();
 }

@@ -5,12 +5,11 @@ import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// In-app update notice (plan 44, step 3). Renders nothing inline; instead it
+/// In-app update notice. Renders nothing inline; instead it
 /// runs the silent check on first mount (= Home startup) and, when a newer
 /// build exists, raises the same confirm modal the rest of the app uses.
 ///
-/// The Android-only gate lives in [UpdateBannerViewModel.enabled], so this is a
-/// no-op on iOS. Dismissal is persisted per version by the ViewModel.
+/// The platform gate lives in [UpdateBannerViewModel.enabled]. Dismissal is persisted per version by the ViewModel.
 class UpdateBanner extends StatefulWidget {
   const UpdateBanner({super.key});
 

@@ -1,6 +1,6 @@
 import 'package:app/domain/session_state.dart';
 
-/// Plan/31 — one persisted chat message (row-granular SSOT). Stored in the
+/// One persisted chat message (row-granular SSOT). Stored in the
 /// per-session `msgs:<epk>:<roomId>` box, keyed by [seq]. Maps to the domain
 /// [ChatMessage] the UI widgets already render.
 enum MsgRole { user, assistant, tool, compaction, thinking }
@@ -14,7 +14,7 @@ class MessageRecord {
   final MsgRole role;
   final String text;
 
-  /// Plan/30 — attached image (user messages only).
+  /// Attached image (user messages only).
   final MessageImage? image;
 
   /// Tool request+result collapsed into one row (tool messages only).
@@ -27,7 +27,7 @@ class MessageRecord {
   /// Local-only hint: this pending user row was sent while the Pi was busy.
   final bool steering;
 
-  /// Plan/32 — tokens reclaimed by a compaction (compaction rows only).
+  /// Tokens reclaimed by a compaction (compaction rows only).
   final int? tokensBefore;
 
   const MessageRecord({

@@ -1,4 +1,4 @@
-// Plan/31 — local SSOT box layer (Hive v2).
+// Local SSOT box layer (Hive v2).
 //
 // Three families of box in a NEW namespace (`rp_v2`); v1 (`session_history`,
 // the blob snapshot) is abandoned without migration (#6 — re-sync from the Pi

@@ -8,7 +8,6 @@ void registerAppFontLicenses() {
       'Geist',
       'GeistMono',
       'PinyonScript',
-      'SourceSerif4',
     ]) {
       final text = await rootBundle.loadString('assets/fonts/$family/OFL.txt');
       yield LicenseEntryWithLineBreaks([family], text);

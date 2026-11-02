@@ -68,12 +68,12 @@ Future<void> setupDependencies() async {
   await prefs.load();
   _injector.addInstance<Preferences>(prefs);
 
-  // Plan 31 — local SSOT box facade (boxes already opened + runtime wiped in
+  // Local SSOT box facade (boxes already opened + runtime wiped in
   // bootstrap before this runs).
   _injector.addInstance<LocalBoxes>(LocalBoxes());
 
-  // Plan 23 — Owner-key sync. The store talks to the native plugin
-  // (iCloud Keychain on iOS, Block Store on Android); the bridge sits
+  // Owner-key sync. The store talks to the native plugin
+  // (Google Block Store); the bridge sits
   // between it and the rest of the app, owning boot + watch-for-reset.
   final OwnerIdentityStore ownerStore = MethodChannelOwnerIdentityStore();
   _injector.addInstance<OwnerIdentityStore>(ownerStore);
@@ -83,9 +83,8 @@ Future<void> setupDependencies() async {
   );
   _injector.addInstance<OwnerIdentityBridge>(ownerBridge);
 
-  // Plan 24 — mesh_versions HTTP client + sync service. Base URL is
-  // the user-configured relay verbatim (always http(s):// per the
-  // post-Wave-2 URL scheme decision — see plan/24-fix-app-url-scheme).
+  // mesh_versions HTTP client + sync service. Base URL is the
+  // user-configured relay verbatim (always http(s)://).
   // No translation needed: the relay's `/mesh` endpoint shares host +
   // port with the WebSocket.
   final meshClient = MeshClient(baseUrlProvider: () => resolveRelayUrl(prefs));
@@ -110,17 +109,17 @@ Future<void> setupDependencies() async {
     ),
   );
 
-  // Plan 29 — on-device speech-to-text. Singleton: it owns a broadcast
+  // On-device speech-to-text. Singleton: it owns a broadcast
   // sound-level stream that must survive across chat navigations; the
   // injector disposes it at app teardown. VoiceInputViewModel never
   // disposes it (it only stops/cancels sessions).
   _injector.addService<SpeechService>(() => SpeechToTextService());
 
-  // Plan 30 — image picker + on-device JPEG compression. Stateless, no
+  // Image picker + on-device JPEG compression. Stateless, no
   // dispose hook needed.
   _injector.addOther<IImagePickerService>(() => ImagePickerService());
 
-  // Plan 31 — SSOT writer + read-only repos. SyncService is the SINGLE
+  // SSOT writer + read-only repos. SyncService is the SINGLE
   // mutator of the message/index/runtime boxes; the read repos only watch.
   _injector.addService<SyncService>(
     () => SyncService(
@@ -211,12 +210,12 @@ Future<void> setupDependencies() async {
   _injector.addViewModel<AgentCommandsViewModel>(
     () => AgentCommandsViewModel(_injector.get<IAgentCommandsRepository>()),
   );
-  // Plan 29 — voice input. New instance per chat mount; reuses the shared
+  // Voice input. New instance per chat mount; reuses the shared
   // SpeechService singleton (which it stops/cancels but never disposes).
   _injector.addViewModel<VoiceInputViewModel>(
     () => VoiceInputViewModel(_injector.get<SpeechService>()),
   );
-  // Plan 30 — image attachment. New instance per chat mount; resolves model
+  // Image attachment. New instance per chat mount; resolves model
   // vision via the shared ActionsRepository catalogue cache.
   _injector.addViewModel<AttachmentViewModel>(
     () => AttachmentViewModel(
@@ -234,9 +233,9 @@ Future<void> setupDependencies() async {
   // the adaptive shell drops the split when there's nothing to list.
   _injector.addInstance<ShellLayout>(ShellLayout());
 
-  // Plan 44 — Android-only in-app update notice. The running version comes
+  // Android-only in-app update notice. The running version comes
   // from package_info; the manifest fetch + gating live in the ViewModel
-  // (silent on iOS via `enabled` and on any fetch failure). Stateless
+  // (silent on any fetch failure). Stateless
   // collaborators → addOther (lazy singleton, no dispose hook).
   final packageInfo = await PackageInfo.fromPlatform();
   final appVersion = packageInfo.version;
@@ -262,7 +261,7 @@ Future<void> setupDependencies() async {
 // Production ConnectionFactory — used by ConnectionManager for reconnection.
 // Post-rollback: just open transport + wrap in PlainPeerChannel; Pi recognizes
 // the peer via peers.json (no per-reconnect handshake).
-// Plan 23: Owner-sk (synced via iCloud Keychain / Block Store) is the
+// Owner-sk (synced via Block Store) is the
 // challenge-response key. OwnerIdentityBridge.boot() is the router's
 // responsibility; by the time this factory runs, the identity is loaded.
 // ---------------------------------------------------------------------------
@@ -275,14 +274,14 @@ Future<IChannel> _productionConnectionFactory(
   final ownerKey = await bridge.requireKeyPair();
   if (cancel.isCancelled) throw _CancelledError();
 
-  // Defensive timeout (plano app-state-normalization): without this the
+  // Defensive timeout: without this the
   // WebSocket connect + Ed25519 challenge round-trip can hang
   // indefinitely if the relay is unreachable — ChatViewModel would sit
   // in `ChatConnecting` forever. Throwing here pushes the manager into
   // its retry/backoff path, which is observable as `StatusRetrying` and
   // renders a "reconnecting" banner rather than an empty spinner.
   const wsConnectTimeout = Duration(seconds: 10);
-  // Resolve the GLOBAL relay URL (plan 14): user override > default.
+  // Resolve the GLOBAL relay URL: user override > default.
   // `peer.relayUrl` is kept on PeerRecord for legacy QR payloads but is
   // no longer consulted when opening a connection.
   final relayUrl = resolveRelayUrl(_injector.get<Preferences>());
@@ -315,7 +314,7 @@ Future<PeerTransport> _productionPairingTransportFactory(
   QrPairPayload qr,
   SimpleKeyPair deviceEd25519,
 ) async {
-  // Plan 14: pairing connects via the GLOBAL relay URL (Preferences),
+  // Pairing connects via the GLOBAL relay URL (Preferences),
   // not whatever was embedded in the QR. Mismatch between qr.relayUrl
   // and the user's configured relay is handled upstream by
   // `pair_request_flow.dart` (raises a `relay_mismatch` error that

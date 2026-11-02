@@ -1,4 +1,4 @@
-// Plan/30 — AttachmentViewModel: pick / remove / take + vision gating,
+// AttachmentViewModel: pick / remove / take + vision gating,
 // against fake picker + actions repositories.
 
 import 'dart:async';

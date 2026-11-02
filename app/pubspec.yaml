@@ -64,7 +64,6 @@ flutter:
     - assets/fonts/Geist/OFL.txt
     - assets/fonts/GeistMono/OFL.txt
     - assets/fonts/PinyonScript/OFL.txt
-    - assets/fonts/SourceSerif4/OFL.txt
 
   # Unmodified upstream static fonts; sources and checksums in assets/fonts.
   fonts:
@@ -82,21 +81,6 @@ flutter:
     - family: Pinyon Script
       fonts:
         - asset: assets/fonts/PinyonScript/PinyonScript-Regular.ttf
-    - family: Source Serif 4
-      fonts:
-        - asset: assets/fonts/SourceSerif4/SourceSerif4-Regular.ttf
-        - asset: assets/fonts/SourceSerif4/SourceSerif4-It.ttf
-          style: italic
-        - asset: assets/fonts/SourceSerif4/SourceSerif4-Semibold.ttf
-          weight: 600
-        - asset: assets/fonts/SourceSerif4/SourceSerif4-SemiboldIt.ttf
-          weight: 600
-          style: italic
-        - asset: assets/fonts/SourceSerif4/SourceSerif4-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/SourceSerif4/SourceSerif4-BoldIt.ttf
-          weight: 700
-          style: italic
     - family: Geist Mono
       fonts:
         - asset: assets/fonts/GeistMono/GeistMono-Regular.ttf

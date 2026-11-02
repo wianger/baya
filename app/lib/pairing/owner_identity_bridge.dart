@@ -62,7 +62,7 @@ class OwnerIdentityBridge extends ChangeNotifier {
   /// Idempotent — repeated calls are cheap once `_current` is populated.
   ///
   /// The `isSyncAvailable()` pre-flight is deliberately NOT a gate here
-  /// (issue #39): on iOS it used to mirror the ubiquity token, which is
+  ///: on iOS it used to mirror the ubiquity token, which is
   /// always nil without an iCloud entitlement, so every App Store user
   /// hard-locked on "Sync required" regardless of their iCloud Keychain
   /// state. The real capability check is the load/save path — the store

@@ -8,7 +8,7 @@ abstract class IChannel {
 }
 
 /// Optional capability mixed into a channel that also speaks raw relay
-/// control frames (subscribe_presence, peer_online, etc — see plano 12).
+/// control frames.
 /// ConnectionManager does an `is IControlLink` cast to drive presence;
 /// channels that don't implement it simply skip the subsystem.
 abstract class IControlLink {

@@ -1,7 +1,7 @@
-/// Plan/31 — per-session activity (#5: idle | working).
+/// Per-session activity (#5: idle | working).
 enum SessionActivity { idle, working }
 
-/// Plan/31 — durable top-level index of sessions, so Home can query
+/// Durable top-level index of sessions, so Home can query
 /// cross-session (working/idle + last message) without opening every
 /// per-session box. Keyed by `<epk>:<roomId>` in the `sessions_index` box.
 class SessionIndexRecord {

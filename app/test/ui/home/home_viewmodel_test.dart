@@ -157,7 +157,7 @@ void main() {
     test(
       'isRoomWorking follows the relay meta.working broadcast for ANY room — '
       'including one that is NOT the connected session, and clears when the '
-      'relay says the turn ended (plan/32)',
+      'relay says the turn ended',
       () async {
         // Reproduces the smoke-test bugs in sequence:
         //  1) the dot only lit for the active chat (working came from the
@@ -292,7 +292,7 @@ void main() {
     });
 
     test(
-      'plano app-state-normalization: openSession ONLY sets prefs '
+      'openSession ONLY sets prefs '
       '(no switchTo from Home — boot races would otherwise happen)',
       () async {
         final storage = _FakeStorage([_peerA, _peerB]);
@@ -367,7 +367,7 @@ void main() {
     );
   });
 
-  group('HomeViewModel — presence filter (plan-38 Fase 3)', () {
+  group('HomeViewModel — presence filter', () {
     test('counts / visibleItems split rooms by liveness; setFilter re-derives '
         'without reloading', () async {
       final ch = _ControllableChannel();

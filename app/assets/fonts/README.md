@@ -7,9 +7,8 @@ the Claude-like typographic hierarchy, not Anthropic's proprietary fonts.
 
 | Role | Family | Upstream |
 | --- | --- | --- |
-| Interface and input | Geist | https://github.com/vercel/geist-font |
+| Interface, input, and prose | Geist | https://github.com/vercel/geist-font |
 | App wordmark | Pinyon Script | https://github.com/google/fonts/tree/main/ofl/pinyonscript |
-| Assistant prose | Source Serif 4 | https://github.com/adobe-fonts/source-serif |
 | Code, commands, file paths | Geist Mono | https://github.com/vercel/geist-font |
 
 `sources.json` pins each original URL to its commit and records SHA-256.

@@ -1,4 +1,4 @@
-/// User-selectable text size (issue #114).
+/// User-selectable text size.
 ///
 /// Why an in-app control at all: every text size in the app is hardcoded
 /// (`AppTypography` plus per-widget `copyWith(fontSize: …)`), and Flutter does

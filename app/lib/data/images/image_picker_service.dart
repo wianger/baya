@@ -4,7 +4,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// Plan/30 — pick one image from the camera or the gallery and compress it
+/// Pick one image from the camera or the gallery and compress it
 /// (JPEG, longest side ≤1568px, q80) entirely on-device before it travels
 /// inline on a `user_message`. No file is uploaded out-of-band.
 ///
@@ -30,7 +30,7 @@ class PickedImage {
 }
 
 /// Thrown when the camera permission was denied — the UI guides the user to
-/// system Settings (reuses the plan-29 `app_settings` affordance).
+/// system Settings.
 class ImagePermissionDeniedException implements Exception {
   const ImagePermissionDeniedException();
   @override

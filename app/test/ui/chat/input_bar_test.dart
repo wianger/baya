@@ -1,4 +1,4 @@
-// Plan/28 Wave C — settings/quick-actions icon visibility in the
+// Settings/quick-actions icon visibility in the
 // chat input bar.
 
 import 'package:app/domain/entities/agent_command.dart';
@@ -203,7 +203,7 @@ void main() {
     expectExpanded(tester);
   });
 
-  // Plan/43 — `streaming` (the whole working turn, fed by vm.isWorking) keeps
+  // `streaming` (the whole working turn, fed by vm.isWorking) keeps
   // the composer editable for steering while empty input still exposes Stop.
   testWidgets('streaming with no text shows stop and keeps typing enabled', (
     tester,

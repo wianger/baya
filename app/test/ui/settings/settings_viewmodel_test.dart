@@ -230,7 +230,7 @@ void main() {
     });
   });
 
-  group('SettingsViewModel — plan 14 relay config', () {
+  group('SettingsViewModel — relay config', () {
     test('saveRelayUrl with valid URL persists override + returns null',
         () async {
       final prefs = Preferences(_FakeSecureStorage());

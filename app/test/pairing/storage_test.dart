@@ -1,4 +1,4 @@
-// Tests for the PairingStorage surface that survives plan 23 (W2A):
+// Tests for the PairingStorage surface:
 // PeerRecord (de)serialization, nickname/roomId edges, and the new
 // `wipeAll()` helper that the OwnerIdentityBridge calls on sync-reset.
 
@@ -151,7 +151,7 @@ void main() {
       expect(preserved.sessionName, 'new');
     });
 
-    test('harness round-trips through toJson/fromJson (plan/27 Wave A)', () {
+    test('harness round-trips through toJson/fromJson', () {
       const record = PeerRecord(
         remoteEpk: 'pk1',
         sessionName: 'name',
@@ -247,7 +247,7 @@ void main() {
     });
   });
 
-  group('PairingStorage.wipeAll (plan 23 sync-reset)', () {
+  group('PairingStorage.wipeAll', () {
     test('clears every peer + every persisted rooms entry', () async {
       final fake = _FakeSecureStorage();
       final storage = PairingStorage(fake);

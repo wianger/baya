@@ -41,7 +41,11 @@ ThemeData _buildTheme({
       outline: colors.border,
     ),
     dividerColor: colors.border,
-    splashFactory: NoSplash.splashFactory,
+    // Every tap gets visible, quiet feedback: a soft ripple tinted with the
+    // accent instead of no response at all.
+    splashFactory: InkRipple.splashFactory,
+    splashColor: colors.selection,
+    highlightColor: colors.selection.withValues(alpha: 0.04),
     visualDensity: VisualDensity.standard,
     extensions: <ThemeExtension<dynamic>>[colors, typo],
     // Android 16 makes predictive back the system default. The Cupertino

@@ -12,7 +12,7 @@ import 'package:gpt_markdown/custom_widgets/unordered_ordered_list.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Plan/32b — renders the agent's Markdown reply (GFM + code) themed to the
+/// Renders the agent's Markdown reply (GFM + code) themed to the
 /// app's dark/mono look. Links open in the system browser (url_launcher);
 /// code blocks get a copy button. Tolerant of partial markdown so it can also
 /// drive the live streaming bubble.
@@ -34,7 +34,7 @@ class AgentMarkdown extends StatelessWidget {
       height: 1.5,
       letterSpacing: -0.11,
     );
-    // A calm iOS reading rhythm: sans-serif prose, tight display headings and
+    // A calm reading rhythm: sans-serif prose, tight display headings and
     // generous line height. Heading scale stays restrained on a phone.
     final mdTheme = GptMarkdownThemeData(
       brightness: Theme.of(context).brightness,

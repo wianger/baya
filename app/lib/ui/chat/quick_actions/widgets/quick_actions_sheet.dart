@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-/// Plan/28 Wave C — entry point for the Quick Actions sheet from the
+/// Entry point for the Quick Actions sheet from the
 /// chat input bar. Provides a fresh [QuickActionsViewModel] scoped to
 /// this sheet (and any sub-sheets it pushes) and wires the SnackBar
 /// error stream from the chat scaffold's messenger so failures stay

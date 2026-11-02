@@ -56,7 +56,7 @@ class Preferences extends ChangeNotifier {
   /// (user is still browsing or hasn't paired). Persisted so reopening
   /// the app right into `/chat` (e.g. via deep-link) knows which peer.
   ///
-  /// Plan 17: under the new rooms model the persisted value carries an
+  /// Under the new rooms model the persisted value carries an
   /// optional `:roomId` suffix (e.g. `Bz02uLi…:main` or
   /// `Bz02uLi…:room-uuid-xyz`). The getter returns only the EPK; use
   /// [selectedRoomId] for the room half. Legacy values without the
@@ -70,7 +70,7 @@ class Preferences extends ChangeNotifier {
     return ix < 0 ? raw : raw.substring(0, ix);
   }
 
-  /// Plan 17 — the room half of the persisted selected target. Returns
+  /// The room half of the persisted selected target. Returns
   /// null for legacy values (caller defaults to 'main').
   String? get selectedRoomId {
     final raw = _selectedPeerEpk;
@@ -98,7 +98,7 @@ class Preferences extends ChangeNotifier {
   /// in `main.dart` and set from the Settings "Display" section.
   ThemeMode get themeMode => _themeMode;
 
-  /// Preferred text size (issue #114). Applied as a `TextScaler` above the
+  /// Preferred text size. Applied as a `TextScaler` above the
   /// router in `main.dart`, so it scales the whole UI — including the per-widget
   /// `copyWith(fontSize: …)` overrides that a typography-only change would miss.
   AppFontScale get fontScale => _fontScale;
@@ -566,7 +566,7 @@ class Preferences extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Plan 17 — persist the composite `epk:roomId` selection. Passing
+  /// Persist the composite `epk:roomId` selection. Passing
   /// [roomId] = null falls back to 'main' implicitly via the getter
   /// contract. Null [epk] clears the entire selection.
   Future<void> setSelectedRoom({String? epk, String? roomId}) async {

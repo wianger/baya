@@ -1,4 +1,4 @@
-// Plan/32 follow-up — the Quick Actions sheet must close when the tablet's
+// The Quick Actions sheet must close when the tablet's
 // selected session changes out from under it.
 
 import 'package:app/routing/adaptive.dart';

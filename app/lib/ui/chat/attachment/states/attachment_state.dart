@@ -1,6 +1,6 @@
 import 'package:app/data/images/image_picker_service.dart';
 
-/// Plan/30 — composer attachment state.
+/// Composer attachment state.
 ///
 /// Models the one-image pick lifecycle (empty → picking → attached) and
 /// carries [visionSupported] so the attach button can grey out for a

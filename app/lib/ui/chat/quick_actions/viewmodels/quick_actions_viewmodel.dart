@@ -5,12 +5,12 @@ import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/quick_actions/states/quick_actions_state.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 
-/// Plan/28 Wave C — drives the Quick Actions bottom sheet and its
+/// Drives the Quick Actions bottom sheet and its
 /// Model sub-picker. Holds the last-resolved "current" pair (model /
 /// thinking level) so the picker can highlight without waiting for
 /// another round-trip.
 ///
-/// Plan/28 Wave D — also hydrates the current thinking / model name
+/// Also hydrates the current thinking / model name
 /// from [IActionsRepository.activeRoomMetaStream] so the bottom sheet
 /// reflects the Pi's real state on first open (instead of starting
 /// `null`). External model changes (other paired apps or the TUI's
@@ -26,7 +26,7 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
   bool _disposed = false;
 
   QuickActionsViewModel(this._repo) : super(const QuickActionsIdle()) {
-    // Plan/28 Wave D — seed from the repo's current snapshot before
+    // Seed from the repo's current snapshot before
     // anything is shown so the first build already has the right
     // highlight (instead of a flash of "null" while the stream
     // delivers its first event).
@@ -157,7 +157,7 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
 
   // ---------------------------------------------------------------------------
 
-  /// Plan/28 Wave D — react to a room-meta snapshot. Adopts the
+  /// React to a room-meta snapshot. Adopts the
   /// thinking level (always — the relay is the source of truth) and
   /// the model name (when present). Leaves the structured
   /// [currentModel] alone because the meta only carries a display

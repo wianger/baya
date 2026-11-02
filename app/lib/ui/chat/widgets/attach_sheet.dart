@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-/// Plan/30 — which source the user picked from the attach sheet (#2).
+/// Which source the user picked from the attach sheet (#2).
 enum AttachSource { camera, gallery }
 
 /// Bottom sheet offering Camera / Gallery (decision #2, interpreted as an

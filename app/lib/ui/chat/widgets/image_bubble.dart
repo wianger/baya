@@ -6,7 +6,7 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:flutter/material.dart';
 
-/// Plan/30 — static image thumbnail + optional caption inside the user
+/// Static image thumbnail + optional caption inside the user
 /// bubble (decision #7: no full-screen, no tap/zoom). Renders straight from
 /// the inline base64 ([MessageImage.data]); the bytes are decoded once so
 /// list scrolling doesn't re-decode every frame.

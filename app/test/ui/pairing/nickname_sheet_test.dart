@@ -1,4 +1,4 @@
-// Plan/27 Wave A — post-pair nickname modal.
+// Post-pair nickname modal.
 
 import 'package:app/ui/pairing/widgets/nickname_sheet.dart';
 import 'package:flutter/material.dart';
@@ -32,7 +32,7 @@ Future<void> _openSheet(
 }
 
 void main() {
-  group('showNicknameSheet (plan/27 Wave A)', () {
+  group('showNicknameSheet', () {
     testWidgets(
       'Save with non-empty input returns the trimmed input',
       (tester) async {

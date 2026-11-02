@@ -1,4 +1,4 @@
-// PairRequest flow — replaces the Noise XX handshake removed by plan 06.
+// PairRequest flow.
 //
 // Sequence (over a connected PeerTransport):
 //   1. App sends inner JSON {type:"pair_request", id, token, device_name}
@@ -47,8 +47,8 @@ class PairingError implements Exception {
 
 /// Wraps the persisted [PeerRecord] plus side hints the post-pair UI
 /// (nickname modal) needs but that don't belong on the PeerRecord
-/// itself. Plan/27 Wave A added [hostnameHint] so the modal can
-/// pre-fill "Mac do Jacob" instead of the generic "Pi"; legacy Pis
+/// itself. [hostnameHint] lets the modal pre-fill the computer's name
+/// instead of the generic "Pi"; legacy hosts
 /// that don't emit `hostname` leave it null and the modal falls back
 /// to `peer.sessionName`.
 class PairingResult {
@@ -71,7 +71,7 @@ Future<PairingResult> performPairing({
   /// the caller (PairingViewModel reads it from Preferences).
   required String currentRelayUrl,
 }) async {
-  // Plan 14: legacy QRs may carry `r=<url>`. If that URL does not
+  // Legacy QRs may carry `r=<url>`. If that URL does not
   // match the app's configured relay, the device would attempt to
   // pair on the WRONG relay (or, after we centralised the connect
   // factory on resolveRelayUrl, would silently pair against the
@@ -88,7 +88,7 @@ Future<PairingResult> performPairing({
     );
   }
 
-  // Plan 17 fix — set the outer envelope's `room` BEFORE sending
+  // Set the outer envelope's `room` BEFORE sending
   // pair_request. Without this the relay would route to
   // (peer=Pi, room='main') which usually doesn't exist (Pi-ext is in
   // room=<hashOfCwd>) and drop with "dest not found". For legacy QRs
@@ -117,15 +117,15 @@ Future<PairingResult> performPairing({
 
   if (type == 'pair_ok' && inner['in_reply_to'] == id) {
     // Parse via the canonical decoder so PairOk schema evolutions
-    // (plan/27 Wave A: `harness`, `hostname`) land in one place.
+    // land in one place.
     final pairOk = PairOk.fromJson(inner);
-    // Plan 17 fix — persist the Pi-confirmed room_id (or fall back to
+    // Persist the Pi-confirmed room_id (or fall back to
     // the one carried by the QR, then to 'main'). Stored on the
     // PeerRecord so subsequent reconnects address (peer, room)
     // correctly from the very first frame.
     //
     // `PairOk.roomId` defaults to 'main' when the Pi omits the field
-    // (plan-17 contract codified in tests). We peek at the raw map to
+    // We peek at the raw map to
     // tell "Pi explicitly said main" from "Pi didn't send a room" —
     // only in the latter case do we want to fall back to qr.roomId.
     final rawRoom = inner['room_id'];
@@ -142,7 +142,7 @@ Future<PairingResult> performPairing({
       relayUrl: qr.relayUrl ?? currentRelayUrl,
       pairedAt: DateTime.now().toUtc().toIso8601String(),
       roomId: piRoomId,
-      // Plan/27 Wave A — null when pi-extension hasn't been upgraded
+      // Null when pi-extension hasn't been upgraded
       // yet to publish `harness` in pair_ok.
       harness: pairOk.harness,
     );

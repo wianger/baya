@@ -1,10 +1,10 @@
-// Tests for the new room-related control frames (plan 17).
+// Tests for the new room-related control frames.
 
 import 'package:app/protocol/protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('ControlInbound — rooms (plan 17)', () {
+  group('ControlInbound — rooms', () {
     test('room_announced parses with name + cwd', () {
       final c = ControlInbound.tryFromJson({
         'type': 'room_announced',
@@ -77,7 +77,7 @@ void main() {
     });
 
     test(
-      'room_announced parses optional `model` (plan 18)',
+      'room_announced parses optional `model`',
       () {
         final c = ControlInbound.tryFromJson({
           'type': 'room_announced',
@@ -92,7 +92,7 @@ void main() {
     );
 
     test(
-      'room_meta_updated parses with model (plan 18)',
+      'room_meta_updated parses with model',
       () {
         final c = ControlInbound.tryFromJson({
           'type': 'room_meta_updated',

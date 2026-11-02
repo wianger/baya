@@ -37,7 +37,7 @@ class ChatReady extends ChatState {
   /// reports.
   final PresenceState peerPresence;
 
-  /// Plan/32 — whether the room this chat is viewing has an in-flight
+  /// Whether the room this chat is viewing has an in-flight
   /// agent turn (drives the working pill + input-lock + stop button).
   /// Part of the state identity so a relay `meta.working` flip (which is
   /// per-room, like Home) actually triggers a rebuild even when nothing
@@ -45,13 +45,13 @@ class ChatReady extends ChatState {
   final bool isWorking;
   final List<QueuedMsg> queuedMessages;
 
-  /// Plan/57 — an interactive extension_ui_request (ask_user via pi-ask)
+  /// An interactive extension_ui_request (ask_user via pi-ask)
   /// awaiting an answer. Non-null → the chat renders a full-screen modal.
   /// Cleared on submit/cancel/completed. Identity compared (the ViewModel
   /// reuses the same instance across recomputes until it changes).
   final ExtensionUiRequest? pendingUiRequest;
 
-  /// Plan/57 — last submit-result error for [pendingUiRequest] (null when none
+  /// Last submit-result error for [pendingUiRequest] (null when none
   /// or resolved). Shown in the modal so the user can retry instead of hitting a
   /// dead end when pi-ask rejects an answer.
   final String? pendingUiError;

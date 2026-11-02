@@ -1,4 +1,4 @@
-// Plan 29 — SpeechToTextService locale resolution + transcript / cancel /
+// SpeechToTextService locale resolution + transcript / cancel /
 // level behavior, exercised through the SttPlugin seam (no device).
 
 import 'dart:io';

@@ -10,7 +10,7 @@
 //
 // `peer` is standard base64 of the destination's Ed25519 pubkey (matches
 // the relay registry, populated from the peer's hello). `ct` is base64 of
-// the inner-envelope bytes (plain JSON post-rollback, see plano 06).
+// the inner-envelope bytes.
 
 import 'dart:async';
 import 'dart:convert';
@@ -47,7 +47,7 @@ class WsTransport implements PeerTransport, IControlLink {
     required String peerPubkey, // base64 standard or url — destination peer
     required SimpleKeyPair ed25519Key, // this device's Ed25519 long-term key
   }) async {
-    // Plan-18 follow-up — set a WS-level pingInterval (RFC 6455
+    // Set a WS-level pingInterval (RFC 6455
     // control frames). This keeps the TCP connection alive through
     // NAT / corporate proxies that aggressively close idle sockets,
     // and surfaces a dead WS as `onDone` / `onError` instead of
@@ -92,7 +92,7 @@ class WsTransport implements PeerTransport, IControlLink {
           if (frame.containsKey('peer') && frame.containsKey('ct')) {
             final bytes = _b64Decode(frame['ct'] as String);
             final senderRoom = frame['room'] as String?;
-            // Plan-18 follow-up — DEMUX inbound by sender room.
+            // DEMUX inbound by sender room.
             // SessionRepository is singleton; without this guard,
             // AgentChunks for a chat the user just left bleed into
             // the chat they're now viewing. When senderRoom doesn't
@@ -147,7 +147,7 @@ class WsTransport implements PeerTransport, IControlLink {
 
     try {
       // 1. Hello (standard base64 — matches relay registry format).
-      // Plan 17: app is a client (no cwd) and always announces itself
+      // App is a client (no cwd) and always announces itself
       // on the canonical 'main' room. Pi-side hellos include their own
       // room_id (one per cwd) AND room_meta; that's not our concern here.
       final pub = await ed25519Key.extractPublicKey();
@@ -185,7 +185,7 @@ class WsTransport implements PeerTransport, IControlLink {
   String _peerPubkey = '';
   StreamSubscription? _sub;
 
-  /// Active target room on the Pi side. Plan 17: set via
+  /// Active target room on the Pi side. Set via
   /// `setActiveRoom`, defaults to 'main' when unset. The outer envelope
   /// embeds this so the Pi can route the inner message to the right
   /// per-cwd session.

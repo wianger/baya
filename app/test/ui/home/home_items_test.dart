@@ -1,4 +1,4 @@
-// Plan 17 — HomeList.items() flattens peers × rooms into tile rows.
+// HomeList.items() flattens peers × rooms into tile rows.
 
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/pairing/storage.dart';

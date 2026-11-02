@@ -1,4 +1,4 @@
-// Plan/30 — ImageBubble renders a static thumbnail from base64 + optional
+// ImageBubble renders a static thumbnail from base64 + optional
 // caption, with a broken-image fallback for bad data.
 
 import 'package:app/domain/session_state.dart';

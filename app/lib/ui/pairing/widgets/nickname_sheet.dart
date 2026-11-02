@@ -2,7 +2,7 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_glass_surface.dart';
 import 'package:flutter/material.dart';
 
-/// Post-pair nickname modal (plan/27 Wave A).
+/// Post-pair nickname modal.
 ///
 /// Asks the user for a friendly label for the just-paired computer. The
 /// caller seeds [defaultName] with `pair_ok.hostname` when present

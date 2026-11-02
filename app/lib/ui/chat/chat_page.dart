@@ -41,7 +41,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 class ChatPage extends StatelessWidget {
-  /// Plan/24-fix-title: optional title hint passed via `go_router`
+  /// Optional title hint passed via `go_router`
   /// `extra` from the Home tile. Used as the peer-label fallback in
   /// the AppBar so the user sees the right name *immediately* on
   /// navigation, instead of "—" / Baya until the PeerRecord
@@ -56,7 +56,7 @@ class ChatPage extends StatelessWidget {
   /// visible change.
   final String? initialDevice;
 
-  /// Plan/32g — the live state of the tile Home tapped (its green dot). Seeds
+  /// The live state of the tile Home tapped (its green dot). Seeds
   /// the AppBar status dot so it doesn't flash "reconnecting" before the VM
   /// reads the real runtime. Superseded by the live signal once it resolves
   /// ([ChatViewModel.connectionResolved]).
@@ -98,7 +98,7 @@ class ChatPage extends StatelessWidget {
       ),
     );
 
-    // Plan/57 — an interactive extension_ui_request (ask_user via pi-ask)
+    // An interactive extension_ui_request (ask_user via pi-ask)
     // renders as a full-screen modal layered ABOVE the Scaffold. Purely
     // reactive: the overlay leaves the tree when the pending request clears
     // (completed dismiss) — no route lifecycle to manage. `error` carries a
@@ -419,7 +419,7 @@ class ChatPage extends StatelessWidget {
     if (state is ChatReady && state.messages.isNotEmpty) {
       return _inferSessionName(state.messages);
     }
-    // Plan/24-fix-title: Home knows the peer label before /chat
+    // Home knows the peer label before /chat
     // mounts; use it instead of the generic kAppName placeholder
     // while we wait for the first room_meta_updated to populate
     // `room.name`.
@@ -429,7 +429,7 @@ class ChatPage extends StatelessWidget {
 
   static String _peerDisplayName(PeerRecord? peer, String? fallback) {
     if (peer == null) {
-      // Plan/32g: while the ViewModel hasn't loaded the PeerRecord yet, fall
+      // While the ViewModel hasn't loaded the PeerRecord yet, fall
       // back to the device label Home passed (initialDevice) — same value the
       // PeerRecord resolves to, so no flicker on load.
       if (fallback != null && fallback.isNotEmpty) return fallback;
@@ -508,7 +508,7 @@ class ChatPage extends StatelessWidget {
     final isPeerOffline = isReady && state.peerOfflineReason != null;
     // Live relay-reported offline (no `bye`): Pi is just not reachable.
     final isPresenceOffline = isReady && state.peerPresence is PresenceOffline;
-    // Plan/31 — the composer is locked + the send button becomes "stop" for
+    // The composer is locked + the send button becomes "stop" for
     // the WHOLE working turn (send/echo → agent_done), not just the narrow
     // token-streaming window. Driven by the broad working signal so it matches
     // the AppBar/Home "working" indicator.
@@ -580,12 +580,12 @@ class ChatPage extends StatelessWidget {
       queuedMessages: isReady ? state.queuedMessages : const [],
       onSetQueued: vm.queueMessage,
       onClearQueued: vm.clearQueuedMessage,
-      // Plan/29 — hold-to-talk voice input. The VM is route-scoped (bound in
+      // Hold-to-talk voice input. The VM is route-scoped (bound in
       // app_router alongside ChatViewModel); InputBar listens to it directly,
       // so a read() is enough here.
       voice: context.read<VoiceInputViewModel>(),
       onVoiceHint: (hint) => _handleVoiceHint(context, hint),
-      // Plan/30 — image attachments. takeImageForSend() reads + clears the
+      // Image attachments. takeImageForSend() reads + clears the
       // attached image so the inline image rides along with the (optionally
       // empty) caption. Attach-button gating by vision / already-attached is
       // internal to InputBar; the host only gates by channel availability.

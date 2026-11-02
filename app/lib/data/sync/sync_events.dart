@@ -1,4 +1,4 @@
-/// Plan/31 — out-of-band signals that don't fit the message DB but drive UI
+/// Out-of-band signals that don't fit the message DB but drive UI
 /// affordances (banners, redirects). Surfaced by [SyncService] on a side
 /// stream; the chat ViewModel reacts. (Relocated from the removed
 /// `ISessionRepository`.)

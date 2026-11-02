@@ -1,6 +1,6 @@
 import 'package:app/protocol/protocol.dart';
 
-/// Plan/28 Wave C — state for the Quick Actions bottom sheet ViewModel.
+/// State for the Quick Actions bottom sheet ViewModel.
 ///
 /// The sheet only needs to know "is anything in-flight?" plus the last
 /// resolved current model / thinking level so the picker rows highlight
@@ -10,7 +10,7 @@ import 'package:app/protocol/protocol.dart';
 sealed class QuickActionsState {
   final ThinkingLevel? currentThinking;
   final WireModel? currentModel;
-  /// Plan/28 Wave D — display name from `room_meta.model`. Survives
+  /// Display name from `room_meta.model`. Survives
   /// across picker opens and is shown in the bottom-sheet Model row
   /// when the structured [currentModel] hasn't been loaded yet (the
   /// catalogue is fetched lazily; meanwhile the room broadcast already

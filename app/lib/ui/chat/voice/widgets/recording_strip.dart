@@ -4,7 +4,7 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Plan 29 — the WhatsApp-style strip that replaces the input bar while
+/// The WhatsApp-style strip that replaces the input bar while
 /// recording (decision #11): a pulsing red dot + running `MM:SS` timer +
 /// amplitude waveform + a "‹ slide to cancel" hint.
 ///

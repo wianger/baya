@@ -73,7 +73,7 @@ final class MeshPublishForbidden extends MeshPublishResult {
   const MeshPublishForbidden();
 }
 
-/// 413 — blob exceeded the relay's 500KB cap (plan/24 § Q4).
+/// 413 — blob exceeded the relay's 500KB cap.
 final class MeshPublishTooLarge extends MeshPublishResult {
   const MeshPublishTooLarge();
 }
@@ -84,7 +84,7 @@ final class MeshPublishFailure extends MeshPublishResult {
   const MeshPublishFailure(this.reason);
 }
 
-/// HTTP client for the plan-24 `/mesh/<owner_pk_hash>` endpoints.
+/// HTTP client for the `/mesh/<owner_pk_hash>` endpoints.
 ///
 /// The base URL is resolved lazily via [baseUrlProvider] so a runtime
 /// change to `Preferences.relayUrl` propagates without re-creating the

@@ -1,4 +1,4 @@
-// Plan 29 — VoiceInputViewModel state machine: recording / transcribe / cancel
+// VoiceInputViewModel state machine: recording / transcribe / cancel
 // / cap / permission, against a fake SpeechService.
 
 import 'dart:async';

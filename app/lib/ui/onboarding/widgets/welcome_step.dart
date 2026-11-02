@@ -5,8 +5,7 @@ import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Onboarding step 1 — welcome. Static, no animations (per plan 14 D2 —
-/// "Welcome conservador (sem animações)").
+/// Onboarding step 1 — welcome. Deliberately static.
 class WelcomeStep extends StatelessWidget {
   final VoidCallback onNext;
   const WelcomeStep({super.key, required this.onNext});

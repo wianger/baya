@@ -287,7 +287,7 @@ void main() {
       expect(msg.sessionName, contains('remote_pi'));
     });
 
-    test('PairOk.fromJson decodes harness + hostname (plan/27 Wave A)', () {
+    test('PairOk.fromJson decodes harness + hostname', () {
       final msg = PairOk.fromJson({
         'type': 'pair_ok',
         'in_reply_to': 'req-1',
@@ -413,7 +413,7 @@ void main() {
 
     test(
       'Server-emitted "user_message" is treated as UserInput (Pi rebroadcast '
-      'echo — plan/24-fix-app-source-of-truth follow-up)',
+      'echo — follow-up)',
       () {
         final msg = decodeServer(
           '{"type":"user_message","id":"cli_42","text":"hello"}',
@@ -491,8 +491,8 @@ void main() {
     });
   });
 
-  // Plan/30 — image attachments on user_message + WireModel.vision.
-  group('image attachments (plan 30)', () {
+  // Image attachments on user_message + WireModel.vision.
+  group('image attachments', () {
     test('UserMessage without images omits the field (retro-compat)', () {
       final msg = UserMessage(id: 'u1', text: 'hi');
       final decoded =

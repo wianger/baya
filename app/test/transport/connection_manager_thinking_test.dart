@@ -1,4 +1,4 @@
-// Plan/28 Wave D — ConnectionManager propagates `meta.thinking` from
+// ConnectionManager propagates `meta.thinking` from
 // `room_announced` and `room_meta_updated` into RoomInfo, and
 // dispatches per-field updates without clobbering the sibling field.
 
@@ -70,7 +70,7 @@ class _ControllableChannel implements IChannel, IControlLink {
 }
 
 void main() {
-  group('ConnectionManager — Plan/28 Wave D thinking propagation', () {
+  group('ConnectionManager — thinking propagation', () {
     test('RoomAnnounced with thinking seeds RoomInfo.thinking', () async {
       final ch = _ControllableChannel();
       final cm = ConnectionManager(

@@ -10,7 +10,7 @@ sealed class ChatMessage {
   const ChatMessage({required this.id});
 }
 
-/// Plan/24-fix-app-source-of-truth: every UserMsg is tagged with the
+/// Every UserMsg is tagged with the
 /// lifecycle stage of its rebroadcast. `pending` = sent over WS but Pi
 /// hasn't echoed it back yet; `confirmed` = Pi rebroadcast it (or it
 /// came from `session_history` / another device's echo); `failed` =
@@ -22,7 +22,7 @@ sealed class ChatMessage {
 /// authoritative).
 enum UserMsgStatus { pending, confirmed, failed }
 
-/// Plan/30 — an image attached to a user message. Carries the JPEG bytes
+/// An image attached to a user message. Carries the JPEG bytes
 /// base64-encoded plus its mime type, mirroring the SDK's `ImageContent`.
 /// Bytes always travel inline (decision #8: history replays the image too),
 /// so the bubble can render straight from [data] with no extra round-trip.
@@ -75,7 +75,7 @@ class UserMsg extends ChatMessage {
   final UserMsgStatus status;
   final bool steering;
 
-  /// Plan/30 — optional attached image (one max). `null` for text-only
+  /// Optional attached image (one max). `null` for text-only
   /// messages, which is every message before this feature.
   final MessageImage? image;
 
@@ -180,11 +180,11 @@ class ToolEvent extends ChatMessage {
   int get hashCode => Object.hash(id, toolCallId, status);
 }
 
-/// Plan/32 — `denied` = the user/SDK declined the tool; `failed` = the tool
+/// `denied` = the user/SDK declined the tool; `failed` = the tool
 /// ran but errored (a distinct, red outcome). `expired` = approval timed out.
 enum ToolEventStatus { pending, allowed, denied, expired, completed, failed }
 
-/// Plan/32 — a context-compaction marker rendered as a system bubble
+/// A context-compaction marker rendered as a system bubble
 /// (distinct from user/assistant). [summary] is the Pi's recap of the
 /// compacted thread; [tokensBefore] is the token count reclaimed (null when
 /// the Pi didn't report it).

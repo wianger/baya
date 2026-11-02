@@ -1,9 +1,8 @@
 import 'package:app/domain/contracts/url_opener.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Abre URLs externas via `url_launcher` em modo navegador/app externo —
-/// usado pelo aviso de update pra baixar o `RemotePi.apk` direto. Best-effort:
-/// URL inválida ou plataforma sem handler → `false` (a UI já tem fallback).
+/// Opens external URLs with `url_launcher` (used to download the update APK).
+/// Returns `false` for an invalid URL or a missing handler.
 class UrlLauncherOpener implements UrlOpener {
   const UrlLauncherOpener();
 

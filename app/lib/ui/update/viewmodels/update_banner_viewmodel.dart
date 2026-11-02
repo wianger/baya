@@ -6,15 +6,12 @@ import 'package:app/domain/value_objects/semver.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
 
-/// Aviso de atualização in-app, **Android-only** (plano 44, passo 3 — espelho
-/// do passo 7 do plano 43 do Cockpit). No [check] (disparado no mount da Home,
-/// = startup) consulta o manifest; se houver versão **maior** que a atual e que
-/// **não foi dispensada**, emite [UpdateBannerVisible]. Tudo best-effort:
-/// falhas são silenciosas.
+/// In-app update notice (Android only). [check] runs at startup, reads the
+/// release manifest, and emits [UpdateBannerVisible] when a newer version
+/// exists that the user has not dismissed. Best-effort: failures are silent.
 ///
-/// O gate de plataforma vive aqui via [enabled] (injetado como
-/// `Platform.isAndroid` no boot) — isso mantém a regra "nada no iOS"
-/// testável sem depender do host onde o `flutter test` roda.
+/// The platform gate is the injected [enabled] flag, so the rule stays
+/// testable on any machine that runs `flutter test`.
 class UpdateBannerViewModel extends ViewModel<UpdateBannerState> {
   UpdateBannerViewModel(
     this._checker,
@@ -33,20 +30,19 @@ class UpdateBannerViewModel extends ViewModel<UpdateBannerState> {
   final DismissedUpdateStore _dismissed;
   final UrlOpener _opener;
 
-  /// Versão do app rodando (de `package_info`, injetada no boot).
+  /// Running app version (from `package_info`).
   final String currentVersion;
   final int currentBuildNumber;
 
-  /// `true` só no Android — em iOS o app atualiza pela App Store, então o
-  /// aviso nunca aparece.
+  /// Platform gate, injected so tests run anywhere.
   final bool enabled;
 
-  /// Coordenadas do artefato a baixar (Android = apk universal).
+  /// Which artifact to download.
   final String platform;
   final String format;
   final String arch;
 
-  /// Página de download do site — fallback quando não há artefato compatível.
+  /// Fallback when the manifest has no matching artifact.
   final String fallbackUrl;
 
   static const String _kFallbackUrl =
@@ -55,24 +51,20 @@ class UpdateBannerViewModel extends ViewModel<UpdateBannerState> {
   bool _checked = false;
   bool _disposed = false;
 
-  /// Consulta o manifest e decide se o card deve aparecer. Silencioso em
-  /// falha. Idempotente por instância (re-mount cria nova instância e
-  /// re-consulta; uma mesma instância só consulta uma vez).
+  /// Checks once per instance whether to show the notice. Silent on failure.
   Future<void> check() async {
-    if (!enabled) return; // iOS / não-Android → nunca mostra.
+    if (!enabled) return;
     if (_checked) return;
     _checked = true;
 
     final latest = await _checker.fetchLatest();
     if (_disposed) return;
-    if (latest == null) return; // sem rede/manifest/inválido → nada.
-    if (!_isNewer(latest)) {
-      return; // igual/menor → nada.
-    }
+    if (latest == null) return;
+    if (!_isNewer(latest)) return;
 
     final dismissed = await _dismissed.dismissedVersion();
     if (_disposed) return;
-    if (dismissed == latest.version) return; // dispensada → nada.
+    if (dismissed == latest.version) return;
 
     emit(UpdateBannerVisible(latest));
   }
@@ -110,8 +102,7 @@ class UpdateBannerViewModel extends ViewModel<UpdateBannerState> {
   /// update flow uses, so About/markdown links share one error path.
   Future<bool> openUrl(String url) => _opener.open(url);
 
-  /// Fecha o card e persiste a versão como dispensada — não reaparece pra ela
-  /// (volta numa versão maior).
+  /// Hides the notice until a newer version ships.
   Future<void> dismiss() async {
     final current = state;
     if (current is! UpdateBannerVisible) return;
@@ -120,8 +111,7 @@ class UpdateBannerViewModel extends ViewModel<UpdateBannerState> {
     await _dismissed.dismiss(version);
   }
 
-  /// Baixa o APK do Android (abre a URL no navegador → download direto). Sem
-  /// artefato compatível no manifest → abre a página de download do site.
+  /// Opens the APK download, or the releases page without a matching artifact.
   Future<bool> download() async {
     final current = state;
     if (current is! UpdateBannerVisible) return false;

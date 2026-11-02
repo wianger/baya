@@ -17,7 +17,7 @@ import 'package:provider/provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   registerAppFontLicenses();
-  // Plan 31 — open the v2 SSOT boxes + WIPE the volatile runtime box BEFORE
+  // Open the v2 SSOT boxes + WIPE the volatile runtime box BEFORE
   // anything subscribes (#3 / Risk 2).
   await LocalBoxes.init();
   await setupDependencies();
@@ -56,7 +56,7 @@ class _RemotePiAppState extends State<RemotePiApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  /// Plan 24 — keep the mesh poll timer aligned with the app's
+  /// Keep the mesh poll timer aligned with the app's
   /// foreground lifecycle. Polling runs ONLY while resumed; in
   /// inactive/paused/hidden/detached we cancel so we don't drain the
   /// battery (and we'll resync via `pullOnDemand` on the next resume +
@@ -103,7 +103,7 @@ class _RemotePiAppState extends State<RemotePiApp> with WidgetsBindingObserver {
           themeMode: prefs.themeMode,
           routerConfig: _router,
           debugShowCheckedModeBanner: false,
-          // Issue #114 — user-chosen text size. Applied here rather than by
+          // User-chosen text size. Applied here rather than by
           // scaling `AppTypography`'s base sizes so the many per-widget
           // `copyWith(fontSize: …)` overrides scale too. `TextScaler.linear`
           // REPLACES the platform scaler, which is deliberate: Flutter can't

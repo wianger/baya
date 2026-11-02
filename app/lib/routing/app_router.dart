@@ -50,7 +50,7 @@ class _BootState extends ChangeNotifier {
 
   /// True when this run is the very first time the Owner key materialised
   /// on this account (the bridge just generated it). Restored identities
-  /// — anything coming back from iCloud Keychain / Block Store, including
+  /// — anything coming back from Block Store, including
   /// the "reinstalled the app on the same device" case where the platform
   /// re-hands the previous key — set this to false.
   ///
@@ -70,8 +70,8 @@ class _BootState extends ChangeNotifier {
   }) async {
     await prefs.load();
 
-    // Plan 23 — block bootstrap until the platform's key-sync surface
-    // (iCloud Keychain / Block Store) is usable AND we have an
+    // Block bootstrap until the platform's key-sync surface
+    // (Block Store) is usable AND we have an
     // Owner-key (loaded or freshly generated). If sync is off, the
     // router redirects to /sync-required and the user retries from
     // there once they flip the toggle in Settings.
@@ -92,7 +92,7 @@ class _BootState extends ChangeNotifier {
     // for the null case; this is the belt to its suspenders.
     installWatcherAfterBoot?.call();
 
-    // Plan 24 — pull mesh_versions from the relay BEFORE listing peers
+    // Pull mesh_versions from the relay BEFORE listing peers
     // so a reinstall on a new device materialises the same membership
     // the user had on the old one. Failure (offline, relay down, 4xx)
     // is logged inside the service and we fall back gracefully on the
@@ -101,7 +101,7 @@ class _BootState extends ChangeNotifier {
 
     final peers = await storage.listPeers();
     _hasPeer = peers.isNotEmpty;
-    // Plan 14: a user who already has a peer is implicitly onboarded —
+    // A user who already has a peer is implicitly onboarded —
     // they paired in an earlier app version that predates the
     // onboarding flow. Auto-flip the flag so they don't re-run it.
     if (_hasPeer && !prefs.onboardingCompleted) {
@@ -110,7 +110,7 @@ class _BootState extends ChangeNotifier {
     _onboarded = prefs.onboardingCompleted;
     _ready = true;
     notifyListeners();
-    // Plano 13: `Preferences.selectedPeerEpk` is the authoritative
+    // `Preferences.selectedPeerEpk` is the authoritative
     // pointer to the peer the user wants connected. On a fresh install
     // it's null — default to `peers.first` so subsequent boot()s have a
     // stable target and the user lands on a deterministic chat.
@@ -129,7 +129,7 @@ class _BootState extends ChangeNotifier {
     }
   }
 
-  /// Plan 23 — invoked by the OwnerIdentityBridge watch listener when
+  /// Invoked by the OwnerIdentityBridge watch listener when
   /// platform sync delivers a different Owner-pk. We reset to the
   /// "no-state" view; the next `load()` call (triggered when the user
   /// returns to /boot) will repopulate from the freshly-wiped storage.
@@ -150,11 +150,11 @@ GoRouter buildRouter(
 ) {
   final boot = _BootState();
 
-  // Plan 23 — watch for Owner-key drift on the sync surface. When the
+  // Watch for Owner-key drift on the sync surface. When the
   // platform delivers a different keypair (restored on a new device,
   // user wiped and re-installed elsewhere), the bridge wipes peers/rooms
   // and we reset the boot state so the router redirects through /boot.
-  // Plan 24 — reset the mesh version watermark too, otherwise the
+  // Reset the mesh version watermark too, otherwise the
   // first fetch against the new Owner-pk would use a stale `since`.
   //
   // Hook is captured here but only installed AFTER boot() succeeds —
@@ -186,7 +186,7 @@ GoRouter buildRouter(
     installWatcherAfterBoot: installWatcher,
   );
 
-  // Plan 24 — start foreground polling. The router doesn't have
+  // Start foreground polling. The router doesn't have
   // direct access to AppLifecycleState; main.dart wires
   // [MeshSyncService.startPolling/stopPolling] to the lifecycle so
   // this initial start covers the "app launched in foreground" case.
@@ -197,7 +197,7 @@ GoRouter buildRouter(
     refreshListenable: boot,
     redirect: (context, state) {
       if (!boot.ready) return '/boot';
-      // Sync-required gate is sticky until the user toggles iCloud /
+      // Sync-required gate is sticky until the user turns Google
       // Backup on and taps "Check again". Don't redirect away from
       // /sync-required while the bridge still reports unavailable.
       if (!boot.syncAvailable) {
@@ -222,8 +222,7 @@ GoRouter buildRouter(
       // Splash while boot.load() is in flight
       GoRoute(path: '/boot', builder: (ctx, st) => const _BootSplash()),
 
-      // Plan 23 — first-launch gate when iCloud Keychain / Google
-      // Backup is off. Sticky route: redirect keeps the user here
+      // First-launch gate when Google Backup is off. Sticky route: redirect keeps the user here
       // until the bridge reports sync available.
       GoRoute(
         path: '/sync-required',
@@ -269,7 +268,7 @@ GoRouter buildRouter(
             ViewmodelProvider<PairingViewModel>(child: const PairingPage()),
       ),
 
-      // Onboarding (plan 14) — 3-step flow shown when the app has
+      // Onboarding — 3-step flow shown when the app has
       // never been paired AND the user hasn't opted out. Provides
       // both OnboardingViewModel (state machine) AND PairingViewModel
       // (step 3 embeds the QR scanner reusing existing pair flow).
@@ -288,7 +287,7 @@ GoRouter buildRouter(
       // shell), so it keeps native back/swipe. On tablet the chat lives
       // in the detail branch instead (see _detailPane). Entered by
       // tapping a session in /home.
-      // Plan/24-fix-title: Home passes the already-known peer label
+      // Home passes the already-known peer label
       // (nickname / sessionName) via `extra` so the AppBar renders
       // the right title from frame 1 instead of waiting for the
       // first `room_meta_updated` to arrive. Keeps reactivity to
@@ -304,7 +303,7 @@ GoRouter buildRouter(
           if (extra is Map) {
             final t = extra['title'];
             if (t is String && t.isNotEmpty) initialTitle = t;
-            // Plan/32g — device (Mac) label Home already knows, so AppBar
+            // Device (Mac) label Home already knows, so AppBar
             // line 2 renders immediately (no async PeerRecord wait).
             final d = extra['device'];
             if (d is String && d.isNotEmpty) initialDevice = d;

@@ -287,7 +287,7 @@ void main() {
     });
   });
 
-  group('QuickActionsViewModel — Wave D meta hydration', () {
+  group('QuickActionsViewModel — meta hydration', () {
     test('seeds initial currentThinking from repo.activeRoomMeta', () {
       final repo = _FakeActionsRepository();
       repo.meta = const ActiveRoomMeta(

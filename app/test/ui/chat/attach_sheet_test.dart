@@ -1,4 +1,4 @@
-// Plan/30 + tablet fix — the Camera/Gallery attach sheet must close when the
+// The Camera/Gallery attach sheet must close when the
 // tablet's selected session changes out from under it.
 
 import 'package:app/routing/adaptive.dart';

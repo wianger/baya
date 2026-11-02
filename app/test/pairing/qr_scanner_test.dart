@@ -61,7 +61,7 @@ void main() {
     });
 
     test(
-      'parses QR with `rm` (room id) — plan 17 fix lets the app target '
+      'parses QR with `rm` (room id) — lets the app target '
       'the Pi\'s cwd-session at pair_request time',
       () {
         final raw = 'remotepi://pair?t=$goodToken&epk=$goodEpk&'

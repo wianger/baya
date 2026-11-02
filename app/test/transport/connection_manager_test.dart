@@ -97,7 +97,7 @@ PlainPeerChannel _makeChannel() {
 // ---------------------------------------------------------------------------
 
 void main() {
-  // Plan 17 — rooms suite registered alongside the rest.
+  // Rooms suite registered alongside the rest.
   _registerRoomsTests();
 
   group('ConnectionManager', () {
@@ -515,7 +515,7 @@ void main() {
     );
 
     // -----------------------------------------------------------------------
-    // Presence (plano 12)
+    // Presence
     // -----------------------------------------------------------------------
 
     test(
@@ -732,7 +732,7 @@ void main() {
     );
 
     // -----------------------------------------------------------------------
-    // Plano 13: chat-state recovery (boot preferredEpk + no-NoPeer switchTo)
+    // Chat-state recovery (boot preferredEpk + no-NoPeer switchTo)
     // -----------------------------------------------------------------------
 
     test(
@@ -863,7 +863,7 @@ void main() {
         expect(
           seen.whereType<StatusNoPeer>(),
           isEmpty,
-          reason: 'plano 13 — switchTo must not flash through NoPeer',
+          reason: 'switchTo must not flash through NoPeer',
         );
         // Must still go through Connecting on the way to Online.
         expect(seen.any((s) => s is StatusConnecting), isTrue);
@@ -1143,17 +1143,17 @@ class _HangingCloseChannel implements IChannel {
 }
 
 // ---------------------------------------------------------------------------
-// Presence (plano 12)
+// Presence
 // ---------------------------------------------------------------------------
 
 void mainPresence() {} // placeholder so the group below is visible
 
 // ---------------------------------------------------------------------------
-// Rooms (plan 17)
+// Rooms
 // ---------------------------------------------------------------------------
 
 void _registerRoomsTests() {
-  group('ConnectionManager — rooms (plan 17)', () {
+  group('ConnectionManager — rooms', () {
     test(
       'replaySubscriptions sends BOTH subscribe_presence AND '
       'subscribe_rooms after connect',
@@ -1219,7 +1219,7 @@ void _registerRoomsTests() {
           sinceTs: 2000,
         ));
         await ended.timeout(const Duration(seconds: 2));
-        // Plan-17 follow-up: RoomEnded keeps the room CACHED so the
+        // RoomEnded keeps the room CACHED so the
         // tile stays in Home (marked offline) — only the live set
         // shrinks. isRoomLive now distinguishes the two.
         expect(cm.roomsFor('epkA'), hasLength(1));
@@ -1233,7 +1233,7 @@ void _registerRoomsTests() {
           RoomInfo(roomId: 'rB', startedAt: 4000, cwd: '/b'),
         ]));
         await merged.timeout(const Duration(seconds: 2));
-        // Plan-17 follow-up: snapshots MERGE with cached rooms (so a
+        // Snapshots MERGE with cached rooms (so a
         // room going offline keeps its tile). r1 is still in cache
         // (offline), rA and rB are now live → total 3.
         expect(cm.roomsFor('epkA'), hasLength(3));
@@ -1247,7 +1247,7 @@ void _registerRoomsTests() {
     );
 
     test(
-      '_connect adopts peer.roomId (plan 17 fix — bind room on the '
+      '_connect adopts peer.roomId (bind room on the '
       'first frame so the relay routes correctly)',
       () async {
         final ch = _ControllableChannel();
@@ -1394,7 +1394,7 @@ void _registerRoomsTests() {
     );
 
     test(
-      'RoomMetaUpdated patches the model on an existing room (plan 18)',
+      'RoomMetaUpdated patches the model on an existing room',
       () async {
         final ch = _ControllableChannel();
         final cm = ConnectionManager(

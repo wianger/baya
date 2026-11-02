@@ -7,7 +7,7 @@ import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-/// Plan 29 — on-device speech-to-text, app-only.
+/// On-device speech-to-text, app-only.
 ///
 /// Wraps the `speech_to_text` plugin behind a testable contract. The audio
 /// is captured by the recognizer and transcribed in-stream — **no audio file

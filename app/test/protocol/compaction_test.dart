@@ -1,4 +1,4 @@
-// Plan/32 — wire parsing of the `compaction` ServerMessage and its
+// Wire parsing of the `compaction` ServerMessage and its
 // `session_history` event counterpart (contract: { summary, tokens_before,
 // ts optional }).
 
