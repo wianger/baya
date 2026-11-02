@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -28,8 +29,12 @@ class TailnetHost {
 const _labels = ['wsl', 'windows', 'linux', 'macos'];
 const _timeout = Duration(seconds: 8);
 
-/// Finds the Baya hosts on the computer called [name] (a short name is
-/// completed with [tailnetSuffix]).
+/// Finds the Baya hosts on the computer called [name].
+///
+/// A short name is completed with [tailnetSuffix] (the tailnet of an earlier
+/// pairing) or else through MagicDNS: the name resolves to the computer's
+/// tailnet address, whose reverse lookup is the full `*.ts.net` name the
+/// HTTPS certificate is issued for.
 ///
 /// Each host is published by the computer's `tailscale serve` at
 /// `https://<full name>/baya-pair/<label>` and answers `…/info` only to
@@ -39,11 +44,14 @@ Future<List<TailnetHost>> discoverTailnetHosts(
   String name, {
   String? tailnetSuffix,
   http.Client? client,
+  Future<String?> Function(String shortName) resolveFullName = magicDnsFullName,
 }) async {
   final host = name.trim().toLowerCase();
   final fullName = host.contains('.')
       ? host
-      : (tailnetSuffix == null ? null : '$host.$tailnetSuffix');
+      : tailnetSuffix != null
+      ? '$host.$tailnetSuffix'
+      : await resolveFullName(host);
   if (fullName == null) {
     throw const TailnetPairingException(TailnetPairingFailure.unreachable);
   }
@@ -127,4 +135,20 @@ String? tailnetSuffixOf(String url) {
   final parts = host.split('.');
   if (parts.length < 3 || !host.endsWith('.ts.net')) return null;
   return parts.sublist(parts.length - 3).join('.');
+}
+
+/// The full MagicDNS name of a tailnet computer typed by its short name, or
+/// null when Tailscale cannot resolve it.
+Future<String?> magicDnsFullName(String shortName) async {
+  try {
+    final addresses = await InternetAddress.lookup(shortName).timeout(_timeout);
+    for (final address in addresses) {
+      final named = await address.reverse().timeout(_timeout);
+      final host = named.host.replaceFirst(RegExp(r'\.$'), '').toLowerCase();
+      if (host.endsWith('.ts.net')) return host;
+    }
+  } catch (_) {
+    // Not resolvable: the caller reports the computer as unreachable.
+  }
+  return null;
 }

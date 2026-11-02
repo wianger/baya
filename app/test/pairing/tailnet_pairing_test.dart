@@ -39,10 +39,30 @@ void main() {
     );
   });
 
+  test('a short name with no known tailnet is completed by MagicDNS', () async {
+    final hosts = await discoverTailnetHosts(
+      'Wiang-1',
+      resolveFullName: (short) async =>
+          short == 'wiang-1' ? 'wiang-1.tail9.ts.net' : null,
+      client: MockClient(
+        (request) async =>
+            request.url.toString() ==
+                'https://wiang-1.tail9.ts.net/baya-pair/wsl/info'
+            ? _info('wsl', 'k')
+            : http.Response('', 404),
+      ),
+    );
+    expect(hosts.single.label, 'wsl');
+  });
+
   test('explains refusals and silence', () async {
     Future<TailnetPairingFailure?> reason(http.Client client) async {
       try {
-        await discoverTailnetHosts('box.t.ts.net', client: client);
+        await discoverTailnetHosts(
+          'box',
+          client: client,
+          resolveFullName: (_) async => 'box.t.ts.net',
+        );
         return null;
       } on TailnetPairingException catch (e) {
         return e.reason;
