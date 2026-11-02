@@ -1,26 +1,8 @@
 import type { ClientMessage, ServerMessage } from "../protocol/types.js";
-import { canonicalizeEd25519PublicKey } from "../mesh/encoding.js";
-import { getOrCreateEd25519Keypair, listPeers, type PeerRecord } from "../pairing/storage.js";
+import { getOrCreateEd25519Keypair, isPairedKey, listPeers } from "../pairing/storage.js";
 import { resolveRelayUrl, toWebSocketUrl } from "../config.js";
 import { RelayClient, type RoomMeta } from "./relay_client.js";
 import type { PeerChannel } from "./peer_channel.js";
-
-function canonicalKey(value: unknown): string | null {
-  if (typeof value !== "string" || !value) return null;
-  try {
-    return canonicalizeEd25519PublicKey(value);
-  } catch {
-    return null;
-  }
-}
-
-export function isPairedOwner(
-  peer: unknown,
-  owners: ReadonlyArray<Pick<PeerRecord, "remote_epk">>,
-): boolean {
-  const key = canonicalKey(peer);
-  return key !== null && owners.some((owner) => canonicalKey(owner.remote_epk) === key);
-}
 
 export interface OwnerHostOptions {
   roomId: string;
@@ -48,19 +30,19 @@ export class OwnerRelayHost {
     this.meta = { ...options.roomMeta };
   }
 
-  async start(): Promise<void> {
+  /**
+   * Starts connecting in the background. Relay availability and the local
+   * agent host are independent: a sleeping laptop, VPN transition, or relay
+   * outage must not make local sessions unusable.
+   */
+  start(): void {
     this.stopped = false;
-    try {
-      await this.connect();
-    } catch (error) {
-      // Relay availability and the local agent host are independent. Keep the
-      // host alive and reconnect in the background so a sleeping laptop, VPN
-      // transition, or relay outage does not make local sessions unusable.
+    void this.connect().catch((error: unknown) => {
       this.options.onFatal?.(
         error instanceof Error ? error : new Error("Initial relay connection failed."),
       );
       this.scheduleReconnect();
-    }
+    });
   }
 
   stop(): void {
@@ -174,7 +156,7 @@ export class OwnerRelayHost {
       return;
     }
 
-    if (!isPairedOwner(peer, await listPeers())) {
+    if (!isPairedKey(peer, await listPeers())) {
       this.sendTo(peer, {
         type: "error",
         code: "unknown_peer",
@@ -197,7 +179,7 @@ export class OwnerRelayHost {
         const owners = await listPeers();
         const ct = Buffer.from(JSON.stringify(message)).toString("base64");
         for (const peer of peers) {
-          if (!isPairedOwner(peer, owners)) {
+          if (!isPairedKey(peer, owners)) {
             this.attached.delete(peer);
             continue;
           }

@@ -17,12 +17,11 @@ import { controlCall, readControlInfo } from "./control/client.js";
 import { ControlServer } from "./control/server.js";
 import { packageVersion } from "./runtime/version.js";
 import { buildQRUri, displayQR } from "./pairing/qr.js";
-import { getOrCreateEd25519Keypair, listPeers } from "./pairing/storage.js";
+import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/storage.js";
 import { availableAgents, resolveDirectory } from "./workspace/directories.js";
 import { workspaceAgentDefinition } from "./workspace/agents.js";
-import { listSessions, findSession } from "./session/registry.js";
+import { findSession, listSessions, removeSession } from "./session/registry.js";
 import { roomIdForBayaSession } from "./host/session_host.js";
-import type { PendingPairToken } from "./pairing/token_store.js";
 import type { WorkspaceAgent } from "./workspace/types.js";
 import {
   BAYA_RUN_KEY,
@@ -81,6 +80,8 @@ Usage:
   baya open <path>        Open a workspace on a running host
   baya remove <id>        Remove a session
   baya pair [id]          Print a pairing QR for this host
+  baya devices            List paired phones
+  baya unpair <name|key>  Revoke a paired phone
   baya agents             Detect installed Pi, Codex, and DeepSeek
   baya doctor             Diagnose relay, identity, and agents
   baya set-relay <url>    Save the relay URL
@@ -207,15 +208,7 @@ async function runForeground(args: ParsedArgs): Promise<void> {
 }
 
 async function pair(args: ParsedArgs): Promise<void> {
-  const status = await startBackground(args);
-  const requested = args.positionals[0];
-  const selected = requested
-    ? status.sessions.find((session) =>
-        session.id === requested || session.id.startsWith(requested)
-      )
-    : status.sessions[0];
-  if (!selected) throw new Error("No matching session.");
-
+  await startBackground(args);
   const ttlValue = flag(args, "ttl");
   const ttlSeconds = ttlValue === undefined ? undefined : Number(ttlValue);
   if (
@@ -224,22 +217,52 @@ async function pair(args: ParsedArgs): Promise<void> {
   ) {
     throw new Error("Pairing TTL must be between 10 and 600 seconds.");
   }
-  const response = await controlCall<PendingPairToken>("pair", {
-    id: selected.id,
+  const response = await controlCall<ReturnType<BayaManager["pair"]>>("pair", {
+    ...(args.positionals[0] ? { id: args.positionals[0] } : {}),
     ...(ttlSeconds === undefined ? {} : { ttl_ms: Math.floor(ttlSeconds * 1000) }),
   });
   const identity = await getOrCreateEd25519Keypair();
   const uri = buildQRUri(
     response.token,
     identity.publicKey,
-    selected.name,
+    response.session_name,
     response.room_id,
   );
   process.stdout.write(`Relay: ${resolveRelayUrl().url}\n`);
-  process.stdout.write(`Session: ${selected.name} (${selected.id})\n`);
-  process.stdout.write(`Expires: ${new Date(response.expires_at).toLocaleString()}\n\n`);
+  process.stdout.write(`Session: ${response.session_name} (${response.session_id})\n`);
+  process.stdout.write(`Expires: ${new Date(response.expires_at).toLocaleString()}\n`);
   displayQR(uri);
   process.stdout.write(`Pairing URI:\n${uri}\n`);
+}
+
+async function devices(args: ParsedArgs): Promise<void> {
+  const peers = await listPeers();
+  if (jsonFlag(args)) {
+    print({ devices: peers }, true);
+    return;
+  }
+  if (peers.length === 0) {
+    process.stdout.write("No phones are paired. Run `baya pair`.\n");
+    return;
+  }
+  for (const peer of peers) {
+    process.stdout.write(
+      `${peer.name}  ${peer.remote_epk.slice(0, 12)}  paired ${new Date(peer.paired_at).toLocaleString()}\n`,
+    );
+  }
+}
+
+async function unpair(args: ParsedArgs): Promise<void> {
+  const query = args.positionals[0];
+  if (!query) throw new Error("Name or key prefix of the phone is required. See `baya devices`.");
+  const removed = await removePeers(query);
+  if (removed.length === 0) throw new Error(`No paired phone matches "${query}".`);
+  print(
+    jsonFlag(args)
+      ? { removed }
+      : removed.map((peer) => `Unpaired ${peer.name}. It can no longer reach this computer.`),
+    jsonFlag(args),
+  );
 }
 
 async function doctor(args: ParsedArgs): Promise<void> {
@@ -393,13 +416,19 @@ async function main(): Promise<void> {
       } catch (error) {
         const record = findSession(id);
         if (!record) throw error;
-        const removed = (await import("./session/registry.js")).removeSession(record.id);
+        const removed = removeSession(record.id);
         print({ removed }, jsonFlag(args));
       }
       return;
     }
     case "pair":
       await pair(args);
+      return;
+    case "devices":
+      await devices(args);
+      return;
+    case "unpair":
+      await unpair(args);
       return;
     case "agents": {
       print(await availableAgents(), jsonFlag(args));

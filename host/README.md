@@ -16,6 +16,8 @@ baya new [path] --agent pi|codex|deepseek --name <name>
 baya open <path> --agent pi|codex|deepseek
 baya remove <id>
 baya pair [id] --ttl <10-600>
+baya devices [--json]
+baya unpair <name|key-prefix>
 baya agents [--json]
 baya doctor [--json]
 baya set-relay <http(s)|ws(s) URL>
@@ -28,6 +30,11 @@ entry `BayaHost` and starts the host through a hidden PowerShell process. It
 does not require administrator rights.
 
 `baya` without a command starts the foreground host using the current folder.
+
+If an agent process exits unexpectedly, the host keeps the session registered
+and restarts it with backoff (1 s, 5 s, 15 s, then every minute). The relay
+connection is independent: local sessions start even while the relay is
+unreachable, and the host reconnects in the background.
 `baya start` detaches a resident host and writes logs to
 `$BAYA_HOME/logs/host.log`. The control socket is loopback-only and protected by
 a random token stored with owner-only permissions.

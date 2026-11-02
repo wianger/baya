@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import type { AgentAdapter } from "../adapters/types.js";
 import { dirname, join } from "node:path";
 import { sessionStatePath } from "../session/identity.js";
 import { contextUsageSnapshot } from "../context_usage.js";
@@ -32,7 +33,8 @@ export interface CodexSessionOptions {
 }
 
 /** Resume the Codex thread and retain the mobile transcript's stable event ids. */
-export class CodexSession {
+export class CodexSession implements AgentAdapter {
+  readonly agent = "codex" as const;
   private readonly client: Client;
   private readonly statePath: string;
   private threadId = "";

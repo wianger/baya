@@ -59,7 +59,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/", get(handlers::peer::ws_handler))
         .route("/health", get(|| async { "OK" }))
         .route(
-            "/mesh/:owner_pk_hash",
+            "/mesh/{owner_pk_hash}",
             get(mesh::handler::get_mesh).post(mesh::handler::post_mesh),
         )
         .layer(DefaultBodyLimit::max(mesh::handler::MAX_BODY_BYTES))

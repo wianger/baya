@@ -44,9 +44,12 @@ ThemeData _buildTheme({
     splashFactory: NoSplash.splashFactory,
     visualDensity: VisualDensity.standard,
     extensions: <ThemeExtension<dynamic>>[colors, typo],
+    // Android 16 makes predictive back the system default. The Cupertino
+    // edge swipe competes with the system gesture there, so Android follows
+    // the platform: the previous page peeks in while the back gesture runs.
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
-        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.windows: CupertinoPageTransitionsBuilder(),

@@ -10,7 +10,7 @@ import 'package:app/data/local/records/session_index_record.dart';
 import 'package:app/data/repositories/home_read_repository.dart';
 import 'package:app/data/repositories/session_read_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 int _c = 0;
 late Directory _dir;

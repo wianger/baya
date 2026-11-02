@@ -11,7 +11,7 @@
 
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/domain/value_objects/session_room.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 
 const String _kNamespace = 'rp_v2';
 const String _kSessionsIndex = 'sessions_index';

@@ -4,6 +4,8 @@ import { ed25519Sign } from "../pairing/crypto.js";
 import type { Ed25519Keypair } from "../pairing/crypto.js";
 
 const AUTH_TIMEOUT_MS = 5_000;
+/** TCP + TLS + HTTP upgrade. Dropped packets must fail, not hang forever. */
+const HANDSHAKE_TIMEOUT_MS = 10_000;
 
 /**
  * Liveness watchdog. The relay sends a WS Ping every ~25s (relay `peer.rs`),
@@ -111,7 +113,7 @@ export class RelayClient extends EventEmitter {
    */
   async connect(options: ConnectOptions = {}): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(this.url);
+      const ws = new WebSocket(this.url, { handshakeTimeout: HANDSHAKE_TIMEOUT_MS });
       this.ws = ws;
 
       ws.on("error", (err) => reject(err));

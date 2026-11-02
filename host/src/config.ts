@@ -4,7 +4,8 @@ import { join } from "node:path";
 
 export const DEFAULT_RELAY_URL = "https://relay-rp1.jacobmoura.work";
 export const BAYA_HOME = process.env["BAYA_HOME"]?.trim() || join(homedir(), ".baya");
-export const LEGACY_REMOTE_PI_HOME = join(homedir(), ".pi", "remote");
+export const LEGACY_REMOTE_PI_HOME =
+  process.env["REMOTE_PI_HOME"]?.trim() || join(homedir(), ".pi", "remote");
 
 export interface BayaConfig {
   relay?: string;

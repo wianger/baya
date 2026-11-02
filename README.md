@@ -46,6 +46,14 @@ baya status
 baya pair
 ```
 
+Manage paired phones. Unpairing takes effect immediately, including for a
+stream that is already running:
+
+```powershell
+baya devices
+baya unpair Pixel
+```
+
 On Windows, install the per-user login startup entry. This does not require
 administrator rights:
 

@@ -380,15 +380,6 @@ export class PiAdapter implements AgentAdapter {
         case "commands_get":
           await this.commands(sender, message.id);
           return;
-        case "sessions_inventory":
-          sender.send({
-            type: "sessions_inventory",
-            in_reply_to: message.id,
-            session_keys: this.nativeSessionId ? [await this.sessionKey()] : [],
-            scanned_at: Date.now(),
-            complete: true,
-          });
-          return;
         case "extension_ui_response":
           {
             const response = piExtensionUiResponse(message);
@@ -822,14 +813,6 @@ export class PiAdapter implements AgentAdapter {
       in_reply_to: userId,
       ...(tokens ? { usage: tokens } : {}),
     });
-  }
-
-  private async sessionKey(): Promise<string> {
-    const digest = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(this.nativeSessionId),
-    );
-    return Buffer.from(digest).toString("base64url").slice(0, 16);
   }
 
   private setBusy(busy: boolean): void {

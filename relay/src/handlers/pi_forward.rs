@@ -325,7 +325,7 @@ pub async fn handle_pi_envelope(
         "from_pc": sender,
         "envelope": envelope, // verbatim
     });
-    let msg = Message::Text(outbound.to_string());
+    let msg = Message::Text(outbound.to_string().into());
 
     if registry.forward_to_peer(&target, msg) {
         PiForwardResult::Forwarded
@@ -406,7 +406,7 @@ fn make_transport_error(
         "from_pc": "_relay",
         "envelope": err_envelope,
     });
-    Message::Text(frame.to_string())
+    Message::Text(frame.to_string().into())
 }
 
 #[cfg(test)]

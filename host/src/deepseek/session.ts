@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import type { AgentAdapter } from "../adapters/types.js";
 import { dirname, join } from "node:path";
 import { sessionStatePath } from "../session/identity.js";
 import { contextUsageSnapshot } from "../context_usage.js";
@@ -72,7 +73,8 @@ export interface DeepSeekSessionOptions {
 }
 
 /** Adapt one persistent DeepSeek Harness ACP session to the mobile wire. */
-export class DeepSeekSession {
+export class DeepSeekSession implements AgentAdapter {
+  readonly agent = "deepseek" as const;
   private readonly client: Client;
   private readonly statePath: string;
   private sessionId = "";

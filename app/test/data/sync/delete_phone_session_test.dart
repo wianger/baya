@@ -9,7 +9,7 @@ import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 import '../../support/phone_controls.dart';
 

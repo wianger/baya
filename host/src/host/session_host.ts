@@ -34,6 +34,7 @@ export function sessionInventoryResponse(
 
 export class ManagedSessionHost {
   readonly roomId: string;
+  readonly startedAt = Date.now();
   private readonly relay: OwnerRelayHost;
   private readonly pairing = new PairingService();
   private stopping = false;
@@ -55,7 +56,7 @@ export class ManagedSessionHost {
 
   async start(): Promise<void> {
     await this.adapter.start();
-    await this.relay.start();
+    this.relay.start();
   }
 
   stop(): void {

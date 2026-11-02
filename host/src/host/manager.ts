@@ -1,84 +1,63 @@
-import type {
-  AgentAdapter,
-  AdapterOptions,
-} from "../adapters/types.js";
+import type { AdapterOptions, AgentAdapter } from "../adapters/types.js";
 import { PiAdapter } from "../adapters/pi.js";
 import { CodexSession } from "../codex/session.js";
+import { loadConfig } from "../config.js";
 import { DeepSeekSession } from "../deepseek/session.js";
-import type {
-  OpenedWorkspace,
-  WorkspaceAgent,
-} from "../workspace/types.js";
+import { issuePendingPairToken, type PendingPairToken } from "../pairing/token_store.js";
+import { sessionStatePath } from "../session/identity.js";
 import {
   addSession,
   defaultSessionName,
+  findSession,
   listSessions,
   removeSession,
   updateSession,
   type BayaSessionRecord,
 } from "../session/registry.js";
-import { sessionStatePath } from "../session/identity.js";
-import { availableAgents } from "../workspace/directories.js";
 import { workspaceAgentDefinition } from "../workspace/agents.js";
+import { availableAgents } from "../workspace/directories.js";
+import type { OpenedWorkspace, WorkspaceAgent } from "../workspace/types.js";
 import { ManagedSessionHost, roomIdForBayaSession } from "./session_host.js";
-import {
-  issuePendingPairToken,
-  type PendingPairToken,
-} from "../pairing/token_store.js";
 
-class WrappedAgentAdapter implements AgentAdapter {
-  constructor(
-    readonly agent: WorkspaceAgent,
-    private readonly session: CodexSession | DeepSeekSession,
-  ) {}
+/** Restart delays after an agent process exits unexpectedly. */
+const RESTART_DELAYS_MS = [1_000, 5_000, 15_000, 60_000];
+/** A run this long resets the crash counter. */
+const HEALTHY_RUN_MS = 5 * 60_000;
 
-  get isBusy(): boolean {
-    return this.session.isBusy;
-  }
-
-  start(): Promise<void> {
-    return this.session.start();
-  }
-
-  handle(sender: Parameters<CodexSession["handle"]>[0], message: Parameters<CodexSession["handle"]>[1]) {
-    return this.session.handle(sender, message);
-  }
-
-  close(): void {
-    this.session.close();
-  }
+export interface SessionStatus extends BayaSessionRecord {
+  online: boolean;
+  busy: boolean;
+  room_id: string;
 }
 
 export class BayaManager {
   private readonly hosts = new Map<string, ManagedSessionHost>();
+  private readonly restarts = new Map<string, { attempt: number; timer: NodeJS.Timeout | null }>();
+  private stopped = false;
 
   async start(initial?: { cwd?: string; agent?: WorkspaceAgent; name?: string }): Promise<void> {
     let sessions = listSessions();
     if (sessions.length === 0) {
-      const cwd = initial?.cwd || process.cwd();
-      const agent = initial?.agent || await this.defaultAgent();
-      sessions = [addSession({
-        cwd,
-        agent,
-        ...(initial?.name ? { name: initial.name } : {}),
-      })];
+      sessions = [
+        addSession({
+          cwd: initial?.cwd || process.cwd(),
+          agent: initial?.agent || (await this.defaultAgent()),
+          ...(initial?.name ? { name: initial.name } : {}),
+        }),
+      ];
     }
-    const failures: Error[] = [];
-    for (const session of sessions) {
-      try {
-        await this.startSession(session);
-      } catch (error) {
-        const failure = error instanceof Error ? error : new Error(String(error));
-        failures.push(failure);
-        process.stderr.write(`[baya] ${failure.message}\n`);
+    const results = await Promise.allSettled(sessions.map((session) => this.startSession(session)));
+    for (const result of results) {
+      if (result.status === "rejected") {
+        process.stderr.write(`[baya] ${errorMessage(result.reason)}\n`);
       }
     }
-    if (sessions.length > 0 && failures.length === sessions.length) {
+    if (results.every((result) => result.status === "rejected")) {
       throw new Error("No Baya session could be started. Run `baya doctor` for diagnostics.");
     }
   }
 
-  list(): Array<BayaSessionRecord & { online: boolean; room_id: string; busy: boolean }> {
+  list(): SessionStatus[] {
     return listSessions().map((record) => ({
       ...record,
       online: this.hosts.has(record.id),
@@ -118,48 +97,45 @@ export class BayaManager {
     });
   }
 
-  async startById(id: string): Promise<BayaSessionRecord | null> {
-    const record = listSessions().find((entry) => entry.id === id) || null;
-    if (!record) return null;
-    await this.startSession(record);
-    return record;
-  }
-
-  stopById(id: string): boolean {
-    const host = this.hosts.get(id);
-    if (!host) return false;
-    host.stop();
-    this.hosts.delete(id);
-    return true;
-  }
-
   deleteById(id: string): boolean {
-    this.stopById(id);
-    return removeSession(id);
+    const record = findSession(id);
+    if (!record) return false;
+    this.stopSession(record.id);
+    return removeSession(record.id);
   }
 
-  pair(id?: string, ttlMs?: number): PendingPairToken {
-    const sessions = listSessions();
-    const record = id ? sessions.find((entry) => entry.id === id || entry.id.startsWith(id)) : sessions[0];
-    if (!record) throw new Error("No Baya session is registered. Run `baya new` first.");
-    if (!this.hosts.has(record.id)) {
-      throw new Error("The selected session is not online. Run `baya start` first.");
+  pair(id?: string, ttlMs?: number): PendingPairToken & { session_id: string; session_name: string } {
+    const record = id ? findSession(id) : this.list().find((session) => session.online);
+    if (!record) {
+      throw new Error(id ? `No session matches "${id}".` : "No Baya session is online.");
     }
-    return issuePendingPairToken(roomIdForBayaSession(record), ttlMs);
+    if (!this.hosts.has(record.id)) {
+      throw new Error(`${record.name} is not online. Check \`baya status\`.`);
+    }
+    return {
+      ...issuePendingPairToken(roomIdForBayaSession(record), ttlMs),
+      session_id: record.id,
+      session_name: record.name,
+    };
   }
 
   async stop(): Promise<void> {
-    for (const host of this.hosts.values()) host.stop();
-    this.hosts.clear();
+    this.stopped = true;
+    for (const id of [...this.hosts.keys(), ...this.restarts.keys()]) this.stopSession(id);
+  }
+
+  private stopSession(id: string): void {
+    const restart = this.restarts.get(id);
+    if (restart?.timer) clearTimeout(restart.timer);
+    this.restarts.delete(id);
+    this.hosts.get(id)?.stop();
+    this.hosts.delete(id);
   }
 
   private async startSession(record: BayaSessionRecord): Promise<void> {
     if (this.hosts.has(record.id)) return;
-    const adapter = this.adapterFor(record);
-    const host = new ManagedSessionHost(
-      record,
-      adapter,
-      (path, agent) => this.openWorkspace(path, agent),
+    const host = new ManagedSessionHost(record, this.adapterFor(record), (path, agent) =>
+      this.openWorkspace(path, agent),
     );
     this.hosts.set(record.id, host);
     try {
@@ -167,78 +143,84 @@ export class BayaManager {
     } catch (error) {
       this.hosts.delete(record.id);
       host.stop();
-      throw new Error(
-        `Could not start ${record.name}: ${
-          error instanceof Error ? error.message : "unknown error"
-        }`,
-      );
+      throw new Error(`Could not start ${record.name}: ${errorMessage(error)}`);
     }
+  }
+
+  /** The agent process died. Keep the session registered and bring it back. */
+  private onAgentExit(record: BayaSessionRecord, error: Error): void {
+    const host = this.hosts.get(record.id);
+    if (!host || this.stopped) return;
+    process.stderr.write(`[baya] ${record.name}: ${error.message}\n`);
+    this.hosts.delete(record.id);
+    host.stop();
+    this.scheduleRestart(record.id, Date.now() - host.startedAt);
+  }
+
+  private scheduleRestart(id: string, ranForMs: number): void {
+    const state = this.restarts.get(id) ?? { attempt: 0, timer: null };
+    if (ranForMs > HEALTHY_RUN_MS) state.attempt = 0;
+    const delay = RESTART_DELAYS_MS[Math.min(state.attempt, RESTART_DELAYS_MS.length - 1)]!;
+    state.attempt++;
+    state.timer = setTimeout(() => {
+      state.timer = null;
+      const record = findSession(id);
+      if (this.stopped || !record) return;
+      this.startSession(record).catch((error: unknown) => {
+        process.stderr.write(`[baya] ${errorMessage(error)}\n`);
+        this.scheduleRestart(id, 0);
+      });
+    }, delay);
+    state.timer.unref();
+    this.restarts.set(id, state);
   }
 
   private adapterFor(record: BayaSessionRecord): AgentAdapter {
-    const options: AdapterOptions = {
+    const host = () => this.hosts.get(record.id);
+    const shared = {
       cwd: record.cwd,
-      name: record.name,
-      sessionId: record.id,
-      ...(record.pi_session_id ? { nativeSessionId: record.pi_session_id } : {}),
-      broadcast: (message) => {
-        const host = this.hosts.get(record.id);
-        host?.broadcast(message);
-      },
-      onBusy: (busy) => {
-        const host = this.hosts.get(record.id);
-        host?.setBusy(busy);
-      },
-      onModel: (model) => {
-        const host = this.hosts.get(record.id);
-        host?.setModel(model);
-      },
-      onClosed: (error) => {
-        process.stderr.write(`[baya] ${record.name}: ${error.message}\n`);
-        const current = this.hosts.get(record.id);
-        this.hosts.delete(record.id);
-        current?.stop();
-      },
-      onNativeSessionId: (nativeSessionId) => {
-        updateSession(record.id, { pi_session_id: nativeSessionId });
-      },
+      broadcast: (message: Parameters<AdapterOptions["broadcast"]>[0]) => host()?.broadcast(message),
+      onBusy: (busy: boolean) => host()?.setBusy(busy),
+      onModel: (model: string) => host()?.setModel(model),
+      onClosed: (error: Error) => this.onAgentExit(record, error),
     };
-
-    if (record.agent === "pi") {
-      // The callback is rebound by ManagedSessionHost before start.
-      return new PiAdapter(options);
+    switch (record.agent) {
+      case "pi":
+        return new PiAdapter({
+          ...shared,
+          name: record.name,
+          sessionId: record.id,
+          ...(record.pi_session_id ? { nativeSessionId: record.pi_session_id } : {}),
+          onNativeSessionId: (nativeSessionId) =>
+            updateSession(record.id, { pi_session_id: nativeSessionId }),
+        });
+      case "codex":
+        return new CodexSession({
+          ...shared,
+          statePath: sessionStatePath(record.cwd, record.agent, record.id),
+        });
+      case "deepseek":
+        return new DeepSeekSession({
+          ...shared,
+          statePath: sessionStatePath(record.cwd, record.agent, record.id),
+        });
+      default:
+        throw new Error(`No Baya adapter is installed for ${String(record.agent)}.`);
     }
-    if (record.agent === "codex") {
-      const session = new CodexSession({
-        cwd: record.cwd,
-        broadcast: options.broadcast,
-        ...(options.onBusy ? { onBusy: options.onBusy } : {}),
-        ...(options.onModel ? { onModel: options.onModel } : {}),
-        ...(options.onClosed ? { onClosed: options.onClosed } : {}),
-        statePath: sessionStatePath(record.cwd, record.agent, record.id),
-      });
-      return new WrappedAgentAdapter(record.agent, session);
-    }
-    if (record.agent === "deepseek") {
-      const session = new DeepSeekSession({
-        cwd: record.cwd,
-        broadcast: options.broadcast,
-        ...(options.onBusy ? { onBusy: options.onBusy } : {}),
-        ...(options.onModel ? { onModel: options.onModel } : {}),
-        ...(options.onClosed ? { onClosed: options.onClosed } : {}),
-        statePath: sessionStatePath(record.cwd, record.agent, record.id),
-      });
-      return new WrappedAgentAdapter(record.agent, session);
-    }
-    throw new Error(`No Baya adapter is installed for ${record.agent}.`);
   }
 
   private async defaultAgent(): Promise<WorkspaceAgent> {
-    const configured = (await import("../config.js")).loadConfig().defaultAgent;
+    const configured = loadConfig().defaultAgent;
     if (configured) return configured;
     const available = await availableAgents();
-    return available.find((entry) => entry.id === "pi" && entry.available)?.id
-      ?? available.find((entry) => entry.available)?.id
-      ?? "pi";
+    return (
+      available.find((entry) => entry.id === "pi" && entry.available)?.id ??
+      available.find((entry) => entry.available)?.id ??
+      "pi"
+    );
   }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

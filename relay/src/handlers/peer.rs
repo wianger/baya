@@ -58,7 +58,7 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
     // ── 2. Send challenge ─────────────────────────────────────────────────
     let (nonce, nonce_b64) = gen_nonce();
     if sink
-        .send(Message::Text(challenge_line(&nonce_b64)))
+        .send(Message::Text(challenge_line(&nonce_b64).into()))
         .await
         .is_err()
     {
@@ -217,7 +217,7 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
                                         metrics.inc_presence_suppressed(1);
                                     } else {
                                         last_presence_resp = Some(resp.clone());
-                                        if sink.send(Message::Text(resp)).await.is_err() {
+                                        if sink.send(Message::Text(resp.into())).await.is_err() {
                                             break;
                                         }
                                         metrics.inc_presence_emitted(1);
@@ -248,7 +248,7 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
                                             continue;
                                         }
                                         last_rooms_resp.insert(target_peer.clone(), resp.clone());
-                                        if sink.send(Message::Text(resp)).await.is_err() {
+                                        if sink.send(Message::Text(resp.into())).await.is_err() {
                                             break 'routing;
                                         }
                                         metrics.inc_rooms_emitted(1);
@@ -358,7 +358,7 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
                                 if !registry.forward(
                                     &dest_peer,
                                     &dest_room,
-                                    Message::Text(fwd_line),
+                                    Message::Text(fwd_line.into()),
                                     conn_id,
                                 ) {
                                     warn!(
@@ -385,7 +385,7 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
                 }
             }
             _ = heartbeat.tick() => {
-                if sink.send(Message::Ping(Vec::new())).await.is_err() {
+                if sink.send(Message::Ping(Default::default())).await.is_err() {
                     break;
                 }
             }

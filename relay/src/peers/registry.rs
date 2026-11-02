@@ -113,7 +113,7 @@ impl PeerRegistry {
                 announced["peer"] = peer_id.as_str().into();
                 let msg = announced.to_string();
                 for sub in &room_subs {
-                    self.forward_to_all_rooms_of(sub, Message::Text(msg.clone()));
+                    self.forward_to_all_rooms_of(sub, Message::Text(msg.clone().into()));
                 }
             }
         }
@@ -127,7 +127,7 @@ impl PeerRegistry {
             if was_offline_before {
                 let msg = serde_json::json!({"type": "peer_online", "peer": peer_id}).to_string();
                 for sub in pres_subs {
-                    self.forward_to_all_rooms_of(&sub, Message::Text(msg.clone()));
+                    self.forward_to_all_rooms_of(&sub, Message::Text(msg.clone().into()));
                 }
                 self.metrics.inc_peer_online_emitted(sub_count);
             } else {
@@ -146,7 +146,7 @@ impl PeerRegistry {
         for peer in peers {
             if self.is_online(peer) {
                 let msg = serde_json::json!({"type": "peer_online", "peer": peer}).to_string();
-                self.forward_to_all_rooms_of(subscriber, Message::Text(msg));
+                self.forward_to_all_rooms_of(subscriber, Message::Text(msg.into()));
             }
         }
     }
@@ -191,7 +191,7 @@ impl PeerRegistry {
                 })
                 .to_string();
                 for sub in &room_subs {
-                    self.forward_to_all_rooms_of(sub, Message::Text(msg.clone()));
+                    self.forward_to_all_rooms_of(sub, Message::Text(msg.clone().into()));
                 }
             }
         }
@@ -206,7 +206,7 @@ impl PeerRegistry {
                 })
                 .to_string();
                 for sub in pres_subs {
-                    self.forward_to_all_rooms_of(&sub, Message::Text(msg.clone()));
+                    self.forward_to_all_rooms_of(&sub, Message::Text(msg.clone().into()));
                 }
             }
             self.presence.record_offline(peer_id, now_ms).await;
@@ -344,7 +344,7 @@ impl PeerRegistry {
             })
             .to_string();
             for sub in &room_subs {
-                self.forward_to_all_rooms_of(sub, Message::Text(msg.clone()));
+                self.forward_to_all_rooms_of(sub, Message::Text(msg.clone().into()));
             }
         }
 
