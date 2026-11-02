@@ -1,6 +1,8 @@
 import type { ClientMessage, ServerMessage } from "../protocol/types.js";
+import type { Ed25519Keypair } from "../pairing/crypto.js";
 import { getOrCreateEd25519Keypair, isPairedKey, listPeers } from "../pairing/storage.js";
 import { resolveRelayUrl, toWebSocketUrl } from "../config.js";
+import { deriveSessionKey, isSealed, open, ReplayGuard, seal } from "./e2e.js";
 import { RelayClient, type RoomMeta } from "./relay_client.js";
 import type { PeerChannel } from "./peer_channel.js";
 
@@ -12,9 +14,11 @@ export interface OwnerHostOptions {
 }
 
 /**
- * One relay room owned by the standalone Baya host. Pair requests from an
- * unknown mobile key are admitted only so the pairing service can validate the
- * one-time token; every other frame must come from a persisted owner.
+ * One relay room owned by the standalone Baya host. Every frame is end-to-end
+ * encrypted with the sender's key (see e2e.ts), so the relay can neither read
+ * nor forge traffic. Pair requests from an unknown mobile key are admitted
+ * only so the pairing service can validate the one-time token; every other
+ * frame must come from a persisted owner.
  */
 export class OwnerRelayHost {
   private relay: RelayClient | null = null;
@@ -25,6 +29,10 @@ export class OwnerRelayHost {
   private inbound: Promise<void> = Promise.resolve();
   private outbound: Promise<void> = Promise.resolve();
   private readonly meta: RoomMeta & { working?: boolean };
+  private identity: Ed25519Keypair | null = null;
+  private readonly keys = new Map<string, Buffer>();
+  private readonly replay = new ReplayGuard();
+  private readonly skewReportedAt = new Map<string, number>();
 
   constructor(private readonly options: OwnerHostOptions) {
     this.meta = { ...options.roomMeta };
@@ -73,6 +81,7 @@ export class OwnerRelayHost {
 
   private async connect(): Promise<void> {
     const identity = await getOrCreateEd25519Keypair();
+    this.identity = identity;
     if (this.stopped) return;
     const relay = new RelayClient(toWebSocketUrl(resolveRelayUrl().url), identity);
     try {
@@ -131,9 +140,27 @@ export class OwnerRelayHost {
     }
     if (typeof outer["peer"] !== "string" || typeof outer["ct"] !== "string") return;
 
+    const peer = outer["peer"];
+    const box = Buffer.from(outer["ct"], "base64");
+    if (!isSealed(box)) {
+      // A pre-encryption app. Error frames carry nothing secret, so this one
+      // goes out in the clear so the old app can show it.
+      this.sendPlain(peer, {
+        type: "error",
+        code: "upgrade_required",
+        message: "Update the Baya app: this computer requires end-to-end encryption.",
+      });
+      return;
+    }
+    const key = this.keyFor(peer);
+    if (!key) return;
     let message: unknown;
     try {
-      message = JSON.parse(Buffer.from(outer["ct"], "base64").toString("utf8"));
+      const opened = open(key, "p2h", this.options.roomId, box);
+      const verdict = this.replay.check(opened);
+      if (verdict === "stale") this.reportClockSkew(peer, opened.sentAt);
+      if (verdict !== "ok") return;
+      message = JSON.parse(opened.plaintext.toString("utf8"));
     } catch {
       return;
     }
@@ -145,7 +172,6 @@ export class OwnerRelayHost {
       return;
     }
 
-    const peer = outer["peer"];
     const sender: PeerChannel = {
       remotePeerId: peer,
       send: (reply) => this.queueSend([peer], reply),
@@ -169,6 +195,45 @@ export class OwnerRelayHost {
     this.options.onMessage(sender, message as ClientMessage);
   }
 
+  private keyFor(peer: string): Buffer | null {
+    const cached = this.keys.get(peer);
+    if (cached) return cached;
+    if (!this.identity) return null;
+    try {
+      const key = deriveSessionKey(
+        this.identity.secretKey,
+        this.identity.publicKey,
+        Buffer.from(peer, "base64"),
+      );
+      this.keys.set(peer, key);
+      return key;
+    } catch {
+      return null;
+    }
+  }
+
+  /** An authentic but out-of-window frame almost always means a wrong clock. */
+  private reportClockSkew(peer: string, sentAt: number): void {
+    const now = Date.now();
+    if (now - (this.skewReportedAt.get(peer) ?? 0) < 60_000) return;
+    this.skewReportedAt.set(peer, now);
+    const minutes = Math.round(Math.abs(now - sentAt) / 60_000);
+    this.sendTo(peer, {
+      type: "error",
+      code: "clock_skew",
+      message: `This phone's clock is ${minutes} min off from the computer. Turn on automatic date & time.`,
+    });
+  }
+
+  private sendPlain(peer: string, message: ServerMessage): void {
+    const ct = Buffer.from(JSON.stringify(message)).toString("base64");
+    try {
+      this.relay?.send(JSON.stringify({ peer, ct }));
+    } catch {
+      // best effort
+    }
+  }
+
   private queueSend(peers: string[], message: ServerMessage): void {
     this.outbound = this.outbound
       .then(async () => {
@@ -177,12 +242,15 @@ export class OwnerRelayHost {
         // Re-check on every delivery so a revoked owner cannot keep receiving
         // a stream after its pairing record is removed.
         const owners = await listPeers();
-        const ct = Buffer.from(JSON.stringify(message)).toString("base64");
+        const plaintext = Buffer.from(JSON.stringify(message));
         for (const peer of peers) {
-          if (!isPairedKey(peer, owners)) {
+          if (!isPairedKey(peer, owners) && !isForUnpairedPeer(message)) {
             this.attached.delete(peer);
             continue;
           }
+          const key = this.keyFor(peer);
+          if (!key) continue;
+          const ct = seal(key, "h2p", this.options.roomId, plaintext).toString("base64");
           try {
             relay.send(JSON.stringify({ peer, ct }));
           } catch {
@@ -194,4 +262,13 @@ export class OwnerRelayHost {
         // A disconnected phone must not crash a running agent.
       });
   }
+}
+
+/** Replies that must reach a key that is not (or no longer) an owner. */
+function isForUnpairedPeer(message: ServerMessage): boolean {
+  return (
+    message.type === "pair_ok" ||
+    message.type === "pair_error" ||
+    (message.type === "error" && message.code === "unknown_peer")
+  );
 }

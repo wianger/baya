@@ -241,9 +241,12 @@ export type KnownErrorCode =
   | "too_large"
   | "rate_limited"
   | "timeout"
+  | "unknown_peer"
+  | "upgrade_required"
+  | "clock_skew"
   | "internal_error";
 
-// aberto para forward-compat — receivers toleram codes desconhecidos
+// Open for forward compatibility: receivers tolerate unknown codes.
 export type ErrorCode = KnownErrorCode | (string & {});
 
 /** Explicit provider-supplied thinking, distinct from replies and tool calls.

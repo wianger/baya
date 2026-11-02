@@ -25,10 +25,39 @@ All WebSocket connections authenticate with a challenge-response:
 The relay accepts routing traffic for a paired computer only from a saved peer
 key. Pairing requests are the only pre-pair message admitted to the host.
 
-The relay protects traffic in transit with TLS and cannot route without valid
-Ed25519 authentication. The inner message is base64-encoded JSON, not encrypted.
-The relay operator controls its endpoint and executable, so this is not an
-end-to-end encryption boundary. Use a trusted or self-hosted relay.
+The relay cannot route without valid Ed25519 authentication, and every routed
+message is end-to-end encrypted between the phone and the computer, so the
+relay can neither read nor forge application traffic.
+
+### End-to-end encryption (v1)
+
+Both sides convert their Ed25519 identity to X25519 (RFC 8032 §5.1.5 for the
+private scalar, the birational map for the public key) and derive one key per
+phone/computer pair:
+
+```text
+key   = HKDF-SHA256(ikm  = X25519(self, peer),
+                    salt = "baya-e2e-v1",
+                    info = min(ed_pk_a, ed_pk_b) || max(ed_pk_a, ed_pk_b))
+box   = 0xBE 0x01 || nonce(12) || ChaCha20-Poly1305(ts_ms_be64 || json)
+aad   = "baya-e2e-v1|" + ("p2h" | "h2p") + "|" + computer room id
+```
+
+The phone learns the computer key from the pairing QR, and the computer learns
+the phone key from the authenticated relay sender, so even `pair_request` is
+encrypted and the relay cannot substitute keys. The direction and room in the
+AAD stop reflection to the sender and replay into another session. Receivers
+drop frames whose timestamp is more than five minutes off or whose nonce they
+have already seen; the computer answers a stale but authentic frame with
+`error` code `clock_skew`.
+
+The key is static (no forward secrecy): a leaked identity key exposes recorded
+traffic. Rotating the computer identity and re-pairing replaces it.
+
+Plaintext frames are refused. A computer answers one with a plaintext `error`
+code `upgrade_required`, and the phone shows the same notice when a
+pre-encryption computer talks to it. Both sides must run an encrypting build.
+The shared test vector is `.orchestration/contracts/e2e_v1.json`.
 
 ## Relay envelope
 
@@ -38,11 +67,11 @@ WebSocket text frame:
 ```json
 {
   "peer": "destination-mobile-ed25519-public-key",
-  "ct": "base64-json-application-message"
+  "ct": "base64-sealed-box"
 }
 ```
 
-`ct` decodes to one of the message types below. Unknown fields are ignored by
+`ct` opens to one of the message types below. Unknown fields are ignored by
 the current clients. Unknown message types receive an `error` or
 `action_error` where the receiving adapter can identify a request id.
 
@@ -256,6 +285,7 @@ optional `in_reply_to`, and a user-readable `message`.
 
 - Android application id stays `dev.wianger.remotepi`.
 - Pairing URI scheme stays `remotepi://`.
-- Relay message names and fields stay compatible with the existing client.
+- Relay message names and fields stay compatible with the existing client;
+  the relay itself is unchanged by end-to-end encryption.
 - State migration reads `~/.pi/remote` without modifying it.
 - New CLI and state values use the `baya` / `BAYA_*` namespace.

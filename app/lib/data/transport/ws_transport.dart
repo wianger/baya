@@ -10,12 +10,13 @@
 //
 // `peer` is standard base64 of the destination's Ed25519 pubkey (matches
 // the relay registry, populated from the peer's hello). `ct` is base64 of
-// the inner-envelope bytes.
+// the end-to-end encrypted inner frame (see e2e.dart).
 
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:app/data/transport/channel.dart';
+import 'package:app/data/transport/e2e.dart';
 import 'package:app/data/transport/relay_config.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:cryptography/cryptography.dart';
@@ -105,11 +106,7 @@ class WsTransport implements PeerTransport, IControlLink {
               );
               return;
             }
-            debugPrint(
-              '[ws-in] bytes=${rawStr.length} kind=envelope '
-              'ct.bytes=${bytes.length}',
-            );
-            transport._queue.add(bytes);
+            transport._receiveSealed(bytes, senderRoom ?? transport._activeRoom);
             return;
           }
           // Control: top-level `type` only → presence stream.
@@ -146,11 +143,19 @@ class WsTransport implements PeerTransport, IControlLink {
     );
 
     try {
+      // 0. End-to-end key for this host, ready before any frame can arrive.
+      final pub = await ed25519Key.extractPublicKey();
+      transport._peerPubkey = _normalizeToStandard(peerPubkey);
+      transport._key = await deriveSessionKey(
+        selfSeed: await ed25519Key.extractPrivateKeyBytes(),
+        selfPublic: pub.bytes,
+        peerPublic: base64.decode(transport._peerPubkey),
+      );
+
       // 1. Hello (standard base64 — matches relay registry format).
       // App is a client (no cwd) and always announces itself
       // on the canonical 'main' room. Pi-side hellos include their own
       // room_id (one per cwd) AND room_meta; that's not our concern here.
-      final pub = await ed25519Key.extractPublicKey();
       ws.sink.add(jsonEncode({
         'type': 'hello',
         'pubkey': base64.encode(pub.bytes),
@@ -172,7 +177,6 @@ class WsTransport implements PeerTransport, IControlLink {
       }));
       authDone = true;
 
-      transport._peerPubkey = _normalizeToStandard(peerPubkey);
       transport._sub = sub;
       return transport;
     } catch (e) {
@@ -184,6 +188,12 @@ class WsTransport implements PeerTransport, IControlLink {
 
   String _peerPubkey = '';
   StreamSubscription? _sub;
+  late final SecretKey _key;
+  final _replay = ReplayGuard();
+  bool _reportedLegacyHost = false;
+  // Encryption is async; these chains keep frames in wire order.
+  Future<void> _inbound = Future.value();
+  Future<void> _outbound = Future.value();
 
   /// Active target room on the Pi side. Set via
   /// `setActiveRoom`, defaults to 'main' when unset. The outer envelope
@@ -201,12 +211,55 @@ class WsTransport implements PeerTransport, IControlLink {
   }
 
   @override
-  Future<void> send(Uint8List data) async {
-    _ws.sink.add(jsonEncode({
-      'peer': _peerPubkey,
-      'room': _activeRoom,
-      'ct': base64.encode(data),
-    }));
+  Future<void> send(Uint8List data) {
+    final room = _activeRoom;
+    return _outbound = _outbound.then((_) async {
+      final box = await seal(_key, E2EDirection.phoneToHost, room, data);
+      _ws.sink.add(jsonEncode({
+        'peer': _peerPubkey,
+        'room': room,
+        'ct': base64.encode(box),
+      }));
+    }).catchError((Object e) {
+      debugPrint('[ws-out] seal failed: $e');
+    });
+  }
+
+  void _receiveSealed(Uint8List bytes, String room) {
+    _inbound = _inbound.then((_) async {
+      if (!isSealed(bytes)) {
+        _receivePlain(bytes);
+        return;
+      }
+      final opened = await open(_key, E2EDirection.hostToPhone, room, bytes);
+      // Errors always pass so a "clock_skew" report reaches a phone whose
+      // clock is the problem.
+      if (!_replay.accept(opened) && !_isErrorFrame(opened.plaintext)) {
+        debugPrint('[ws-in] stale or replayed frame DROPPED');
+        return;
+      }
+      _queue.add(opened.plaintext);
+    }).catchError((Object e) {
+      debugPrint('[ws-in] envelope DROPPED err=$e');
+    });
+  }
+
+  /// Plaintext frames are never trusted: the relay could have written them.
+  /// Only the host's "upgrade_required" notice passes (a forger gains nothing
+  /// from it); anything else means the computer runs a pre-encryption host.
+  void _receivePlain(Uint8List bytes) {
+    if (_isErrorFrame(bytes, code: 'upgrade_required')) {
+      _queue.add(bytes);
+      return;
+    }
+    if (_reportedLegacyHost) return;
+    _reportedLegacyHost = true;
+    _queue.add(utf8.encode(jsonEncode({
+      'type': 'error',
+      'code': 'upgrade_required',
+      'message': 'Update Baya on this computer: '
+          'the app now requires end-to-end encryption.',
+    })));
   }
 
   @override
@@ -293,5 +346,16 @@ String _normalizeToStandard(String pubkey) {
     return base64.encode(bytes);
   } catch (_) {
     return pubkey;
+  }
+}
+
+bool _isErrorFrame(List<int> bytes, {String? code}) {
+  try {
+    final json = jsonDecode(utf8.decode(bytes));
+    return json is Map &&
+        json['type'] == 'error' &&
+        (code == null || json['code'] == code);
+  } catch (_) {
+    return false;
   }
 }

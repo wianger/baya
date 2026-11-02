@@ -1,0 +1,20 @@
+{
+  "phone_seed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+  "phone_pk": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w=",
+  "phone_x25519_pk": "GxtY3VDqFLYNoXt5DNAnVNlwybq4ZOuzwPMBb+UdP1c=",
+  "host_seed": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=",
+  "host_pk": "gTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5Q=",
+  "session_key": "CNCHT6DGIR1ggVQeK9KJeiRWEcpYb8rKnxCCBOgCzGU=",
+  "room": "aB12CD34eF56",
+  "ts": 1790000000000,
+  "p2h": {
+    "plaintext": "{\"type\":\"ping\",\"id\":\"p1\"}",
+    "nonce": "BwcHBwcHBwcHBwcH",
+    "box": "vgEHBwcHBwcHBwcHBwdsddeP5dGX7Q+AGuHbOmBb0fkqad2SIgWeqz7xtz7IWbKCrft1AsQuhJJRHAxD9Pfj"
+  },
+  "h2p": {
+    "plaintext": "{\"type\":\"pong\",\"in_reply_to\":\"p1\"}",
+    "nonce": "CQkJCQkJCQkJCQkJ",
+    "box": "vgEJCQkJCQkJCQkJCQnSFCSvxQelyeKKP9nMsqmQRiMrW3MKkPL8jtI4SvYC1FWOtdMobfOx1hVrvxReUM1URaaeJn7MJQJT"
+  }
+}

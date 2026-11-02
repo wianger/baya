@@ -47,3 +47,77 @@ describe("standalone owner relay lifecycle", () => {
     relay.close();
   });
 });
+
+describe("end-to-end encryption through the relay", () => {
+  test("a paired phone exchanges only ciphertext; plaintext and forgeries are refused", async () => {
+    const { WebSocketServer } = await import("ws");
+    const server = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+    const { port } = server.address() as AddressInfo;
+    const toHost: Array<(line: string) => void> = [];
+    const fromHost: Array<Record<string, string>> = [];
+    server.on("connection", (socket) => {
+      socket.once("message", () => {
+        socket.send(JSON.stringify({ type: "challenge", nonce: Buffer.alloc(32).toString("base64") }));
+        socket.once("message", () => {
+          toHost.push((line) => socket.send(line));
+          socket.on("message", (raw) => fromHost.push(JSON.parse(String(raw))));
+        });
+      });
+    });
+
+    const home = mkdtempSync(join(tmpdir(), "baya-e2e-test-"));
+    temporaryHomes.push(home);
+    process.env["BAYA_HOME"] = home;
+    process.env["REMOTE_PI_HOME"] = join(home, "legacy");
+    process.env["BAYA_RELAY"] = `http://127.0.0.1:${port}`;
+    process.env["BAYA_ALLOW_FILE_IDENTITY"] = "1";
+    vi.resetModules();
+
+    const { generateEd25519Keypair } = await import("../src/pairing/crypto.js");
+    const storage = await import("../src/pairing/storage.js");
+    const e2e = await import("../src/transport/e2e.js");
+    const { OwnerRelayHost } = await import("../src/transport/owner_host.js");
+    const hostIdentity = await storage.getOrCreateEd25519Keypair();
+    const phone = generateEd25519Keypair();
+    const phoneKey = Buffer.from(phone.publicKey).toString("base64");
+    await storage.addPeer({ name: "Pixel", remote_epk: phoneKey, paired_at: "now" });
+    const key = e2e.deriveSessionKey(phone.secretKey, phone.publicKey, hostIdentity.publicKey);
+
+    const received: unknown[] = [];
+    const host = new OwnerRelayHost({
+      roomId: "room1",
+      roomMeta: { name: "Baya", cwd: home },
+      onMessage: (sender, message) => {
+        received.push(message);
+        sender.send({ type: "pong", in_reply_to: (message as { id: string }).id });
+      },
+    });
+    host.start();
+    try {
+      await vi.waitFor(() => expect(toHost).toHaveLength(1));
+      const deliver = (ct: Buffer) =>
+        toHost[0]!(JSON.stringify({ peer: phoneKey, room: "main", ct: ct.toString("base64") }));
+
+      deliver(Buffer.from(JSON.stringify({ type: "ping", id: "plain" })));
+      deliver(e2e.seal(Buffer.alloc(32, 5), "p2h", "room1", Buffer.from('{"type":"ping","id":"forged"}')));
+      const sealed = e2e.seal(key, "p2h", "room1", Buffer.from('{"type":"ping","id":"p1"}'));
+      deliver(sealed);
+      deliver(sealed); // replay
+
+      await vi.waitFor(() => expect(fromHost).toHaveLength(2));
+      expect(received).toEqual([{ type: "ping", id: "p1" }]);
+
+      const upgrade = JSON.parse(Buffer.from(fromHost[0]!["ct"]!, "base64").toString());
+      expect(upgrade).toMatchObject({ type: "error", code: "upgrade_required" });
+
+      const reply = Buffer.from(fromHost[1]!["ct"]!, "base64");
+      expect(reply.includes(Buffer.from("pong"))).toBe(false);
+      const opened = e2e.open(key, "h2p", "room1", reply);
+      expect(JSON.parse(opened.plaintext.toString())).toEqual({ type: "pong", in_reply_to: "p1" });
+    } finally {
+      host.stop();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+});

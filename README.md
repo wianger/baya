@@ -107,10 +107,11 @@ docker run -d --name baya-relay -p 3000:3000 -v baya-data:/data baya-relay
 baya set-relay http://127.0.0.1:3000
 ```
 
-Baya authenticates the WebSocket and protects it in transit with TLS, but the
-inner payload is only base64-encoded and the relay is not an end-to-end
-encryption boundary. Use a trusted or self-hosted relay for private source code
-and credentials.
+Messages between the phone and the computer are end-to-end encrypted
+(X25519 + ChaCha20-Poly1305, keyed by the paired Ed25519 identities), so the
+relay only routes ciphertext and cannot forge messages. Update the host and
+the app together: each refuses unencrypted traffic. See
+[PROTOCOL.md](PROTOCOL.md#end-to-end-encryption-v1).
 
 ## Validation
 
