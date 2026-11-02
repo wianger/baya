@@ -54,8 +54,8 @@ baya devices
 baya unpair Pixel
 ```
 
-On Windows, install the per-user login startup entry. This does not require
-administrator rights:
+Start Baya at login (a Windows Run entry, a systemd user unit, or a macOS
+LaunchAgent; no administrator rights):
 
 ```powershell
 baya install-service

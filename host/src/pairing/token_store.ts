@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { BAYA_HOME, ensureBayaHome } from "../config.js";
@@ -52,7 +52,9 @@ export function consumePendingPairToken(
   roomId: string,
 ): "ok" | "expired" | "consumed" | "unknown" {
   const pending = readPendingPairToken();
-  if (!pending || pending.token !== token || pending.room_id !== roomId) return "unknown";
+  if (!pending || !sameSecret(pending.token, token) || pending.room_id !== roomId) {
+    return "unknown";
+  }
   if (pending.consumed_at !== null) return "consumed";
   if (Date.now() > pending.expires_at) return "expired";
   pending.consumed_at = Date.now();
@@ -69,4 +71,11 @@ export function clearPendingPairToken(): void {
     consumed_at: Date.now(),
   };
   writeFileSync(pendingPairPath(), JSON.stringify(empty, null, 2) + "\n", { mode: 0o600 });
+}
+
+/** Constant-time comparison so the relay cannot time its way to a token. */
+function sameSecret(expected: string, received: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(received);
+  return a.length > 0 && a.length === b.length && timingSafeEqual(a, b);
 }

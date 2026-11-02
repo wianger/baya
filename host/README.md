@@ -25,9 +25,18 @@ baya install-service
 baya uninstall-service
 ```
 
-`install-service` writes the `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
-entry `BayaHost` and starts the host through a hidden PowerShell process. It
-does not require administrator rights.
+`install-service` starts the host at login without administrator rights:
+
+- Windows: the `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` entry
+  `BayaHost`, launched through a hidden PowerShell process.
+- Linux: the systemd user unit `~/.config/systemd/user/baya.service`
+  (restarted on failure; `loginctl enable-linger` keeps it running while
+  logged out).
+- macOS: the LaunchAgent `~/Library/LaunchAgents/dev.baya.host.plist`
+  (restarted on failure).
+
+The service captures the current folder and `PATH`, so run it from the shell
+where `pi`, `codex`, or `deepseek` resolve.
 
 `baya` without a command starts the foreground host using the current folder.
 

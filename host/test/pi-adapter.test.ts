@@ -174,6 +174,26 @@ describe("Pi standalone RPC adapter", () => {
     }]);
   });
 
+  test("a rejected prompt ends the turn on every phone", async () => {
+    const rpc = new FakeRpc();
+    rpc.request = async (type) => {
+      if (type === "prompt") throw new Error("model unavailable");
+      return {};
+    };
+    const broadcast: ServerMessage[] = [];
+    const sent: ServerMessage[] = [];
+    const adapter = new PiAdapter({
+      cwd: "C:\\work",
+      name: "Review",
+      sessionId: "baya-session",
+      broadcast: (message) => broadcast.push(message),
+    }, rpc);
+    await adapter.handle(sender(sent), { type: "user_message", id: "u1", text: "hi" });
+    expect(sent).toEqual([]);
+    expect(broadcast.map((message) => message.type)).toEqual(["user_message", "error"]);
+    expect(broadcast[1]).toMatchObject({ in_reply_to: "u1", message: "model unavailable" });
+  });
+
   test("rejects a synthetic approve_tool prompt", async () => {
     const rpc = new FakeRpc();
     const sent: ServerMessage[] = [];

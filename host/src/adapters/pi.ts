@@ -467,11 +467,25 @@ export class PiAdapter implements AgentAdapter {
       ...(message.images?.length ? { images: message.images } : {}),
       ...(message.streaming_behavior ? { streaming_behavior: message.streaming_behavior } : {}),
     });
-    const result = record(await this.rpc.request("prompt", {
-      message: message.text,
-      ...(images.length ? { images } : {}),
-      ...(message.streaming_behavior ? { streamingBehavior: message.streaming_behavior } : {}),
-    }, 120_000));
+    let result: JsonObject;
+    try {
+      result = record(await this.rpc.request("prompt", {
+        message: message.text,
+        ...(images.length ? { images } : {}),
+        ...(message.streaming_behavior ? { streamingBehavior: message.streaming_behavior } : {}),
+      }, 120_000));
+    } catch (error) {
+      // Every phone already saw the echo above and is showing "Working";
+      // tell all of them, not just the sender, that the turn never started.
+      this.setBusy(false);
+      this.options.broadcast({
+        type: "error",
+        code: "internal_error",
+        in_reply_to: message.id,
+        message: error instanceof Error ? error.message : "Pi rejected the prompt.",
+      });
+      return;
+    }
     if (result["disposition"] === "handled") {
       this.finishTurn();
     }

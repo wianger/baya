@@ -7,11 +7,9 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Release signing — loaded from android/key.properties when present.
-// If the file is missing (CI without secrets, fresh clone for debug-only
-// work), release builds fall back to the debug keys so `flutter run
-// --release` still works locally without forcing every contributor to
-// configure signing.
+// Release signing comes from android/key.properties. Release builds refuse to
+// run without it: a debug-signed APK cannot update an installed release, so
+// silently producing one only moves the failure onto the phone.
 val keystoreProperties = Properties().apply {
     val f = rootProject.file("key.properties")
     if (f.exists()) {
@@ -32,10 +30,8 @@ android {
 
     defaultConfig {
         applicationId = "dev.wianger.remotepi"
-        // plan/23 § "Versão mínima Android" — the remote_pi_identity
-        // plugin requires API 34 (Block Store + modern biometry), so
-        // the app inherits the same floor. Bump intentional, recorded
-        // in the plano.
+        // The remote_pi_identity plugin needs API 34 (Block Store and
+        // modern biometrics).
         minSdk = 34
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -55,12 +51,18 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (hasReleaseKeystore) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            if (hasReleaseKeystore) signingConfig = signingConfigs.getByName("release")
         }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val buildsRelease = allTasks.any { it.project == project && it.name.contains("Release") }
+    if (buildsRelease && !hasReleaseKeystore) {
+        throw GradleException(
+            "Release signing is not configured. Create android/key.properties " +
+                "(see docs/mobile-dev.md) or build with --debug."
+        )
     }
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
@@ -23,11 +23,7 @@ import { workspaceAgentDefinition } from "./workspace/agents.js";
 import { findSession, listSessions, removeSession } from "./session/registry.js";
 import { roomIdForBayaSession } from "./host/session_host.js";
 import type { WorkspaceAgent } from "./workspace/types.js";
-import {
-  BAYA_RUN_KEY,
-  BAYA_RUN_VALUE,
-  buildWindowsStartupCommand,
-} from "./service.js";
+import { installStartup, uninstallStartup } from "./service.js";
 import {
   booleanFlag,
   parseArgs,
@@ -85,8 +81,8 @@ Usage:
   baya agents             Detect installed Pi, Codex, and DeepSeek
   baya doctor             Diagnose relay, identity, and agents
   baya set-relay <url>    Save the relay URL
-  baya install-service    Install Windows login startup (no admin rights)
-  baya uninstall-service  Remove Windows login startup
+  baya install-service    Start Baya at login (Windows, systemd, launchd; no admin)
+  baya uninstall-service  Remove login startup
 
 Options:
   --agent <pi|codex|deepseek>  Agent for a new session
@@ -316,63 +312,18 @@ async function create(args: ParsedArgs): Promise<void> {
 }
 
 function installService(): void {
-  if (process.platform !== "win32") {
-    throw new Error("This command currently supports Windows only.");
-  }
-  const entry = fileURLToPath(import.meta.url);
-  const command = buildWindowsStartupCommand({
+  const message = installStartup({
     nodePath: process.execPath,
-    entryPath: entry,
+    entryPath: fileURLToPath(import.meta.url),
     cwd: resolve(process.cwd()),
-    systemRoot: process.env["SystemRoot"] || "C:\\Windows",
+    path: process.env["PATH"] ?? "",
+    logDir: join(BAYA_HOME, "logs"),
   });
-  const result = spawnSync(
-    "reg.exe",
-    [
-      "ADD",
-      BAYA_RUN_KEY,
-      "/V",
-      BAYA_RUN_VALUE,
-      "/T",
-      "REG_SZ",
-      "/D",
-      command,
-      "/F",
-    ],
-    { encoding: "utf8", windowsHide: true },
-  );
-  if (result.status !== 0) {
-    throw new Error(
-      (result.stderr || result.stdout || "Could not create the Baya startup entry.").trim(),
-    );
-  }
-  process.stdout.write("Installed the per-user BayaHost Windows startup entry.\n");
+  process.stdout.write(`${message}\n`);
 }
 
 function uninstallService(): void {
-  if (process.platform !== "win32") {
-    throw new Error("This command currently supports Windows only.");
-  }
-  const query = spawnSync(
-    "reg.exe",
-    ["QUERY", BAYA_RUN_KEY, "/V", BAYA_RUN_VALUE],
-    { encoding: "utf8", windowsHide: true },
-  );
-  if (query.status !== 0) {
-    process.stdout.write("The BayaHost Windows startup entry is not installed.\n");
-    return;
-  }
-  const result = spawnSync(
-    "reg.exe",
-    ["DELETE", BAYA_RUN_KEY, "/V", BAYA_RUN_VALUE, "/F"],
-    { encoding: "utf8", windowsHide: true },
-  );
-  if (result.status !== 0) {
-    throw new Error(
-      (result.stderr || result.stdout || "Could not remove the Baya startup entry.").trim(),
-    );
-  }
-  process.stdout.write("Removed the BayaHost Windows startup entry.\n");
+  process.stdout.write(`${uninstallStartup()}\n`);
 }
 
 async function main(): Promise<void> {

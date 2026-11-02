@@ -38,3 +38,30 @@ describe("per-user Windows startup", () => {
     );
   });
 });
+
+const target = {
+  nodePath: "/usr/bin/node",
+  entryPath: "/home/a b/baya/dist/cli.js",
+  cwd: "/home/a b/100% \"done\"",
+  path: "/usr/local/bin:/usr/bin",
+  logDir: "/home/a b/.baya/logs",
+};
+
+describe("systemd and launchd startup", () => {
+  test("systemd unit quotes paths and escapes specifiers", async () => {
+    const { buildSystemdUnit } = await import("../src/service.js");
+    const unit = buildSystemdUnit(target);
+    expect(unit).toContain(
+      'ExecStart="/usr/bin/node" "/home/a b/baya/dist/cli.js" "serve" "--cwd" "/home/a b/100%% \\"done\\""',
+    );
+    expect(unit).toContain('Environment="PATH=/usr/local/bin:/usr/bin"');
+    expect(unit).toContain("Restart=on-failure");
+  });
+
+  test("LaunchAgent plist escapes XML", async () => {
+    const { buildLaunchAgentPlist } = await import("../src/service.js");
+    const plist = buildLaunchAgentPlist({ ...target, cwd: "/Users/a&b/<repo>" });
+    expect(plist).toContain("<string>/Users/a&amp;b/&lt;repo&gt;</string>");
+    expect(plist).toContain("<key>RunAtLoad</key>");
+  });
+});
