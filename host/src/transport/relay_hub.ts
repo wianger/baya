@@ -54,6 +54,11 @@ export class RelayHub {
     };
   }
 
+  /** Whether the shared relay socket is authenticated right now. */
+  get connected(): boolean {
+    return this.shared?.connected ?? false;
+  }
+
   /** Room state the connection needs to (re)announce it. */
   entry(roomId: string): RoomEntry | undefined {
     return this.rooms.get(roomId);
@@ -92,6 +97,10 @@ class Connection {
 
   get size(): number {
     return this.rooms.size;
+  }
+
+  get connected(): boolean {
+    return this.client?.isOpen() ?? false;
   }
 
   /** Open for a room once the relay has acknowledged it. */

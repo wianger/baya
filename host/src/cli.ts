@@ -1,10 +1,34 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { closeSync, mkdirSync, openSync } from "node:fs";
+import {
+  closeSync,
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  openSync,
+  statSync,
+  watch,
+} from "node:fs";
 import { hostname } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { booleanFlag, type ParsedArgs, parseArgs, stringFlag } from "./cli/args.ts";
+import {
+  bold,
+  cyan,
+  dim,
+  duration,
+  fail,
+  green,
+  hint,
+  ok,
+  out,
+  red,
+  suggest,
+  table,
+  warn,
+  yellow,
+} from "./cli/ui.ts";
 import {
   BAYA_HOME,
   ensureBayaHome,
@@ -15,7 +39,7 @@ import {
 } from "./config.ts";
 import { controlCall, readControlInfo } from "./control/client.ts";
 import { ControlServer } from "./control/server.ts";
-import { BayaManager } from "./host/manager.ts";
+import { BayaManager, type SessionStatus } from "./host/manager.ts";
 import { roomIdForBayaSession } from "./host/session_host.ts";
 import { buildQRUri, displayQR } from "./pairing/qr.ts";
 import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/storage.ts";
@@ -26,398 +50,515 @@ import { workspaceAgentDefinition } from "./workspace/agents.ts";
 import { availableAgents, resolveDirectory } from "./workspace/directories.ts";
 import type { WorkspaceAgent } from "./workspace/types.ts";
 
-interface StatusResult {
+interface HostStatus {
   pid: number;
-  sessions: Array<{
-    id: string;
-    name: string;
-    cwd: string;
-    agent: WorkspaceAgent;
-    online: boolean;
-    busy: boolean;
-    room_id: string;
-  }>;
+  version: string;
+  started_at: number;
+  relay: { url: string; connected: boolean };
+  sessions: SessionStatus[];
 }
 
-function flag(args: ParsedArgs, name: string): string | undefined {
-  return stringFlag(args, name);
-}
+type PairInvite = ReturnType<BayaManager["pair"]>;
 
-function jsonFlag(args: ParsedArgs): boolean {
+const LOG_FILE = join(BAYA_HOME, "logs", "host.log");
+
+const HELP =
+  () => `${bold("baya")} ${dim(packageVersion())} — drive your coding agents from your phone
+
+${bold("Get started")}
+  baya                    Start Baya in the background; shows a pairing code if no phone is paired
+  baya pair [session]     Show a code to pair another phone
+
+${bold("Sessions")}
+  baya status             Host, relay, phones and sessions at a glance
+  baya open [folder]      Start a session in a folder  ${dim("--agent pi|codex|deepseek")}
+  baya close <session>    Stop and remove a session  ${dim("(id prefix or name)")}
+
+${bold("Phones")}
+  baya devices            List paired phones
+  baya unpair <phone>     Revoke a phone  ${dim("(name or key prefix)")}
+
+${bold("Host")}
+  baya start | stop | restart
+  baya logs [-f]          Show the host log  ${dim("-f follows it")}
+  baya doctor             Check relay, identity, agents and pairing
+  baya agents             Which agents are installed
+  baya relay [url]        Show or set the relay
+  baya autostart on|off   Start Baya when you log in  ${dim("(no admin rights)")}
+
+${dim("Add --json to status, devices, agents, pair or doctor for machine-readable output.")}
+`;
+
+const COMMANDS = [
+  "up",
+  "serve",
+  "start",
+  "stop",
+  "restart",
+  "status",
+  "open",
+  "close",
+  "pair",
+  "devices",
+  "unpair",
+  "logs",
+  "doctor",
+  "agents",
+  "relay",
+  "autostart",
+  "help",
+  "version",
+] as const;
+
+// ── helpers ─────────────────────────────────────────────────────────────────
+
+function json(args: ParsedArgs): boolean {
   return booleanFlag(args, "json");
 }
 
+function printJson(value: unknown): void {
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
 function agentFlag(args: ParsedArgs): WorkspaceAgent | undefined {
-  const value = flag(args, "agent");
+  const value = stringFlag(args, "agent");
   if (value === undefined) return undefined;
   const definition = workspaceAgentDefinition(value);
-  if (!definition) {
-    throw new Error("Agent must be one of: pi, codex, deepseek.");
-  }
+  if (!definition) throw new Error("--agent must be pi, codex or deepseek.");
   return definition.id;
 }
 
-function printHelp(): void {
-  process.stdout.write(`Baya ${packageVersion()}
-
-Usage:
-  baya                    Start the host in this folder
-  baya serve              Run the resident host in the foreground
-  baya start              Start the resident host in the background
-  baya stop               Stop the resident host
-  baya status             Show host and session status
-  baya sessions           List registered sessions
-  baya new [path]         Register a new session (default agent: pi)
-  baya open <path>        Open a workspace on a running host
-  baya remove <id>        Remove a session
-  baya pair [id]          Print a pairing QR for this host
-  baya devices            List paired phones
-  baya unpair <name|key>  Revoke a paired phone
-  baya agents             Detect installed Pi, Codex, and DeepSeek
-  baya doctor             Diagnose relay, identity, and agents
-  baya set-relay <url>    Save the relay URL
-  baya install-service    Start Baya at login (Windows, systemd, launchd; no admin)
-  baya uninstall-service  Remove login startup
-
-Options:
-  --agent <pi|codex|deepseek>  Agent for a new session
-  --name <name>                Display name for a session
-  --cwd <path>                 Folder for foreground host startup
-  --ttl <seconds>              Pairing code lifetime (10-600 seconds)
-  --json                       Machine-readable output
-`);
-}
-
-function print(value: unknown, json: boolean): void {
-  process.stdout.write(json ? `${JSON.stringify(value, null, 2)}\n` : human(value));
-}
-
-function human(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string") return `${value}\n`;
-  if (Array.isArray(value)) return value.map(human).join("");
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    if (Array.isArray(record["sessions"])) {
-      const sessions = record["sessions"] as StatusResult["sessions"];
-      if (sessions.length === 0) return "No Baya sessions are registered.\n";
-      return sessions
-        .map(
-          (session) =>
-            `${session.online ? (session.busy ? "●" : "○") : "×"} ${session.name}  ` +
-            `${session.agent}  ${session.cwd}  ${session.id}\n`,
-        )
-        .join("");
-    }
-    return `${JSON.stringify(value, null, 2)}\n`;
-  }
-  return `${String(value)}\n`;
-}
-
-async function controlOnline(): Promise<StatusResult | null> {
+async function hostStatus(timeoutMs = 1_500): Promise<HostStatus | null> {
+  if (!readControlInfo()) return null;
   try {
-    return await controlCall<StatusResult>("status", undefined, 1_500);
+    return await controlCall<HostStatus>("status", undefined, timeoutMs);
   } catch {
     return null;
   }
 }
 
-async function startBackground(args: ParsedArgs): Promise<StatusResult> {
-  const current = await controlOnline();
+function sessionRows(sessions: SessionStatus[]): string[] {
+  return table(
+    sessions.map((session) => [
+      session.online ? (session.busy ? cyan("● working") : green("● ready")) : red("○ stopped"),
+      bold(session.name),
+      session.agent,
+      dim(session.id.slice(0, 8)),
+      dim(session.cwd),
+    ]),
+  ).map((line) => `  ${line}`);
+}
+
+function offlineSessions(): SessionStatus[] {
+  return listSessions().map((record) => ({
+    ...record,
+    online: false,
+    busy: false,
+    room_id: roomIdForBayaSession(record),
+  }));
+}
+
+async function printStatus(status: HostStatus): Promise<void> {
+  const peers = await listPeers();
+  out(
+    ok(`Host running ${dim(`pid ${status.pid} · up ${duration(Date.now() - status.started_at)}`)}`),
+    status.relay.connected
+      ? ok(`Relay connected ${dim(status.relay.url)}`)
+      : warn(`Relay not connected yet ${dim(status.relay.url)}`),
+    peers.length > 0
+      ? ok(`${peers.length} phone${peers.length === 1 ? "" : "s"} paired`)
+      : warn("No phone paired"),
+  );
+  if (!status.relay.connected) out(hint("baya doctor"));
+  if (peers.length === 0) out(hint("baya pair"));
+  out("", bold("Sessions"));
+  if (status.sessions.length === 0) out(dim("  none"), hint("baya open <folder>"));
+  else out(...sessionRows(status.sessions));
+}
+
+// ── host lifecycle ──────────────────────────────────────────────────────────
+
+async function startBackground(args: ParsedArgs): Promise<HostStatus> {
+  const current = await hostStatus();
   if (current) return current;
 
   ensureBayaHome();
-  const runtime = join(BAYA_HOME, "runtime");
-  const logs = join(BAYA_HOME, "logs");
-  mkdirSync(runtime, { recursive: true, mode: 0o700 });
-  mkdirSync(logs, { recursive: true, mode: 0o700 });
-  const logPath = join(logs, "host.log");
-  const log = openSync(logPath, "a", 0o600);
-  const entry = fileURLToPath(import.meta.url);
-  const serveArgs = [entry, "serve"];
-  const cwdValue = flag(args, "cwd");
-  const cwd = cwdValue ? await resolveDirectory(resolve(cwdValue)) : undefined;
+  mkdirSync(join(BAYA_HOME, "runtime"), { recursive: true, mode: 0o700 });
+  mkdirSync(join(BAYA_HOME, "logs"), { recursive: true, mode: 0o700 });
+  const log = openSync(LOG_FILE, "a", 0o600);
+  const serveArgs = [fileURLToPath(import.meta.url), "serve"];
+  const cwdValue = stringFlag(args, "cwd");
+  serveArgs.push("--cwd", cwdValue ? await resolveDirectory(resolve(cwdValue)) : process.cwd());
   const agent = agentFlag(args);
-  const name = flag(args, "name");
-  if (cwd) serveArgs.push("--cwd", resolve(cwd));
   if (agent) serveArgs.push("--agent", agent);
+  const name = stringFlag(args, "name");
   if (name) serveArgs.push("--name", name);
   try {
-    const child = spawn(process.execPath, serveArgs, {
+    spawn(process.execPath, serveArgs, {
       detached: true,
       env: { ...process.env },
       stdio: ["ignore", log, log],
       windowsHide: true,
-    });
-    child.unref();
+    }).unref();
   } finally {
     closeSync(log);
   }
-
   for (let attempt = 0; attempt < 75; attempt++) {
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 200));
-    const status = await controlOnline();
+    await new Promise((done) => setTimeout(done, 200));
+    const status = await hostStatus();
     if (status) return status;
   }
-  throw new Error(`Baya did not start. Check ${logPath}.`);
+  throw new Error("Baya did not start. See the log: baya logs");
+}
+
+async function stopHost(): Promise<boolean> {
+  if (!(await hostStatus())) return false;
+  await controlCall("stop");
+  for (let attempt = 0; attempt < 50; attempt++) {
+    await new Promise((done) => setTimeout(done, 100));
+    if (!(await hostStatus(500))) return true;
+  }
+  throw new Error("Baya did not stop in time.");
+}
+
+/** `baya`: the one command a new user needs. */
+async function up(args: ParsedArgs): Promise<void> {
+  const already = await hostStatus();
+  const status = already ?? (await startBackground(args));
+  if (json(args)) return printJson(status);
+  if (!already) out(ok(`Baya started in ${dim(process.cwd())}`), "");
+  await printStatus(status);
+  if ((await listPeers()).length === 0) {
+    out("", bold("Pair your phone"), "Open the Baya app and scan this code:");
+    await printPairingCode(await controlCall<PairInvite>("pair"));
+  }
 }
 
 async function runForeground(args: ParsedArgs): Promise<void> {
-  const currentInfo = readControlInfo();
-  if (currentInfo) {
-    const current = await controlOnline();
-    if (current) {
-      throw new Error(`Baya is already running with PID ${current.pid}.`);
-    }
-  }
-
+  if (await hostStatus()) throw new Error("Baya is already running. See `baya status`.");
   const manager = new BayaManager();
   let control: ControlServer | null = null;
   let stopping = false;
-  const shutdown = async (code = 0): Promise<void> => {
+  const shutdown = async (): Promise<void> => {
     if (stopping) return;
     stopping = true;
     await control?.close();
     await manager.stop();
-    process.exit(code);
+    process.exit(0);
   };
   process.on("SIGINT", () => void shutdown());
   process.on("SIGTERM", () => void shutdown());
 
-  const selectedAgent = agentFlag(args);
-  const cwdValue = flag(args, "cwd");
+  const agent = agentFlag(args);
+  const cwdValue = stringFlag(args, "cwd");
   const cwd = cwdValue ? await resolveDirectory(resolve(cwdValue)) : undefined;
+  const name = stringFlag(args, "name");
   await manager.start({
     ...(cwd ? { cwd } : {}),
-    ...(selectedAgent ? { agent: selectedAgent } : {}),
-    ...(flag(args, "name") ? { name: flag(args, "name")! } : {}),
+    ...(agent ? { agent } : {}),
+    ...(name ? { name } : {}),
   });
   control = new ControlServer(manager, () => void shutdown());
   const info = await control.start();
-  process.stdout.write(
-    `[baya] Host ${info.pid} online on 127.0.0.1:${info.port}; state ${BAYA_HOME}\n`,
-  );
-  // First run in a terminal: nothing to configure, just scan.
+  out(`[baya] Host ${info.pid} online; state ${BAYA_HOME}`);
   if (process.stdout.isTTY && (await listPeers()).length === 0) {
-    process.stdout.write("\n[baya] No phone is paired yet. Scan this code with the Baya app:\n");
+    out("", "No phone is paired yet. Scan this code with the Baya app:");
     await printPairingCode(manager.pair());
   }
 }
 
+// ── sessions ────────────────────────────────────────────────────────────────
+
+async function status(args: ParsedArgs): Promise<void> {
+  const current = await hostStatus();
+  if (json(args)) return printJson(current ?? { running: false, sessions: offlineSessions() });
+  if (current) return printStatus(current);
+  out(warn("Baya is not running"), hint("baya"));
+  const sessions = offlineSessions();
+  if (sessions.length > 0) out("", bold("Sessions"), ...sessionRows(sessions));
+}
+
+async function open(args: ParsedArgs): Promise<void> {
+  const cwd = await resolveDirectory(resolve(args.positionals[0] ?? process.cwd()));
+  const agent = agentFlag(args) ?? loadConfig().defaultAgent ?? "pi";
+  await startBackground(args);
+  const opened = await controlCall<{ id: string; name: string }>("open", { cwd, agent });
+  if (json(args)) return printJson(opened);
+  out(
+    ok(`Started ${bold(opened.name)} ${dim(`${agent} · ${cwd}`)}`),
+    dim("  It shows up in the app now."),
+  );
+}
+
+async function close(args: ParsedArgs): Promise<void> {
+  const query = args.positionals[0];
+  if (!query) throw new Error("Which session? Pass its id prefix or name (see `baya status`).");
+  const record = findSession(query) ?? listSessions().find((session) => session.name === query);
+  if (!record) throw new Error(`No session matches "${query}". See \`baya status\`.`);
+  if (await hostStatus()) await controlCall("remove", { id: record.id });
+  else removeSession(record.id);
+  out(ok(`Closed ${bold(record.name)}`));
+}
+
+// ── phones ──────────────────────────────────────────────────────────────────
+
 async function pair(args: ParsedArgs): Promise<void> {
   await startBackground(args);
-  const ttlValue = flag(args, "ttl");
+  const ttlValue = stringFlag(args, "ttl");
   const ttlSeconds = ttlValue === undefined ? undefined : Number(ttlValue);
   if (
     ttlSeconds !== undefined &&
     (!Number.isFinite(ttlSeconds) || ttlSeconds < 10 || ttlSeconds > 600)
   ) {
-    throw new Error("Pairing TTL must be between 10 and 600 seconds.");
+    throw new Error("--ttl must be between 10 and 600 seconds.");
   }
-  const response = await controlCall<ReturnType<BayaManager["pair"]>>("pair", {
+  const invite = await controlCall<PairInvite>("pair", {
     ...(args.positionals[0] ? { id: args.positionals[0] } : {}),
     ...(ttlSeconds === undefined ? {} : { ttl_ms: Math.floor(ttlSeconds * 1000) }),
   });
-  await printPairingCode(response);
+  if (json(args)) return printJson({ ...invite, uri: await pairingUri(invite) });
+  out("Open the Baya app and scan this code:");
+  await printPairingCode(invite);
 }
 
-async function printPairingCode(invite: ReturnType<BayaManager["pair"]>): Promise<void> {
+async function pairingUri(invite: PairInvite): Promise<string> {
   const identity = await getOrCreateEd25519Keypair();
-  const relayUrl = resolveRelayUrl().url;
-  const uri = buildQRUri({
+  return buildQRUri({
     token: invite.token,
     publicKey: identity.publicKey,
     sessionName: invite.session_name,
     roomId: invite.room_id,
-    relayUrl,
+    relayUrl: resolveRelayUrl().url,
   });
-  process.stdout.write(`Relay: ${relayUrl}\n`);
-  process.stdout.write(`Session: ${invite.session_name} (${invite.session_id})\n`);
-  process.stdout.write(`Expires: ${new Date(invite.expires_at).toLocaleString()}\n`);
+}
+
+async function printPairingCode(invite: PairInvite): Promise<void> {
+  const uri = await pairingUri(invite);
   displayQR(uri);
-  process.stdout.write(`Pairing URI:\n${uri}\n`);
+  const minutes = Math.max(1, Math.round((invite.expires_at - Date.now()) / 60_000));
+  out(dim(`Valid for ${minutes} min, once. Can't scan? Paste this in the app:`), dim(uri));
 }
 
 async function devices(args: ParsedArgs): Promise<void> {
   const peers = await listPeers();
-  if (jsonFlag(args)) {
-    print({ devices: peers }, true);
-    return;
-  }
-  if (peers.length === 0) {
-    process.stdout.write("No phones are paired. Run `baya pair`.\n");
-    return;
-  }
-  for (const peer of peers) {
-    process.stdout.write(
-      `${peer.name}  ${peer.remote_epk.slice(0, 12)}  paired ${new Date(peer.paired_at).toLocaleString()}\n`,
-    );
-  }
+  if (json(args)) return printJson({ devices: peers });
+  if (peers.length === 0) return out(warn("No phone paired"), hint("baya pair"));
+  out(
+    ...table(
+      peers.map((peer) => [
+        bold(peer.name),
+        dim(peer.remote_epk.slice(0, 10)),
+        dim(`paired ${new Date(peer.paired_at).toLocaleDateString()}`),
+      ]),
+    ),
+  );
 }
 
 async function unpair(args: ParsedArgs): Promise<void> {
   const query = args.positionals[0];
-  if (!query) throw new Error("Name or key prefix of the phone is required. See `baya devices`.");
+  if (!query) throw new Error("Which phone? Pass its name or key prefix (see `baya devices`).");
   const removed = await removePeers(query);
   if (removed.length === 0) throw new Error(`No paired phone matches "${query}".`);
-  print(
-    jsonFlag(args)
-      ? { removed }
-      : removed.map((peer) => `Unpaired ${peer.name}. It can no longer reach this computer.`),
-    jsonFlag(args),
+  if (json(args)) return printJson({ removed });
+  for (const peer of removed) {
+    out(ok(`Unpaired ${bold(peer.name)}; it can no longer reach this computer.`));
+  }
+}
+
+// ── host tools ──────────────────────────────────────────────────────────────
+
+async function logs(args: ParsedArgs): Promise<void> {
+  if (!existsSync(LOG_FILE)) return out(dim("No log yet. The background host writes it."));
+  const follow = booleanFlag(args, "follow") || args.positionals.includes("-f");
+  const size = statSync(LOG_FILE).size;
+  await new Promise<void>((done) =>
+    createReadStream(LOG_FILE, { start: Math.max(0, size - 16 * 1024) })
+      .on("end", done)
+      .pipe(process.stdout, { end: false }),
   );
+  if (!follow) return;
+  let position = size;
+  watch(LOG_FILE, () => {
+    const next = statSync(LOG_FILE).size;
+    if (next < position) position = 0;
+    if (next === position) return;
+    createReadStream(LOG_FILE, { start: position, end: next - 1 }).pipe(process.stdout, {
+      end: false,
+    });
+    position = next;
+  });
+  await new Promise(() => {});
+}
+
+async function relayReachable(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(new URL("/health", url), { signal: AbortSignal.timeout(4_000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 async function doctor(args: ParsedArgs): Promise<void> {
-  const [agents, peers, running] = await Promise.all([
+  const relay = resolveRelayUrl();
+  const [agentList, peers, host, reachable, identityError] = await Promise.all([
     availableAgents(),
     listPeers(),
-    controlOnline(),
+    hostStatus(),
+    relayReachable(relay.url),
+    getOrCreateEd25519Keypair().then(
+      () => null,
+      (error: unknown) => (error instanceof Error ? error.message : String(error)),
+    ),
   ]);
-  const relay = resolveRelayUrl();
-  const result = {
-    version: packageVersion(),
-    hostname: hostname(),
-    node: process.version,
-    state_directory: BAYA_HOME,
-    relay: { url: relay.url, source: relay.source },
-    host: running ? { online: true, pid: running.pid } : { online: false },
-    paired_devices: peers.length,
-    agents,
-  };
-  print(result, jsonFlag(args));
-}
-
-async function sessions(args: ParsedArgs): Promise<void> {
-  const running = await controlOnline();
-  if (running) {
-    print(running, jsonFlag(args));
-    return;
+  if (json(args)) {
+    return printJson({
+      version: packageVersion(),
+      hostname: hostname(),
+      node: process.version,
+      state_directory: BAYA_HOME,
+      relay: { ...relay, reachable, connected: host?.relay.connected ?? false },
+      identity: identityError ? { ok: false, error: identityError } : { ok: true },
+      host: host ? { online: true, pid: host.pid } : { online: false },
+      paired_devices: peers.length,
+      agents: agentList,
+    });
   }
-  const records = listSessions().map((session) => ({
-    ...session,
-    online: false,
-    busy: false,
-    room_id: roomIdForBayaSession(session),
-  }));
-  print({ sessions: records }, jsonFlag(args));
-}
-
-async function create(args: ParsedArgs): Promise<void> {
-  const cwdInput = args.positionals[0];
-  const cwd = await resolveDirectory(cwdInput ? resolve(cwdInput) : process.cwd());
-  const agent = agentFlag(args) || loadConfig().defaultAgent || "pi";
-  const running = await controlOnline();
-  if (running) {
-    const workspace = await controlCall("open", { cwd, agent });
-    print(workspace, jsonFlag(args));
-    return;
+  const lines = [
+    dim(`Baya ${packageVersion()} · Node ${process.version} · ${hostname()} · ${BAYA_HOME}`),
+    "",
+    identityError ? fail(`Identity unreadable: ${identityError}`) : ok("Identity ready"),
+    reachable
+      ? ok(`Relay reachable ${dim(relay.url)}`)
+      : fail(`Relay unreachable ${dim(relay.url)}`),
+  ];
+  if (!reachable)
+    lines.push(hint("check the URL or your network; change it with: baya relay <url>"));
+  lines.push(host ? ok(`Host running ${dim(`pid ${host.pid}`)}`) : warn("Host not running"));
+  if (!host) lines.push(hint("baya"));
+  else if (!host.relay.connected) {
+    lines.push(warn("Host is not connected to the relay yet"), hint("baya logs"));
   }
-  const manager = new BayaManager();
-  const record = manager.create({
-    cwd,
-    agent,
-    ...(flag(args, "name") ? { name: flag(args, "name")! } : {}),
-  });
-  print(record, jsonFlag(args));
+  lines.push(peers.length ? ok(`${peers.length} phone(s) paired`) : warn("No phone paired"));
+  if (!peers.length) lines.push(hint("baya pair"));
+  for (const agent of agentList) {
+    lines.push(
+      agent.available
+        ? ok(`${agent.name} installed`)
+        : warn(`${agent.name} not available${agent.reason ? dim(` — ${agent.reason}`) : ""}`),
+    );
+  }
+  if (!agentList.some((agent) => agent.available)) {
+    lines.push(hint("install pi, codex or deepseek (dsh) and make sure it is on PATH"));
+  }
+  out(...lines);
 }
 
-function installService(): void {
-  const message = installStartup({
-    nodePath: process.execPath,
-    entryPath: fileURLToPath(import.meta.url),
-    cwd: resolve(process.cwd()),
-    path: process.env["PATH"] ?? "",
-    logDir: join(BAYA_HOME, "logs"),
-  });
-  process.stdout.write(`${message}\n`);
+async function agents(args: ParsedArgs): Promise<void> {
+  const list = await availableAgents();
+  if (json(args)) return printJson(list);
+  out(
+    ...table(
+      list.map((agent) => [
+        agent.available ? green("✓") : yellow("–"),
+        bold(agent.name),
+        dim(
+          (agent.available ? agent.description : agent.reason) ??
+            (agent.available ? "" : "not installed"),
+        ),
+      ]),
+    ),
+  );
 }
 
-function uninstallService(): void {
-  process.stdout.write(`${uninstallStartup()}\n`);
+async function relayCommand(args: ParsedArgs): Promise<void> {
+  const value = args.positionals[0];
+  if (!value) {
+    const relay = resolveRelayUrl();
+    return out(`${relay.url} ${dim(`(${relay.source})`)}`);
+  }
+  const url = validateRelayUrl(value);
+  if (!(await relayReachable(url))) out(warn(`${url} did not answer /health; saving anyway.`));
+  saveConfig({ relay: url });
+  out(ok(`Relay set to ${url}`));
+  if (await hostStatus()) out(hint("baya restart  (phones adopt it from the next pairing code)"));
 }
+
+function autostart(args: ParsedArgs): void {
+  const mode = args.positionals[0];
+  if (mode === "on") {
+    out(
+      ok(
+        installStartup({
+          nodePath: process.execPath,
+          entryPath: fileURLToPath(import.meta.url),
+          cwd: resolve(process.cwd()),
+          path: process.env["PATH"] ?? "",
+          logDir: join(BAYA_HOME, "logs"),
+        }),
+      ),
+    );
+  } else if (mode === "off") {
+    out(ok(uninstallStartup()));
+  } else {
+    throw new Error("Use `baya autostart on` or `baya autostart off`.");
+  }
+}
+
+// ── entry ───────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   switch (args.command) {
-    case "help":
-    case "--help":
-    case "-h":
-      printHelp();
-      return;
-    case "version":
-    case "--version":
-    case "-v":
-      process.stdout.write(`${packageVersion()}\n`);
-      return;
+    case "up":
+      return up(args);
     case "serve":
-      await runForeground(args);
-      return;
-    case "start":
-      print(await startBackground(args), jsonFlag(args));
-      return;
+      return runForeground(args);
+    case "start": {
+      const current = await startBackground(args);
+      return json(args) ? printJson(current) : printStatus(current);
+    }
     case "stop":
-      print(await controlCall("stop"), jsonFlag(args));
-      return;
+      return out((await stopHost()) ? ok("Baya stopped") : dim("Baya was not running"));
+    case "restart":
+      await stopHost();
+      return printStatus(await startBackground(args));
     case "status":
-      print(await controlCall<StatusResult>("status"), jsonFlag(args));
-      return;
-    case "sessions":
-    case "list":
-      await sessions(args);
-      return;
-    case "new":
+      return status(args);
     case "open":
-      await create(args);
-      return;
-    case "remove": {
-      const id = args.positionals[0];
-      if (!id) throw new Error("A session id is required.");
-      try {
-        print(await controlCall("remove", { id }), jsonFlag(args));
-      } catch (error) {
-        const record = findSession(id);
-        if (!record) throw error;
-        const removed = removeSession(record.id);
-        print({ removed }, jsonFlag(args));
-      }
-      return;
-    }
+      return open(args);
+    case "close":
+      return close(args);
     case "pair":
-      await pair(args);
-      return;
+      return pair(args);
     case "devices":
-      await devices(args);
-      return;
+      return devices(args);
     case "unpair":
-      await unpair(args);
-      return;
-    case "agents": {
-      print(await availableAgents(), jsonFlag(args));
-      return;
-    }
+      return unpair(args);
+    case "logs":
+      return logs(args);
     case "doctor":
-      await doctor(args);
-      return;
-    case "set-relay": {
-      const url = args.positionals[0];
-      if (!url) throw new Error("A relay URL is required.");
-      saveConfig({ relay: validateRelayUrl(url) });
-      process.stdout.write(`Relay saved: ${loadConfig().relay}\nRestart the host to apply it.\n`);
-      return;
+      return doctor(args);
+    case "agents":
+      return agents(args);
+    case "relay":
+      return relayCommand(args);
+    case "autostart":
+      return autostart(args);
+    case "help":
+      return void process.stdout.write(HELP());
+    case "version":
+      return out(packageVersion());
+    default: {
+      const guess = suggest(args.command, COMMANDS);
+      throw new Error(
+        `Unknown command "${args.command}".${guess ? ` Did you mean \`baya ${guess}\`?` : ""} Run \`baya help\`.`,
+      );
     }
-    case "install-service":
-      installService();
-      return;
-    case "uninstall-service":
-      uninstallService();
-      return;
-    default:
-      throw new Error(`Unknown command: ${args.command}\nRun \`baya help\`.`);
   }
 }
 
 main().catch((error: unknown) => {
-  process.stderr.write(`[baya] ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(`${red("✗")} ${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
 });

@@ -27,6 +27,5 @@ export function buildQRUri(invite: PairingInvite): string {
 
 /** Prints the QR with Unicode half blocks so it fits a normal terminal. */
 export function displayQR(uri: string): void {
-  const qrcode = renderUnicodeCompact(uri, { border: 2 });
-  process.stdout.write(`\nScan with Baya on your phone:\n\n${qrcode}\n`);
+  process.stdout.write(`\n${renderUnicodeCompact(uri, { border: 2 })}\n`);
 }

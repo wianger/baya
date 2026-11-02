@@ -34,12 +34,12 @@ pnpm add --global .
 baya doctor
 ```
 
-Start the resident host and keep it running:
+Start Baya in a project folder. The first time, it prints a pairing code;
+scan it with the app and you are done:
 
 ```powershell
-baya start --cwd C:\code\project
-baya status
-baya pair
+cd C:\code\project
+baya
 ```
 
 Manage paired phones. Unpairing takes effect immediately, including for a
@@ -54,13 +54,7 @@ Start Baya at login (a Windows Run entry, a systemd user unit, or a macOS
 LaunchAgent; no administrator rights):
 
 ```powershell
-baya install-service
-```
-
-To remove it:
-
-```powershell
-baya uninstall-service
+baya autostart on     # baya autostart off to remove it
 ```
 
 The host stores its state in `%USERPROFILE%\.baya` (or `$BAYA_HOME` when set).
@@ -97,7 +91,7 @@ private infrastructure, build the included relay and point Baya at it:
 ```powershell
 docker build -t baya-relay relay
 docker run -d --name baya-relay -p 3000:3000 -v baya-data:/data baya-relay
-baya set-relay http://127.0.0.1:3000
+baya relay http://127.0.0.1:3000
 ```
 
 Messages between the phone and the computer are end-to-end encrypted

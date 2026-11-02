@@ -2,13 +2,13 @@ import { describe, expect, test } from "vitest";
 import { parseArgs } from "../src/cli/args.ts";
 
 describe("CLI argument parsing", () => {
-  test("defaults a commandless invocation to serve", () => {
+  test("defaults a commandless invocation to up", () => {
     expect(parseArgs([])).toEqual({
-      command: "serve",
+      command: "up",
       positionals: [],
       flags: new Map(),
     });
-    expect(parseArgs(["--cwd", "C:\\work"]).command).toBe("serve");
+    expect(parseArgs(["--cwd", "C:\\work"]).command).toBe("up");
   });
 
   test("keeps explicit help from accidentally starting the host", () => {
@@ -32,5 +32,15 @@ describe("CLI argument parsing", () => {
         ["json", true],
       ]),
     });
+  });
+});
+
+describe("typo suggestions", () => {
+  test("a swapped pair of letters is one edit", async () => {
+    const { suggest } = await import("../src/cli/ui.ts");
+    const commands = ["start", "status", "stop", "pair", "devices"];
+    expect(suggest("stauts", commands)).toBe("status");
+    expect(suggest("devcies", commands)).toBe("devices");
+    expect(suggest("xyz", commands)).toBeUndefined();
   });
 });

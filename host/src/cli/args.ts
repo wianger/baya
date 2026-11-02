@@ -13,9 +13,12 @@ export function parseArgs(argv: string[]): ParsedArgs {
     };
   }
   const first = argv[0];
-  const standalone = first === "--version" || first === "-v";
-  const command = standalone ? first : first && !first.startsWith("-") ? first : "serve";
-  const rest = first === command || standalone ? argv.slice(1) : argv;
+  if (first === "--version" || first === "-v") {
+    return { command: "version", positionals: [], flags: new Map() };
+  }
+  // No command: `baya` starts (or shows) the host — the one thing to remember.
+  const command = first && !first.startsWith("-") ? first : "up";
+  const rest = first === command ? argv.slice(1) : argv;
   const positionals: string[] = [];
   const flags = new Map<string, string | true>();
   for (let index = 0; index < rest.length; index++) {

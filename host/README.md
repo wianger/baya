@@ -7,25 +7,26 @@ same process tree.
 ## Commands
 
 ```text
-baya serve
-baya start
-baya stop
-baya status
-baya sessions [--json]
-baya new [path] --agent pi|codex|deepseek --name <name>
-baya open <path> --agent pi|codex|deepseek
-baya remove <id>
-baya pair [id] --ttl <10-600>
-baya devices [--json]
-baya unpair <name|key-prefix>
-baya agents [--json]
-baya doctor [--json]
-baya set-relay <http(s)|ws(s) URL>
-baya install-service
-baya uninstall-service
+baya                     start in the background; shows a pairing code if no phone is paired
+baya pair [session]      pairing code for another phone   (--ttl 10-600)
+baya status              host, relay, phones and sessions
+baya open [folder]       start a session                  (--agent pi|codex|deepseek)
+baya close <session>     stop and remove a session         (id prefix or name)
+baya devices             paired phones
+baya unpair <phone>      revoke a phone                    (name or key prefix)
+baya start | stop | restart
+baya logs [-f]           host log
+baya doctor              relay, identity, agents and pairing checks with fixes
+baya agents              installed agents
+baya relay [url]         show or set the relay
+baya autostart on|off    start at login
 ```
 
-`install-service` starts the host at login without administrator rights:
+`--json` gives machine-readable output for `status`, `devices`, `agents`,
+`pair` and `doctor`. Output is colored only on a terminal and honours
+`NO_COLOR`. `baya serve` runs the host in the foreground (used by autostart).
+
+`baya autostart on` starts the host at login without administrator rights:
 
 - Windows: the `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` entry
   `BayaHost`, launched through a hidden PowerShell process.
@@ -38,14 +39,11 @@ baya uninstall-service
 The service captures the current folder and `PATH`, so run it from the shell
 where `pi`, `codex`, or `deepseek` resolve.
 
-`baya` without a command starts the foreground host using the current folder.
-
 If an agent process exits unexpectedly, the host keeps the session registered
 and restarts it with backoff (1 s, 5 s, 15 s, then every minute). The relay
 connection is independent: local sessions start even while the relay is
 unreachable, and the host reconnects in the background.
-`baya start` detaches a resident host and writes logs to
-`$BAYA_HOME/logs/host.log`. The control socket is loopback-only and protected by
+The background host writes `$BAYA_HOME/logs/host.log` (`baya logs`). The control socket is loopback-only and protected by
 a random token stored with owner-only permissions.
 
 ## State

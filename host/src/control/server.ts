@@ -2,8 +2,10 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { dirname, join } from "node:path";
-import { BAYA_HOME } from "../config.ts";
+import { BAYA_HOME, resolveRelayUrl } from "../config.ts";
 import type { BayaManager } from "../host/manager.ts";
+import { packageVersion } from "../runtime/version.ts";
+import { relayHub } from "../transport/relay_hub.ts";
 import type { ControlInfo, ControlRequest, ControlResponse } from "./protocol.ts";
 
 export function controlInfoPath(): string {
@@ -13,6 +15,7 @@ export function controlInfoPath(): string {
 export class ControlServer {
   private server: Server | null = null;
   private readonly token = randomBytes(32).toString("base64url");
+  private readonly startedAt = Date.now();
 
   private readonly manager: BayaManager;
   private readonly stopProcess: () => void;
@@ -112,7 +115,13 @@ export class ControlServer {
     const params = request.params ?? {};
     switch (request.command) {
       case "status":
-        return { pid: process.pid, sessions: this.manager.list() };
+        return {
+          pid: process.pid,
+          version: packageVersion(),
+          started_at: this.startedAt,
+          relay: { url: resolveRelayUrl().url, connected: relayHub().connected },
+          sessions: this.manager.list(),
+        };
       case "list":
         return { sessions: this.manager.list() };
       case "open": {
