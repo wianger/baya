@@ -122,16 +122,21 @@ class MeshSyncService extends ChangeNotifier {
   /// members=[] — the bug reproduced by the user, where pi-extension
   /// self-revoked after the app silently published v2 empty.
   Future<void> _replaceLocalCacheWith(MeshBlob blob) async {
+    // Compare canonical keys: the QR stores base64url, the blob carries
+    // standard base64. Comparing raw strings made every local peer look
+    // absent, and deleting it erased the record just saved for the same
+    // key, so paired computers vanished on the next launch.
     final existing = {
-      for (final p in await _storage.listPeers()) p.remoteEpk: p,
+      for (final p in await _storage.listPeers()) toStandardB64(p.remoteEpk): p,
     };
     final keep = <String>{};
     for (final m in blob.members) {
-      keep.add(m.remoteEpk);
-      final prev = existing[m.remoteEpk];
+      final key = toStandardB64(m.remoteEpk);
+      keep.add(key);
+      final prev = existing[key];
       final next = PeerRecord(
         remoteEpk: m.remoteEpk,
-        sessionName: prev?.sessionName ?? m.nickname ?? 'remote_pi',
+        sessionName: prev?.sessionName ?? m.nickname ?? 'Computer',
         relayUrl: m.relayUrl,
         pairedAt: m.pairedAt,
         nickname: m.nickname,
@@ -141,8 +146,8 @@ class MeshSyncService extends ChangeNotifier {
         await _storage.savePeerSilent(next);
       }
     }
-    for (final p in existing.values) {
-      if (!keep.contains(p.remoteEpk)) {
+    for (final MapEntry(:key, value: p) in existing.entries) {
+      if (!keep.contains(key)) {
         await _storage.deletePeerSilent(p.remoteEpk);
         await _storage.deleteRooms(p.remoteEpk);
       }
@@ -153,7 +158,7 @@ class MeshSyncService extends ChangeNotifier {
   /// `roomId` stay client-local and don't trigger a re-save when the
   /// relay version arrives unchanged.
   bool _peerEqualsForMesh(PeerRecord a, PeerRecord b) =>
-      a.remoteEpk == b.remoteEpk &&
+      toStandardB64(a.remoteEpk) == toStandardB64(b.remoteEpk) &&
       a.relayUrl == b.relayUrl &&
       a.pairedAt == b.pairedAt &&
       a.nickname == b.nickname;

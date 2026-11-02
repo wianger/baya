@@ -117,6 +117,64 @@ void main() {
       expect(svc.lastVersion, 0);
     });
 
+    test('a QR-paired computer survives the relay copy of itself', () async {
+      // Regression: the QR stores base64url, the published blob standard
+      // base64. Applying the blob used to delete the peer it had just saved.
+      final owner = await _newOwner();
+      final storage = PairingStorage(_FakeSecureStorage());
+      final bridge = await _bootedBridge(storage, owner.keyPair, owner.ownerPk);
+      final hash = await MeshClient.ownerPkHash(owner.ownerPk);
+      final key = List<int>.generate(32, (i) => 250 - i);
+      final urlSafe = base64Url.encode(key).replaceAll('=', '');
+      await storage.savePeerSilent(
+        PeerRecord(
+          remoteEpk: urlSafe,
+          sessionName: 'Workstation',
+          relayUrl: 'https://r',
+          pairedAt: '2026-11-02T12:49:26Z',
+          roomId: 'room1',
+        ),
+      );
+      final blob = MeshBlob(
+        version: 1,
+        issuedAt: 1700000000000,
+        ownerPk: owner.ownerPk,
+        members: [
+          MeshMember(
+            remoteEpk: base64.encode(key),
+            relayUrl: 'https://r',
+            pairedAt: '2026-11-02T12:49:26Z',
+          ),
+        ],
+      );
+      final env = await blob.signWith(owner.keyPair);
+      final s = _stubHttp();
+      s.adapter.on(
+        'GET',
+        '/mesh/$hash',
+        Reply(
+          200,
+          jsonEncode({
+            'blob': base64.encode(env.blob),
+            'sig': base64.encode(env.sig),
+            'version': 1,
+            'updated_at': 1700000000000,
+          }),
+        ),
+      );
+      final svc = MeshSyncService(
+        MeshClient(baseUrlProvider: () => 'https://r', client: s.client),
+        bridge,
+        storage,
+      );
+
+      expect(await svc.pullOnDemand(), isTrue);
+      final peers = await storage.listPeers();
+      expect(peers, hasLength(1));
+      expect(peers.single.sessionName, 'Workstation');
+      expect(peers.single.roomId, 'room1');
+    });
+
     test('200 with verified envelope hydrates PairingStorage', () async {
       final owner = await _newOwner();
       final storage = PairingStorage(_FakeSecureStorage());
