@@ -41,19 +41,23 @@ void main() {
       channel.control.add(
         RoomAnnounced(
           peer: pc.remoteEpk,
-          roomId: 'pc-one',
-          name: 'Desktop one',
-          cwd: '/code/shared',
-          startedAt: 1,
+          room: RoomInfo(
+            roomId: 'pc-one',
+            name: 'Desktop one',
+            cwd: '/code/shared',
+            startedAt: 1,
+          ),
         ),
       );
       channel.control.add(
         RoomAnnounced(
           peer: pc.remoteEpk,
-          roomId: 'pc-two',
-          name: 'Desktop two',
-          cwd: '/code/shared',
-          startedAt: 1,
+          room: RoomInfo(
+            roomId: 'pc-two',
+            name: 'Desktop two',
+            cwd: '/code/shared',
+            startedAt: 1,
+          ),
         ),
       );
       await tester.pumpWidget(
@@ -148,10 +152,7 @@ void main() {
           channel.control.add(
             RoomAnnounced(
               peer: host.remoteEpk,
-              roomId: id,
-              name: name,
-              cwd: cwd,
-              startedAt: 1,
+              room: RoomInfo(roomId: id, name: name, cwd: cwd, startedAt: 1),
             ),
           );
       room(pc, 'pc-one', 'Desktop one', '/code/shared');
@@ -234,19 +235,23 @@ void main() {
     channel.control.add(
       RoomAnnounced(
         peer: pc.remoteEpk,
-        roomId: 'room-alpha',
-        name: 'API',
-        cwd: '/code/api',
-        startedAt: 1,
+        room: RoomInfo(
+          roomId: 'room-alpha',
+          name: 'API',
+          cwd: '/code/api',
+          startedAt: 1,
+        ),
       ),
     );
     channel.control.add(
       RoomAnnounced(
         peer: pc.remoteEpk,
-        roomId: 'room-beta',
-        name: 'Mobile',
-        cwd: '/code/mobile',
-        startedAt: 1,
+        room: RoomInfo(
+          roomId: 'room-beta',
+          name: 'Mobile',
+          cwd: '/code/mobile',
+          startedAt: 1,
+        ),
       ),
     );
     await pumpEventQueue();
@@ -332,19 +337,23 @@ void main() {
       channel.control.add(
         RoomAnnounced(
           peer: pc.remoteEpk,
-          roomId: 'room-alpha',
-          name: 'Alpha',
-          cwd: '/code/project',
-          startedAt: 1,
+          room: RoomInfo(
+            roomId: 'room-alpha',
+            name: 'Alpha',
+            cwd: '/code/project',
+            startedAt: 1,
+          ),
         ),
       );
       channel.control.add(
         RoomAnnounced(
           peer: pc.remoteEpk,
-          roomId: 'room-beta',
-          name: 'Beta',
-          cwd: '/code/project',
-          startedAt: 1,
+          room: RoomInfo(
+            roomId: 'room-beta',
+            name: 'Beta',
+            cwd: '/code/project',
+            startedAt: 1,
+          ),
         ),
       );
       await pumpEventQueue();
@@ -410,10 +419,12 @@ void main() {
     channel.control.add(
       RoomAnnounced(
         peer: rawEpk,
-        roomId: 'room-alpha',
-        name: 'Alpha',
-        cwd: '/code/project',
-        startedAt: 1,
+        room: RoomInfo(
+          roomId: 'room-alpha',
+          name: 'Alpha',
+          cwd: '/code/project',
+          startedAt: 1,
+        ),
       ),
     );
     await pumpEventQueue();

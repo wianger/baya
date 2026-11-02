@@ -121,9 +121,9 @@ Future<String> fetchTailnetPairingCode(
   }
 }
 
-/// The tailnet domain of a `*.ts.net` relay address, e.g. `tail1234.ts.net`.
-String? tailnetSuffixOf(String relayUrl) {
-  final host = Uri.tryParse(relayUrl)?.host ?? '';
+/// The tailnet domain of a `*.ts.net` address, e.g. `tail1234.ts.net`.
+String? tailnetSuffixOf(String url) {
+  final host = Uri.tryParse(url)?.host ?? '';
   final parts = host.split('.');
   if (parts.length < 3 || !host.endsWith('.ts.net')) return null;
   return parts.sublist(parts.length - 3).join('.');

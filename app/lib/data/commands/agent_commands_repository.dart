@@ -45,9 +45,7 @@ class AgentCommandsRepository implements IAgentCommandsRepository {
                     ),
                   )
                   .toList(growable: false),
-              supportedActions: message.supportedActions == null
-                  ? null
-                  : Set.unmodifiable(message.supportedActions!),
+              supportedActions: Set.unmodifiable(message.supportedActions),
             ),
           );
         } else if (message is ErrorMessage && message.inReplyTo == id) {

@@ -819,60 +819,23 @@ class ConnectionManager extends Service {
             presenceDirty = true;
           }
         }
-      case RoomAnnounced(
-        :final peer,
-        :final roomId,
-        :final name,
-        :final cwd,
-        :final startedAt,
-        :final model,
-        :final thinking,
-        :final working,
-      ):
+      case RoomAnnounced(:final peer, :final room):
         final key = toStandardB64(peer);
         final list = _roomsByPeer[key] ?? <RoomInfo>[];
-        // Preserve any localName the user already set for this room
-        // (long-press rename) — only the live metadata comes from the
-        // wire, the rename is local-only.
-        String? preservedName;
-        // Also preserve a previously-learned thinking
-        // level when the announce frame omits it. Relays that don't
-        // flatten `meta.thinking` will keep `thinking == null` here;
-        // the previously cached value (if any) survives until the
-        // next genuine `room_meta_updated`.
-        ThinkingLevel? preservedThinking;
-        // Same preserve convention for `working`: a legacy
-        // relay that omits it (null) keeps the cached value instead of
-        // forcing the room back to idle.
-        var preservedWorking = false;
-        final existingIdx = list.indexWhere((r) => r.roomId == roomId);
-        if (existingIdx >= 0) {
-          preservedName = list[existingIdx].name;
-          preservedThinking = list[existingIdx].thinking;
-          preservedWorking = list[existingIdx].working;
-        }
-        final next = RoomInfo(
-          roomId: roomId,
-          name: preservedName ?? name,
-          cwd: cwd,
-          startedAt: startedAt,
-          model: model,
-          thinking: thinking ?? preservedThinking,
-          working: working ?? preservedWorking,
-        );
-        final liveAlready = _liveRoomIds[key]?.contains(roomId) ?? false;
-        final identicalEntry = existingIdx >= 0 && list[existingIdx] == next;
-        if (identicalEntry && liveAlready) {
-          // No-op announce — relay re-broadcast. Skip to keep the UI
-          // quiet.
+        // A local rename survives; everything else comes from the host.
+        final existingIdx = list.indexWhere((r) => r.roomId == room.roomId);
+        final next = existingIdx >= 0
+            ? room.copyWith(name: list[existingIdx].name)
+            : room;
+        final liveAlready = _liveRoomIds[key]?.contains(room.roomId) ?? false;
+        if (existingIdx >= 0 && list[existingIdx] == next && liveAlready) {
           break;
         }
-        list.removeWhere((r) => r.roomId == roomId);
+        list.removeWhere((r) => r.roomId == room.roomId);
         list.add(next);
         _roomsByPeer[key] = list;
-        (_liveRoomIds[key] ??= <String>{}).add(roomId);
+        (_liveRoomIds[key] ??= <String>{}).add(room.roomId);
         roomsDirty = true;
-        // Persist the new view so cold restart shows the same tiles.
         // ignore: unawaited_futures
         _persistRoomsForPeer(key);
       case RoomEnded(:final peer, :final roomId):
@@ -891,66 +854,31 @@ class ConnectionManager extends Service {
         :final model,
         :final thinking,
         :final working,
-        :final hasModel,
-        :final hasThinking,
       ):
         final key = toStandardB64(peer);
         final list = _roomsByPeer[key];
         if (list == null) break;
         final idx = list.indexWhere((r) => r.roomId == roomId);
         if (idx < 0) break;
-        final current = list[idx];
-        // Meta is open-ended; only update the fields
-        // the broadcast actually carried. `hasModel` / `hasThinking`
-        // distinguishes "field was absent from the meta envelope"
-        // (preserve previous value) from "field was explicitly null"
-        // (overwrite with null). Without this, a thinking-only update
-        // would clobber the previously cached model with null.
-        final nextModel = hasModel ? model : current.model;
-        final nextThinking = hasThinking ? thinking : current.thinking;
-        // `working` is nullable-as-absent: null preserves the
-        // cached value (e.g. a model-only update must not flip the dot),
-        // non-null sets it. This is what carries the relay's
-        // turn_start/turn_end broadcast to the Home dot for EVERY room.
-        final nextWorking = working ?? current.working;
-        if (current.model == nextModel &&
-            current.thinking == nextThinking &&
-            current.working == nextWorking) {
-          break; // dedup: nothing actually changed
-        }
-        list[idx] = current.copyWith(
-          model: nextModel,
-          thinking: nextThinking,
-          working: nextWorking,
+        final next = list[idx].copyWith(
+          model: model,
+          thinking: thinking,
+          working: working,
         );
+        if (next == list[idx]) break;
+        list[idx] = next;
         roomsDirty = true;
         // ignore: unawaited_futures
         _persistRoomsForPeer(key);
       case RoomsSnapshot(:final peer, :final rooms):
         final key = toStandardB64(peer);
-        // Merge snapshot into cache: add unknown rooms, refresh
-        // metadata (preserving local rename + previous model when
-        // the snapshot omits it), update live set.
+        // The snapshot is authoritative except for a local rename; rooms
+        // it lacks stay cached (offline) until deleted.
         final existing = _roomsByPeer[key] ?? <RoomInfo>[];
         final byId = {for (final r in existing) r.roomId: r};
         for (final r in rooms) {
-          final preservedName = byId[r.roomId]?.name ?? r.name;
-          final preservedModel = r.model ?? byId[r.roomId]?.model;
-          // Same convention as model: keep the
-          // previously-known thinking when the snapshot omits it.
-          final preservedThinking = r.thinking ?? byId[r.roomId]?.thinking;
-          byId[r.roomId] = RoomInfo(
-            roomId: r.roomId,
-            name: preservedName,
-            cwd: r.cwd,
-            startedAt: r.startedAt,
-            model: preservedModel,
-            thinking: preservedThinking,
-            // The snapshot is authoritative for live state:
-            // `rooms_of` reads the current registry meta, so its
-            // `working` reflects the latest turn_start/turn_end.
-            working: r.working,
-          );
+          final cached = byId[r.roomId];
+          byId[r.roomId] = cached == null ? r : r.copyWith(name: cached.name);
         }
         final newList = byId.values.toList();
         final newLive = rooms.map((r) => r.roomId).toSet();
@@ -960,9 +888,7 @@ class ConnectionManager extends Service {
         );
         final listChanged = !_roomListEquals(newList, existing);
         if (!liveChanged && !listChanged) {
-          // Relay re-emitted a snapshot identical to what we already
-          // have. Skip — no listeners need to know.
-          break;
+          break; // identical to what we have
         }
         _roomsByPeer[key] = newList;
         _liveRoomIds[key] = newLive;

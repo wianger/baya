@@ -3,7 +3,8 @@ import type { ServerMessage } from "./types.ts";
 type HistoryFrame = Extract<ServerMessage, { type: "session_history" }>;
 type HistorySnapshot = Omit<HistoryFrame, "type" | "eos">;
 const TARGET_BYTES = 1024 * 1024;
-// The relay checks decoded payload bytes; keep metadata/padding headroom.
+// Frames stay well under the direct socket's 8 MiB limit after sealing and
+// base64; keep metadata/padding headroom.
 const MAX_BYTES = 4 * 1024 * 1024 - 1024;
 const bytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value), "utf8");
 
@@ -35,7 +36,7 @@ export function historyFrames(snapshot: HistorySnapshot): HistoryFrame[] {
     ...meta,
     events: batch,
     eos: true,
-    ...("streaming" in snapshot ? { streaming } : {}),
+    streaming: streaming ?? null,
   };
   // A large live cursor gets its own final frame, rather than being repeated
   // in every history fragment or exceeding the size limit with the last batch.

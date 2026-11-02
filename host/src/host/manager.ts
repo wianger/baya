@@ -47,7 +47,7 @@ export class BayaManager {
       ];
     }
     // Agents start in the background: a slow or broken agent must not keep
-    // the host (CLI, pairing, relay) from coming up. Failures retry with
+    // the host (CLI, pairing, phone connections) from coming up. Failures retry with
     // the same backoff as a crash.
     for (const session of sessions) {
       this.startSession(session).catch((error: unknown) => {

@@ -74,6 +74,7 @@ void main() {
           utf8.encode(
             jsonEncode({
               'type': 'pair_ok',
+              'harness': {'name': 'Pi coding agent', 'version': '1'},
               'in_reply_to': req['id'],
               'session_name': 'Review',
               'session_started_at': 1700000000000,

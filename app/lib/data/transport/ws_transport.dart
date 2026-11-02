@@ -17,7 +17,6 @@ import 'dart:convert';
 
 import 'package:app/data/transport/channel.dart';
 import 'package:app/data/transport/e2e.dart';
-import 'package:app/data/transport/relay_config.dart';
 import 'package:app/protocol/protocol.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
@@ -57,7 +56,7 @@ class WsTransport implements PeerTransport, IControlLink {
     // Accept http(s) URLs in the user-facing form but always speak
     // ws(s) on the wire — IOWebSocketChannel rejects http schemes.
     final WebSocketChannel ws = IOWebSocketChannel.connect(
-      Uri.parse(toWsRelayUrl(endpoint)),
+      _webSocketUri(endpoint),
       pingInterval: const Duration(seconds: 20),
     );
     final transport = WsTransport._(ws);
@@ -342,4 +341,11 @@ bool _isErrorFrame(List<int> bytes) {
   } catch (_) {
     return false;
   }
+}
+
+/// `https://…` → `wss://…` (and `http` → `ws`): endpoints are stored as
+/// the address the pairing code named.
+Uri _webSocketUri(String endpoint) {
+  final uri = Uri.parse(endpoint);
+  return uri.replace(scheme: uri.scheme == 'http' ? 'ws' : 'wss');
 }

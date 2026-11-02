@@ -77,7 +77,10 @@ void main() {
       conn.adopt(channelA, a);
       conn.switchRoom(a.roomId!);
       channelA.control.add(
-        RoomAnnounced(peer: b.remoteEpk, roomId: b.roomId!, startedAt: 1),
+        RoomAnnounced(
+          peer: b.remoteEpk,
+          room: RoomInfo(roomId: b.roomId!, startedAt: 1),
+        ),
       );
       await Future<void>.delayed(Duration.zero);
       final browse = repo.browse(b.remoteEpk);
@@ -148,10 +151,16 @@ void main() {
     conn.adopt(channelA, a);
     conn.switchRoom(a.roomId!);
     channelA.control.add(
-      RoomAnnounced(peer: a.remoteEpk, roomId: a.roomId!, startedAt: 1),
+      RoomAnnounced(
+        peer: a.remoteEpk,
+        room: RoomInfo(roomId: a.roomId!, startedAt: 1),
+      ),
     );
     channelA.control.add(
-      RoomAnnounced(peer: b.remoteEpk, roomId: b.roomId!, startedAt: 1),
+      RoomAnnounced(
+        peer: b.remoteEpk,
+        room: RoomInfo(roomId: b.roomId!, startedAt: 1),
+      ),
     );
     await Future<void>.delayed(Duration.zero);
 

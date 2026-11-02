@@ -405,9 +405,11 @@ void main() {
         s.ch.pushControl(
           const RoomAnnounced(
             peer: 'epk_actions',
-            roomId: 'main',
-            startedAt: 1,
-            model: 'claude-opus-4-7',
+            room: RoomInfo(
+              roomId: 'main',
+              startedAt: 1,
+              model: 'claude-opus-4-7',
+            ),
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -416,8 +418,7 @@ void main() {
             peer: 'epk_actions',
             roomId: 'main',
             model: 'gpt-4o',
-            hasModel: true,
-            hasThinking: false,
+            working: false,
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -447,10 +448,12 @@ void main() {
       s.ch.pushControl(
         const RoomAnnounced(
           peer: 'epk_actions',
-          roomId: 'main',
-          startedAt: 1,
-          model: 'claude-opus-4-7',
-          thinking: ThinkingLevel.high,
+          room: RoomInfo(
+            roomId: 'main',
+            startedAt: 1,
+            model: 'claude-opus-4-7',
+            thinking: ThinkingLevel.high,
+          ),
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 30));
@@ -475,17 +478,13 @@ void main() {
         s.ch.pushControl(
           const RoomAnnounced(
             peer: 'epk_actions',
-            roomId: 'main',
-            startedAt: 1,
-            model: 'model-A',
+            room: RoomInfo(roomId: 'main', startedAt: 1, model: 'model-A'),
           ),
         );
         s.ch.pushControl(
           const RoomAnnounced(
             peer: 'epk_actions',
-            roomId: 'work',
-            startedAt: 2,
-            model: 'model-B',
+            room: RoomInfo(roomId: 'work', startedAt: 2, model: 'model-B'),
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 30));

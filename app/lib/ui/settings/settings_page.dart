@@ -1,6 +1,5 @@
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/data/transport/relay_config.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -38,7 +37,6 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final vm = context.watch<SettingsViewModel>();
     final prefs = context.watch<Preferences>();
 
     return Scaffold(
@@ -80,18 +78,6 @@ class SettingsPage extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 36),
                   children: [
                     _SettingsSectionLabel(context.l10n.connection),
-                    _SettingsEntryCard(
-                      child: _SettingsEntry(
-                        key: const Key('settings-relay'),
-                        icon: LucideIcons.settings2,
-                        title: context.l10n.relay,
-                        subtitle: vm.effectiveRelayUrl,
-                        onTap: () => _openDetail(
-                          context,
-                          () => const RelaySettingsPage(),
-                        ),
-                      ),
-                    ),
                     const _KeyBackupEntry(),
                     const SizedBox(height: 22),
                     _SettingsSectionLabel(context.l10n.chatAndAppearance),
@@ -141,154 +127,6 @@ class SettingsPage extends StatelessWidget {
       theme,
       prefs.fontScale.localizedLabel(appL10n),
       tools,
-    );
-  }
-}
-
-class RelaySettingsPage extends StatefulWidget {
-  const RelaySettingsPage({super.key});
-
-  @override
-  State<RelaySettingsPage> createState() => _RelaySettingsPageState();
-}
-
-class _RelaySettingsPageState extends State<RelaySettingsPage> {
-  late final TextEditingController _ctrl;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    final vm = context.read<SettingsViewModel>();
-    _ctrl = TextEditingController(text: vm.relayUrlOverride);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final vm = context.read<SettingsViewModel>();
-    final err = await vm.saveRelayUrl(_ctrl.text);
-    if (!mounted) return;
-    setState(() => _error = err);
-    if (err == null) {
-      await showBayaNotice(
-        context,
-        title: context.l10n.relayUpdated,
-        message: context.l10n.relayUpdatedHint,
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final vm = context.watch<SettingsViewModel>();
-    final colors = context.colors;
-    return _SettingsDetailScaffold(
-      title: context.l10n.relay,
-      child: BayaSurface(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              context.l10n.serverAddress,
-              style: context.typo.sansBody.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              context.l10n.relayReconnectHint,
-              style: context.typo.sansBody.copyWith(
-                color: colors.muted,
-                fontSize: 13,
-                height: 1.45,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              key: const Key('relay-url'),
-              controller: _ctrl,
-              autocorrect: false,
-              keyboardType: TextInputType.url,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _save(),
-              style: context.typo.mono.copyWith(
-                fontSize: 13,
-                color: colors.text,
-              ),
-              decoration: InputDecoration(
-                hintText: 'https://my-relay.example.com',
-                hintStyle: context.typo.mono.copyWith(
-                  color: colors.muted,
-                  fontSize: 12,
-                ),
-                helperText: context.l10n.currentRelay(vm.effectiveRelayUrl),
-                helperMaxLines: 2,
-                helperStyle: context.typo.mono.copyWith(
-                  fontSize: 10,
-                  color: colors.muted,
-                ),
-                errorText: _error,
-                errorMaxLines: 3,
-                errorStyle: context.typo.mono.copyWith(
-                  fontSize: 10,
-                  color: colors.error,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: colors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: colors.accent),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                BayaButton(
-                  buttonKey: const Key('relay-save'),
-                  onPressed: _save,
-                  label: Text(
-                    context.l10n.save,
-                    style: const TextStyle(
-                      fontFamily: kMonoFamily,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  key: const Key('relay-use-default'),
-                  onPressed: () {
-                    _ctrl.text = kDefaultRelayUrl;
-                    _save();
-                  },
-                  child: Text(
-                    context.l10n.useDefaultRelay,
-                    style: const TextStyle(
-                      fontFamily: kMonoFamily,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

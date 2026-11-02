@@ -389,19 +389,23 @@ void main() {
       channel.control.add(
         RoomAnnounced(
           peer: peer.remoteEpk,
-          roomId: 'alpha',
-          name: 'Alpha task',
-          cwd: '/code/alpha',
-          startedAt: 1,
+          room: RoomInfo(
+            roomId: 'alpha',
+            name: 'Alpha task',
+            cwd: '/code/alpha',
+            startedAt: 1,
+          ),
         ),
       );
       channel.control.add(
         RoomAnnounced(
           peer: peer.remoteEpk,
-          roomId: 'beta',
-          name: 'Beta task',
-          cwd: '/code/beta',
-          startedAt: 1,
+          room: RoomInfo(
+            roomId: 'beta',
+            name: 'Beta task',
+            cwd: '/code/beta',
+            startedAt: 1,
+          ),
         ),
       );
       await tester.pumpWidget(
@@ -520,10 +524,12 @@ void main() {
       channel.control.add(
         RoomAnnounced(
           peer: peer.remoteEpk,
-          roomId: 'beta',
-          name: 'Beta task',
-          cwd: '/code/beta',
-          startedAt: 1,
+          room: RoomInfo(
+            roomId: 'beta',
+            name: 'Beta task',
+            cwd: '/code/beta',
+            startedAt: 1,
+          ),
         ),
       );
       await tester.pumpAndSettle();

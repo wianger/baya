@@ -1274,10 +1274,12 @@ void _registerRoomsTests() {
       ch.pushControl(
         const RoomAnnounced(
           peer: 'epkA',
-          roomId: 'r1',
-          name: 'work',
-          cwd: '/Users/x',
-          startedAt: 1000,
+          room: RoomInfo(
+            roomId: 'r1',
+            name: 'work',
+            cwd: '/Users/x',
+            startedAt: 1000,
+          ),
         ),
       );
       await announced.timeout(const Duration(seconds: 2));
@@ -1379,10 +1381,12 @@ void _registerRoomsTests() {
         ch.pushControl(
           const RoomAnnounced(
             peer: 'epk_explicit',
-            roomId: 'robflow',
-            name: 'robflow',
-            cwd: '/work/robflow',
-            startedAt: 1000,
+            room: RoomInfo(
+              roomId: 'robflow',
+              name: 'robflow',
+              cwd: '/work/robflow',
+              startedAt: 1000,
+            ),
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -1445,7 +1449,10 @@ void _registerRoomsTests() {
 
       // Seed via RoomAnnounced (no model yet).
       ch.pushControl(
-        const RoomAnnounced(peer: 'epk_test', roomId: 'r1', startedAt: 1),
+        const RoomAnnounced(
+          peer: 'epk_test',
+          room: RoomInfo(roomId: 'r1', startedAt: 1),
+        ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 5));
       expect(cm.roomsFor('epk_test').single.model, isNull);
@@ -1456,6 +1463,7 @@ void _registerRoomsTests() {
           peer: 'epk_test',
           roomId: 'r1',
           model: 'claude-sonnet-4.5',
+          working: false,
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 5));
@@ -1463,7 +1471,12 @@ void _registerRoomsTests() {
 
       // Updating again (e.g. switched models) overwrites cleanly.
       ch.pushControl(
-        const RoomMetaUpdated(peer: 'epk_test', roomId: 'r1', model: 'gpt-4o'),
+        const RoomMetaUpdated(
+          peer: 'epk_test',
+          roomId: 'r1',
+          model: 'gpt-4o',
+          working: false,
+        ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 5));
       expect(cm.roomsFor('epk_test').single.model, 'gpt-4o');
@@ -1488,6 +1501,7 @@ void _registerRoomsTests() {
             peer: 'epk_unknown',
             roomId: 'r_ghost',
             model: 'claude',
+            working: false,
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 5));
@@ -1513,11 +1527,13 @@ void _registerRoomsTests() {
       ch.pushControl(
         const RoomAnnounced(
           peer: 'epk_test',
-          roomId: 'r1',
-          name: 'work',
-          cwd: '/Users/jacob/projects/app',
-          startedAt: 1000,
-          model: 'claude-sonnet-4.5',
+          room: RoomInfo(
+            roomId: 'r1',
+            name: 'work',
+            cwd: '/Users/jacob/projects/app',
+            startedAt: 1000,
+            model: 'claude-sonnet-4.5',
+          ),
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 5));

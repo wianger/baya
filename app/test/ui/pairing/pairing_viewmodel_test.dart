@@ -103,14 +103,8 @@ class _FakeSecureStorage implements FlutterSecureStorage {
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-/// In-memory Preferences that records the relay a scan adopts.
 class _PrefsForTest extends Preferences {
-  String? _relay;
   _PrefsForTest() : super(_FakeSecureStorage());
-  @override
-  String? get relayUrl => _relay;
-  @override
-  Future<void> setRelayUrl(String? value) async => _relay = value;
 }
 
 class _FakeStorage extends PairingStorage {
@@ -137,7 +131,8 @@ Future<OwnerIdentityBridge> _bootedBridge(PairingStorage storage) async {
 const _qrUri =
     'baya://pair?t=AAAAAAAAAAAAAAAAAAAAAA&'
     'epk=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&'
-    'rm=room1&r=https%3A%2F%2Frelay.example&n=test+session';
+    'rm=room1&e=https%3A%2F%2Fpc.tail1.ts.net%2Fbaya-pair%2Fwsl%2Fdirect&'
+    'n=test+session';
 
 /// A pairing transport factory that runs a fake "Pi" responder which replies
 /// with the given inner message to whatever `pair_request` it receives.
@@ -232,6 +227,10 @@ void main() {
       final bridge = await _bootedBridge(storage);
       final factory = _factoryReplyingWith({
         'type': 'pair_ok',
+        'room_id': 'main',
+        'session_started_at': 1,
+        'harness': {'name': 'Pi coding agent', 'version': '1'},
+        'hostname': 'studio',
         'session_name': 'test session',
       });
       final prefs = _PrefsForTest();
@@ -250,9 +249,9 @@ void main() {
       expect(fakeRepo.adoptedPeer?.remoteEpk, isNotEmpty);
       expect(fakeRepo.disconnectCalls, 1);
       expect(
-        prefs.relayUrl,
-        'https://relay.example',
-        reason: 'the QR relay is adopted, no manual setup',
+        prefs.tailnetDomain,
+        'tail1.ts.net',
+        reason: 'the tailnet completes short names next time',
       );
       expect(storage._saved.first.roomId, 'main');
 
@@ -322,6 +321,10 @@ void main() {
       final bridge = await _bootedBridge(storage);
       final factory = _factoryReplyingWith({
         'type': 'pair_ok',
+        'room_id': 'main',
+        'session_started_at': 1,
+        'harness': {'name': 'Pi coding agent', 'version': '1'},
+        'hostname': 'studio',
         'session_name': 'test session',
       });
       final conn = _SpyConn();

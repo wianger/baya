@@ -10,11 +10,6 @@ updates:
     schedule: { interval: weekly }
     groups:
       app: { patterns: ["*"] }
-  - package-ecosystem: cargo
-    directory: /relay
-    schedule: { interval: weekly }
-    groups:
-      relay: { patterns: ["*"] }
   - package-ecosystem: gradle
     directory: /app/android
     schedule: { interval: monthly }

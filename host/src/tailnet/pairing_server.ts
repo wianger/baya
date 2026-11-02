@@ -80,7 +80,7 @@ export async function tailnetSelf(): Promise<TailnetSelf | null> {
 }
 
 /**
- * Where phones reach this host without a relay —
+ * Where phones reach this host —
  * `https://<name>/baya-pair/<label>/direct` — when `tailscale serve` forwards
  * this host's path to its port (serve picks the longest matching mount).
  */
@@ -118,7 +118,7 @@ export function serveCommand(label: HostLabel = hostLabel()): string {
  *   nothing else can set it. Tailscale authenticates and encrypts the
  *   request, so the host key arrives as safely as through a QR code.
  * - a WebSocket upgrade on `…/direct` is a paired phone connecting with no
- *   relay in between (see [DirectServer]).
+ *   proxy but `tailscale serve` in between (see [DirectServer]).
  */
 export class TailnetPairingServer {
   private server: Server | null = null;

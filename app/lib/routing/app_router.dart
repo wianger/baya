@@ -1,5 +1,4 @@
 import 'package:app/config/dependencies.dart';
-import 'package:app/data/mesh/mesh_sync_service.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
@@ -60,8 +59,7 @@ class _BootState extends ChangeNotifier {
     PairingStorage storage,
     ConnectionManager conn,
     Preferences prefs,
-    OwnerIdentityBridge ownerBridge,
-    MeshSyncService meshSync, {
+    OwnerIdentityBridge ownerBridge, {
     void Function()? installWatcherAfterBoot,
   }) async {
     await prefs.load();
@@ -76,13 +74,6 @@ class _BootState extends ChangeNotifier {
     // ever observe a null _current. The bridge has its own defence
     // for the null case; this is the belt to its suspenders.
     installWatcherAfterBoot?.call();
-
-    // Pull mesh_versions from the relay BEFORE listing peers
-    // so a reinstall on a new device materialises the same membership
-    // the user had on the old one. Failure (offline, relay down, 4xx)
-    // is logged inside the service and we fall back gracefully on the
-    // local cache.
-    await meshSync.pullOnDemand();
 
     final peers = await storage.listPeers();
     _hasPeer = peers.isNotEmpty;
@@ -131,7 +122,6 @@ GoRouter buildRouter(
   ConnectionManager conn,
   Preferences prefs,
   OwnerIdentityBridge ownerBridge,
-  MeshSyncService meshSync,
 ) {
   final boot = _BootState();
 
@@ -139,8 +129,6 @@ GoRouter buildRouter(
   // platform delivers a different keypair (restored on a new device,
   // user wiped and re-installed elsewhere), the bridge wipes peers/rooms
   // and we reset the boot state so the router redirects through /boot.
-  // Reset the mesh version watermark too, otherwise the
-  // first fetch against the new Owner-pk would use a stale `since`.
   //
   // Hook is captured here but only installed AFTER boot() succeeds —
   // see _BootState.load's `installWatcherAfterBoot` parameter. That
@@ -155,9 +143,8 @@ GoRouter buildRouter(
     ownerBridge.startWatching(
       onReset: () async {
         await conn.disconnect();
-        meshSync.resetVersionWatermark();
         boot.onOwnerKeyReplaced();
-        await boot.load(storage, conn, prefs, ownerBridge, meshSync);
+        await boot.load(storage, conn, prefs, ownerBridge);
       },
     );
   }
@@ -167,15 +154,8 @@ GoRouter buildRouter(
     conn,
     prefs,
     ownerBridge,
-    meshSync,
     installWatcherAfterBoot: installWatcher,
   );
-
-  // Start foreground polling. The router doesn't have
-  // direct access to AppLifecycleState; main.dart wires
-  // [MeshSyncService.startPolling/stopPolling] to the lifecycle so
-  // this initial start covers the "app launched in foreground" case.
-  meshSync.startPolling();
 
   return GoRouter(
     initialLocation: '/boot',

@@ -15,15 +15,16 @@ import {
  * Both sides already hold long-term Ed25519 keys and learn each other's public
  * key out of band (the pairing QR carries the host key; the host stores the
  * phone key). Each side converts its Ed25519 key to X25519, and the static
- * Diffie-Hellman result keys ChaCha20-Poly1305. The relay sees only
- * ciphertext, and it cannot forge a frame because it cannot compute the key.
+ * Diffie-Hellman result keys ChaCha20-Poly1305. Anything in between
+ * (`tailscale serve`, a proxy) sees only ciphertext and cannot forge a frame
+ * because it cannot compute the key.
  *
  *   key   = HKDF-SHA256(X25519(self, peer), salt = "baya-e2e-v1",
  *                       info = min(edA, edB) || max(edA, edB))
  *   box   = 0xBE 0x01 || nonce(12) || ChaCha20-Poly1305(ts_ms(8) || json)
  *   aad   = "baya-e2e-v1|" + ("p2h" | "h2p") + "|" + host room id
  *
- * The direction and room in the AAD stop the relay from reflecting a frame
+ * The direction and room in the AAD stop anyone in between from reflecting a frame
  * back to its sender or moving it to another session. The timestamp plus a
  * nonce cache bound replays to a short window.
  */

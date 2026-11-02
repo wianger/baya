@@ -284,30 +284,9 @@ void main() {
         'harness': {'name': 'Pi coding agent', 'version': '0.4.2'},
       });
       expect(msg.hostname, 'Mac do Jacob');
-      expect(msg.harness, isNotNull);
-      expect(msg.harness!.name, 'Pi coding agent');
-      expect(msg.harness!.version, '0.4.2');
+      expect(msg.harness.name, 'Pi coding agent');
+      expect(msg.harness.version, '0.4.2');
     });
-
-    test('PairOk.fromJson tolerates missing harness/hostname (legacy Pi)', () {
-      final msg = PairOk.fromJson({
-        'type': 'pair_ok',
-        'in_reply_to': 'req-2',
-        'session_name': 'remote_pi · main',
-        'session_started_at': 1700000000000,
-      });
-      expect(msg.harness, isNull);
-      expect(msg.hostname, isNull);
-    });
-
-    test(
-      'PiHarness.fromJson tolerates partial blob with default fallbacks',
-      () {
-        final h = PiHarness.fromJson(<String, dynamic>{});
-        expect(h.name, PiHarness.piCodingAgentUnknown.name);
-        expect(h.version, PiHarness.piCodingAgentUnknown.version);
-      },
-    );
 
     test('PairError fixture parses', () {
       final file = File(
@@ -546,6 +525,7 @@ void main() {
     test('session_history user_input event carries the image', () {
       final hist = ServerMessage.fromJson({
         'type': 'session_history',
+        'truncated': false,
         'in_reply_to': 'sync1',
         'session_started_at': 0,
         'eos': true,
@@ -565,7 +545,7 @@ void main() {
       expect(evt.image?.data, 'QUJD');
     });
 
-    test('WireModel capabilities roundtrip and provide safe defaults', () {
+    test('WireModel capabilities roundtrip', () {
       const m = WireModel(
         id: 'claude-opus-4-7',
         name: 'Claude Opus 4.7',
@@ -586,32 +566,6 @@ void main() {
       expect(back.thinkingLevels, m.thinkingLevels);
       expect(back, m);
 
-      final noVision = WireModel.fromJson({
-        'id': 'x',
-        'name': 'X',
-        'provider': 'p',
-        'reasoning': false,
-        'context_window': 1,
-      });
-      expect(noVision.vision, isFalse);
-      expect(noVision.thinkingLevels, isNull);
-      expect(noVision.availableThinkingLevels, isEmpty);
-
-      final legacy = WireModel.fromJson({
-        'id': 'legacy',
-        'name': 'Legacy',
-        'provider': 'pi',
-        'reasoning': true,
-        'context_window': 1,
-      });
-      expect(legacy.availableThinkingLevels, const [
-        ThinkingLevel.off,
-        ThinkingLevel.minimal,
-        ThinkingLevel.low,
-        ThinkingLevel.medium,
-        ThinkingLevel.high,
-        ThinkingLevel.xhigh,
-      ]);
     });
   });
 }

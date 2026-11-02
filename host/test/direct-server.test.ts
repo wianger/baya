@@ -73,7 +73,7 @@ describe("direct server", () => {
       "room1",
       { name: "Review", cwd: "/code" },
       {
-        onLine: (line) => lines.push(line),
+        onEnvelope: (peer, ct) => lines.push(JSON.stringify({ peer, ct })),
       },
     );
     const p = await phone(port);
@@ -93,12 +93,7 @@ describe("direct server", () => {
 
     p.send({ peer: hostKey, room: "room1", ct: "AA==" });
     await vi.waitFor(() => expect(lines).toHaveLength(1));
-    expect(JSON.parse(lines[0]!)).toEqual({
-      peer: p.key,
-      room: "main",
-      to_room: "room1",
-      ct: "AA==",
-    });
+    expect(JSON.parse(lines[0]!)).toEqual({ peer: p.key, ct: "AA==" });
 
     link.send({ peer: p.key, ct: "AQ==" });
     expect(await p.next((f) => f["ct"] === "AQ==")).toEqual({
@@ -121,7 +116,11 @@ describe("direct server", () => {
   test("an unpaired phone may only send envelopes (pairing), never read rooms", async () => {
     const { direct, hostKey, port } = await setup();
     const lines: string[] = [];
-    direct.open("room1", { name: "Review", cwd: "/code" }, { onLine: (line) => lines.push(line) });
+    direct.open(
+      "room1",
+      { name: "Review", cwd: "/code" },
+      { onEnvelope: (peer, ct) => lines.push(JSON.stringify({ peer, ct })) },
+    );
     const p = await phone(port);
     p.send({ type: "subscribe_presence", peers: [hostKey] });
     p.send({ type: "rooms_check", peers: [hostKey] });

@@ -3,17 +3,37 @@ import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { type WebSocket, WebSocketServer } from "ws";
 import { getOrCreateEd25519Keypair, isPairedKey, listPeers } from "../pairing/storage.ts";
-import type { RoomMeta } from "./relay_client.ts";
-import type { RoomHandlers, RoomLink } from "./relay_hub.ts";
+
+/** What a session's room tells phones about itself. */
+export interface RoomMeta {
+  name: string;
+  cwd: string;
+  model?: string;
+}
+
+export interface RoomHandlers {
+  /** A sealed frame `ct` (base64) from the phone with key [peer]. */
+  onEnvelope: (peer: string, ct: string) => void;
+}
+
+export interface RoomLink {
+  /** Whether any phone is connected. */
+  isOpen(): boolean;
+  /** Sends a sealed frame from this room to every socket of [peer]. */
+  send(envelope: { peer: string; ct: string }): void;
+  updateMeta(meta: Record<string, unknown>): void;
+  close(): void;
+}
 
 /**
- * Phones connecting straight to this host (over Tailscale), without a relay.
+ * Where phones connect to this host: WebSockets arriving through
+ * `tailscale serve` at `…/baya-pair/<label>/direct`.
  *
- * It speaks the relay protocol to the phone — Ed25519 hello/challenge/auth,
- * `{peer, room, ct}` envelopes, presence and room pushes — but serves only
- * this host's own rooms, so the app treats it like a relay that knows one
- * computer. Room lists and presence go to paired phones only; an unknown
- * key may only send envelopes, which is how `pair_request` arrives.
+ * A phone proves its Ed25519 key (hello/challenge/auth), then exchanges
+ * sealed `{peer, room, ct}` envelopes with this host's rooms and receives
+ * presence and room pushes. Room lists and presence go to paired phones
+ * only; an unknown key may only send envelopes, which is how `pair_request`
+ * arrives.
  */
 
 const SPKI_ED25519_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
@@ -69,6 +89,11 @@ export class DirectServer {
         void this.pushRooms({ type: "room_ended", room_id: roomId, since_ts: Date.now() });
       },
     };
+  }
+
+  /** Phones connected right now. */
+  get connected(): number {
+    return this.phones.size;
   }
 
   private key(): Promise<string> {
@@ -172,7 +197,7 @@ export class DirectServer {
     const roomId = typeof frame["room"] === "string" ? frame["room"] : "main";
     const room = this.rooms.get(roomId);
     if (typeof ct !== "string" || !room) return;
-    room.handlers.onLine(JSON.stringify({ peer: phone.key, room: "main", to_room: roomId, ct }));
+    room.handlers.onEnvelope(phone.key, ct);
   }
 
   /** This host's reply from [roomId] to every direct socket of [peer]. */

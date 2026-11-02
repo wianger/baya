@@ -29,15 +29,7 @@ import {
   warn,
   yellow,
 } from "./cli/ui.ts";
-import {
-  BAYA_HOME,
-  ensureBayaHome,
-  loadConfig,
-  resolvePublicRelayUrl,
-  resolveRelayUrl,
-  saveConfig,
-  validateRelayUrl,
-} from "./config.ts";
+import { BAYA_HOME, ensureBayaHome, loadConfig } from "./config.ts";
 import { controlCall, readControlInfo } from "./control/client.ts";
 import { ControlServer } from "./control/server.ts";
 import { BayaManager, type SessionStatus } from "./host/manager.ts";
@@ -65,8 +57,11 @@ interface HostStatus {
   pid: number;
   version: string;
   started_at: number;
-  relay: { url: string; connected: boolean };
+  /** Short Tailscale name phones can type, when Tailscale is on. */
   tailnet: string | null;
+  /** Where phones connect, when `tailscale serve` routes to this host. */
+  direct: string | null;
+  phones_connected: number;
   sessions: SessionStatus[];
 }
 
@@ -82,7 +77,7 @@ ${bold("Get started")}
   baya pair [session]     Show a code to pair another phone
 
 ${bold("Sessions")}
-  baya status             Host, relay, phones and sessions at a glance
+  baya status             Host, phones and sessions at a glance
   baya open [folder]      Start a session in a folder  ${dim("--agent pi|codex|deepseek")}
   baya close <session>    Stop and remove a session  ${dim("(id prefix or name)")}
 
@@ -93,9 +88,8 @@ ${bold("Phones")}
 ${bold("Host")}
   baya start | stop | restart
   baya logs [-f]          Show the host log  ${dim("-f follows it")}
-  baya doctor             Check relay, identity, agents and pairing
+  baya doctor             Check Tailscale, identity, agents and pairing
   baya agents             Which agents are installed
-  baya relay [url]        Show or set the relay  ${dim("--public <url> if phones reach it by another name")}
   baya autostart on|off   Start Baya when you log in  ${dim("(no admin rights)")}
 
 ${dim("Add --json to status, devices, agents, pair or doctor for machine-readable output.")}
@@ -116,7 +110,6 @@ const COMMANDS = [
   "logs",
   "doctor",
   "agents",
-  "relay",
   "autostart",
   "help",
   "version",
@@ -174,22 +167,19 @@ async function printStatus(status: HostStatus): Promise<void> {
   const peers = await listPeers();
   out(
     ok(`Host running ${dim(`pid ${status.pid} · up ${duration(Date.now() - status.started_at)}`)}`),
-    status.relay.connected
-      ? ok(`Relay connected ${dim(status.relay.url)}`)
-      : warn(`Relay not connected yet ${dim(status.relay.url)}`),
+    status.direct
+      ? ok(`Phones reach it at ${dim(status.direct)}`)
+      : warn("Phones can't reach this host yet"),
     peers.length > 0
-      ? ok(`${peers.length} phone${peers.length === 1 ? "" : "s"} paired`)
+      ? ok(
+          `${peers.length} phone${peers.length === 1 ? "" : "s"} paired${dim(
+            ` · ${status.phones_connected} connected`,
+          )}`,
+        )
       : warn("No phone paired"),
   );
-  if (status.tailnet) {
-    out(
-      ok(
-        `Tailscale pairing on ${dim(`— in the app, choose "Use Tailscale" and type ${status.tailnet}`)}`,
-      ),
-    );
-  }
-  if (!status.relay.connected) out(hint("baya doctor"));
-  if (peers.length === 0) out(hint("baya pair"));
+  if (!status.direct) out(hint("baya doctor"));
+  else if (peers.length === 0) out(hint("baya pair"));
   out("", bold("Sessions"));
   if (status.sessions.length === 0) out(dim("  none"), hint("baya open <folder>"));
   else out(...sessionRows(status.sessions));
@@ -247,13 +237,11 @@ async function up(args: ParsedArgs): Promise<void> {
   if (json(args)) return printJson(status);
   if (!already) out(ok(`Baya started in ${dim(process.cwd())}`), "");
   await printStatus(status);
-  if ((await listPeers()).length === 0) {
+  if (status.direct && (await listPeers()).length === 0) {
     out(
       "",
       bold("Pair your phone"),
-      status.tailnet
-        ? `In the Baya app, choose "Use Tailscale" and type ${bold(status.tailnet)}, or scan:`
-        : "Open the Baya app and scan this code:",
+      `In the Baya app, choose "Use Tailscale" and type ${bold(status.tailnet ?? "")}, or scan:`,
     );
     await printPairingCode(await controlCall<PairInvite>("pair"));
   }
@@ -286,17 +274,23 @@ async function runForeground(args: ParsedArgs): Promise<void> {
   control = new ControlServer(manager, () => void shutdown());
   const info = await control.start();
   out(`[baya] Host ${info.pid} online; state ${BAYA_HOME}`);
-  await startTailnetPairing(manager, control);
-  if (process.stdout.isTTY && (await listPeers()).length === 0) {
+  await startTailnet(manager, control);
+  if (control.direct && process.stdout.isTTY && (await listPeers()).length === 0) {
     out("", "No phone is paired yet. Scan this code with the Baya app:");
     await printPairingCode(manager.pair());
   }
 }
 
-/** Lets phones on the same Tailscale account pair by typing this name. */
-async function startTailnetPairing(manager: BayaManager, control: ControlServer): Promise<void> {
+/**
+ * Opens this host to phones on the owner's Tailscale account: they connect
+ * through `tailscale serve`, and pair by typing this computer's name.
+ */
+async function startTailnet(manager: BayaManager, control: ControlServer): Promise<void> {
   const self = await tailnetSelf();
-  if (!self) return;
+  if (!self) {
+    out("[baya] Tailscale is not running; phones cannot reach this host. See: baya doctor");
+    return;
+  }
   const label = hostLabel();
   const identity = await getOrCreateEd25519Keypair();
   const server = new TailnetPairingServer(
@@ -309,16 +303,21 @@ async function startTailnetPairing(manager: BayaManager, control: ControlServer)
   );
   try {
     await server.start(self);
-    control.tailnetName = self.name;
-    const direct = await directEndpoint(self, label);
-    out(
-      direct
-        ? `[baya] Direct over Tailscale at ${direct}; phones type "${self.name}"`
-        : `[baya] Tailscale needs one route to reach this host: ${serveCommand(label)}`,
-    );
   } catch (error) {
-    out(`[baya] Tailscale pairing unavailable: ${error instanceof Error ? error.message : error}`);
+    out(`[baya] Tailscale endpoint unavailable: ${error instanceof Error ? error.message : error}`);
+    return;
   }
+  control.tailnetName = self.name;
+  control.direct = await directEndpoint(self, label);
+  out(
+    control.direct
+      ? `[baya] Phones reach this host at ${control.direct}; to pair, they type "${self.name}"`
+      : `[baya] Phones need one route to reach this host: ${serveCommand(label)}`,
+  );
+  // Picks up a serve route added while running.
+  setInterval(async () => {
+    control.direct = await directEndpoint(self, label);
+  }, 30_000).unref();
 }
 
 // ── sessions ────────────────────────────────────────────────────────────────
@@ -375,17 +374,18 @@ async function pair(args: ParsedArgs): Promise<void> {
   await printPairingCode(invite);
 }
 
-/** A pairing code naming this host itself when Tailscale reaches it, else the relay. */
+/** A pairing code naming where the phone reaches this host. */
 async function pairingUri(invite: PairInvite): Promise<string> {
   const identity = await getOrCreateEd25519Keypair();
   const self = await tailnetSelf();
-  const direct = self ? await directEndpoint(self) : null;
+  const endpoint = self ? await directEndpoint(self) : null;
+  if (!endpoint) throw new Error("Phones can't reach this host yet. Run `baya doctor`.");
   return buildQRUri({
     token: invite.token,
     publicKey: identity.publicKey,
     sessionName: invite.session_name,
     roomId: invite.room_id,
-    relayUrl: direct ?? resolvePublicRelayUrl().url,
+    endpoint,
   });
 }
 
@@ -447,34 +447,25 @@ async function logs(args: ParsedArgs): Promise<void> {
   await new Promise(() => {});
 }
 
-async function relayReachable(url: string): Promise<boolean> {
-  try {
-    const response = await fetch(new URL("/health", url), { signal: AbortSignal.timeout(4_000) });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
 async function doctor(args: ParsedArgs): Promise<void> {
-  const relay = resolveRelayUrl();
-  const [agentList, peers, host, reachable, identityError] = await Promise.all([
+  const [agentList, peers, host, self, identityError] = await Promise.all([
     availableAgents(),
     listPeers(),
     hostStatus(),
-    relayReachable(relay.url),
+    tailnetSelf(),
     getOrCreateEd25519Keypair().then(
       () => null,
       (error: unknown) => (error instanceof Error ? error.message : String(error)),
     ),
   ]);
+  const direct = self ? await directEndpoint(self) : null;
   if (json(args)) {
     return printJson({
       version: packageVersion(),
       hostname: hostname(),
       node: process.version,
       state_directory: BAYA_HOME,
-      relay: { ...relay, reachable, connected: host?.relay.connected ?? false },
+      tailscale: self ? { name: self.name, direct } : null,
       identity: identityError ? { ok: false, error: identityError } : { ok: true },
       host: host ? { online: true, pid: host.pid } : { online: false },
       paired_devices: peers.length,
@@ -485,26 +476,21 @@ async function doctor(args: ParsedArgs): Promise<void> {
     dim(`Baya ${packageVersion()} · Node ${process.version} · ${hostname()} · ${BAYA_HOME}`),
     "",
     identityError ? fail(`Identity unreadable: ${identityError}`) : ok("Identity ready"),
-    reachable
-      ? ok(`Relay reachable ${dim(relay.url)}`)
-      : fail(`Relay unreachable ${dim(relay.url)}`),
   ];
-  if (!reachable)
-    lines.push(hint("check the URL or your network; change it with: baya relay <url>"));
   lines.push(host ? ok(`Host running ${dim(`pid ${host.pid}`)}`) : warn("Host not running"));
   if (!host) lines.push(hint("baya"));
-  else if (!host.relay.connected) {
-    lines.push(warn("Host is not connected to the relay yet"), hint("baya logs"));
-  }
-  const self = await tailnetSelf();
-  const direct = self ? await directEndpoint(self) : null;
   if (direct) {
-    lines.push(ok(`Direct over Tailscale ${dim(direct)}`));
+    lines.push(ok(`Phones reach it at ${dim(direct)}`));
   } else if (self) {
     const where = hostLabel() === "wsl" ? "on Windows" : "on this computer";
     lines.push(
-      warn("Tailscale is on, but phones can't reach this host directly"),
+      fail("Tailscale is on, but does not route to this host"),
       hint(`${where}, once: ${serveCommand()}`),
+    );
+  } else {
+    lines.push(
+      fail("Tailscale is not running"),
+      hint("phones reach Baya over Tailscale: https://tailscale.com/download"),
     );
   }
   lines.push(peers.length ? ok(`${peers.length} phone(s) paired`) : warn("No phone paired"));
@@ -537,27 +523,6 @@ async function agents(args: ParsedArgs): Promise<void> {
       ]),
     ),
   );
-}
-
-async function relayCommand(args: ParsedArgs): Promise<void> {
-  const value = args.positionals[0];
-  const publicValue = stringFlag(args, "public");
-  if (!value && !publicValue) {
-    const relay = resolveRelayUrl();
-    const shared = resolvePublicRelayUrl();
-    out(`${relay.url} ${dim(`(${relay.source})`)}`);
-    if (shared.url !== relay.url) out(dim(`phones use ${shared.url} (${shared.source})`));
-    return;
-  }
-  const url = value ? validateRelayUrl(value) : undefined;
-  const publicUrl = publicValue ? validateRelayUrl(publicValue) : undefined;
-  if (url && !(await relayReachable(url))) {
-    out(warn(`${url} did not answer /health from this computer; saving anyway.`));
-  }
-  saveConfig({ ...(url ? { relay: url } : {}), ...(publicUrl ? { publicRelay: publicUrl } : {}) });
-  if (url) out(ok(`Host connects to ${url}`));
-  if (publicUrl) out(ok(`Phones use ${publicUrl}`));
-  if (await hostStatus()) out(hint("baya restart  (phones adopt it from the next pairing code)"));
 }
 
 function autostart(args: ParsedArgs): void {
@@ -617,8 +582,6 @@ async function main(): Promise<void> {
       return doctor(args);
     case "agents":
       return agents(args);
-    case "relay":
-      return relayCommand(args);
     case "autostart":
       return autostart(args);
     case "help":

@@ -4,7 +4,7 @@ import type { ClientMessage, ServerMessage } from "../protocol/types.ts";
 import { roomIdFor, sessionKeyForId } from "../rooms.ts";
 import { packageVersion } from "../runtime/version.ts";
 import { type BayaSessionRecord, listSessions } from "../session/registry.ts";
-import { OwnerRelayHost } from "../transport/owner_host.ts";
+import { OwnerHost } from "../transport/owner_host.ts";
 import type { PeerChannel } from "../transport/peer_channel.ts";
 import { handleWorkspaceRequest, type OpenWorkspace } from "../workspace/service.ts";
 
@@ -37,7 +37,7 @@ export function sessionInventoryResponse(
 export class ManagedSessionHost {
   readonly roomId: string;
   readonly startedAt = Date.now();
-  private readonly relay: OwnerRelayHost;
+  private readonly room: OwnerHost;
   private readonly pairing = new PairingService();
   private stopping = false;
   private busy = false;
@@ -51,37 +51,36 @@ export class ManagedSessionHost {
     this.adapter = adapter;
     this.openWorkspace = openWorkspace;
     this.roomId = roomIdForBayaSession(record);
-    this.relay = new OwnerRelayHost({
+    this.room = new OwnerHost({
       roomId: this.roomId,
       roomMeta: { name: record.name, cwd: record.cwd },
       onMessage: (sender, message) => this.onMessage(sender, message),
-      onFatal: (error) => process.stderr.write(`[baya] relay: ${error.message}\n`),
     });
   }
 
   async start(): Promise<void> {
     await this.adapter.start();
-    this.relay.start();
+    this.room.start();
   }
 
   stop(): void {
     if (this.stopping) return;
     this.stopping = true;
-    this.relay.stop();
+    this.room.stop();
     this.adapter.close();
   }
 
   broadcast(message: ServerMessage): void {
-    this.relay.broadcast(message);
+    this.room.broadcast(message);
   }
 
   setBusy(busy: boolean): void {
     this.busy = busy;
-    this.relay.updateMeta({ working: busy });
+    this.room.updateMeta({ working: busy });
   }
 
   setModel(model: string): void {
-    this.relay.updateMeta({ model });
+    this.room.updateMeta({ model });
   }
 
   get isBusy(): boolean {

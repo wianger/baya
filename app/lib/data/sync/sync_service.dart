@@ -707,7 +707,6 @@ class SyncService extends Service {
           eos: true,
           truncated: msg.truncated,
           streaming: msg.streaming,
-          hasStreamingSnapshot: msg.hasStreamingSnapshot,
         );
         _historyRequestId = null;
         _historyParts.clear();
@@ -716,7 +715,7 @@ class SyncService extends Service {
         // Restore the cursor synchronously before any newer delta arrives.
         // The history DB write was already queued, so finishing this stream
         // later appends exactly one response after the completed transcript.
-        if (history.hasStreamingSnapshot) {
+        {
           _discardStreamingState();
           final cursor = history.streaming;
           if (cursor != null) {

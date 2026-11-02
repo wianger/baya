@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:app/l10n/l10n.dart';
 
 import 'package:app/data/actions/actions_repository.dart';
-import 'package:app/data/mesh/mesh_sync_service.dart';
 import 'package:app/data/sync/sync_service.dart';
 
 import 'package:app/data/preferences/preferences.dart';
@@ -32,7 +31,6 @@ class HomeViewModel extends ViewModel<HomeState> {
   final SyncService? _sync;
   final Preferences _prefs;
   final ConnectionManager _conn;
-  final MeshSyncService? _meshSync;
   final IActionsRepository? _actions;
   StreamSubscription<Map<String, PresenceState>>? _presenceSub;
   StreamSubscription<Map<String, List<RoomInfo>>>? _roomsSub;
@@ -51,7 +49,6 @@ class HomeViewModel extends ViewModel<HomeState> {
     this._prefs,
     this._conn, [
     this._sync,
-    this._meshSync,
     this._actions,
   ]) : super(const HomeLoading()) {
     _relayConnected = _conn.status is StatusOnline;
@@ -196,9 +193,7 @@ class HomeViewModel extends ViewModel<HomeState> {
 
   /// Remove a paired computer and its phone-local session cache.
   ///
-  /// Device management lives in the sidebar. The mesh publish mirrors the
-  /// revoke flow used by Settings so a deleted peer cannot be rehydrated from
-  /// a stale membership row on the relay.
+  /// Device management lives in the sidebar.
   Future<void> deleteDevice(String epk) async {
     final key = toStandardB64(epk);
     final target = devices[key];
@@ -234,13 +229,9 @@ class HomeViewModel extends ViewModel<HomeState> {
       }
     }
     await _storage.deleteRooms(target.remoteEpk);
-    await _storage.deletePeerSilent(target.remoteEpk);
+    await _storage.deletePeer(target.remoteEpk);
 
     final remaining = await _storage.listPeers();
-    if (_meshSync != null) {
-      // ignore: unawaited_futures
-      _meshSync.publish(allowEmpty: remaining.isEmpty);
-    }
     _conn.subscribeToPeers(remaining.map((peer) => peer.remoteEpk).toList());
     if (wasActive) {
       await _conn.disconnect();
@@ -254,7 +245,6 @@ class HomeViewModel extends ViewModel<HomeState> {
     if (remaining.isEmpty) {
       await _prefs.setOnboardingCompleted(false);
     }
-    _storage.notifyPeersChanged();
   }
 
   /// Workspace id → the secondary line shown in the workspace picker.

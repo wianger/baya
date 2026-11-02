@@ -387,7 +387,10 @@ void main() {
 
     // Room comes online idle (no local turn started in THIS chat).
     ch.pushControl(
-      const RoomAnnounced(peer: 'epk_chat', roomId: 'main', startedAt: 1),
+      const RoomAnnounced(
+        peer: 'epk_chat',
+        room: RoomInfo(roomId: 'main', startedAt: 1),
+      ),
     );
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(vm.isWorking, isFalse);
@@ -395,13 +398,7 @@ void main() {
     // The relay broadcasts meta.working=true for this room (turn_start) —
     // no local send/echo, purely the per-room signal that also drives Home.
     ch.pushControl(
-      const RoomMetaUpdated(
-        peer: 'epk_chat',
-        roomId: 'main',
-        working: true,
-        hasModel: false,
-        hasThinking: false,
-      ),
+      const RoomMetaUpdated(peer: 'epk_chat', roomId: 'main', working: true),
     );
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(
@@ -442,13 +439,7 @@ void main() {
 
     // A later turn_end broadcast remains idempotent.
     ch.pushControl(
-      const RoomMetaUpdated(
-        peer: 'epk_chat',
-        roomId: 'main',
-        working: false,
-        hasModel: false,
-        hasThinking: false,
-      ),
+      const RoomMetaUpdated(peer: 'epk_chat', roomId: 'main', working: false),
     );
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(vm.isWorking, isFalse);

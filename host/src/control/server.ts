@@ -2,10 +2,10 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { dirname, join } from "node:path";
-import { BAYA_HOME, resolveRelayUrl } from "../config.ts";
+import { BAYA_HOME } from "../config.ts";
 import type { BayaManager } from "../host/manager.ts";
 import { packageVersion } from "../runtime/version.ts";
-import { relayHub } from "../transport/relay_hub.ts";
+import { directServer } from "../transport/direct_server.ts";
 import type { ControlInfo, ControlRequest, ControlResponse } from "./protocol.ts";
 
 export function controlInfoPath(): string {
@@ -16,8 +16,10 @@ export class ControlServer {
   private server: Server | null = null;
   private readonly token = randomBytes(32).toString("base64url");
   private readonly startedAt = Date.now();
-  /** Short tailnet name phones can type to pair, when Tailscale pairing runs. */
+  /** Short tailnet name phones can type to pair, when Tailscale is on. */
   tailnetName: string | null = null;
+  /** Where phones connect, when `tailscale serve` routes to this host. */
+  direct: string | null = null;
 
   private readonly manager: BayaManager;
   private readonly stopProcess: () => void;
@@ -121,8 +123,9 @@ export class ControlServer {
           pid: process.pid,
           version: packageVersion(),
           started_at: this.startedAt,
-          relay: { url: resolveRelayUrl().url, connected: relayHub().connected },
           tailnet: this.tailnetName,
+          direct: this.direct,
+          phones_connected: directServer().connected,
           sessions: this.manager.list(),
         };
       case "list":

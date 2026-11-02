@@ -22,7 +22,7 @@ export type QueuedMessageItem = {
 // mirrors the SDK's `pi --mode rpc` extension_ui_request/response contract
 // (RpcExtensionUIRequest/Response in dist/modes/rpc/rpc-types.d.ts) so the
 // mobile app and the Cockpit share one interactive-UI vocabulary. Casing is
-// snake_case to match the rest of the relay protocol (mirror is semantic, not
+// snake_case to match the rest of the wire protocol (mirror is semantic, not
 // literal). pi-ask's richer schema (multi/preview/notes) rides in an optional
 // `ask` envelope; strict clients ignore it. Inert when pi-ask is absent.
 
@@ -290,22 +290,10 @@ export type ServerMessage =
       session_name: string;
       session_started_at: number;
       room_id: string;
-      /**
-       * Plan/27 Wave A: identifies the host coding agent driving this
-       * pi-extension instance. `name` is hardcoded to "Pi coding agent"
-       * today; future Pi forks (Claude Code, OpenCode) populate their own
-       * here. `version` is the pi-extension `package.json` version.
-       * Optional in the wire schema so app-side parsing tolerates older
-       * Pi builds that predate this field — every new pairing emits both.
-       */
-      harness?: { name: string; version: string };
-      /**
-       * Plan/27 Wave A: `os.hostname()` of the machine the Pi runs on.
-       * App displays it in the device list so the user can distinguish
-       * two paired PCs that happen to share a nickname or sit in the
-       * same project folder.
-       */
-      hostname?: string;
+      /** The agent driving this session and its version. */
+      harness: { name: string; version: string };
+      /** `os.hostname()` of this computer, the default name in the app. */
+      hostname: string;
     }
   | { type: "pair_error"; in_reply_to: string; code: PairErrorCode; message: string }
   | { type: "user_input"; id: string; text: string; streaming_behavior?: StreamingBehavior }
@@ -343,8 +331,7 @@ export type ServerMessage =
       in_reply_to: string;
       session_started_at: number;
       events: SessionHistoryEvent[];
-      /** Only on the final fragment. Null explicitly clears an old cursor;
-       * absence preserves legacy Pi streaming behavior. */
+      /** On the final fragment (`eos`): the reply still streaming, or null. */
       streaming?: { in_reply_to: string; text: string } | null;
       eos: boolean;
       truncated: boolean;
@@ -370,12 +357,8 @@ export type ServerMessage =
   | {
       type: "commands_list";
       in_reply_to: string;
-      /**
-       * Typed actions accepted by this adapter. Optional for compatibility
-       * with hosts released before capability discovery; omission means the
-       * client must use its legacy command set.
-       */
-      supported_actions?: ActionName[];
+      /** Typed actions accepted by this adapter. */
+      supported_actions: ActionName[];
       commands: Array<{
         name: string;
         description?: string;
@@ -448,9 +431,9 @@ export interface WireModel {
    *  in the SDK). Useful so the app can decide whether the thinking
    *  segmented control should be enabled when this model is selected. */
   reasoning: boolean;
-  /** Canonical effort levels supported by this model, in SDK order.
-   * Omitted by older hosts; an empty array means no effort selector. */
-  thinking_levels?: ThinkingLevel[];
+  /** Canonical effort levels supported by this model, in SDK order; empty
+   * means no effort selector. */
+  thinking_levels: ThinkingLevel[];
   /** Context window in tokens, for display in the picker subtitle. */
   context_window: number;
   /** Plan/30: true when the model accepts image input (SDK `Model.input`

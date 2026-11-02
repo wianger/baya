@@ -26,7 +26,7 @@ class Preferences extends ChangeNotifier {
   Map<String, String> _workspacesByDevice = {};
   Future<void> _navigationWrites = Future.value();
   String? _selectedPeerEpk;
-  String? _relayUrl;
+  String? _tailnetDomain;
   bool _onboardingCompleted = false;
   ThemeMode _themeMode = ThemeMode.system;
   AppFontScale _fontScale = AppFontScale.standard;
@@ -42,7 +42,7 @@ class Preferences extends ChangeNotifier {
 
   static const _kHideToolCallsKey = 'prefs.hide_tool_calls';
   static const _kSelectedPeerEpkKey = 'prefs.selected_peer_epk';
-  static const _kRelayUrlKey = 'prefs.relay_url';
+  static const _kTailnetDomainKey = 'prefs.tailnet_domain';
   static const _kOnboardingCompletedKey = 'prefs.onboarding_completed';
   static const _kThemeModeKey = 'prefs.theme_mode';
   static const _kFontScaleKey = 'prefs.font_scale';
@@ -83,10 +83,9 @@ class Preferences extends ChangeNotifier {
   /// Composite raw value (epk[:room]). Tests can inspect.
   String? get selectedRoomRaw => _selectedPeerEpk;
 
-  /// User-configured relay URL override. `null` = use the public default
-  /// (`kDefaultRelayUrl` in `relay_config.dart`). Set via Settings or
-  /// during onboarding step 2 (custom relay).
-  String? get relayUrl => _relayUrl;
+  /// The owner's Tailscale domain (e.g. `tail1234.ts.net`), learned from the
+  /// last pairing; completes the short computer names typed when pairing.
+  String? get tailnetDomain => _tailnetDomain;
 
   /// `true` after the user completed the 3-step onboarding flow at least
   /// once. Drives `/boot` redirect: false → `/onboarding`, true → `/home`.
@@ -113,17 +112,16 @@ class Preferences extends ChangeNotifier {
       changed = true;
     }
 
+    final tailnet = await _store.read(key: _kTailnetDomainKey);
+    if (tailnet != _tailnetDomain) {
+      _tailnetDomain = tailnet;
+      changed = true;
+    }
+
     final selected = await _store.read(key: _kSelectedPeerEpkKey);
     final cleaned = (selected != null && selected.isNotEmpty) ? selected : null;
     if (cleaned != _selectedPeerEpk) {
       _selectedPeerEpk = cleaned;
-      changed = true;
-    }
-
-    final relay = await _store.read(key: _kRelayUrlKey);
-    final relayCleaned = (relay != null && relay.isNotEmpty) ? relay : null;
-    if (relayCleaned != _relayUrl) {
-      _relayUrl = relayCleaned;
       changed = true;
     }
 
@@ -553,6 +551,13 @@ class Preferences extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setTailnetDomain(String value) async {
+    if (value == _tailnetDomain) return;
+    _tailnetDomain = value;
+    await _store.write(key: _kTailnetDomainKey, value: value);
+    notifyListeners();
+  }
+
   Future<void> setSelectedPeerEpk(String? value) async {
     final cleaned = (value != null && value.isNotEmpty) ? value : null;
     if (cleaned == _selectedPeerEpk) return;
@@ -574,21 +579,6 @@ class Preferences extends ChangeNotifier {
     }
     final composite = (roomId == null || roomId.isEmpty) ? epk : '$epk:$roomId';
     return setSelectedPeerEpk(composite);
-  }
-
-  /// Set the user-configured relay URL. `null` or empty clears the
-  /// override so the app falls back to `kDefaultRelayUrl`. Caller should
-  /// validate via `isValidRelayUrl` first when [value] is non-null.
-  Future<void> setRelayUrl(String? value) async {
-    final cleaned = (value != null && value.isNotEmpty) ? value : null;
-    if (cleaned == _relayUrl) return;
-    _relayUrl = cleaned;
-    if (cleaned == null) {
-      await _store.delete(key: _kRelayUrlKey);
-    } else {
-      await _store.write(key: _kRelayUrlKey, value: cleaned);
-    }
-    notifyListeners();
   }
 
   Future<void> setOnboardingCompleted(bool value) async {

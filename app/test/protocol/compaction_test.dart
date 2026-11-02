@@ -48,6 +48,7 @@ void main() {
     test('a history batch mixing compaction with other events parses', () {
       final h = ServerMessage.fromJson({
         'type': 'session_history',
+        'truncated': false,
         'in_reply_to': 'sync1',
         'session_started_at': 0,
         'eos': true,

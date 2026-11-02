@@ -11,6 +11,8 @@ void main() {
     test('parses room_id from pair_ok payload', () {
       final j = {
         'type': 'pair_ok',
+        'harness': {'name': 'Pi coding agent', 'version': '1'},
+        'hostname': 'studio',
         'in_reply_to': 'cli_1',
         'session_name': 'Pi',
         'session_started_at': 1700000000000,
@@ -20,17 +22,6 @@ void main() {
       expect(m.roomId, 'cwd-uuid-1234');
       expect(m.sessionName, 'Pi');
       expect(m.sessionStartedAt, 1700000000000);
-    });
-
-    test('legacy pair_ok (no room_id field) falls back to "main"', () {
-      final j = {
-        'type': 'pair_ok',
-        'in_reply_to': 'cli_1',
-        'session_name': 'Pi',
-        'session_started_at': 1700000000000,
-      };
-      final m = PairOk.fromJson(j);
-      expect(m.roomId, 'main');
     });
   });
 

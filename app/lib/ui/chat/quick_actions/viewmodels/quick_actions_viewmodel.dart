@@ -63,7 +63,7 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
     final previousThinking = state.currentThinking;
     final nextThinking =
         previousThinking != null &&
-            model.availableThinkingLevels.contains(previousThinking)
+            model.thinkingLevels.contains(previousThinking)
         ? previousThinking
         : null;
     _emitIfAlive(
@@ -148,7 +148,7 @@ class QuickActionsViewModel extends ViewModel<QuickActionsState> {
       if (current != null) {
         final nextThinking =
             state.currentThinking != null &&
-                current.availableThinkingLevels.contains(state.currentThinking)
+                current.thinkingLevels.contains(state.currentThinking)
             ? state.currentThinking
             : null;
         _emitIfAlive(

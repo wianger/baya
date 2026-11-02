@@ -35,13 +35,12 @@ class BayaApp extends StatefulWidget {
   State<BayaApp> createState() => _BayaAppState();
 }
 
-class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
+class _BayaAppState extends State<BayaApp> {
   late final _router = buildRouter(
     services.storage,
     services.connection,
     services.prefs,
     services.ownerBridge,
-    services.meshSync,
   );
 
   StreamSubscription<Uri>? _links;
@@ -49,7 +48,6 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     // Includes the link that cold-started the app.
     _links = AppLinks().uriLinkStream.listen(_openLink);
   }
@@ -73,30 +71,8 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     _links?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
     disposeDependencies();
     super.dispose();
-  }
-
-  /// Keep the mesh poll timer aligned with the app's
-  /// foreground lifecycle. Polling runs ONLY while resumed; in
-  /// inactive/paused/hidden/detached we cancel so we don't drain the
-  /// battery (and we'll resync via `pullOnDemand` on the next resume +
-  /// boot path).
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final meshSync = services.meshSync;
-    switch (state) {
-      case AppLifecycleState.resumed:
-        meshSync.startPolling();
-        // ignore: unawaited_futures
-        meshSync.pullOnDemand();
-      case AppLifecycleState.inactive:
-      case AppLifecycleState.paused:
-      case AppLifecycleState.hidden:
-      case AppLifecycleState.detached:
-        meshSync.stopPolling();
-    }
   }
 
   @override

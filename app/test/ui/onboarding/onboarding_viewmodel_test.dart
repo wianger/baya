@@ -57,7 +57,7 @@ Future<({Preferences prefs, OnboardingViewModel vm})> _setup() async {
 void main() {
   group('OnboardingViewModel', () {
     test('starts on welcome and moves to pairing', () async {
-      final (:prefs, :vm) = await _setup();
+      final (prefs: _, :vm) = await _setup();
       expect(vm.state, const OnboardingInProgress());
       vm.next();
       expect(vm.state, const OnboardingInProgress(step: OnboardingStep.pair));
@@ -65,11 +65,6 @@ void main() {
       expect(vm.state, const OnboardingInProgress(step: OnboardingStep.pair));
       vm.back();
       expect(vm.state, const OnboardingInProgress());
-      expect(
-        prefs.relayUrl,
-        isNull,
-        reason: 'onboarding never asks for a relay',
-      );
     });
 
     test('pairing or skipping completes onboarding', () async {

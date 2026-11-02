@@ -33,19 +33,23 @@ void main() {
       channel.control.add(
         RoomAnnounced(
           peer: peer.remoteEpk,
-          roomId: 'alpha',
-          name: 'Alpha task',
-          cwd: '/code/project',
-          startedAt: 1,
+          room: RoomInfo(
+            roomId: 'alpha',
+            name: 'Alpha task',
+            cwd: '/code/project',
+            startedAt: 1,
+          ),
         ),
       );
       channel.control.add(
         RoomAnnounced(
           peer: peer.remoteEpk,
-          roomId: 'beta',
-          name: 'Beta task',
-          cwd: '/code/project',
-          startedAt: 2,
+          room: RoomInfo(
+            roomId: 'beta',
+            name: 'Beta task',
+            cwd: '/code/project',
+            startedAt: 2,
+          ),
         ),
       );
 
@@ -153,19 +157,23 @@ void main() {
       channel.control.add(
         RoomAnnounced(
           peer: peer.remoteEpk,
-          roomId: 'alpha',
-          name: 'Previous task',
-          cwd: '/code/project',
-          startedAt: 1,
+          room: RoomInfo(
+            roomId: 'alpha',
+            name: 'Previous task',
+            cwd: '/code/project',
+            startedAt: 1,
+          ),
         ),
       );
       channel.control.add(
         RoomAnnounced(
           peer: peer.remoteEpk,
-          roomId: 'beta',
-          name: 'Latest task',
-          cwd: '/code/project',
-          startedAt: 2,
+          room: RoomInfo(
+            roomId: 'beta',
+            name: 'Latest task',
+            cwd: '/code/project',
+            startedAt: 2,
+          ),
         ),
       );
       final router = GoRouter(

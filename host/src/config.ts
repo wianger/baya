@@ -1,21 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const DEFAULT_RELAY_URL = "https://wiang-1.tail171f4a.ts.net";
 export const BAYA_HOME = process.env["BAYA_HOME"]?.trim() || join(homedir(), ".baya");
 
 export interface BayaConfig {
-  /** Where this host connects (may be a local address like 127.0.0.1). */
-  relay?: string;
-  /** Where phones connect; written into pairing codes. Defaults to `relay`. */
-  publicRelay?: string;
   defaultAgent?: "pi" | "codex" | "deepseek";
-}
-
-export interface ResolvedRelay {
-  url: string;
-  source: "env" | "config" | "default";
 }
 
 function readConfig(path: string): BayaConfig | null {
@@ -25,12 +15,6 @@ function readConfig(path: string): BayaConfig | null {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const record = value as Record<string, unknown>;
     const cfg: BayaConfig = {};
-    if (typeof record["relay"] === "string" && record["relay"].trim()) {
-      cfg.relay = record["relay"].trim();
-    }
-    if (typeof record["publicRelay"] === "string" && record["publicRelay"].trim()) {
-      cfg.publicRelay = record["publicRelay"].trim();
-    }
     const agent = record["defaultAgent"];
     if (agent === "pi" || agent === "codex" || agent === "deepseek") {
       cfg.defaultAgent = agent;
@@ -47,65 +31,6 @@ export function configPath(): string {
 
 export function loadConfig(): BayaConfig {
   return readConfig(configPath()) ?? {};
-}
-
-export function saveConfig(patch: Partial<BayaConfig>): BayaConfig {
-  const next = { ...loadConfig(), ...patch };
-  mkdirSync(BAYA_HOME, { recursive: true, mode: 0o700 });
-  writeFileSync(configPath(), `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 });
-  return next;
-}
-
-export function resolveRelayUrl(): ResolvedRelay {
-  const override = process.env["BAYA_RELAY"]?.trim();
-  if (override) return { url: override, source: "env" };
-
-  const current = loadConfig().relay;
-  if (current) return { url: current, source: "config" };
-
-  return { url: DEFAULT_RELAY_URL, source: "default" };
-}
-
-/**
- * The relay address phones should use. It differs from [resolveRelayUrl]
- * when the relay runs on this machine: the host dials 127.0.0.1 while
- * phones reach it through a public or tailnet name.
- */
-export function resolvePublicRelayUrl(): ResolvedRelay {
-  const override = process.env["BAYA_PUBLIC_RELAY"]?.trim();
-  if (override) return { url: override, source: "env" };
-  const configured = loadConfig().publicRelay;
-  if (configured) return { url: configured, source: "config" };
-  return resolveRelayUrl();
-}
-
-export function toWebSocketUrl(url: string): string {
-  const parsed = new URL(url);
-  if (parsed.protocol === "http:") parsed.protocol = "ws:";
-  else if (parsed.protocol === "https:") parsed.protocol = "wss:";
-  else if (parsed.protocol !== "ws:" && parsed.protocol !== "wss:") {
-    throw new Error("Relay URL must use http, https, ws, or wss.");
-  }
-  parsed.hash = "";
-  parsed.search = "";
-  return parsed.toString().replace(/\/$/, "");
-}
-
-export function validateRelayUrl(input: string): string {
-  const trimmed = input.trim();
-  if (!trimmed) throw new Error("Relay URL cannot be empty.");
-  const parsed = new URL(trimmed);
-  if (!["http:", "https:", "ws:", "wss:"].includes(parsed.protocol)) {
-    throw new Error("Relay URL must use http, https, ws, or wss.");
-  }
-  if (!parsed.hostname || parsed.username || parsed.password) {
-    throw new Error("Relay URL must have a host and no embedded credentials.");
-  }
-  parsed.protocol =
-    parsed.protocol === "ws:" ? "http:" : parsed.protocol === "wss:" ? "https:" : parsed.protocol;
-  parsed.hash = "";
-  parsed.search = "";
-  return parsed.toString().replace(/\/$/, "");
 }
 
 export function ensureBayaHome(): string {

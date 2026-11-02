@@ -1,5 +1,4 @@
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/relay_config.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/tailnet_pairing.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -98,12 +97,12 @@ class _TailnetPairBodyState extends State<_TailnetPairBody> {
     }
   }
 
-  /// The relay usually lives on the tailnet; its domain completes short names.
+  /// The tailnet of earlier pairings completes short names.
   String? _tailnetSuffix() {
     try {
-      return tailnetSuffixOf(resolveRelayUrl(context.read<Preferences>()));
+      return context.read<Preferences>().tailnetDomain;
     } on ProviderNotFoundException {
-      return tailnetSuffixOf(kDefaultRelayUrl);
+      return null;
     }
   }
 

@@ -1,31 +1,26 @@
 import type { Ed25519Keypair } from "../pairing/crypto.ts";
 import { getOrCreateEd25519Keypair, isPairedKey, listPeers } from "../pairing/storage.ts";
 import type { ClientMessage, ServerMessage } from "../protocol/types.ts";
-import { type DirectServer, directServer } from "./direct_server.ts";
+import { type DirectServer, directServer, type RoomLink, type RoomMeta } from "./direct_server.ts";
 import { deriveSessionKey, isSealed, open, ReplayGuard, seal } from "./e2e.ts";
 import type { PeerChannel } from "./peer_channel.ts";
-import type { RoomMeta } from "./relay_client.ts";
-import { type RelayHub, type RoomLink, relayHub } from "./relay_hub.ts";
 
 export interface OwnerHostOptions {
   roomId: string;
   roomMeta: RoomMeta;
   onMessage: (sender: PeerChannel, message: ClientMessage) => void;
-  onFatal?: (error: Error) => void;
-  /** Defaults to the process-wide hub. */
-  hub?: RelayHub;
   /** Defaults to the process-wide direct endpoint. */
   direct?: DirectServer;
 }
 
 /**
- * One relay room owned by the standalone Baya host. Every frame is end-to-end
- * encrypted with the sender's key (see e2e.ts), so the relay can neither read
- * nor forge traffic. Pair requests from an unknown mobile key are admitted
- * only so the pairing service can validate the one-time token; every other
- * frame must come from a persisted owner.
+ * One session's room, reached by phones over [DirectServer]. Every frame is
+ * end-to-end encrypted with the sender's key (see e2e.ts). Pair requests
+ * from an unknown phone key are admitted only so the pairing service can
+ * validate the one-time token; every other frame must come from a paired
+ * owner.
  */
-export class OwnerRelayHost {
+export class OwnerHost {
   private link: RoomLink | null = null;
   private readonly attached = new Set<string>();
   private inbound: Promise<void> = Promise.resolve();
@@ -34,26 +29,20 @@ export class OwnerRelayHost {
   private readonly keys = new Map<string, Buffer>();
   private readonly replay = new ReplayGuard();
   private readonly skewReportedAt = new Map<string, number>();
-  private readonly hub: RelayHub;
 
   private readonly options: OwnerHostOptions;
 
   constructor(options: OwnerHostOptions) {
     this.options = options;
-    this.hub = options.hub ?? relayHub();
   }
 
-  /**
-   * Joins the shared relay connection in the background. Relay availability
-   * and the local agent host are independent: a sleeping laptop, VPN
-   * transition, or relay outage must not make local sessions unusable.
-   */
+  /** Opens the room to phones. */
   start(): void {
     this.link?.close();
     const handlers = {
-      onLine: (line: string) => {
+      onEnvelope: (peer: string, ct: string) => {
         this.inbound = this.inbound
-          .then(() => this.receive(line))
+          .then(() => this.receive(peer, ct))
           .catch((error: unknown) => {
             process.stderr.write(
               `[baya] Ignored invalid mobile frame: ${
@@ -62,17 +51,11 @@ export class OwnerRelayHost {
             );
           });
       },
-      ...(this.options.onFatal ? { onFatal: this.options.onFatal } : {}),
     };
-    // Phones reach the room through the relay and, on a tailnet, directly;
-    // every reply goes out both ways and arrives on whichever one they use.
-    this.link = bothWays(
-      this.hub.open(this.options.roomId, this.options.roomMeta, handlers),
-      (this.options.direct ?? directServer()).open(
-        this.options.roomId,
-        this.options.roomMeta,
-        handlers,
-      ),
+    this.link = (this.options.direct ?? directServer()).open(
+      this.options.roomId,
+      this.options.roomMeta,
+      handlers,
     );
   }
 
@@ -94,17 +77,8 @@ export class OwnerRelayHost {
     this.link?.updateMeta(meta);
   }
 
-  private async receive(line: string): Promise<void> {
-    let outer: Record<string, unknown>;
-    try {
-      outer = JSON.parse(line) as Record<string, unknown>;
-    } catch {
-      return;
-    }
-    if (typeof outer["peer"] !== "string" || typeof outer["ct"] !== "string") return;
-
-    const peer = outer["peer"];
-    const box = Buffer.from(outer["ct"], "base64");
+  private async receive(peer: string, ct: string): Promise<void> {
+    const box = Buffer.from(ct, "base64");
     if (!isSealed(box)) return;
     this.identity ??= await getOrCreateEd25519Keypair();
     const key = this.keyFor(peer);
@@ -214,23 +188,4 @@ function isForUnpairedPeer(message: ServerMessage): boolean {
     message.type === "pair_error" ||
     (message.type === "error" && message.code === "unknown_peer")
   );
-}
-
-/** One room reachable over the relay and directly. */
-function bothWays(relay: RoomLink, direct: RoomLink): RoomLink {
-  return {
-    isOpen: () => relay.isOpen() || direct.isOpen(),
-    send: (envelope) => {
-      relay.send(envelope);
-      direct.send(envelope);
-    },
-    updateMeta: (meta) => {
-      relay.updateMeta(meta);
-      direct.updateMeta(meta);
-    },
-    close: () => {
-      relay.close();
-      direct.close();
-    },
-  };
 }

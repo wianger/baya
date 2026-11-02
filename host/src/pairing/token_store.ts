@@ -75,7 +75,7 @@ export function clearPendingPairToken(): void {
   writeFileSync(pendingPairPath(), `${JSON.stringify(empty, null, 2)}\n`, { mode: 0o600 });
 }
 
-/** Constant-time comparison so the relay cannot time its way to a token. */
+/** Constant-time comparison so no one can time their way to a token. */
 function sameSecret(expected: string, received: string): boolean {
   const a = Buffer.from(expected);
   const b = Buffer.from(received);

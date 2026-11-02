@@ -3,11 +3,12 @@
 // ---------------------------------------------------------------------------
 // Control frames
 //
-// These travel raw over the WS (no outer envelope) and are routed by the
-// relay itself, not the Pi. They never enter the inner-message switch.
+// These travel raw over the WS (no outer envelope): the host's connection
+// layer answers them, not the agent. They never enter the inner-message
+// switch.
 // ---------------------------------------------------------------------------
 
-/// Inbound control frame (relay → app).
+/// Inbound control frame (host → app).
 sealed class ControlInbound {
   const ControlInbound();
 
@@ -25,31 +26,10 @@ sealed class ControlInbound {
             .map((e) => PeerPresence.fromJson(e as Map<String, dynamic>))
             .toList(),
       ),
-      'room_announced' => () {
-        // Thinking arrives either as a top-level
-        // field (post-relay-flatten) or nested under `meta.thinking`
-        // (pre-flatten relay forwarding the Pi's room_meta verbatim).
-        // Read both so the app stays forward-compat with either side.
-        final metaJson = j['meta'] as Map<String, dynamic>?;
-        final rawThinking =
-            (j['thinking'] as String?) ?? (metaJson?['thinking'] as String?);
-        // `working` arrives top-level (RoomMeta serializes flat)
-        // or nested under `meta.working`; read both for forward-compat.
-        final rawWorking =
-            (j['working'] as bool?) ?? (metaJson?['working'] as bool?);
-        return RoomAnnounced(
-          peer: j['peer'] as String,
-          roomId: j['room_id'] as String,
-          name: j['name'] as String?,
-          cwd: j['cwd'] as String?,
-          startedAt: (j['started_at'] as num).toInt(),
-          model: j['model'] as String?,
-          thinking: rawThinking != null
-              ? ThinkingLevel.fromWire(rawThinking)
-              : null,
-          working: rawWorking,
-        );
-      }(),
+      'room_announced' => RoomAnnounced(
+        peer: j['peer'] as String,
+        room: RoomInfo.fromJson(j),
+      ),
       'room_ended' => RoomEnded(
         peer: j['peer'] as String,
         roomId: j['room_id'] as String,
@@ -62,23 +42,16 @@ sealed class ControlInbound {
             .toList(),
       ),
       'room_meta_updated' => () {
-        final meta = j['meta'] as Map<String, dynamic>?;
-        final hasModel = meta?.containsKey('model') ?? false;
-        final hasThinking = meta?.containsKey('thinking') ?? false;
-        final rawThinking = meta?['thinking'] as String?;
+        final meta = j['meta'] as Map<String, dynamic>;
+        final rawThinking = meta['thinking'] as String?;
         return RoomMetaUpdated(
           peer: j['peer'] as String,
           roomId: j['room_id'] as String,
-          model: meta?['model'] as String?,
+          model: meta['model'] as String?,
           thinking: rawThinking != null
               ? ThinkingLevel.fromWire(rawThinking)
               : null,
-          // `working` has no "clear to null" state (false IS the
-          // cleared state), so a plain nullable bool models the patch:
-          // null = absent (preserve current), true/false = set.
-          working: meta?['working'] as bool?,
-          hasModel: hasModel,
-          hasThinking: hasThinking,
+          working: meta['working'] as bool,
         );
       }(),
       _ => null,
@@ -126,11 +99,6 @@ Map<String, dynamic> subscribePresenceFrame(List<String> peers) => {
   'peers': peers,
 };
 
-Map<String, dynamic> unsubscribePresenceFrame(List<String> peers) => {
-  'type': 'unsubscribe_presence',
-  'peers': peers,
-};
-
 Map<String, dynamic> presenceCheckFrame(List<String> peers) => {
   'type': 'presence_check',
   'peers': peers,
@@ -138,11 +106,6 @@ Map<String, dynamic> presenceCheckFrame(List<String> peers) => {
 
 Map<String, dynamic> subscribeRoomsFrame(List<String> peers) => {
   'type': 'subscribe_rooms',
-  'peers': peers,
-};
-
-Map<String, dynamic> unsubscribeRoomsFrame(List<String> peers) => {
-  'type': 'unsubscribe_rooms',
   'peers': peers,
 };
 
@@ -154,8 +117,7 @@ Map<String, dynamic> roomsCheckFrame(List<String> peers) => {
 // ---------------------------------------------------------------------------
 // Rooms
 //
-// Each Pi-extension instance opens one room per active session (cwd).
-// The relay tracks room metadata per peer and pushes:
+// Each session on the host is a room. The host pushes:
 //   - room_announced: a new room came online for a peer
 //   - room_ended: a room closed (Pi exited or stopped that cwd)
 //   - rooms (snapshot): full list for a peer (sent after subscribe_rooms
@@ -180,18 +142,13 @@ class RoomInfo {
   /// the app falls back to `last paired` in the subtitle.
   final String? model;
 
-  /// Current thinking level the Pi-extension session
-  /// is running with. Optional; Pi-ext may omit when it cannot resolve
-  /// it from the SDK, and legacy Pis don't publish this field at all.
-  /// Drives the initial highlight of the Quick Actions thinking
-  /// segmented control.
+  /// Current thinking level, when the agent reports one. Drives the
+  /// initial highlight of the Quick Actions thinking control.
   final ThinkingLevel? thinking;
 
   /// `true` when the room currently has an in-flight agent
-  /// turn. The relay broadcasts `meta.working` for EVERY subscribed room
-  /// (like presence), so Home can light the blue "working" dot on any
-  /// session — not just the single connected one. Defaults to `false`
-  /// (idle / not reported yet).
+  /// turn. The host pushes it for every room, so Home can light the
+  /// "working" dot on any session, not just the connected one.
   final bool working;
 
   const RoomInfo({
@@ -215,7 +172,7 @@ class RoomInfo {
       thinking: rawThinking != null
           ? ThinkingLevel.fromWire(rawThinking)
           : null,
-      working: (j['working'] as bool?) ?? false,
+      working: j['working'] as bool,
     );
   }
 
@@ -266,33 +223,8 @@ class RoomInfo {
 
 class RoomAnnounced extends ControlInbound {
   final String peer;
-  final String roomId;
-  final String? name;
-  final String? cwd;
-  final int startedAt;
-
-  /// Display model the Pi-extension is running with.
-  final String? model;
-
-  /// Current thinking level the Pi seeds at
-  /// session start. Parsed from `meta.thinking` or top-level
-  /// `thinking` depending on whether the relay flattens metadata.
-  final ThinkingLevel? thinking;
-
-  /// In-flight agent turn at announce time. `null` when the
-  /// frame omitted it (legacy relay); the ConnectionManager then keeps
-  /// any previously-known value instead of forcing `false`.
-  final bool? working;
-  const RoomAnnounced({
-    required this.peer,
-    required this.roomId,
-    required this.startedAt,
-    this.name,
-    this.cwd,
-    this.model,
-    this.thinking,
-    this.working,
-  });
+  final RoomInfo room;
+  const RoomAnnounced({required this.peer, required this.room});
 }
 
 class RoomEnded extends ControlInbound {
@@ -312,49 +244,21 @@ class RoomsSnapshot extends ControlInbound {
   const RoomsSnapshot({required this.peer, required this.rooms});
 }
 
-/// Incremental update to a room's metadata (model is the
-/// only field for now, but the `meta` envelope is open-ended). The
-/// relay pushes this when the Pi-extension swaps its model
-/// mid-session.
+/// A room's model, thinking level or working state changed.
 class RoomMetaUpdated extends ControlInbound {
   final String peer;
   final String roomId;
+
+  /// The room's full current state: every update carries all three.
   final String? model;
-
-  /// Current thinking level, parsed from
-  /// `meta.thinking`. Null when the Pi only published a model change.
-  /// The app treats both fields as independently optional so an update
-  /// for only one of them doesn't clobber the other on the cache side.
   final ThinkingLevel? thinking;
-
-  /// `true` when the `meta` envelope carried a `model`
-  /// key (even if value is null). Lets the ConnectionManager handler
-  /// distinguish "model was not part of this update" from "model was
-  /// explicitly cleared", which matters now that updates can be
-  /// thinking-only.
-  ///
-  /// Defaults to `true` for ergonomic programmatic construction
-  /// (callers / tests can pass `model: x` without also remembering
-  /// the boolean). [RoomMetaUpdated.fromJson] passes the precise
-  /// presence-of-key boolean instead.
-  final bool hasModel;
-
-  /// Same convention for `thinking`.
-  final bool hasThinking;
-
-  /// In-flight agent turn for this room. `null` = the update
-  /// did not carry `working` (preserve the cached value); non-null =
-  /// set. No separate `hasWorking` flag is needed because `working` can
-  /// never be "explicitly null" on the wire — `false` is the off state.
-  final bool? working;
+  final bool working;
   const RoomMetaUpdated({
     required this.peer,
     required this.roomId,
+    required this.working,
     this.model,
     this.thinking,
-    this.working,
-    this.hasModel = true,
-    this.hasThinking = true,
   });
 }
 
@@ -651,12 +555,8 @@ class WireModel {
   /// thinking segmented control's enabled state on the picker side.
   final bool reasoning;
 
-  /// Canonical reasoning levels advertised by this model.
-  ///
-  /// `null` means the host is older and did not report a level list. In that
-  /// case the app keeps the pre-metadata fallback for reasoning models.
-  /// An empty list means the host explicitly reported no effort control.
-  final List<ThinkingLevel>? thinkingLevels;
+  /// Reasoning levels this model offers; empty means no effort control.
+  final List<ThinkingLevel> thinkingLevels;
 
   /// Context window in tokens — surfaced as picker subtitle.
   final int contextWindow;
@@ -673,23 +573,20 @@ class WireModel {
     required this.reasoning,
     required this.contextWindow,
     this.vision = false,
-    this.thinkingLevels,
+    this.thinkingLevels = const [],
   });
 
   factory WireModel.fromJson(Map<String, dynamic> j) => WireModel(
     id: j['id'] as String,
     name: j['name'] as String,
     provider: j['provider'] as String,
-    reasoning: (j['reasoning'] as bool?) ?? false,
-    contextWindow: (j['context_window'] as num?)?.toInt() ?? 0,
-    vision: (j['vision'] as bool?) ?? false,
-    thinkingLevels: j.containsKey('thinking_levels')
-        ? [
-            for (final value
-                in (j['thinking_levels'] as List<dynamic>? ?? const []))
-              ?ThinkingLevel.fromWire(value as String),
-          ]
-        : null,
+    reasoning: j['reasoning'] as bool,
+    contextWindow: (j['context_window'] as num).toInt(),
+    vision: j['vision'] as bool,
+    thinkingLevels: [
+      for (final value in j['thinking_levels'] as List<dynamic>)
+        ?ThinkingLevel.fromWire(value as String),
+    ],
   );
 
   Map<String, dynamic> toJson() => {
@@ -699,24 +596,8 @@ class WireModel {
     'reasoning': reasoning,
     'context_window': contextWindow,
     'vision': vision,
-    if (thinkingLevels != null)
-      'thinking_levels': [for (final level in thinkingLevels!) level.wire],
+    'thinking_levels': [for (final level in thinkingLevels) level.wire],
   };
-
-  /// Levels the picker should offer. Older hosts omitted the field, so keep
-  /// the previous fallback only for those responses.
-  List<ThinkingLevel> get availableThinkingLevels =>
-      thinkingLevels ??
-      (reasoning ? legacyThinkingLevels : const <ThinkingLevel>[]);
-
-  static const legacyThinkingLevels = [
-    ThinkingLevel.off,
-    ThinkingLevel.minimal,
-    ThinkingLevel.low,
-    ThinkingLevel.medium,
-    ThinkingLevel.high,
-    ThinkingLevel.xhigh,
-  ];
 
   @override
   bool operator ==(Object other) =>
@@ -737,18 +618,14 @@ class WireModel {
     reasoning,
     contextWindow,
     vision,
-    Object.hashAll(thinkingLevels ?? const <ThinkingLevel>[]),
-    thinkingLevels == null,
+    Object.hashAll(thinkingLevels),
   );
 
   static bool _sameThinkingLevels(
-    List<ThinkingLevel>? left,
-    List<ThinkingLevel>? right,
+    List<ThinkingLevel> left,
+    List<ThinkingLevel> right,
   ) {
-    if (identical(left, right)) return true;
-    if (left == null || right == null || left.length != right.length) {
-      return false;
-    }
+    if (left.length != right.length) return false;
     for (var index = 0; index < left.length; index++) {
       if (left[index] != right[index]) return false;
     }
@@ -1135,30 +1012,16 @@ class Pong extends ServerMessage {
       Pong(inReplyTo: j['in_reply_to'] as String);
 }
 
-/// Identifies the agent harness the paired PC is
-/// running. Surfaced as a subtitle on the PiCard ("via Pi coding
-/// agent"). Pi-extension is expected to publish this in `pair_ok`
-/// (contract for the next pi-extension dispatch); the app falls back
-/// to a sensible default when the field is absent so legacy Pis keep
-/// working.
+/// The agent harness a paired computer runs, e.g. "Pi coding agent 0.70".
 class PiHarness {
   final String name;
   final String version;
   const PiHarness({required this.name, required this.version});
 
-  /// Default used when `pair_ok` omits `harness` (current
-  /// pi-extension behaviour) and when migrating legacy PeerRecords.
-  static const PiHarness piCodingAgentUnknown = PiHarness(
-    name: 'Pi coding agent',
-    version: '—',
-  );
-
   Map<String, dynamic> toJson() => {'name': name, 'version': version};
 
-  static PiHarness fromJson(Map<String, dynamic> j) => PiHarness(
-    name: (j['name'] as String?) ?? piCodingAgentUnknown.name,
-    version: (j['version'] as String?) ?? piCodingAgentUnknown.version,
-  );
+  static PiHarness fromJson(Map<String, dynamic> j) =>
+      PiHarness(name: j['name'] as String, version: j['version'] as String);
 
   @override
   bool operator ==(Object other) =>
@@ -1172,59 +1035,32 @@ class PairOk extends ServerMessage {
   final String inReplyTo;
   final String sessionName;
 
-  /// Epoch-ms timestamp when the Pi started this session. The app caches
-  /// it locally so a future `session_sync` can detect a Pi restart (value
-  /// changed) and replace the cache instead of appending stale events.
+  /// When the session started (epoch ms); a change means it restarted.
   final int sessionStartedAt;
 
-  /// Pi-side room id (cwd-session) that confirmed this
-  /// pair. The app persists this on the PeerRecord so subsequent
-  /// reconnects can address the right (peer, room) directly without
-  /// having to wait for subscribe_rooms / discovery. Legacy Pis that
-  /// don't emit `room_id` fall back to `'main'`.
+  /// The session's room, stored on the PeerRecord so reconnects address it.
   final String roomId;
+  final PiHarness harness;
 
-  /// Agent harness identification. `null` when the
-  /// pi-extension hasn't been upgraded to publish it; consumers fall
-  /// back to [PiHarness.piCodingAgentUnknown] so the UI never renders
-  /// an empty subtitle.
-  final PiHarness? harness;
-
-  /// Hostname hint for the post-pair nickname modal.
-  /// The pi-extension reports its OS hostname so the modal can
-  /// pre-fill a sensible placeholder ("Mac do Jacob") instead of a
-  /// generic "Pi". `null` on legacy Pis.
-  final String? hostname;
+  /// The computer's hostname, the default name in the app.
+  final String hostname;
   PairOk({
     required this.inReplyTo,
     required this.sessionName,
     required this.sessionStartedAt,
     required this.roomId,
-    this.harness,
-    this.hostname,
+    required this.harness,
+    required this.hostname,
   });
 
-  factory PairOk.fromJson(Map<String, dynamic> j) {
-    final harnessJson = j['harness'];
-    final hostname = j['hostname'];
-    final startedAt = j['session_started_at'];
-    return PairOk(
-      inReplyTo: j['in_reply_to'] as String,
-      sessionName: j['session_name'] as String,
-      // Legacy Pis (pre-session_sync) don't emit session_started_at.
-      // The downstream caller treats `0` as "unknown" and skips the
-      // restart-detection branch.
-      sessionStartedAt: startedAt is num ? startedAt.toInt() : 0,
-      // Backward-compat: pre-fix Pis don't emit room_id → use 'main'.
-      // Callers that need to distinguish "Pi said main" from "Pi
-      // omitted room" should peek at the raw JSON instead.
-      roomId: (j['room_id'] as String?) ?? 'main',
-      harness: harnessJson is Map<String, dynamic>
-          ? PiHarness.fromJson(harnessJson)
-          : null,
-      hostname: hostname is String && hostname.isNotEmpty ? hostname : null,
-    );
-  }
+  factory PairOk.fromJson(Map<String, dynamic> j) => PairOk(
+    inReplyTo: j['in_reply_to'] as String,
+    sessionName: j['session_name'] as String,
+    sessionStartedAt: (j['session_started_at'] as num).toInt(),
+    roomId: j['room_id'] as String,
+    harness: PiHarness.fromJson(j['harness'] as Map<String, dynamic>),
+    hostname: j['hostname'] as String,
+  );
 }
 
 /// Mirror of user input typed directly in the Pi's terminal (or injected via
@@ -1398,8 +1234,6 @@ class SessionHistory extends ServerMessage {
   final bool truncated;
   final HistoryStreamingSnapshot? streaming;
 
-  /// Distinguishes an idle Codex cursor (explicit null) from legacy history.
-  final bool hasStreamingSnapshot;
   SessionHistory({
     required this.inReplyTo,
     required this.sessionStartedAt,
@@ -1407,7 +1241,6 @@ class SessionHistory extends ServerMessage {
     required this.eos,
     this.truncated = false,
     this.streaming,
-    this.hasStreamingSnapshot = false,
   });
 
   factory SessionHistory.fromJson(Map<String, dynamic> j) => SessionHistory(
@@ -1417,9 +1250,7 @@ class SessionHistory extends ServerMessage {
         .map((e) => SessionHistoryEvent.fromJson(e as Map<String, dynamic>))
         .toList(),
     eos: j['eos'] as bool,
-    // Tolerate absence during the protocol transition window.
-    truncated: (j['truncated'] as bool?) ?? false,
-    hasStreamingSnapshot: j.containsKey('streaming'),
+    truncated: j['truncated'] as bool,
     streaming: j['streaming'] == null
         ? null
         : HistoryStreamingSnapshot.fromJson(
@@ -1676,17 +1507,13 @@ class CommandsList extends ServerMessage {
   const CommandsList({
     required this.inReplyTo,
     required this.commands,
-    this.supportedActions,
+    this.supportedActions = const [],
   });
   final String inReplyTo;
   final List<WireAgentCommand> commands;
 
   /// Typed host actions accepted by this session.
-  ///
-  /// `null` means an older host omitted capability discovery. Consumers keep
-  /// their legacy assumptions in that case; an empty list is authoritative and
-  /// means the session rejects every typed action.
-  final List<String>? supportedActions;
+  final List<String> supportedActions;
 
   factory CommandsList.fromJson(Map<String, dynamic> json) => CommandsList(
     inReplyTo: json['in_reply_to'] as String,
@@ -1697,13 +1524,10 @@ class CommandsList extends ServerMessage {
               WireAgentCommand.fromJson(Map<String, dynamic>.from(entry)),
         )
         .toList(growable: false),
-    supportedActions: json.containsKey('supported_actions')
-        ? [
-            for (final value
-                in (json['supported_actions'] as List<dynamic>? ?? const []))
-              if (value is String) value,
-          ]
-        : null,
+    supportedActions: [
+      for (final value in json['supported_actions'] as List<dynamic>)
+        value as String,
+    ],
   );
 }
 

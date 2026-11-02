@@ -147,7 +147,7 @@ class _QuickActionsSheetBodyState extends State<QuickActionsSheetBody> {
     final state = vm.state;
     final busyAction = state is QuickActionsBusy ? state.action : null;
     final thinkingLevels =
-        vm.currentModel?.availableThinkingLevels ?? const <ThinkingLevel>[];
+        vm.currentModel?.thinkingLevels ?? const <ThinkingLevel>[];
 
     return SafeArea(
       top: false,

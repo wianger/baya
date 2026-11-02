@@ -31,8 +31,7 @@ class AgentCommandCatalog {
 
   final List<AgentCommand> commands;
 
-  /// `null` preserves compatibility with hosts that predate capability
-  /// discovery. An empty set is authoritative.
+  /// `null` until the session has reported its actions.
   final Set<String>? supportedActions;
 
   @override

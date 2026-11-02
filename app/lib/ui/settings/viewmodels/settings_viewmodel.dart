@@ -1,8 +1,5 @@
-import 'package:app/data/mesh/mesh_sync_service.dart';
-import 'package:app/l10n/l10n.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/connection_manager.dart';
-import 'package:app/data/transport/relay_config.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/settings/states/settings_state.dart';
@@ -10,21 +7,14 @@ import 'package:app/ui/settings/states/settings_state.dart';
 /// Settings is config-only (nickname + revoke). The peer switcher moved
 /// to Home; the connection itself is shared and owned by
 /// [ConnectionManager] from app boot. Revoke side-effect:
-/// re-subscribe the relay's presence push so the removed epk is dropped.
+/// re-subscribe presence so the removed epk is dropped.
 class SettingsViewModel extends ViewModel<SettingsState> {
   final PairingStorage _storage;
   final Preferences _prefs;
   final ConnectionManager _conn;
-
-  /// Optional in tests; required in production. The revoke flow drives
-  /// it explicitly with `allowEmpty:true` so a revoke of the last
-  /// remaining peer still propagates to the relay — without it, the
-  /// safety net in [MeshSyncService] refuses to publish members=[] and
-  /// the next `pullOnDemand` resurrects the peer from the stale blob.
-  final MeshSyncService? _meshSync;
   bool _disposed = false;
 
-  SettingsViewModel(this._storage, this._prefs, this._conn, [this._meshSync])
+  SettingsViewModel(this._storage, this._prefs, this._conn)
     : super(const SettingsLoading()) {
     _load();
   }
@@ -58,29 +48,7 @@ class SettingsViewModel extends ViewModel<SettingsState> {
     await _load();
   }
 
-  /// Effective relay URL the app is connecting to right now.
-  String get effectiveRelayUrl => resolveRelayUrl(_prefs);
-
-  /// User-set override for the relay URL. If `null`, the app is using the
-  /// default endpoint [kDefaultRelayUrl].
-  String get relayUrlOverride => _prefs.relayUrl ?? kDefaultRelayUrl;
-
-  Future<String?> saveRelayUrl(String? value) async {
-    if (value == null || value.trim().isEmpty) {
-      return appL10n.enterRelayUrl;
-    }
-    final trimmed = value.trim();
-
-    final reason = relayUrlValidationMessage(trimmed);
-    if (reason != null) return reason;
-    await _prefs.setRelayUrl(trimmed);
-
-    await _conn.disconnect();
-    _conn.boot(preferredEpk: _prefs.selectedPeerEpk);
-    return null;
-  }
-
-  /// Revoke pairing locally. Drops the peer from the relay's presence
+  /// Revoke pairing locally. Drops the peer from the presence
   /// subscription too so we stop receiving updates about a peer that no
   /// longer exists on this device. Clears the selected pointer when it
   /// matches. If this was the LAST peer, also resets
@@ -91,18 +59,8 @@ class SettingsViewModel extends ViewModel<SettingsState> {
     if (_prefs.selectedPeerEpk == epk) {
       await _prefs.setSelectedPeerEpk(null);
     }
-    // Use the SILENT delete so the storage mutation hook does not
-    // auto-publish a members=[] blob through the safety-net guard
-    // (which would refuse it for the last-peer case and leave the
-    // relay holding stale state). We publish ourselves below with
-    // `allowEmpty:true` — the only place in the app that opts out of
-    // the empty-on-existing safety net.
-    await _storage.deletePeerSilent(epk);
+    await _storage.deletePeer(epk);
     final remaining = await _storage.listPeers();
-    if (_meshSync != null) {
-      // ignore: unawaited_futures
-      _meshSync.publish(allowEmpty: remaining.isEmpty);
-    }
     _conn.subscribeToPeers(remaining.map((p) => p.remoteEpk).toList());
     // If the revoked peer was the one currently driving the connection,
     // tear it down so we don't keep talking to a peer the user just

@@ -158,6 +158,8 @@ void main() {
             'provider': 'anthropic',
             'reasoning': true,
             'context_window': 200000,
+            'vision': false,
+            'thinking_levels': <String>[],
           },
           {
             'id': 'gpt-4o',
@@ -165,6 +167,8 @@ void main() {
             'provider': 'openai',
             'reasoning': false,
             'context_window': 128000,
+            'vision': false,
+            'thinking_levels': <String>[],
           },
         ],
         'current': {
@@ -173,6 +177,8 @@ void main() {
           'provider': 'anthropic',
           'reasoning': true,
           'context_window': 200000,
+          'vision': false,
+          'thinking_levels': <String>[],
         },
       });
       final list = m as ModelsList;

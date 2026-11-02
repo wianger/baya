@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 
 /**
- * Relay room id of one Baya session: 12 chars of base64url(sha256) over the
+ * Room id of one Baya session: 12 chars of base64url(sha256) over the
  * resolved folder and the session's `agent:id` key, so several sessions in
  * one folder never share a room and symlinked paths agree.
  */

@@ -90,9 +90,7 @@ void main() {
         ch.pushControl(
           const RoomAnnounced(
             peer: 'epk_test',
-            roomId: 'r1',
-            startedAt: 1,
-            working: true,
+            room: RoomInfo(roomId: 'r1', startedAt: 1, working: true),
           ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 5));
@@ -111,9 +109,7 @@ void main() {
       ch.pushControl(
         const RoomAnnounced(
           peer: 'epk_test',
-          roomId: 'r1',
-          startedAt: 1,
-          model: 'claude-opus-4-8',
+          room: RoomInfo(roomId: 'r1', startedAt: 1, model: 'claude-opus-4-8'),
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 5));
@@ -124,67 +120,20 @@ void main() {
         const RoomMetaUpdated(
           peer: 'epk_test',
           roomId: 'r1',
+          model: 'claude-opus-4-8',
           working: true,
-          hasModel: false,
-          hasThinking: false,
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 5));
       expect(cm.isRoomWorking('epk_test', 'r1'), isTrue);
-      expect(
-        cm.roomsFor('epk_test').single.model,
-        'claude-opus-4-8',
-        reason: 'working-only update must NOT clobber model',
-      );
+      expect(cm.roomsFor('epk_test').single.model, 'claude-opus-4-8');
 
       // turn_end → working=false
       ch.pushControl(
-        const RoomMetaUpdated(
-          peer: 'epk_test',
-          roomId: 'r1',
-          working: false,
-          hasModel: false,
-          hasThinking: false,
-        ),
+        const RoomMetaUpdated(peer: 'epk_test', roomId: 'r1', working: false),
       );
       await Future<void>.delayed(const Duration(milliseconds: 5));
       expect(cm.isRoomWorking('epk_test', 'r1'), isFalse);
-
-      cm.dispose();
-    });
-
-    test('model-only update preserves a previously-set working=true', () async {
-      final ch = _ControllableChannel();
-      final cm = await _connected(ch);
-
-      ch.pushControl(
-        const RoomAnnounced(
-          peer: 'epk_test',
-          roomId: 'r1',
-          startedAt: 1,
-          working: true,
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-
-      // A model swap mid-turn: meta carries model only, working absent.
-      ch.pushControl(
-        const RoomMetaUpdated(
-          peer: 'epk_test',
-          roomId: 'r1',
-          model: 'gpt-4o',
-          hasModel: true,
-          hasThinking: false,
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-
-      expect(
-        cm.isRoomWorking('epk_test', 'r1'),
-        isTrue,
-        reason: 'absent working in a meta update must not clear it',
-      );
-      expect(cm.roomsFor('epk_test').single.model, 'gpt-4o');
 
       cm.dispose();
     });
@@ -217,9 +166,7 @@ void main() {
       ch.pushControl(
         const RoomAnnounced(
           peer: 'epk_test',
-          roomId: 'r1',
-          startedAt: 1,
-          working: true,
+          room: RoomInfo(roomId: 'r1', startedAt: 1, working: true),
         ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 5));

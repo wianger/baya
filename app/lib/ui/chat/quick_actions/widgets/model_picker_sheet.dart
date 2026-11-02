@@ -184,7 +184,7 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
                             key: const ValueKey('model-effort-list'),
                             current: vm.currentThinking,
                             levels:
-                                vm.currentModel?.availableThinkingLevels ??
+                                vm.currentModel?.thinkingLevels ??
                                 const <ThinkingLevel>[],
                             onPick: _onPickEffort,
                           )
@@ -213,7 +213,7 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
                               final current = vm.currentThinking;
                               final selected = catalogue.current;
                               final effortLevels =
-                                  selected?.availableThinkingLevels ??
+                                  selected?.thinkingLevels ??
                                   const <ThinkingLevel>[];
                               // Level 2: the full model list.
                               if (_editingModel) {

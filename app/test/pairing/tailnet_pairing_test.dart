@@ -14,7 +14,9 @@ void main() {
   test('finds every Baya on the computer, once each', () async {
     final hosts = await discoverTailnetHosts(
       'Wiang-1',
-      tailnetSuffix: tailnetSuffixOf('https://relay.tail1234.ts.net'),
+      tailnetSuffix: tailnetSuffixOf(
+        'https://pc.tail1234.ts.net/baya-pair/wsl/direct',
+      ),
       client: MockClient((request) async {
         final url = request.url.toString();
         return switch (url) {
@@ -68,12 +70,12 @@ void main() {
       host,
       client: MockClient(
         (_) async => http.Response(
-          jsonEncode({'uri': 'baya://pair?t=z&r=https://relay'}),
+          jsonEncode({'uri': 'baya://pair?t=z&e=https://pc/direct'}),
           200,
         ),
       ),
     );
-    expect(code, 'baya://pair?t=z&r=https://relay');
+    expect(code, 'baya://pair?t=z&e=https://pc/direct');
     expect(tailnetSuffixOf('https://example.com'), isNull);
   });
 }

@@ -35,7 +35,7 @@ export function handleContextUsage(
     usage = ctx?.getContextUsage?.();
     window = usage?.contextWindow ?? ctx?.model?.contextWindow;
   } catch {
-    /* A stale SDK context must not crash the relay callback. */
+    /* A stale SDK context must not crash the message callback. */
   }
   let snapshot = contextUsageSnapshot(usage?.tokens, window);
   // Some SDK events expose a base context that can still describe the model

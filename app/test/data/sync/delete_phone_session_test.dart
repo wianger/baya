@@ -52,10 +52,12 @@ void main() {
     channel.control.add(
       RoomAnnounced(
         peer: peer.remoteEpk,
-        roomId: peer.roomId!,
-        name: 'Task',
-        cwd: '/code/project',
-        startedAt: 1,
+        room: RoomInfo(
+          roomId: peer.roomId!,
+          name: 'Task',
+          cwd: '/code/project',
+          startedAt: 1,
+        ),
       ),
     );
     await Future<void>.delayed(const Duration(milliseconds: 30));
@@ -78,10 +80,12 @@ void main() {
     channel.control.add(
       RoomAnnounced(
         peer: peer.remoteEpk,
-        roomId: peer.roomId!,
-        name: 'Task',
-        cwd: '/code/project',
-        startedAt: 1,
+        room: RoomInfo(
+          roomId: peer.roomId!,
+          name: 'Task',
+          cwd: '/code/project',
+          startedAt: 1,
+        ),
       ),
     );
     await Future<void>.delayed(const Duration(milliseconds: 30));

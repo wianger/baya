@@ -6,8 +6,6 @@ import 'package:app/data/commands/agent_commands_repository.dart';
 import 'package:app/data/context/context_usage_repository.dart';
 import 'package:app/data/images/image_picker_service.dart';
 import 'package:app/data/local/boxes.dart';
-import 'package:app/data/mesh/mesh_client.dart';
-import 'package:app/data/mesh/mesh_sync_service.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/repositories/home_read_repository.dart';
 import 'package:app/data/repositories/session_read_repository.dart';
@@ -16,7 +14,6 @@ import 'package:app/data/sync/sync_service.dart';
 import 'package:app/data/transport/channel.dart'; // IChannel
 import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/data/transport/peer_channel.dart';
-import 'package:app/data/transport/relay_config.dart';
 import 'package:app/data/transport/ws_transport.dart';
 import 'package:app/data/update/secure_dismissed_update_store.dart';
 import 'package:app/data/update/update_checker_impl.dart';
@@ -64,10 +61,6 @@ Future<void> setupDependencies() async {
   await prefs.load();
   final packageInfo = await PackageInfo.fromPlatform();
   services = AppServices._(prefs, packageInfo);
-  services.storage.attachPeerMutationHook(() {
-    // ignore: unawaited_futures
-    services.meshSync.publish();
-  });
 }
 
 final class AppServices {
@@ -87,11 +80,6 @@ final class AppServices {
     MethodChannelOwnerIdentityStore(),
   );
   late final ownerBridge = OwnerIdentityBridge(identityStore, storage);
-  // The relay's `/mesh` endpoint shares host and port with the WebSocket.
-  late final meshClient = MeshClient(
-    baseUrlProvider: () => resolveRelayUrl(prefs),
-  );
-  late final meshSync = MeshSyncService(meshClient, ownerBridge, storage);
   late final connection = ConnectionManager(
     factory: _productionConnectionFactory,
     storage: storage,
@@ -138,9 +126,8 @@ final class AppServices {
     ChatViewModel: () =>
         ChatViewModel(sessionReads, sync, connection, prefs, storage),
     HomeViewModel: () =>
-        HomeViewModel(storage, prefs, connection, sync, meshSync, actions),
-    SettingsViewModel: () =>
-        SettingsViewModel(storage, prefs, connection, meshSync),
+        HomeViewModel(storage, prefs, connection, sync, actions),
+    SettingsViewModel: () => SettingsViewModel(storage, prefs, connection),
     PairingViewModel: () => PairingViewModel(
       storage,
       _productionPairingTransportFactory,

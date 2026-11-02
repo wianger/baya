@@ -28,11 +28,7 @@ class _FakeStorage extends PairingStorage {
   @override
   Future<void> deletePeer(String epk) async {
     peers = peers.where((p) => p.remoteEpk != epk).toList();
-  }
-
-  @override
-  Future<void> deletePeerSilent(String epk) async {
-    peers = peers.where((p) => p.remoteEpk != epk).toList();
+    notifyListeners();
   }
 
   // Rooms persistence is exercised when a RoomAnnounced lands on a real
@@ -180,20 +176,17 @@ void main() {
 
         // Room comes online idle.
         ch.pushControl(
-          const RoomAnnounced(peer: 'epk_A', roomId: 'r1', startedAt: 1),
+          const RoomAnnounced(
+            peer: 'epk_A',
+            room: RoomInfo(roomId: 'r1', startedAt: 1),
+          ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 10));
         expect(vm.isRoomWorking('epk_A', 'r1'), isFalse);
 
         // turn_start → relay broadcasts meta.working=true.
         ch.pushControl(
-          const RoomMetaUpdated(
-            peer: 'epk_A',
-            roomId: 'r1',
-            working: true,
-            hasModel: false,
-            hasThinking: false,
-          ),
+          const RoomMetaUpdated(peer: 'epk_A', roomId: 'r1', working: true),
         );
         await Future<void>.delayed(const Duration(milliseconds: 10));
         expect(vm.isRoomWorking('epk_A', 'r1'), isTrue);
@@ -201,13 +194,7 @@ void main() {
         // turn_end → meta.working=false → dot goes back off (this is the
         // case that previously stayed blue forever).
         ch.pushControl(
-          const RoomMetaUpdated(
-            peer: 'epk_A',
-            roomId: 'r1',
-            working: false,
-            hasModel: false,
-            hasThinking: false,
-          ),
+          const RoomMetaUpdated(peer: 'epk_A', roomId: 'r1', working: false),
         );
         await Future<void>.delayed(const Duration(milliseconds: 10));
         expect(vm.isRoomWorking('epk_A', 'r1'), isFalse);
@@ -385,10 +372,16 @@ void main() {
       // r1 stays live; r2 is announced then ended → cached but offline
       // (grey tile — still in _roomsByPeer, dropped from _liveRoomIds).
       ch.pushControl(
-        const RoomAnnounced(peer: 'epk_A', roomId: 'r1', startedAt: 1),
+        const RoomAnnounced(
+          peer: 'epk_A',
+          room: RoomInfo(roomId: 'r1', startedAt: 1),
+        ),
       );
       ch.pushControl(
-        const RoomAnnounced(peer: 'epk_A', roomId: 'r2', startedAt: 2),
+        const RoomAnnounced(
+          peer: 'epk_A',
+          room: RoomInfo(roomId: 'r2', startedAt: 2),
+        ),
       );
       ch.pushControl(const RoomEnded(peer: 'epk_A', roomId: 'r2', sinceTs: 3));
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -474,16 +467,28 @@ void main() {
       const future = 'pi_CCCCCCCCCCCCCCCC_i_project';
       const legacy = 'legacy-room';
       ch.pushControl(
-        const RoomAnnounced(peer: 'epk_A', roomId: kept, startedAt: 100),
+        const RoomAnnounced(
+          peer: 'epk_A',
+          room: RoomInfo(roomId: kept, startedAt: 100),
+        ),
       );
       ch.pushControl(
-        const RoomAnnounced(peer: 'epk_A', roomId: deleted, startedAt: 100),
+        const RoomAnnounced(
+          peer: 'epk_A',
+          room: RoomInfo(roomId: deleted, startedAt: 100),
+        ),
       );
       ch.pushControl(
-        const RoomAnnounced(peer: 'epk_A', roomId: future, startedAt: 300),
+        const RoomAnnounced(
+          peer: 'epk_A',
+          room: RoomInfo(roomId: future, startedAt: 300),
+        ),
       );
       ch.pushControl(
-        const RoomAnnounced(peer: 'epk_A', roomId: legacy, startedAt: 100),
+        const RoomAnnounced(
+          peer: 'epk_A',
+          room: RoomInfo(roomId: legacy, startedAt: 100),
+        ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 10));
 

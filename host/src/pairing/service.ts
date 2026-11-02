@@ -38,7 +38,7 @@ export class PairingService {
       return true;
     }
 
-    // The relay sender id is the mobile device's Ed25519 public key. A
+    // The sender id is the phone's Ed25519 public key. A
     // challenge-response already proved possession before this frame arrives.
     const remote = (sender as PeerChannel & { remotePeerId?: string }).remotePeerId;
     if (!remote) {
@@ -46,7 +46,7 @@ export class PairingService {
         type: "pair_error",
         in_reply_to: message.id,
         code: "internal_error",
-        message: "The relay did not provide the device identity.",
+        message: "The connection did not provide the device identity.",
       });
       return true;
     }

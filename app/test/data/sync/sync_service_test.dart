@@ -1048,16 +1048,13 @@ void main() {
         (_) => s.conn.isRoomWorking(s.epk, 'main'),
       );
       s.ch.pushControl(
-        RoomAnnounced(peer: s.epk, roomId: 'main', startedAt: 1),
+        RoomAnnounced(
+          peer: s.epk,
+          room: RoomInfo(roomId: 'main', startedAt: 1),
+        ),
       );
       s.ch.pushControl(
-        RoomMetaUpdated(
-          peer: s.epk,
-          roomId: 'main',
-          working: true,
-          hasModel: false,
-          hasThinking: false,
-        ),
+        RoomMetaUpdated(peer: s.epk, roomId: 'main', working: true),
       );
       await remoteStarted.timeout(const Duration(seconds: 2));
       await _settle();
@@ -1067,13 +1064,7 @@ void main() {
         (_) => !s.conn.isRoomWorking(s.epk, 'main'),
       );
       s.ch.pushControl(
-        RoomMetaUpdated(
-          peer: s.epk,
-          roomId: 'main',
-          working: false,
-          hasModel: false,
-          hasThinking: false,
-        ),
+        RoomMetaUpdated(peer: s.epk, roomId: 'main', working: false),
       );
       await remoteStopped.timeout(const Duration(seconds: 2));
       await _settle();

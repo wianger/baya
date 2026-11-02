@@ -26,6 +26,8 @@ void main() {
             'in_reply_to': message.id,
             'tokens': 40_000,
             'context_window': 100_000,
+            'vision': false,
+            'thinking_levels': <String>[],
             'source': 'pi',
           }),
         );
@@ -63,6 +65,8 @@ void main() {
         'in_reply_to': 'x',
         'tokens': null,
         'context_window': 200_000,
+        'vision': false,
+        'thinking_levels': <String>[],
         'source': 'pi',
       }) as ContextUsageReply;
       expect(reply.tokens, isNull);

@@ -5,7 +5,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/data/transport/peer_channel.dart';
-import 'package:app/data/transport/relay_config.dart';
+import 'package:app/pairing/tailnet_pairing.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/pair_request_flow.dart' as pair_flow;
 import 'package:app/pairing/qr_scanner.dart';
@@ -65,19 +65,13 @@ class PairingViewModel extends ViewModel<PairingState> {
     emit(PairingConnecting(sessionName: qr.sessionName));
 
     try {
-      // Close any active session before opening a new WS to the relay.
-      // Same device Ed25519 key on a second WS would collide in the relay's
-      // peer registry, causing the old handler to unregister our new entry.
+      // Close the current connection first: the pairing handshake opens
+      // its own, and the host would see the same phone key twice.
       await _conn.disconnect();
 
-      // The host's QR names its relay; adopt it so nobody types a URL. A
-      // host paired over Tailscale names itself instead and keeps that
-      // address on its own record.
-      if (!isDirectEndpoint(qr.endpoint)) {
-        await _prefs.setRelayUrl(
-          qr.endpoint == kDefaultRelayUrl ? null : qr.endpoint,
-        );
-      }
+      // Remember the tailnet so the next computer can be typed by short name.
+      final domain = tailnetSuffixOf(qr.endpoint);
+      if (domain != null) await _prefs.setTailnetDomain(domain);
 
       // Challenge-response now uses the Owner-key (synced
       // via Block Store). The bridge is hydrated by

@@ -95,72 +95,47 @@ Future<void> _disposeSettings(
 }
 
 void main() {
-  testWidgets(
-    'relay and display details open when providers live on the route only',
-    (tester) async {
-      // Mirrors production: Preferences is app-level (above MaterialApp) while
-      // SettingsViewModel is created by the `/settings` route. Pushed detail
-      // routes are siblings in the navigator, so they must re-inject the
-      // ViewModel themselves or they throw on first read.
-      final fixture = _SettingsFixture();
-      await tester.pumpWidget(
-        ChangeNotifierProvider<Preferences>.value(
-          value: fixture.prefs,
-          child: MaterialApp(
-            theme: buildLightTheme(),
-            home: ChangeNotifierProvider<SettingsViewModel>.value(
-              value: fixture.vm,
-              child: const SettingsPage(),
-            ),
+  testWidgets('display details open when providers live on the route only', (
+    tester,
+  ) async {
+    // Mirrors production: Preferences is app-level (above MaterialApp) while
+    // SettingsViewModel is created by the `/settings` route. Pushed detail
+    // routes are siblings in the navigator, so they must re-inject the
+    // ViewModel themselves or they throw on first read.
+    final fixture = _SettingsFixture();
+    await tester.pumpWidget(
+      ChangeNotifierProvider<Preferences>.value(
+        value: fixture.prefs,
+        child: MaterialApp(
+          theme: buildLightTheme(),
+          home: ChangeNotifierProvider<SettingsViewModel>.value(
+            value: fixture.vm,
+            child: const SettingsPage(),
           ),
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      await tester.tap(find.byKey(const Key('settings-relay')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('relay-url')), findsOneWidget);
-      expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const Key('settings-display')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('theme-selector')), findsOneWidget);
+    expect(tester.takeException(), isNull);
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('settings-display')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('theme-selector')), findsOneWidget);
-      expect(tester.takeException(), isNull);
-
-      await _disposeSettings(tester, fixture);
-    },
-  );
+    await _disposeSettings(tester, fixture);
+  });
 
   testWidgets('settings home exposes one entry per section', (tester) async {
     final fixture = await _pumpSettings(tester);
 
     expect(find.text('Pairings'), findsNothing);
     expect(find.text('Add new pairing'), findsNothing);
-    expect(find.byKey(const Key('settings-relay')), findsOneWidget);
     expect(find.byKey(const Key('settings-display')), findsOneWidget);
     expect(find.byKey(const Key('settings-about')), findsOneWidget);
 
-    expect(find.byKey(const Key('relay-url')), findsNothing);
     expect(find.byKey(const Key('theme-selector')), findsNothing);
     expect(find.byKey(const Key('font-scale-selector')), findsNothing);
     expect(find.byKey(const Key('hide-tool-calls')), findsNothing);
-
-    await _disposeSettings(tester, fixture);
-  });
-
-  testWidgets('relay details open from the single relay entry', (tester) async {
-    final fixture = await _pumpSettings(tester);
-
-    await tester.tap(find.byKey(const Key('settings-relay')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Relay'), findsWidgets);
-    expect(find.byKey(const Key('relay-url')), findsOneWidget);
-    expect(find.byKey(const Key('relay-save')), findsOneWidget);
-    expect(find.byKey(const Key('relay-use-default')), findsOneWidget);
-    expect(find.byKey(const Key('theme-selector')), findsNothing);
 
     await _disposeSettings(tester, fixture);
   });
@@ -181,7 +156,6 @@ void main() {
     expect(find.byKey(const Key('theme-selector')), findsOneWidget);
     expect(find.byKey(const Key('font-scale-selector')), findsOneWidget);
     expect(find.byKey(const Key('hide-tool-calls')), findsOneWidget);
-    expect(find.byKey(const Key('relay-url')), findsNothing);
     expect(tester.takeException(), isNull);
 
     await _disposeSettings(tester, fixture);
