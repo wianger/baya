@@ -5,14 +5,32 @@ use anyhow::Context;
 use tokio::net::TcpListener;
 use tracing::info;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
-
-    let port: u16 = std::env::var("BAYA_RELAY_PORT")
+fn port() -> u16 {
+    std::env::var("BAYA_RELAY_PORT")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(3000);
+        .unwrap_or(3000)
+}
+
+/// `relay healthcheck`: container probe without shipping curl in the image.
+fn healthcheck() -> anyhow::Result<()> {
+    use std::io::{Read, Write};
+    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port()))?;
+    stream.set_read_timeout(Some(std::time::Duration::from_secs(3)))?;
+    stream.write_all(b"GET /health HTTP/1.0\r\nHost: localhost\r\n\r\n")?;
+    let mut response = String::new();
+    stream.read_to_string(&mut response)?;
+    anyhow::ensure!(response.starts_with("HTTP/1.0 200") || response.starts_with("HTTP/1.1 200"));
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    if std::env::args().nth(1).as_deref() == Some("healthcheck") {
+        return healthcheck();
+    }
+    tracing_subscriber::fmt::init();
+    let port = port();
 
     // Read (and memoize) the outer-envelope size ceiling once at startup, then
     // log the effective value so ops can confirm RELAY_MAX_CT_MIB took effect.

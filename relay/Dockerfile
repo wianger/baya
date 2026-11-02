@@ -15,26 +15,19 @@ COPY migrations ./migrations
 RUN cargo build --release
 
 # ── Runtime stage ──────────────────────────────────────────────────────────
-FROM debian:bookworm-slim
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates curl && \
-    rm -rf /var/lib/apt/lists/*
+# Distroless: glibc and CA roots only — no shell, no package manager.
+FROM gcr.io/distroless/cc-debian12:nonroot
 
 COPY --from=builder /app/target/release/relay /usr/local/bin/relay
 
-# Persistent state — mesh_versions SQLite lives here.
-# Mount a host directory or a named volume at /data to keep it across container
-# restarts (e.g. `-v remote-pi-data:/data`). Without a mount, /data is ephemeral.
-RUN mkdir -p /data
-VOLUME ["/data"]
-
 ENV BAYA_RELAY_PORT=3000
 ENV BAYA_MESH_DB_PATH=/data/mesh.db
+# Mount a volume here to keep the mesh database across restarts.
+VOLUME ["/data"]
 
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -sf http://localhost:${BAYA_RELAY_PORT}/health
+  CMD ["/usr/local/bin/relay", "healthcheck"]
 
-CMD ["relay"]
+ENTRYPOINT ["/usr/local/bin/relay"]
