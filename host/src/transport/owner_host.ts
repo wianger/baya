@@ -1,9 +1,9 @@
 import type { ClientMessage, ServerMessage } from "../protocol/types.js";
 import type { Ed25519Keypair } from "../pairing/crypto.js";
 import { getOrCreateEd25519Keypair, isPairedKey, listPeers } from "../pairing/storage.js";
-import { resolveRelayUrl, toWebSocketUrl } from "../config.js";
 import { deriveSessionKey, isSealed, open, ReplayGuard, seal } from "./e2e.js";
-import { RelayClient, type RoomMeta } from "./relay_client.js";
+import type { RoomMeta } from "./relay_client.js";
+import { relayHub, type RelayHub, type RoomLink } from "./relay_hub.js";
 import type { PeerChannel } from "./peer_channel.js";
 
 export interface OwnerHostOptions {
@@ -11,6 +11,8 @@ export interface OwnerHostOptions {
   roomMeta: RoomMeta;
   onMessage: (sender: PeerChannel, message: ClientMessage) => void;
   onFatal?: (error: Error) => void;
+  /** Defaults to the process-wide hub. */
+  hub?: RelayHub;
 }
 
 /**
@@ -21,44 +23,46 @@ export interface OwnerHostOptions {
  * frame must come from a persisted owner.
  */
 export class OwnerRelayHost {
-  private relay: RelayClient | null = null;
-  private stopped = false;
-  private reconnect: ReturnType<typeof setTimeout> | null = null;
-  private attempt = 0;
+  private link: RoomLink | null = null;
   private readonly attached = new Set<string>();
   private inbound: Promise<void> = Promise.resolve();
   private outbound: Promise<void> = Promise.resolve();
-  private readonly meta: RoomMeta & { working?: boolean };
   private identity: Ed25519Keypair | null = null;
   private readonly keys = new Map<string, Buffer>();
   private readonly replay = new ReplayGuard();
   private readonly skewReportedAt = new Map<string, number>();
+  private readonly hub: RelayHub;
 
   constructor(private readonly options: OwnerHostOptions) {
-    this.meta = { ...options.roomMeta };
+    this.hub = options.hub ?? relayHub();
   }
 
   /**
-   * Starts connecting in the background. Relay availability and the local
-   * agent host are independent: a sleeping laptop, VPN transition, or relay
-   * outage must not make local sessions unusable.
+   * Joins the shared relay connection in the background. Relay availability
+   * and the local agent host are independent: a sleeping laptop, VPN
+   * transition, or relay outage must not make local sessions unusable.
    */
   start(): void {
-    this.stopped = false;
-    void this.connect().catch((error: unknown) => {
-      this.options.onFatal?.(
-        error instanceof Error ? error : new Error("Initial relay connection failed."),
-      );
-      this.scheduleReconnect();
+    this.link?.close();
+    this.link = this.hub.open(this.options.roomId, this.options.roomMeta, {
+      onLine: (line) => {
+        this.inbound = this.inbound
+          .then(() => this.receive(line))
+          .catch((error: unknown) => {
+            process.stderr.write(
+              `[baya] Ignored invalid mobile frame: ${
+                error instanceof Error ? error.name : "error"
+              }\n`,
+            );
+          });
+      },
+      ...(this.options.onFatal ? { onFatal: this.options.onFatal } : {}),
     });
   }
 
   stop(): void {
-    this.stopped = true;
-    if (this.reconnect) clearTimeout(this.reconnect);
-    this.reconnect = null;
-    this.relay?.close();
-    this.relay = null;
+    this.link?.close();
+    this.link = null;
     this.attached.clear();
   }
 
@@ -71,64 +75,7 @@ export class OwnerRelayHost {
   }
 
   updateMeta(meta: { model?: string; working?: boolean }): void {
-    Object.assign(this.meta, meta);
-    this.relay?.sendControl({
-      type: "room_meta_update",
-      room_id: this.options.roomId,
-      meta,
-    });
-  }
-
-  private async connect(): Promise<void> {
-    const identity = await getOrCreateEd25519Keypair();
-    this.identity = identity;
-    if (this.stopped) return;
-    const relay = new RelayClient(toWebSocketUrl(resolveRelayUrl().url), identity);
-    try {
-      await relay.connect({ roomId: this.options.roomId, roomMeta: this.meta });
-    } catch (error) {
-      relay.close();
-      throw error;
-    }
-    if (this.stopped) {
-      relay.close();
-      return;
-    }
-    this.relay = relay;
-    this.attempt = 0;
-    relay.on("message", (line) => {
-      this.inbound = this.inbound
-        .then(() => this.receive(line))
-        .catch((error: unknown) => {
-          process.stderr.write(
-            `[baya] Ignored invalid mobile frame: ${
-              error instanceof Error ? error.name : "error"
-            }\n`,
-          );
-        });
-    });
-    relay.on("close", () => {
-      if (this.relay !== relay || this.stopped) return;
-      this.relay = null;
-      this.scheduleReconnect();
-    });
-    relay.on("error", () => {
-      // close/reconnect owns recovery
-    });
-  }
-
-  private scheduleReconnect(): void {
-    if (this.stopped || this.reconnect) return;
-    const delay = Math.min(30_000, 500 * 2 ** Math.min(this.attempt++, 6));
-    this.reconnect = setTimeout(() => {
-      this.reconnect = null;
-      void this.connect().catch((error: unknown) => {
-        this.options.onFatal?.(
-          error instanceof Error ? error : new Error("Relay reconnect failed."),
-        );
-        this.scheduleReconnect();
-      });
-    }, delay);
+    this.link?.updateMeta(meta);
   }
 
   private async receive(line: string): Promise<void> {
@@ -152,6 +99,7 @@ export class OwnerRelayHost {
       });
       return;
     }
+    this.identity ??= await getOrCreateEd25519Keypair();
     const key = this.keyFor(peer);
     if (!key) return;
     let message: unknown;
@@ -227,18 +175,15 @@ export class OwnerRelayHost {
 
   private sendPlain(peer: string, message: ServerMessage): void {
     const ct = Buffer.from(JSON.stringify(message)).toString("base64");
-    try {
-      this.relay?.send(JSON.stringify({ peer, ct }));
-    } catch {
-      // best effort
-    }
+    this.link?.send({ peer, ct });
   }
 
   private queueSend(peers: string[], message: ServerMessage): void {
     this.outbound = this.outbound
       .then(async () => {
-        const relay = this.relay;
-        if (!relay?.isOpen()) return;
+        const link = this.link;
+        if (!link?.isOpen()) return;
+        this.identity ??= await getOrCreateEd25519Keypair();
         // Re-check on every delivery so a revoked owner cannot keep receiving
         // a stream after its pairing record is removed.
         const owners = await listPeers();
@@ -251,11 +196,7 @@ export class OwnerRelayHost {
           const key = this.keyFor(peer);
           if (!key) continue;
           const ct = seal(key, "h2p", this.options.roomId, plaintext).toString("base64");
-          try {
-            relay.send(JSON.stringify({ peer, ct }));
-          } catch {
-            // A reconnect followed by session_sync recovers delivery.
-          }
+          link.send({ peer, ct });
         }
       })
       .catch(() => {

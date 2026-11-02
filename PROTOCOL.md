@@ -129,6 +129,23 @@ The host registry stores each logical session as:
 The room id is derived from the canonical `cwd` and a namespaced session key.
 Every session has an independent host room and child-agent process.
 
+### One socket, many rooms
+
+The host serves all of its rooms over one authenticated relay socket. The
+first room rides in `hello`; the others join and leave with control frames:
+
+```json
+{"type":"room_open","room_id":"room-b","room_meta":{"name":"...","cwd":"..."}}
+{"type":"room_opened","room_id":"room-b"}
+{"type":"room_close","room_id":"room-b"}
+```
+
+Envelopes delivered to a socket carry `to_room` (the destination room), and a
+socket that owns several rooms names the sender room with `from_room`; the
+relay ignores a `from_room` the socket does not own. Older clients ignore
+`to_room`. When a relay does not answer `room_open` within five seconds the
+host treats it as a pre-multiplexing relay and opens one socket per room.
+
 `sessions_inventory` returns the native session keys visible to the current
 adapter. A complete inventory allows the mobile client to remove stale cached
 rooms; incomplete scans must not delete history.

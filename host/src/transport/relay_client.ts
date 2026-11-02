@@ -37,13 +37,6 @@ export interface RoomMeta {
   model?: string;
 }
 
-/** Control frame sent to relay (not routed to app peer). */
-export interface RoomMetaUpdateFrame {
-  type: "room_meta_update";
-  room_id: string;
-  meta: { model?: string };
-}
-
 export interface ConnectOptions {
   roomId?: string;
   roomMeta?: RoomMeta;
@@ -174,7 +167,7 @@ export class RelayClient extends EventEmitter {
    * the WS isn't open (best-effort: control frames are observational; we
    * don't want them throwing inside SDK event callbacks).
    */
-  sendControl(frame: object): void {
+  sendControl(frame: Record<string, unknown>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.ws.send(JSON.stringify(frame));
   }

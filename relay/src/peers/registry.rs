@@ -86,10 +86,23 @@ impl PeerRegistry {
         room_meta: RoomMeta,
         tx: mpsc::UnboundedSender<Message>,
     ) -> u64 {
+        let conn_id = self.next_conn.fetch_add(1, Ordering::Relaxed);
+        self.register_room(peer_id, room_meta, tx, conn_id).await;
+        conn_id
+    }
+
+    /// Opens one more room on an existing connection (`room_open`). The room
+    /// shares the connection's `conn_id` and sender, so skip-sender and
+    /// disconnect cleanup treat every room of a socket as one connection.
+    pub async fn register_room(
+        &self,
+        peer_id: String,
+        room_meta: RoomMeta,
+        tx: mpsc::UnboundedSender<Message>,
+        conn_id: u64,
+    ) {
         let room_id = room_meta.room_id.clone();
         let key = (peer_id.clone(), room_id.clone());
-
-        let conn_id = self.next_conn.fetch_add(1, Ordering::Relaxed);
 
         // Compute both flags **before** the insert so they reflect the prior
         // state of the registry.
@@ -134,8 +147,6 @@ impl PeerRegistry {
                 self.metrics.inc_peer_online_suppressed(sub_count);
             }
         }
-
-        conn_id
     }
 
     /// Immediately pushes a `peer_online` to `subscriber` for every peer in

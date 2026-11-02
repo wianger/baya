@@ -1,6 +1,3 @@
-// Tipos ainda não usados no handler — serão conectados no próximo passo
-#![allow(dead_code)]
-
 use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
@@ -12,10 +9,20 @@ fn default_room() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OuterEnvelope {
     pub peer: String,
-    /// Optional sub-channel (plano 17). Absent in legacy frames → "main".
+    /// Destination room on the way in; the sender's room on the way out.
+    /// Absent in legacy frames → "main".
     #[serde(default = "default_room")]
     pub room: String,
-    pub ct: String, // base64 — nunca decodificado aqui
+    /// Sender room on a connection that opened several rooms (`room_open`).
+    /// Ignored unless the connection owns that room.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_room: Option<String>,
+    /// Destination room, added on delivery so a multi-room connection can
+    /// dispatch the frame. Old clients ignore it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_room: Option<String>,
+    /// Base64 payload; the relay never decodes it.
+    pub ct: String,
 }
 
 /// Nome da env var que sobrescreve o teto do outer envelope (inteiro em MiB).

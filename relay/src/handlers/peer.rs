@@ -89,40 +89,7 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
             .and_then(|v| v.as_str())
             .unwrap_or("main")
             .to_string();
-        let room_meta_val = hello.get("room_meta");
-        let name = room_meta_val
-            .and_then(|m| m.get("name"))
-            .and_then(|v| v.as_str())
-            .map(String::from);
-        let cwd = room_meta_val
-            .and_then(|m| m.get("cwd"))
-            .and_then(|v| v.as_str())
-            .map(String::from);
-        let model = room_meta_val
-            .and_then(|m| m.get("model"))
-            .and_then(|v| v.as_str())
-            .map(String::from);
-        let thinking = room_meta_val
-            .and_then(|m| m.get("thinking"))
-            .and_then(|v| v.as_str())
-            .map(String::from);
-        let working = room_meta_val
-            .and_then(|m| m.get("working"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-        let started_at = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as i64;
-        RoomMeta {
-            room_id,
-            name,
-            cwd,
-            model,
-            thinking,
-            working,
-            started_at,
-        }
+        room_meta_from(room_id, hello.get("room_meta"))
     };
     let room_id = room_meta.room_id.clone();
 
@@ -136,7 +103,11 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
     let metrics = state.metrics.clone();
 
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
-    let conn_id = registry.register(peer_id.clone(), room_meta, tx).await;
+    let conn_id = registry
+        .register(peer_id.clone(), room_meta, tx.clone())
+        .await;
+    // Rooms this socket serves: the hello room plus any `room_open`ed later.
+    let mut my_rooms: Vec<String> = vec![room_id.clone()];
 
     // Per-conn dedup state for control-frame replies. Suppress identical
     // re-emits of `presence` (single cache slot — there's only one
@@ -300,6 +271,37 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
                                     }
                                 }
 
+                                // ── room multiplexing: one socket, many rooms ──
+                                "room_open" => {
+                                    let Some(new_room) = frame
+                                        .get("room_id")
+                                        .and_then(|v| v.as_str())
+                                        .filter(|r| valid_room_id(r))
+                                        .map(String::from)
+                                    else {
+                                        warn!(peer = %peer_short, "room_open without a valid room_id, dropping");
+                                        continue;
+                                    };
+                                    if !my_rooms.contains(&new_room) {
+                                        let meta = room_meta_from(new_room.clone(), frame.get("room_meta"));
+                                        registry
+                                            .register_room(peer_id.clone(), meta, tx.clone(), conn_id)
+                                            .await;
+                                        my_rooms.push(new_room.clone());
+                                    }
+                                    let ack = serde_json::json!({"type": "room_opened", "room_id": new_room});
+                                    if sink.send(Message::Text(ack.to_string().into())).await.is_err() {
+                                        break;
+                                    }
+                                }
+                                "room_close" => {
+                                    let target = frame.get("room_id").and_then(|v| v.as_str()).unwrap_or("");
+                                    if let Some(index) = my_rooms.iter().position(|r| r == target) {
+                                        let closed = my_rooms.remove(index);
+                                        registry.unregister(&peer_id, &closed, conn_id).await;
+                                    }
+                                }
+
                                 // ── Pi-to-Pi envelope forward (plano 25 W-A) ──
                                 "pi_envelope" => {
                                     use crate::handlers::pi_forward::{
@@ -345,10 +347,17 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
                                 let dest_room = env.room;
                                 let dest_tail =
                                     dest_peer[dest_peer.len().saturating_sub(8)..].to_string();
-                                // Rewrite: recipient sees sender's peer_id + sender's room_id.
+                                // Rewrite: recipient sees sender's peer_id + sender's room_id
+                                // and, for multi-room sockets, which room it is for.
+                                let from_room = env
+                                    .from_room
+                                    .filter(|r| my_rooms.contains(r))
+                                    .unwrap_or_else(|| room_id.clone());
                                 let rewritten = OuterEnvelope {
                                     peer: peer_id.clone(),
-                                    room: room_id.clone(),
+                                    room: from_room,
+                                    from_room: None,
+                                    to_room: Some(dest_room.clone()),
                                     ct: env.ct,
                                 };
                                 let fwd_line = serde_json::to_string(&rewritten)
@@ -392,7 +401,42 @@ async fn handle_peer(socket: WebSocket, peer_addr: SocketAddr, state: AppState) 
         }
     }
 
-    registry.unregister(&peer_id, &room_id, conn_id).await;
+    for room in &my_rooms {
+        registry.unregister(&peer_id, room, conn_id).await;
+    }
     rooms.unsubscribe_all(&peer_id).await;
     info!(peer = %peer_short, room = %room_id, addr = %peer_addr, "disconnected");
+}
+
+/// Room ids are short opaque tokens chosen by the host.
+fn valid_room_id(room: &str) -> bool {
+    !room.is_empty()
+        && room.len() <= 64
+        && room
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+}
+
+/// Builds a room's metadata from a `room_meta` object (hello or room_open).
+fn room_meta_from(room_id: String, meta: Option<&serde_json::Value>) -> RoomMeta {
+    let text = |key: &str| {
+        meta.and_then(|m| m.get(key))
+            .and_then(|v| v.as_str())
+            .map(String::from)
+    };
+    RoomMeta {
+        room_id,
+        name: text("name"),
+        cwd: text("cwd"),
+        model: text("model"),
+        thinking: text("thinking"),
+        working: meta
+            .and_then(|m| m.get("working"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        started_at: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64,
+    }
 }
