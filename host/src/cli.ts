@@ -6,6 +6,7 @@ import {
   existsSync,
   mkdirSync,
   openSync,
+  readFileSync,
   statSync,
   watch,
 } from "node:fs";
@@ -421,6 +422,14 @@ async function logs(args: ParsedArgs): Promise<void> {
   await new Promise(() => {});
 }
 
+function runningInWsl(): boolean {
+  try {
+    return readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft");
+  } catch {
+    return false;
+  }
+}
+
 async function relayReachable(url: string): Promise<boolean> {
   try {
     const response = await fetch(new URL("/health", url), { signal: AbortSignal.timeout(4_000) });
@@ -469,6 +478,20 @@ async function doctor(args: ParsedArgs): Promise<void> {
   if (!host) lines.push(hint("baya"));
   else if (!host.relay.connected) {
     lines.push(warn("Host is not connected to the relay yet"), hint("baya logs"));
+  }
+  if (host?.tailnet) {
+    lines.push(ok(`Tailscale pairing: phones type ${host.tailnet}`));
+    if (runningInWsl()) {
+      lines.push(
+        warn("WSL: Windows blocks inbound connections to WSL unless a firewall rule allows them"),
+        hint(
+          "in an administrator PowerShell, once:\n" +
+            "    New-NetFirewallHyperVRule -Name BayaPairing -DisplayName 'Baya pairing' " +
+            "-Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' " +
+            "-Protocol TCP -LocalPorts 7480 -RemoteAddresses 100.64.0.0/10",
+        ),
+      );
+    }
   }
   lines.push(peers.length ? ok(`${peers.length} phone(s) paired`) : warn("No phone paired"));
   if (!peers.length) lines.push(hint("baya pair"));
