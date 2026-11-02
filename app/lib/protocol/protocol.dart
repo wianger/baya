@@ -1673,9 +1673,20 @@ class WireAgentCommand {
 }
 
 class CommandsList extends ServerMessage {
-  const CommandsList({required this.inReplyTo, required this.commands});
+  const CommandsList({
+    required this.inReplyTo,
+    required this.commands,
+    this.supportedActions,
+  });
   final String inReplyTo;
   final List<WireAgentCommand> commands;
+
+  /// Typed host actions accepted by this session.
+  ///
+  /// `null` means an older host omitted capability discovery. Consumers keep
+  /// their legacy assumptions in that case; an empty list is authoritative and
+  /// means the session rejects every typed action.
+  final List<String>? supportedActions;
 
   factory CommandsList.fromJson(Map<String, dynamic> json) => CommandsList(
     inReplyTo: json['in_reply_to'] as String,
@@ -1686,6 +1697,13 @@ class CommandsList extends ServerMessage {
               WireAgentCommand.fromJson(Map<String, dynamic>.from(entry)),
         )
         .toList(growable: false),
+    supportedActions: json.containsKey('supported_actions')
+        ? [
+            for (final value
+                in (json['supported_actions'] as List<dynamic>? ?? const []))
+              if (value is String) value,
+          ]
+        : null,
   );
 }
 

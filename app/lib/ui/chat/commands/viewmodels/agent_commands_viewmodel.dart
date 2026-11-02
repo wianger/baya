@@ -11,14 +11,31 @@ class AgentCommandsViewModel extends ViewModel<AgentCommandsState> {
 
   Future<void> refresh() async {
     if (state.loading) return;
-    emit(AgentCommandsState(commands: state.commands, loading: true));
+    emit(
+      AgentCommandsState(
+        commands: state.commands,
+        supportedActions: state.supportedActions,
+        loading: true,
+      ),
+    );
     try {
-      final commands = await _repository.list();
-      if (!_disposed) emit(AgentCommandsState(commands: commands));
+      final catalogue = await _repository.list();
+      if (!_disposed) {
+        emit(
+          AgentCommandsState(
+            commands: catalogue.commands,
+            supportedActions: catalogue.supportedActions,
+          ),
+        );
+      }
     } on AgentCommandsFailure catch (error) {
       if (!_disposed) {
         emit(
-          AgentCommandsState(commands: state.commands, error: error.message),
+          AgentCommandsState(
+            commands: state.commands,
+            supportedActions: state.supportedActions,
+            error: error.message,
+          ),
         );
       }
     } catch (_) {
@@ -26,6 +43,7 @@ class AgentCommandsViewModel extends ViewModel<AgentCommandsState> {
         emit(
           AgentCommandsState(
             commands: state.commands,
+            supportedActions: state.supportedActions,
             error: appL10n.couldNotLoadCommands,
           ),
         );

@@ -160,6 +160,39 @@ void main() {
     });
 
     test(
+      'loadModels resolves a catalogue missing current from room metadata',
+      () async {
+        final repo = _FakeActionsRepository();
+        const codex = WireModel(
+          id: 'gpt-6.1-sol',
+          name: 'GPT-6.1-Sol',
+          provider: 'codex',
+          reasoning: true,
+          contextWindow: 0,
+          thinkingLevels: [
+            ThinkingLevel.low,
+            ThinkingLevel.high,
+            ThinkingLevel.max,
+          ],
+        );
+        repo.meta = const ActiveRoomMeta(
+          model: 'gpt-6.1-sol',
+          thinking: ThinkingLevel.high,
+        );
+        repo.catalogue = const ModelsCatalogue(models: [codex]);
+        final vm = QuickActionsViewModel(repo);
+
+        final catalogue = await vm.loadModels();
+
+        expect(catalogue.current, codex);
+        expect(vm.currentModel, codex);
+        expect(vm.currentModelName, 'GPT-6.1-Sol');
+        expect(vm.currentThinking, ThinkingLevel.high);
+        vm.dispose();
+      },
+    );
+
+    test(
       'loadModels clears an effort unsupported by the reported current model',
       () async {
         final repo = _FakeActionsRepository();

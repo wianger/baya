@@ -31,6 +31,7 @@ void main() {
         ServerMessage.fromJson({
           'type': 'commands_list',
           'in_reply_to': message.id,
+          'supported_actions': ['session_new', 'model_set'],
           'commands': [
             {
               'name': 'review',
@@ -47,10 +48,12 @@ void main() {
       );
     };
 
-    final commands = await repository.list();
+    final catalogue = await repository.list();
+    final commands = catalogue.commands;
 
     expect(commands.map((command) => command.name), ['review', 'browser']);
     expect(commands.last.source, 'skill');
+    expect(catalogue.supportedActions, {'session_new', 'model_set'});
     expect(channel.sent.whereType<GetCommands>(), hasLength(1));
     conn.dispose();
     await channel.disposeStreams();

@@ -754,7 +754,12 @@ export class PiAdapter implements AgentAdapter {
         ];
       },
     );
-    sender.send({ type: "commands_list", in_reply_to: requestId, commands });
+    sender.send({
+      type: "commands_list",
+      in_reply_to: requestId,
+      supported_actions: ["session_new", "session_compact", "model_set", "thinking_set"],
+      commands,
+    });
   }
 
   private async newSession(sender: PeerChannel, requestId: string): Promise<void> {

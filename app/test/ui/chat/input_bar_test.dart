@@ -17,6 +17,7 @@ void main() {
     VoidCallback? onOpenQuickActions,
     void Function(String id, String raw)? onSlashCommand,
     List<AgentCommand> agentCommands = const [],
+    Set<String> hiddenSlashCommandIds = const {},
     VoidCallback? onStartAudio,
   }) {
     return tester.pumpWidget(
@@ -30,6 +31,7 @@ void main() {
             onOpenQuickActions: onOpenQuickActions,
             onSlashCommand: onSlashCommand,
             agentCommands: agentCommands,
+            hiddenSlashCommandIds: hiddenSlashCommandIds,
             onStartAudio: onStartAudio,
           ),
         ),
@@ -37,13 +39,21 @@ void main() {
     );
   }
 
-  // The model selector now occupies a centred second row, like Claude's
-  // mobile composer. It leaves the tree when unavailable so the compact
-  // single-row composer has no empty vertical band.
+  // The reply field occupies the upper row. The lower control row keeps the
+  // model selector aligned with attach, voice, and send.
   final quickActionsKey = find.byKey(const Key('input-bar-quick-actions'));
 
   void expectCollapsed(WidgetTester tester) {
-    expect(quickActionsKey, findsNothing);
+    if (quickActionsKey.evaluate().isEmpty) return;
+    final sizeTransition = find.ancestor(
+      of: quickActionsKey,
+      matching: find.byType(SizeTransition),
+    );
+    expect(
+      tester.getSize(sizeTransition).width,
+      0,
+      reason: 'the hidden model switcher must not occupy layout space',
+    );
   }
 
   void expectExpanded(WidgetTester tester) {
@@ -130,6 +140,23 @@ void main() {
     expect(selectedRaw, '/browser');
   });
 
+  testWidgets('slash palette omits host actions the agent cannot execute', (
+    tester,
+  ) async {
+    await pumpBar(
+      tester,
+      disabled: false,
+      streaming: false,
+      hiddenSlashCommandIds: const {'compact'},
+    );
+
+    await tester.enterText(find.byType(TextField), '/compact');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Compact context'), findsNothing);
+    expect(find.text('Send /compact to the agent'), findsNothing);
+  });
+
   testWidgets('quick actions button stays available while typing', (
     tester,
   ) async {
@@ -146,7 +173,7 @@ void main() {
     expectExpanded(tester);
   });
 
-  testWidgets('composer uses attach, reply, actions and a centered model row', (
+  testWidgets('composer keeps reply above the attach and model control row', (
     tester,
   ) async {
     await pumpBar(
@@ -164,17 +191,15 @@ void main() {
     final send = tester.getRect(find.byKey(const Key('input-bar-action')));
     final model = tester.getRect(quickActionsKey);
 
-    expect(attach.right, lessThan(field.left));
-    expect(field.right, lessThanOrEqualTo(voice.left));
-    expect(voice.right, lessThan(send.left));
-    expect(model.top, greaterThan(field.bottom));
+    expect(field.bottom, lessThan(attach.top));
+    expect(attach.right, lessThan(model.left));
     expect(
-      model.center.dx,
-      closeTo(
-        tester.view.physicalSize.width / tester.view.devicePixelRatio / 2,
-        2,
-      ),
+      attach.center.dy,
+      closeTo(model.center.dy, 4),
+      reason: 'attach and model share the lower control row',
     );
+    expect(model.right, lessThan(voice.left));
+    expect(voice.right, lessThan(send.left));
   });
 
   testWidgets('quick actions button hides (collapses) when disabled', (

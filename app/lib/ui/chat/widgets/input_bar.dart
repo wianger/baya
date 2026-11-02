@@ -20,9 +20,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 // InputBar — bottom message composer.
 // - Disabled (grayed) when offline.
 // - During streaming, empty composer shows Stop; typed text sends steering.
-// - The quiet model/thinking control stays available beside the
+// - Plan/28 — the quiet model/thinking control stays available beside the
 //   attach button while a draft or image is present.
-// - When [voice] is provided, the mic becomes hold-to-talk:
+// - Plan/29 — when [voice] is provided, the mic becomes hold-to-talk:
 //   long-press starts recording (a WhatsApp-style RecordingStrip replaces
 //   the row), slide left past the threshold cancels, release transcribes
 //   and drops the text into the (empty) field for manual review/send. The
@@ -51,6 +51,13 @@ class InputBar extends StatefulWidget {
   final List<AgentCommand> agentCommands;
   final bool agentCommandsLoading;
   final String? agentCommandsError;
+
+  /// Built-in command ids the active host explicitly cannot execute.
+  ///
+  /// The host reports this alongside agent commands. Keeping unavailable
+  /// entries out of the palette prevents a harmless but confusing round-trip
+  /// that ends in an "unsupported action" error.
+  final Set<String> hiddenSlashCommandIds;
   final VoidCallback? onStartAudio;
   final String agentLabel;
   final String modelLabel;
@@ -85,6 +92,7 @@ class InputBar extends StatefulWidget {
     this.agentCommands = const [],
     this.agentCommandsLoading = false,
     this.agentCommandsError,
+    this.hiddenSlashCommandIds = const {},
     this.onStartAudio,
     this.agentLabel = 'your agent',
     this.modelLabel = 'Session',
@@ -375,7 +383,7 @@ class _InputBarState extends State<InputBar> {
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(11, 10, 10, 10),
+              padding: const EdgeInsets.fromLTRB(14, 12, 10, 9),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -386,6 +394,7 @@ class _InputBarState extends State<InputBar> {
                       agentCommands: widget.agentCommands,
                       loading: widget.agentCommandsLoading,
                       error: widget.agentCommandsError,
+                      hiddenCommandIds: widget.hiddenSlashCommandIds,
                       onSelected: (id, raw) {
                         _controller.clear();
                         widget.onSlashCommand?.call(id, raw);
@@ -405,49 +414,56 @@ class _InputBarState extends State<InputBar> {
                           ? () => widget.onClearQueued?.call(item.id)
                           : null,
                     ),
+                  TextField(
+                    focusNode: _focusNode,
+                    controller: _controller,
+                    enabled: canInteract,
+                    minLines: 1,
+                    maxLines: 6,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    style: context.typo.sansBody.copyWith(fontSize: 16),
+                    cursorColor: colors.accent,
+                    decoration: InputDecoration(
+                      hintText: widget.streaming
+                          ? context.l10n.steerCurrentResponse
+                          : (widget.voice != null ||
+                                widget.onStartAudio != null)
+                          ? context.l10n.replyToAgentOrTalk(widget.agentLabel)
+                          : context.l10n.replyToAgent(widget.agentLabel),
+                      hintStyle: context.typo.sansBody.copyWith(
+                        color: colors.muted,
+                      ),
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 3,
+                      ),
+                    ),
+                  ),
+                  Divider(
+                    height: 13,
+                    thickness: 0.5,
+                    color: colors.border.withValues(alpha: 0.42),
+                  ),
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       _AttachButton(
                         enabled: attachEnabled,
                         onTap: widget.onOpenAttach,
                       ),
-                      const SizedBox(width: 7),
+                      const SizedBox(width: 4),
                       Expanded(
-                        child: TextField(
-                          focusNode: _focusNode,
-                          controller: _controller,
-                          enabled: canInteract,
-                          minLines: 1,
-                          maxLines: 6,
-                          keyboardType: TextInputType.multiline,
-                          textInputAction: TextInputAction.newline,
-                          style: context.typo.sansBody.copyWith(fontSize: 16),
-                          cursorColor: colors.accent,
-                          decoration: InputDecoration(
-                            hintText: widget.streaming
-                                ? context.l10n.steerCurrentResponse
-                                : (widget.voice != null ||
-                                      widget.onStartAudio != null)
-                                ? context.l10n.replyToAgentOrTalk(
-                                    widget.agentLabel,
-                                  )
-                                : context.l10n.replyToAgent(widget.agentLabel),
-                            hintStyle: context.typo.sansBody.copyWith(
-                              color: colors.muted,
-                            ),
-                            filled: false,
-                            isDense: true,
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            disabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            contentPadding: const EdgeInsets.fromLTRB(
-                              2,
-                              7,
-                              4,
-                              7,
-                            ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _QuickActionsButton(
+                            show: showQuickActions,
+                            onPressed: widget.onOpenQuickActions,
+                            label: widget.modelLabel,
                           ),
                         ),
                       ),
@@ -472,7 +488,7 @@ class _InputBarState extends State<InputBar> {
                           onVoiceLongPressEnd: _onVoiceEnd,
                           onVoiceTap: _onVoiceTap,
                         ),
-                        const SizedBox(width: 3),
+                        const SizedBox(width: 8),
                       ],
                       _ComposerActionButton(
                         key: const ValueKey('message-action'),
@@ -490,29 +506,10 @@ class _InputBarState extends State<InputBar> {
                         onVoiceTap: _onVoiceTap,
                       ),
                       if (showInlineStop) ...[
-                        const SizedBox(width: 3),
+                        const SizedBox(width: 8),
                         _InlineStopButton(onTap: widget.onCancel!),
                       ],
                     ],
-                  ),
-                  AnimatedSize(
-                    duration: MediaQuery.disableAnimationsOf(context)
-                        ? Duration.zero
-                        : BayaMotion.standard,
-                    curve: BayaMotion.enter,
-                    alignment: Alignment.topCenter,
-                    child: showQuickActions
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 7),
-                            child: Center(
-                              child: _QuickActionsButton(
-                                show: true,
-                                onPressed: widget.onOpenQuickActions,
-                                label: widget.modelLabel,
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
                   ),
                 ],
               ),
@@ -954,7 +951,7 @@ class _ComposerActionButton extends StatelessWidget {
   final VoidCallback? onCancel;
   final VoidCallback? onStartAudio;
 
-  // Voice wiring.
+  // Plan/29 voice wiring.
   final bool voiceEnabled;
   final bool voiceUnsupported;
   final VoidCallback onVoiceLongPressStart;
@@ -1134,6 +1131,7 @@ class _SlashPalette extends StatelessWidget {
     required this.agentCommands,
     required this.loading,
     required this.error,
+    required this.hiddenCommandIds,
     required this.onSelected,
   });
 
@@ -1141,6 +1139,7 @@ class _SlashPalette extends StatelessWidget {
   final List<AgentCommand> agentCommands;
   final bool loading;
   final String? error;
+  final Set<String> hiddenCommandIds;
   final void Function(String id, String raw) onSelected;
 
   static final _commands = [
@@ -1192,11 +1191,17 @@ class _SlashPalette extends StatelessWidget {
     final matches = _commands
         .where(
           (c) =>
-              normalized.isEmpty ||
-              c.id.startsWith(normalized) ||
-              c.label.toLowerCase().contains(normalized),
+              !hiddenCommandIds.contains(c.id) &&
+              (normalized.isEmpty ||
+                  c.id.startsWith(normalized) ||
+                  c.label.toLowerCase().contains(normalized)),
         )
         .toList();
+    final hiddenExactCommand = _commands.any(
+      (command) =>
+          hiddenCommandIds.contains(command.id) &&
+          (normalized.isEmpty || command.id.startsWith(normalized)),
+    );
     final agentMatches = agentCommands
         .where(
           (command) =>
@@ -1297,22 +1302,24 @@ class _SlashPalette extends StatelessWidget {
                       ),
                     ),
                   ),
-                Divider(height: 1, color: colors.border),
-                ListTile(
-                  dense: true,
-                  leading: Icon(
-                    LucideIcons.terminal,
-                    size: 17,
-                    color: colors.accent,
+                if (!hiddenExactCommand) ...[
+                  Divider(height: 1, color: colors.border),
+                  ListTile(
+                    dense: true,
+                    leading: Icon(
+                      LucideIcons.terminal,
+                      size: 17,
+                      color: colors.accent,
+                    ),
+                    title: Text(
+                      normalized.isEmpty
+                          ? context.l10n.sendSlashCommand
+                          : context.l10n.sendCommandToAgent(normalized),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    onTap: () => onSelected('agent', '/$normalized'),
                   ),
-                  title: Text(
-                    normalized.isEmpty
-                        ? context.l10n.sendSlashCommand
-                        : context.l10n.sendCommandToAgent(normalized),
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  onTap: () => onSelected('agent', '/$normalized'),
-                ),
+                ],
               ],
             ),
           ),

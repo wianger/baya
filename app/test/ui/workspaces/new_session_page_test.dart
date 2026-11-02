@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/workspaces/new_session_page.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
@@ -50,9 +51,37 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Open Pi here'), findsOneWidget);
+      final openButton = find.byKey(const ValueKey('new-session-open-button'));
+      expect(openButton, findsOneWidget);
+      expect(
+        find.ancestor(of: openButton, matching: find.byType(BayaSurface)),
+        findsNothing,
+        reason: 'the action button must not be wrapped in a second glass panel',
+      );
       expect(find.text('Device'), findsOneWidget);
       expect(find.text('Workspace'), findsOneWidget);
       expect(find.text('Default'), findsOneWidget);
+      for (final (key, label) in [
+        (const ValueKey('new-session-device-picker'), 'Device'),
+        (const ValueKey('new-session-workspace-picker'), 'Workspace'),
+        (const ValueKey('workspace-agent-picker'), 'Agent'),
+      ]) {
+        final field = find.byKey(key);
+        final caption = find.descendant(of: field, matching: find.text(label));
+        expect(caption, findsOneWidget);
+        final fieldRect = tester.getRect(field);
+        final captionRect = tester.getRect(caption);
+        expect(
+          captionRect.top,
+          greaterThanOrEqualTo(fieldRect.top),
+          reason: '$label must not be clipped by its glass card',
+        );
+        expect(
+          captionRect.bottom,
+          lessThanOrEqualTo(fieldRect.bottom),
+          reason: '$label must remain inside its glass card',
+        );
+      }
       await tester.tap(
         find.byKey(const ValueKey('new-session-workspace-picker')),
       );

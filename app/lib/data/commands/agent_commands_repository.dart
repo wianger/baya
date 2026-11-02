@@ -19,7 +19,7 @@ class AgentCommandsRepository implements IAgentCommandsRepository {
   void dispose() {}
 
   @override
-  Future<List<AgentCommand>> list() async {
+  Future<AgentCommandCatalog> list() async {
     final channel = _connection.channel;
     final peer = _connection.activePeer?.remoteEpk;
     final conversation = _connection.activeRoomId;
@@ -29,21 +29,26 @@ class AgentCommandsRepository implements IAgentCommandsRepository {
       );
     }
     final id = uuid7();
-    final result = Completer<List<AgentCommand>>();
+    final result = Completer<AgentCommandCatalog>();
     final subscription = channel.serverMessages.listen(
       (message) {
         if (result.isCompleted) return;
         if (message is CommandsList && message.inReplyTo == id) {
           result.complete(
-            message.commands
-                .map(
-                  (command) => AgentCommand(
-                    name: command.name,
-                    source: command.source,
-                    description: command.description,
-                  ),
-                )
-                .toList(growable: false),
+            AgentCommandCatalog(
+              commands: message.commands
+                  .map(
+                    (command) => AgentCommand(
+                      name: command.name,
+                      source: command.source,
+                      description: command.description,
+                    ),
+                  )
+                  .toList(growable: false),
+              supportedActions: message.supportedActions == null
+                  ? null
+                  : Set.unmodifiable(message.supportedActions!),
+            ),
           );
         } else if (message is ErrorMessage && message.inReplyTo == id) {
           result.completeError(AgentCommandsFailure(message.message));
@@ -79,7 +84,7 @@ class AgentCommandsRepository implements IAgentCommandsRepository {
           _connection.activeRoomId != conversation) {
         throw const AgentCommandsFailure('The selected session changed.');
       }
-      return values.first as List<AgentCommand>;
+      return values.first as AgentCommandCatalog;
     } on AgentCommandsFailure {
       rethrow;
     } catch (_) {

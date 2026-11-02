@@ -255,22 +255,20 @@ class _ModelPickerBodyState extends State<_ModelPickerBody> {
                                     onTap: () =>
                                         setState(() => _editingModel = true),
                                   ),
-                                  const SizedBox(height: 6),
-                                  _PickerRow(
-                                    key: const Key('model-picker-effort'),
-                                    label: context.l10n.effort,
-                                    value: effortLevels.isEmpty
-                                        ? context.l10n.notSupported
-                                        : current == null ||
+                                  if (effortLevels.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    _PickerRow(
+                                      key: const Key('model-picker-effort'),
+                                      label: context.l10n.effort,
+                                      value:
+                                          current == null ||
                                               !effortLevels.contains(current)
-                                        ? context.l10n.defaultLabel
-                                        : _effortLabel(current),
-                                    onTap: effortLevels.isEmpty
-                                        ? null
-                                        : () => setState(
-                                            () => _editingEffort = true,
-                                          ),
-                                  ),
+                                          ? context.l10n.defaultLabel
+                                          : _effortLabel(current),
+                                      onTap: () =>
+                                          setState(() => _editingEffort = true),
+                                    ),
+                                  ],
                                 ],
                               );
                             },
