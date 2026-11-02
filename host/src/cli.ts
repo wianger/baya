@@ -483,12 +483,10 @@ async function doctor(args: ParsedArgs): Promise<void> {
     lines.push(ok(`Tailscale pairing: phones type ${host.tailnet}`));
     if (runningInWsl()) {
       lines.push(
-        warn("WSL: Windows blocks inbound connections to WSL unless a firewall rule allows them"),
+        warn("WSL: phones reach the host through tailscale serve (inbound to WSL is firewalled)"),
         hint(
-          "in an administrator PowerShell, once:\n" +
-            "    New-NetFirewallHyperVRule -Name BayaPairing -DisplayName 'Baya pairing' " +
-            "-Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' " +
-            "-Protocol TCP -LocalPorts 7480 -RemoteAddresses 100.64.0.0/10",
+          "on Windows, once:\n" +
+            "    tailscale serve --bg --set-path /baya-pair http://127.0.0.1:7480/baya-pair",
         ),
       );
     }

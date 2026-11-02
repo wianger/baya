@@ -19,6 +19,25 @@ void main() {
     expect(asked.toString(), 'http://wiang-1:7480/pair');
   });
 
+  test('prefers HTTPS through tailscale serve, then the direct port', () async {
+    final asked = <String>[];
+    final code = await fetchTailnetPairingCode(
+      'wiang-1',
+      tailnetSuffix: tailnetSuffixOf('https://relay.tail1234.ts.net'),
+      client: MockClient((request) async {
+        asked.add(request.url.toString());
+        if (request.url.scheme == 'https') return http.Response('', 404);
+        return http.Response(jsonEncode({'uri': 'baya://pair?t=y'}), 200);
+      }),
+    );
+    expect(code, 'baya://pair?t=y');
+    expect(asked, [
+      'https://wiang-1.tail1234.ts.net/baya-pair/pair',
+      'http://wiang-1:7480/pair',
+    ]);
+    expect(tailnetSuffixOf('https://example.com'), isNull);
+  });
+
   test('maps refusals and network errors to precise reasons', () async {
     Future<TailnetPairingFailure?> reason(http.Client client) async {
       try {

@@ -1,9 +1,12 @@
+import 'package:app/data/preferences/preferences.dart';
+import 'package:app/data/transport/relay_config.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/tailnet_pairing.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:provider/provider.dart';
 
 /// Pair by typing the computer's Tailscale name instead of scanning.
 /// [onSubmit] receives the pairing code, exactly as a scan would.
@@ -57,7 +60,10 @@ class _TailnetPairBodyState extends State<_TailnetPairBody> {
       _error = null;
     });
     try {
-      final code = await fetchTailnetPairingCode(name);
+      final code = await fetchTailnetPairingCode(
+        name,
+        tailnetSuffix: _tailnetSuffix(),
+      );
       if (!mounted) return;
       Navigator.of(context).pop();
       widget.onSubmit(code);
@@ -71,6 +77,15 @@ class _TailnetPairBodyState extends State<_TailnetPairBody> {
           TailnetPairingFailure.notReady => l10n.tailnetNotReady,
         };
       });
+    }
+  }
+
+  /// The relay usually lives on the tailnet; its domain completes short names.
+  String? _tailnetSuffix() {
+    try {
+      return tailnetSuffixOf(resolveRelayUrl(context.read<Preferences>()));
+    } on ProviderNotFoundException {
+      return tailnetSuffixOf(kDefaultRelayUrl);
     }
   }
 

@@ -1,7 +1,13 @@
 import { describe, expect, test } from "vitest";
 import { TailnetPairingServer } from "../src/tailnet/pairing_server.ts";
 
-const self = { ip: "127.0.0.1", dnsName: "box.tail.ts.net", name: "box", userId: 42 };
+const self = {
+  ip: "127.0.0.1",
+  dnsName: "box.tail.ts.net",
+  name: "box",
+  userId: 42,
+  login: "me@github",
+};
 
 async function serve(callerUser: number | null) {
   let issued = 0;
@@ -35,6 +41,22 @@ describe("Tailscale pairing endpoint", () => {
       } finally {
         server.close();
       }
+    }
+  });
+
+  test("through tailscale serve, the login header identifies the caller", async () => {
+    const { server, url } = await serve(null);
+    try {
+      const mine = await fetch(`${url}/baya-pair/pair`, {
+        headers: { "Tailscale-User-Login": "me@github" },
+      });
+      expect(mine.status).toBe(200);
+      const theirs = await fetch(`${url}/baya-pair/pair`, {
+        headers: { "Tailscale-User-Login": "someone@github" },
+      });
+      expect(theirs.status).toBe(403);
+    } finally {
+      server.close();
     }
   });
 });

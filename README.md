@@ -47,8 +47,11 @@ Three ways to pair, all equally secure:
 - **Scan** the QR code it prints.
 - **Tailscale**: if the phone and the computer share a Tailscale account,
   tap *Use Tailscale* in the app and type the computer's name. The host
-  serves pairing codes on its tailnet address (port 7480) only to devices
-  `tailscale whois` attributes to the same account.
+  issues pairing codes only to devices of the same Tailscale account: on its
+  tailnet address (port 7480, checked with `tailscale whois`) and, where
+  inbound connections are firewalled (WSL), through
+  `tailscale serve --bg --set-path /baya-pair http://127.0.0.1:7480/baya-pair`
+  (HTTPS; the caller is named by serve's `Tailscale-User-Login`).
 - **Link**: tap the `baya://pair?…` link on the phone, or paste it.
 
 Manage paired phones. Unpairing takes effect immediately, including for a
