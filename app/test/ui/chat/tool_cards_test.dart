@@ -71,8 +71,8 @@ void main() {
       );
       expect(content.isFileChange, isTrue);
       expect(content.path, 'lib/main.dart');
-      expect(content.changesText, contains('-b'));
-      expect(content.changesText, contains('+c'));
+      expect(content.diffs.single.path, 'lib/main.dart');
+      expect(content.diffStats, (added: 1, removed: 1));
     });
 
     test('text content is the output; no title falls back to the kind', () {
@@ -203,6 +203,18 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Approval'), findsOneWidget);
     });
+  });
+
+  test('startup chatter folds away and empty agent text is dropped', () {
+    final items = toolRunItemsForMessages(const [
+      AssistantMsg(id: 'a0', text: 'pi v1.5.0\n## Skills'),
+      UserMsg(id: 'u1', text: 'Hi'),
+      AssistantMsg(id: 'a1', text: '  '),
+      AssistantMsg(id: 'a2', text: 'Hello'),
+    ]);
+    expect(items, hasLength(3));
+    expect(items.first, isA<StartupNote>());
+    expect((items.last as AssistantMsg).text, 'Hello');
   });
 
   test('one copy owner per turn, after the last assistant segment', () {

@@ -292,10 +292,20 @@ void main() {
 
     await tester.tap(find.byKey(const Key('tool-run-group')));
     await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.byKey(const ValueKey('tool-details-t1')));
+    await tester.tap(find.byKey(const ValueKey('tool-details-t5')));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
+    // ignore: avoid_print
+    print(
+      'DBG cmd=${find.byKey(const Key('tool-command')).evaluate().length} changes=${find.byKey(const Key('tool-changes')).evaluate().length} ex=${tester.takeException()}',
+    );
+    await tester.pump(const Duration(seconds: 1));
     await _save(tester, boundary, '$output/tools-open.png');
+    await tester.tap(find.byKey(const ValueKey('tool-details-t5')));
+    await tester.tap(find.byKey(const ValueKey('tool-details-t2')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await _save(tester, boundary, '$output/diff-open.png');
 
     await tester.tap(find.byKey(const Key('chat-actions')));
     await tester.pump();

@@ -1,9 +1,11 @@
 import 'package:app/domain/session_files/session_files_repository.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/chat/widgets/agent_markdown.dart';
+import 'package:app/ui/core/code/code_view.dart';
+import 'package:app/ui/core/code/highlighter.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/ui/core/widgets/copy_button.dart';
 import 'package:app/ui/session_files/states/session_files_state.dart';
 import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
 import 'package:flutter/material.dart';
@@ -242,43 +244,13 @@ class _DirectoryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rootName = _baseName(directory.root);
-    final relative = _relativePath(directory.root, directory.path);
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 4, 14, 28),
       children: [
-        BayaSurface(
-          role: BayaSurfaceRole.content,
-          radius: 18,
-          elevated: false,
-          padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-          child: Row(
-            children: [
-              Icon(
-                LucideIcons.folderOpen,
-                size: 19,
-                color: context.colors.highlight,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  relative,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.typo.monoSmall,
-                ),
-              ),
-              if (relative != rootName) ...[
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: busy
-                      ? null
-                      : () => onOpenDirectory(directory.root),
-                  child: Text(context.l10n.root),
-                ),
-              ],
-            ],
-          ),
+        _Breadcrumbs(
+          root: directory.root,
+          path: directory.path,
+          onOpen: busy ? null : onOpenDirectory,
         ),
         const SizedBox(height: 10),
         if (directory.parent != null)
@@ -310,30 +282,22 @@ class _DirectoryView extends StatelessWidget {
             ),
           )
         else
-          ...directory.entries.map(
-            (entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 7),
-              child: _FileRow(
-                key: ValueKey('session-file-${entry.path}'),
-                icon: entry.kind == SessionFileKind.directory
-                    ? LucideIcons.folder
-                    : _fileIcon(entry.name),
-                iconColor: entry.kind == SessionFileKind.directory
-                    ? context.colors.highlight
-                    : context.colors.muted2,
-                title: entry.name,
-                subtitle: entry.kind == SessionFileKind.directory
-                    ? context.l10n.directory
-                    : _entryMetadata(entry),
-                trailing: entry.kind == SessionFileKind.directory
-                    ? LucideIcons.chevronRight
-                    : null,
-                onTap: busy
-                    ? null
-                    : () => entry.kind == SessionFileKind.directory
-                          ? onOpenDirectory(entry.path)
-                          : onOpenFile(entry),
-              ),
+          BayaSurface(
+            role: BayaSurfaceRole.content,
+            radius: 18,
+            elevated: false,
+            child: Column(
+              children: [
+                for (var i = 0; i < directory.entries.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      indent: 44,
+                      color: context.colors.border.withValues(alpha: .7),
+                    ),
+                  _entryRow(context, directory.entries[i]),
+                ],
+              ],
             ),
           ),
         if (directory.truncated)
@@ -348,6 +312,92 @@ class _DirectoryView extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+extension on _DirectoryView {
+  Widget _entryRow(BuildContext context, SessionFileEntry entry) {
+    final folder = entry.kind == SessionFileKind.directory;
+    return _FileRow(
+      key: ValueKey('session-file-${entry.path}'),
+      icon: folder ? LucideIcons.folder : _fileIcon(entry.name),
+      iconColor: folder ? context.colors.highlight : context.colors.muted2,
+      title: entry.name,
+      subtitle: folder ? context.l10n.directory : _entryMetadata(entry),
+      trailing: folder ? LucideIcons.chevronRight : null,
+      onTap: busy
+          ? null
+          : () => folder ? onOpenDirectory(entry.path) : onOpenFile(entry),
+    );
+  }
+}
+
+/// Where the listing is, from the session's folder down; each part opens.
+class _Breadcrumbs extends StatelessWidget {
+  const _Breadcrumbs({
+    required this.root,
+    required this.path,
+    required this.onOpen,
+  });
+
+  final String root;
+  final String path;
+  final ValueChanged<String>? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final separator = root.contains('\\') ? '\\' : '/';
+    final relative = _relativePath(root, path);
+    final parts = relative == _baseName(root)
+        ? <String>[]
+        : relative.split('/').where((part) => part.isNotEmpty).toList();
+    final crumbs = <(String, String)>[
+      (_baseName(root), root),
+      for (var i = 0; i < parts.length; i++)
+        (
+          parts[i],
+          [
+            root.replaceAll(RegExp(r'[\\/]+$'), ''),
+            ...parts.take(i + 1),
+          ].join(separator),
+        ),
+    ];
+    return SingleChildScrollView(
+      key: const ValueKey('session-files-breadcrumbs'),
+      scrollDirection: Axis.horizontal,
+      reverse: true,
+      child: Row(
+        children: [
+          for (var i = 0; i < crumbs.length; i++) ...[
+            if (i > 0)
+              Icon(LucideIcons.chevronRight, size: 14, color: colors.muted),
+            TextButton(
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                foregroundColor: i == crumbs.length - 1
+                    ? colors.text
+                    : colors.muted2,
+              ),
+              onPressed: i == crumbs.length - 1 || onOpen == null
+                  ? null
+                  : () => onOpen!(crumbs[i].$2),
+              child: Text(
+                crumbs[i].$1,
+                style: context.typo.sansBody.copyWith(
+                  fontSize: 14,
+                  fontWeight: i == crumbs.length - 1
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+                  color: i == crumbs.length - 1 ? colors.text : colors.muted2,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -372,52 +422,45 @@ class _FileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BayaSurface(
-      role: BayaSurfaceRole.control,
-      radius: 16,
-      elevated: false,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-            child: Row(
-              children: [
-                Icon(icon, size: 19, color: iconColor ?? context.colors.muted2),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w500,
-                        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+          child: Row(
+            children: [
+              Icon(icon, size: 19, color: iconColor ?? context.colors.muted2),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.typo.sansBody.copyWith(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w500,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.typo.monoSmall.copyWith(
-                          fontSize: 10.5,
-                          color: context.colors.muted,
-                        ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.typo.monoSmall.copyWith(
+                        fontSize: 10.5,
+                        color: context.colors.muted,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                if (trailing != null)
-                  Icon(trailing, size: 17, color: context.colors.muted),
-              ],
-            ),
+              ),
+              if (trailing != null)
+                Icon(trailing, size: 17, color: context.colors.muted),
+            ],
           ),
         ),
       ),
@@ -490,43 +533,7 @@ class _FileView extends StatelessWidget {
             message: context.l10n.noTextContent,
           )
         else
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      context.l10n.preview,
-                      style: context.typo.sansBody.copyWith(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: context.colors.muted,
-                      ),
-                    ),
-                  ),
-                  BayaCopyButton(
-                    text: content,
-                    tooltip: context.l10n.copyContents,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              BayaSurface(
-                key: const ValueKey('session-file-content-surface'),
-                role: BayaSurfaceRole.content,
-                radius: 18,
-                elevated: false,
-                padding: const EdgeInsets.all(15),
-                child: SelectableText(
-                  content,
-                  key: const ValueKey('session-file-content'),
-                  style: context.typo.mono.copyWith(fontSize: 12, height: 1.55),
-                ),
-              ),
-            ],
-          ),
+          _FileContent(name: file.name, content: content),
         if (file.truncated && !file.binary)
           Padding(
             padding: const EdgeInsets.only(top: 10),
@@ -538,6 +545,61 @@ class _FileView extends StatelessWidget {
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// A file's text: Markdown rendered (with its source a tap away), anything
+/// else as highlighted code with line numbers.
+class _FileContent extends StatefulWidget {
+  const _FileContent({required this.name, required this.content});
+
+  final String name;
+  final String content;
+
+  @override
+  State<_FileContent> createState() => _FileContentState();
+}
+
+class _FileContentState extends State<_FileContent> {
+  late bool _rendered = _isMarkdown;
+
+  bool get _isMarkdown =>
+      CodeHighlighter.languageForPath(widget.name) == 'markdown';
+
+  @override
+  Widget build(BuildContext context) {
+    final code = CodeBlock(
+      key: const ValueKey('session-file-content'),
+      code: widget.content,
+      language: CodeHighlighter.languageForPath(widget.name),
+      title: CodeHighlighter.languageForPath(widget.name) ?? widget.name,
+      lineNumbers: true,
+    );
+    if (!_isMarkdown) return code;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SegmentedButton<bool>(
+            key: const ValueKey('session-file-view'),
+            showSelectedIcon: false,
+            segments: [
+              ButtonSegment(value: true, label: Text(context.l10n.preview)),
+              ButtonSegment(value: false, label: Text(context.l10n.source)),
+            ],
+            selected: {_rendered},
+            onSelectionChanged: (value) =>
+                setState(() => _rendered = value.first),
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (_rendered)
+          AgentMarkdown(widget.content, selectable: true)
+        else
+          code,
       ],
     );
   }

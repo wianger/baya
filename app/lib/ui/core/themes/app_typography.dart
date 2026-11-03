@@ -7,6 +7,14 @@ import 'package:app/ui/core/themes/app_colors.dart';
 const String kSansFamily = 'Geist';
 const String kMonoFamily = 'Geist Mono';
 
+/// Code shows every character as typed: no ligatures or contextual
+/// alternates merging `--`, `->` or `!=`.
+const _literal = [
+  FontFeature.disable('liga'),
+  FontFeature.disable('calt'),
+  FontFeature.disable('dlig'),
+];
+
 /// System fallback handles CJK and other scripts.
 const List<String>? kFontFallback = null;
 
@@ -83,6 +91,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
         color: monoColor,
         height: 1.5,
         letterSpacing: 0,
+        fontFeatures: _literal,
       ),
       monoSmall: TextStyle(
         fontFamily: kMonoFamily,
@@ -90,6 +99,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
         fontSize: 12.0,
         color: c.muted2,
         height: 1.4,
+        fontFeatures: _literal,
       ),
       sansBody: TextStyle(
         fontFamily: kSansFamily,

@@ -19,7 +19,8 @@ void main() {
       ),
     );
     expect(find.text('Thinking'), findsOneWidget);
-    expect(find.text('Inspect the chosen folder.'), findsNothing);
+    // The latest thought shows under the label while it streams.
+    expect(find.text('Inspect the chosen folder.'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('thinking-disclosure')));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byKey(const ValueKey('thinking-detail-text')), findsOneWidget);

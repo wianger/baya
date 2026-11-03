@@ -360,5 +360,9 @@
   "newItem": "新建",
   "tokensOf": "{used} / {size} tokens",
   "thinking": "思考中",
-  "deleteSession": "删除会话"
+  "deleteSession": "删除会话",
+  "showAllLines": "显示全部 {count} 行",
+  "thoughtFor": "{seconds, plural, other{思考了 {seconds} 秒}}",
+  "source": "源码",
+  "agentStartupNotes": "启动信息"
 }

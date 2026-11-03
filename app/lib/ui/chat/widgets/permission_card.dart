@@ -126,10 +126,7 @@ class _PermissionCardState extends State<PermissionCard> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 260),
                     child: SingleChildScrollView(
-                      child: ToolActivityDetails(
-                        tool: _tool,
-                        resultMaxHeight: 200,
-                      ),
+                      child: ToolActivityDetails(tool: _tool),
                     ),
                   ),
                 ],

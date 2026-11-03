@@ -68,17 +68,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Markdown opens rendered; its source is one tap away, highlighted
+    // with line numbers and a copy button.
+    expect(find.text('Remote Pi'), findsOneWidget);
+    await tester.tap(find.text('Source'));
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('session-file-content')), findsOneWidget);
-    expect(find.text('# Remote Pi\n'), findsOneWidget);
-    expect(find.text('Copy contents'), findsOneWidget);
-    final contentSurface = find.byKey(
-      const ValueKey('session-file-content-surface'),
-    );
-    final surfaceRect = tester.getRect(contentSurface);
-    final copyRect = tester.getRect(find.text('Copy contents'));
-    expect(surfaceRect.overlaps(copyRect), isFalse);
-    expect(copyRect.bottom, lessThanOrEqualTo(surfaceRect.top));
-    expect(copyRect.center.dx, greaterThan(surfaceRect.center.dx));
+    expect(find.byKey(const Key('code-copy')), findsOneWidget);
     expect(find.byTooltip('Back to directory'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());

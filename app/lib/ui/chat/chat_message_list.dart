@@ -6,6 +6,7 @@ import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/widgets/image_bubble.dart';
 import 'package:app/ui/chat/widgets/message_bubble.dart';
+import 'package:app/ui/chat/widgets/startup_note.dart';
 import 'package:app/ui/chat/widgets/thinking_block.dart';
 import 'package:app/ui/chat/widgets/tool_run_group.dart';
 import 'package:app/ui/chat/widgets/working_indicator.dart';
@@ -25,7 +26,19 @@ List<Object> toolRunItemsForMessages(List<ChatMessage> messages) {
     run.clear();
   }
 
+  var prompted = false;
   for (final message in messages) {
+    if (message is UserMsg) prompted = true;
+    // Empty agent text (some agents open a turn with an empty chunk) has
+    // nothing to show.
+    if (message is AssistantMsg && message.text.trim().isEmpty) continue;
+    // What an agent says before anyone has asked it anything is its startup
+    // chatter (version, loaded skills), not a reply.
+    if (message is AssistantMsg && !prompted) {
+      flushRun();
+      items.add(StartupNote(message));
+      continue;
+    }
     if (message is ToolEvent && !message.awaitingApproval) {
       run.add(message);
       continue;
@@ -35,6 +48,12 @@ List<Object> toolRunItemsForMessages(List<ChatMessage> messages) {
   }
   flushRun();
   return items;
+}
+
+/// An agent message sent before the first prompt.
+class StartupNote {
+  const StartupNote(this.message);
+  final AssistantMsg message;
 }
 
 /// A run of consecutive tool calls rendered as one collapsible row.
@@ -313,6 +332,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                   if (itemIndex < 0 || itemIndex >= items.length) return false;
                   final item = items[itemIndex];
                   return item is ToolRunItem ||
+                      item is StartupNote ||
                       item is ToolEvent ||
                       item is ThinkingMsg;
                 }
@@ -351,6 +371,14 @@ class _ChatMessageListState extends State<ChatMessageList> {
                     ),
                   );
                 }
+                if (item is StartupNote) {
+                  return constrain(
+                    KeyedSubtree(
+                      key: ValueKey('startup-${item.message.id}'),
+                      child: StartupNoteRow(text: item.message.text),
+                    ),
+                  );
+                }
                 if (item is ToolEvent) {
                   return constrain(
                     BayaReveal(
@@ -373,6 +401,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                         showCopy: copyOwners.contains(msg),
                       ),
                       ThinkingMsg() => ThinkingBlock(
+                        id: msg.id,
                         text: msg.text,
                         complete: msg.complete,
                       ),

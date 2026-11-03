@@ -123,7 +123,6 @@ class ToolRow extends StatefulWidget {
 
 class _ToolRowState extends State<ToolRow> {
   bool _open = false;
-  bool _full = false;
 
   ToolEvent get tool => widget.tool;
 
@@ -146,11 +145,6 @@ class _ToolRowState extends State<ToolRow> {
       color: color,
       fontWeight: FontWeight.w500,
     );
-    final output = [
-      content.output.text,
-      content.output.stderr,
-    ].whereType<String>().join('\n');
-    final long = output.length > 900 || '\n'.allMatches(output).length > 12;
     final stats = content.diffStats;
     final detail = content.detailLine;
     return Column(
@@ -256,31 +250,7 @@ class _ToolRowState extends State<ToolRow> {
               ? const SizedBox(width: double.infinity)
               : Padding(
                   padding: const EdgeInsets.fromLTRB(25, 2, 0, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ToolActivityDetails(
-                        tool: tool,
-                        resultMaxHeight: _full ? 420 : 160,
-                      ),
-                      if (long)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton(
-                            key: ValueKey(
-                              'tool-output-toggle-${tool.toolCallId}',
-                            ),
-                            onPressed: () => setState(() => _full = !_full),
-                            child: Text(
-                              _full
-                                  ? context.l10n.showLess
-                                  : context.l10n.showFullOutput,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                  child: ToolActivityDetails(tool: tool),
                 ),
         ),
       ],

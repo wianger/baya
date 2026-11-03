@@ -1,4 +1,5 @@
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/chat/widgets/shimmer_text.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -6,19 +7,55 @@ import 'package:app/ui/core/widgets/copy_button.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// The agent's reasoning as one quiet line that opens in place. It shows only
-/// what the agent sent; with nothing sent there is nothing to open.
+/// The agent's reasoning as one quiet line. While it streams, the latest
+/// thought shows under it; once done it says how long it took (when this
+/// phone watched it happen) and opens in place as Markdown. It shows only
+/// what the agent sent.
 class ThinkingBlock extends StatefulWidget {
-  const ThinkingBlock({super.key, required this.text, required this.complete});
+  const ThinkingBlock({
+    super.key,
+    required this.text,
+    required this.complete,
+    this.id,
+  });
   final String text;
   final bool complete;
+
+  /// The message id, so a duration survives the row scrolling away.
+  final String? id;
 
   @override
   State<ThinkingBlock> createState() => _ThinkingBlockState();
 }
 
 class _ThinkingBlockState extends State<ThinkingBlock> {
+  static final _durations = <String, Duration>{};
+  final _watch = Stopwatch();
   bool _open = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.complete) _watch.start();
+  }
+
+  @override
+  void didUpdateWidget(ThinkingBlock old) {
+    super.didUpdateWidget(old);
+    if (widget.complete && !old.complete && _watch.isRunning) {
+      _watch.stop();
+      if (widget.id case final id?) _durations[id] = _watch.elapsed;
+    }
+  }
+
+  Duration? get _took {
+    if (widget.id case final id?) {
+      if (_durations[id] case final known?) return known;
+    }
+    return widget.complete && _watch.elapsedMilliseconds > 0
+        ? _watch.elapsed
+        : null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,9 +66,17 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
       color: colors.muted2,
       fontWeight: FontWeight.w500,
     );
-    final label = widget.complete
-        ? context.l10n.thoughtProcess
-        : context.l10n.thinking;
+    final took = _took;
+    final label = !widget.complete
+        ? context.l10n.thinking
+        : took != null && took.inSeconds >= 1
+        ? context.l10n.thoughtFor(took.inSeconds)
+        : context.l10n.thoughtProcess;
+    final latest = widget.complete || _open
+        ? null
+        : text
+              .split('\n')
+              .lastWhere((line) => line.trim().isNotEmpty, orElse: () => '');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -67,6 +112,24 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
             ),
           ),
         ),
+        if (latest != null && latest.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(25, 0, 8, 4),
+            child: AnimatedSwitcher(
+              duration: BayaMotion.standard,
+              child: Text(
+                latest.replaceAll(RegExp(r'[*_`#>]'), '').trim(),
+                key: ValueKey(latest),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.typo.sansBody.copyWith(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: colors.muted,
+                ),
+              ),
+            ),
+          ),
         AnimatedSize(
           duration: BayaMotion.standard,
           curve: BayaMotion.enter,
@@ -86,12 +149,12 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SelectableText(
-                        text,
+                      KeyedSubtree(
                         key: const ValueKey('thinking-detail-text'),
-                        style: context.typo.sansBody.copyWith(
+                        child: AgentMarkdown(
+                          text,
+                          selectable: widget.complete,
                           fontSize: 14,
-                          height: 1.55,
                           color: colors.muted2,
                         ),
                       ),

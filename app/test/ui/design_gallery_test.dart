@@ -204,6 +204,21 @@ void main() {
     );
     await shoot(
       tester,
+      'new-workspace',
+      const Scaffold(body: SafeArea(child: SessionSidebar())),
+      providers: common,
+      then: () async {
+        await tester.tap(find.byKey(const Key('workspace-switch')));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        await tester.tap(find.byKey(const Key('workspace-add')));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pump();
+      },
+    );
+    await shoot(
+      tester,
       'tablet',
       const SessionShell(child: SessionWelcome()),
       providers: common,

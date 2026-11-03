@@ -602,5 +602,23 @@
     }
   },
   "thinking": "Thinking",
-  "deleteSession": "Delete session"
+  "deleteSession": "Delete session",
+  "showAllLines": "Show all {count} lines",
+  "@showAllLines": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "thoughtFor": "{seconds, plural, =1{Thought for 1 second} other{Thought for {seconds} seconds}}",
+  "@thoughtFor": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "source": "Source",
+  "agentStartupNotes": "Startup notes"
 }

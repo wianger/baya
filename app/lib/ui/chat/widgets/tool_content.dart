@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:app/acp/acp.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/core/code/line_diff.dart' as line_diff;
 
 /// How a tool call reads in the chat, derived from the ACP fields every
 /// agent reports: `kind`, `title`, `content` (text and diffs), `locations`
@@ -49,6 +50,23 @@ class ToolContent {
     final title = tool.title.trim();
     return title.isEmpty ? toolName : _oneLine(title);
   }
+
+  /// How a terminal the call ran ended: `exit 0`, a signal, or null while it
+  /// runs or when the agent ran no terminal.
+  String? get exitLabel {
+    final terminal = tool.terminal;
+    if (terminal == null || !terminal.exited) return null;
+    if (terminal.exitCode case final code?) return 'exit $code';
+    return terminal.signal;
+  }
+
+  bool get exitedCleanly => tool.terminal?.exitCode == 0;
+
+  /// Diffs the call carries, one per file.
+  List<ToolCallDiff> get diffs => _diffs;
+
+  /// The line a read started at, when the agent said.
+  int? get firstLine => tool.locations.firstOrNull?.line;
 
   /// The command line of a shell call.
   String? get command {
@@ -119,29 +137,12 @@ class ToolContent {
     _ => const JsonEncoder.withIndent('  ').convert(value),
   };
 
-  /// Unified-style diff of every file the call changed.
-  String? get changesText {
-    if (_diffs.isEmpty) return null;
-    return [
-      for (final diff in _diffs)
-        '${diff.oldText == null ? 'A' : 'M'} ${diff.path}\n'
-            '${_replacementDiff(diff.oldText ?? '', diff.newText)}',
-    ].join('\n\n');
-  }
-
   ToolOutput get output {
     final terminal = tool.terminal;
     if (terminal != null) {
-      final status = !terminal.exited
-          ? ''
-          : terminal.exitCode != null
-          ? '\n[exit ${terminal.exitCode}]'
-          : terminal.signal != null
-          ? '\n[${terminal.signal}]'
-          : '';
       return ToolOutput(
         text:
-            '${terminal.truncated ? '…\n' : ''}${cleanTerminalText(terminal.output).trimRight()}$status',
+            '${terminal.truncated ? '…\n' : ''}${cleanTerminalText(terminal.output).trimRight()}',
       );
     }
     final texts = [
@@ -192,9 +193,12 @@ class ToolContent {
     if (_diffs.isEmpty) return null;
     var added = 0;
     var removed = 0;
-    for (final line in changesText!.split('\n')) {
-      if (line.startsWith('+')) added++;
-      if (line.startsWith('-')) removed++;
+    for (final diff in _diffs) {
+      final stats = line_diff.diffStats(
+        line_diff.lineDiff(diff.oldText, diff.newText),
+      );
+      added += stats.added;
+      removed += stats.removed;
     }
     return (added: added, removed: removed);
   }
@@ -211,35 +215,6 @@ class ToolContent {
       if (value != null) return value;
     }
     return null;
-  }
-
-  static String _replacementDiff(String oldText, String newText) {
-    final oldLines = oldText.isEmpty ? <String>[] : oldText.split('\n');
-    final newLines = newText.split('\n');
-    var prefix = 0;
-    while (prefix < oldLines.length &&
-        prefix < newLines.length &&
-        oldLines[prefix] == newLines[prefix]) {
-      prefix++;
-    }
-    var suffix = 0;
-    while (suffix < oldLines.length - prefix &&
-        suffix < newLines.length - prefix &&
-        oldLines[oldLines.length - 1 - suffix] ==
-            newLines[newLines.length - 1 - suffix]) {
-      suffix++;
-    }
-    final firstContext = (prefix - 2).clamp(0, prefix);
-    final lastOld = oldLines.length - suffix;
-    final lastNew = newLines.length - suffix;
-    return [
-      for (var index = firstContext; index < prefix; index++)
-        ' ${oldLines[index]}',
-      for (var index = prefix; index < lastOld; index++) '-${oldLines[index]}',
-      for (var index = prefix; index < lastNew; index++) '+${newLines[index]}',
-      for (var index = 0; index < suffix.clamp(0, 2); index++)
-        ' ${oldLines[lastOld + index]}',
-    ].join('\n');
   }
 
   static String _oneLine(String value) =>

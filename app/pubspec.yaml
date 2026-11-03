@@ -52,6 +52,7 @@ dependencies:
 
   # Read the installed version for the Android update channel.
   package_info_plus: ^10.2.2
+  re_highlight: ^0.0.3
 dev_dependencies:
   flutter_test:
     sdk: flutter
