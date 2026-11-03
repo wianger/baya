@@ -19,21 +19,21 @@ import {
  * (`tailscale serve`, a proxy) sees only ciphertext and cannot forge a frame
  * because it cannot compute the key.
  *
- *   key   = HKDF-SHA256(X25519(self, peer), salt = "baya-e2e-v1",
+ *   key   = HKDF-SHA256(X25519(self, peer), salt = "baya-e2e-v2",
  *                       info = min(edA, edB) || max(edA, edB))
- *   box   = 0xBE 0x01 || nonce(12) || ChaCha20-Poly1305(ts_ms(8) || json)
- *   aad   = "baya-e2e-v1|" + ("p2h" | "h2p") + "|" + host room id
+ *   box   = 0xBE 0x02 || nonce(12) || ChaCha20-Poly1305(ts_ms(8) || json)
+ *   aad   = "baya-e2e-v2|" + ("p2h" | "h2p")
  *
- * The direction and room in the AAD stop anyone in between from reflecting a frame
- * back to its sender or moving it to another session. The timestamp plus a
- * nonce cache bound replays to a short window.
+ * The direction in the AAD stops anyone in between from reflecting a frame
+ * back to its sender. The timestamp plus a nonce cache bound replays to a
+ * short window.
  */
 
-export const E2E_MAGIC = Buffer.from([0xbe, 0x01]);
+export const E2E_MAGIC = Buffer.from([0xbe, 0x02]);
 export const REPLAY_WINDOW_MS = 5 * 60_000;
 const NONCE_BYTES = 12;
 const TAG_BYTES = 16;
-const LABEL = "baya-e2e-v1";
+const LABEL = "baya-e2e-v2";
 const PKCS8_X25519_PREFIX = Buffer.from("302e020100300506032b656e04220420", "hex");
 const SPKI_X25519_PREFIX = Buffer.from("302a300506032b656e032100", "hex");
 const P = 2n ** 255n - 19n;
@@ -88,7 +88,6 @@ export function deriveSessionKey(
 export function seal(
   key: Uint8Array,
   direction: Direction,
-  room: string,
   plaintext: Uint8Array,
   now = Date.now(),
   nonce: Uint8Array = randomBytes(NONCE_BYTES),
@@ -97,7 +96,7 @@ export function seal(
   body.writeBigUInt64BE(BigInt(now), 0);
   Buffer.from(plaintext).copy(body, 8);
   const cipher = createCipheriv("chacha20-poly1305", key, nonce, { authTagLength: TAG_BYTES });
-  cipher.setAAD(aad(direction, room), { plaintextLength: body.length });
+  cipher.setAAD(aad(direction), { plaintextLength: body.length });
   const ciphertext = Buffer.concat([cipher.update(body), cipher.final()]);
   return Buffer.concat([E2E_MAGIC, nonce, ciphertext, cipher.getAuthTag()]);
 }
@@ -108,7 +107,7 @@ export interface Opened {
   nonce: string;
 }
 
-export function open(key: Uint8Array, direction: Direction, room: string, box: Uint8Array): Opened {
+export function open(key: Uint8Array, direction: Direction, box: Uint8Array): Opened {
   const data = Buffer.from(box);
   if (!isSealed(data) || data.length < E2E_MAGIC.length + NONCE_BYTES + 8 + TAG_BYTES) {
     throw new E2EError("Not an encrypted Baya frame.");
@@ -117,7 +116,7 @@ export function open(key: Uint8Array, direction: Direction, room: string, box: U
   const tag = data.subarray(data.length - TAG_BYTES);
   const ciphertext = data.subarray(2 + NONCE_BYTES, data.length - TAG_BYTES);
   const decipher = createDecipheriv("chacha20-poly1305", key, nonce, { authTagLength: TAG_BYTES });
-  decipher.setAAD(aad(direction, room), { plaintextLength: ciphertext.length });
+  decipher.setAAD(aad(direction), { plaintextLength: ciphertext.length });
   decipher.setAuthTag(tag);
   let body: Buffer;
   try {
@@ -157,8 +156,8 @@ export class ReplayGuard {
   }
 }
 
-function aad(direction: Direction, room: string): Buffer {
-  return Buffer.from(`${LABEL}|${direction}|${room}`, "utf8");
+function aad(direction: Direction): Buffer {
+  return Buffer.from(`${LABEL}|${direction}`, "utf8");
 }
 
 function mod(value: bigint): bigint {

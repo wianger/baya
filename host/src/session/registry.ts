@@ -1,28 +1,36 @@
-import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { randomUUID } from "node:crypto";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
+import { basename, join } from "node:path";
 import { BAYA_HOME, ensureBayaHome } from "../config.ts";
-import type { WorkspaceAgent } from "../workspace/types.ts";
 
-export interface BayaSessionRecord {
+/** A Baya session: a conversation with one agent in one folder. */
+export interface SessionRecord {
+  /** Baya's id; the ACP `sessionId` phones see. */
   id: string;
-  name: string;
   cwd: string;
-  agent: WorkspaceAgent;
-  created_at: number;
-  updated_at: number;
-  pi_session_id?: string;
+  /** Id of an agent in the config. */
+  agent: string;
+  /** Set from the first prompt or by the agent; phones fall back to the folder name. */
+  title: string | null;
+  /** The agent's own session id, for `session/load` or `session/resume`. */
+  agentSessionId: string | null;
+  createdAt: number;
+  updatedAt: number;
 }
-
-interface RegistryDocument {
-  version: 1;
-  sessions: BayaSessionRecord[];
-}
-
-const _mutation: Promise<void> = Promise.resolve();
 
 export function registryPath(): string {
   return join(BAYA_HOME, "sessions.json");
+}
+
+export function transcriptPath(id: string): string {
+  return join(BAYA_HOME, "sessions", `${id}.json`);
 }
 
 export function normalizeCwd(input: string): string {
@@ -33,129 +41,95 @@ export function normalizeCwd(input: string): string {
   }
 }
 
-/** A new session is named after its folder. */
-export function defaultSessionName(cwd: string): string {
-  return basename(normalizeCwd(cwd)) || "workspace";
+export function folderName(cwd: string): string {
+  return basename(cwd.replace(/[\\/]+$/u, "")) || cwd;
 }
 
-export function sessionIdFor(cwd: string, agent: WorkspaceAgent, name?: string): string {
-  const logicalName = name?.trim() || defaultSessionName(cwd);
-  return createHash("sha256")
-    .update(normalizeCwd(cwd))
-    .update("\0")
-    .update(agent)
-    .update("\0")
-    .update(logicalName)
-    .digest("base64url")
-    .slice(0, 20);
+function parse(raw: unknown): SessionRecord[] {
+  const sessions = (raw as { sessions?: unknown } | null)?.sessions;
+  if (!Array.isArray(sessions)) return [];
+  return sessions.flatMap((value): SessionRecord[] => {
+    if (!value || typeof value !== "object") return [];
+    const r = value as Record<string, unknown>;
+    if (typeof r["id"] !== "string" || typeof r["cwd"] !== "string") return [];
+    if (typeof r["agent"] !== "string") return [];
+    return [
+      {
+        id: r["id"],
+        cwd: r["cwd"],
+        agent: r["agent"],
+        title: typeof r["title"] === "string" ? r["title"] : null,
+        agentSessionId: typeof r["agentSessionId"] === "string" ? r["agentSessionId"] : null,
+        createdAt: typeof r["createdAt"] === "number" ? r["createdAt"] : Date.now(),
+        updatedAt: typeof r["updatedAt"] === "number" ? r["updatedAt"] : Date.now(),
+      },
+    ];
+  });
 }
 
-function parseRegistry(raw: unknown): RegistryDocument {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { version: 1, sessions: [] };
-  }
-  const sessions = (raw as { sessions?: unknown }).sessions;
-  if (!Array.isArray(sessions)) return { version: 1, sessions: [] };
-  return {
-    version: 1,
-    sessions: sessions.flatMap((value): BayaSessionRecord[] => {
-      if (!value || typeof value !== "object" || Array.isArray(value)) return [];
-      const record = value as Record<string, unknown>;
-      if (
-        typeof record["id"] !== "string" ||
-        typeof record["name"] !== "string" ||
-        typeof record["cwd"] !== "string" ||
-        !["pi", "codex", "deepseek"].includes(String(record["agent"]))
-      )
-        return [];
-      return [
-        {
-          id: record["id"],
-          name: record["name"],
-          cwd: record["cwd"],
-          agent: record["agent"] as WorkspaceAgent,
-          created_at: typeof record["created_at"] === "number" ? record["created_at"] : Date.now(),
-          updated_at: typeof record["updated_at"] === "number" ? record["updated_at"] : Date.now(),
-          ...(typeof record["pi_session_id"] === "string"
-            ? { pi_session_id: record["pi_session_id"] }
-            : {}),
-        },
-      ];
-    }),
-  };
-}
-
-export function readRegistry(): RegistryDocument {
-  const path = registryPath();
-  if (!existsSync(path)) return { version: 1, sessions: [] };
+export function listSessions(): SessionRecord[] {
+  if (!existsSync(registryPath())) return [];
   try {
-    return parseRegistry(JSON.parse(readFileSync(path, "utf8")) as unknown);
+    return parse(JSON.parse(readFileSync(registryPath(), "utf8"))).toSorted(
+      (a, b) => b.updatedAt - a.updatedAt,
+    );
   } catch {
-    return { version: 1, sessions: [] };
+    return [];
   }
 }
 
-export function listSessions(): BayaSessionRecord[] {
-  return readRegistry().sessions.toSorted((left, right) => right.updated_at - left.updated_at);
-}
-
-function writeRegistry(document: RegistryDocument): void {
+function write(sessions: SessionRecord[]): void {
   ensureBayaHome();
-  mkdirSync(dirname(registryPath()), { recursive: true, mode: 0o700 });
-  writeFileSync(registryPath(), `${JSON.stringify(document, null, 2)}\n`, { mode: 0o600 });
+  const temporary = `${registryPath()}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify({ version: 2, sessions }, null, 2)}\n`, {
+    mode: 0o600,
+  });
+  renameSync(temporary, registryPath());
 }
 
-export function addSession(input: {
-  cwd: string;
-  agent: WorkspaceAgent;
-  name?: string;
-  id?: string;
-}): BayaSessionRecord {
-  const cwd = normalizeCwd(input.cwd);
-  const name = input.name?.trim() || defaultSessionName(cwd);
-  const id = input.id || randomUUID();
-  const document = readRegistry();
-  const existing = document.sessions.find((entry) => entry.id === id);
-  if (existing) return existing;
+export function addSession(input: { cwd: string; agent: string; title?: string }): SessionRecord {
   const now = Date.now();
-  const record: BayaSessionRecord = {
-    id,
-    name,
-    cwd,
+  const record: SessionRecord = {
+    id: randomUUID(),
+    cwd: normalizeCwd(input.cwd),
     agent: input.agent,
-    created_at: now,
-    updated_at: now,
-    ...(input.agent === "pi" ? { pi_session_id: randomUUID() } : {}),
+    title: input.title?.trim() || null,
+    agentSessionId: null,
+    createdAt: now,
+    updatedAt: now,
   };
-  document.sessions.push(record);
-  writeRegistry(document);
+  write([...listSessions(), record]);
+  mkdirSync(join(BAYA_HOME, "sessions"), { recursive: true, mode: 0o700 });
   return record;
 }
 
 export function updateSession(
   id: string,
-  patch: Partial<Pick<BayaSessionRecord, "name" | "pi_session_id">>,
-): BayaSessionRecord | null {
-  const document = readRegistry();
-  const record = document.sessions.find((entry) => entry.id === id);
+  patch: Partial<Pick<SessionRecord, "title" | "agentSessionId" | "updatedAt">>,
+): SessionRecord | null {
+  const sessions = listSessions();
+  const record = sessions.find((entry) => entry.id === id);
   if (!record) return null;
-  Object.assign(record, patch, { updated_at: Date.now() });
-  writeRegistry(document);
+  Object.assign(record, patch);
+  write(sessions);
   return record;
 }
 
 export function removeSession(id: string): boolean {
-  const document = readRegistry();
-  const next = document.sessions.filter((entry) => entry.id !== id);
-  if (next.length === document.sessions.length) return false;
-  document.sessions = next;
-  writeRegistry(document);
+  const sessions = listSessions();
+  const next = sessions.filter((entry) => entry.id !== id);
+  if (next.length === sessions.length) return false;
+  write(next);
   return true;
 }
 
-export function findSession(idOrPrefix: string): BayaSessionRecord | null {
-  const matches = listSessions().filter(
-    (entry) => entry.id === idOrPrefix || entry.id.startsWith(idOrPrefix),
-  );
-  return matches.length === 1 ? matches[0]! : null;
+/** By id, unique id prefix, or exact title. */
+export function findSession(query: string): SessionRecord | null {
+  const sessions = listSessions();
+  const exact = sessions.find((entry) => entry.id === query);
+  if (exact) return exact;
+  const byPrefix = sessions.filter((entry) => entry.id.startsWith(query));
+  if (byPrefix.length === 1) return byPrefix[0]!;
+  const byTitle = sessions.filter((entry) => entry.title === query);
+  return byTitle.length === 1 ? byTitle[0]! : null;
 }

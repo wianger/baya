@@ -5,7 +5,6 @@ import { BAYA_HOME, ensureBayaHome } from "../config.ts";
 
 export interface PendingPairToken {
   token: string;
-  room_id: string;
   expires_at: number;
   consumed_at: number | null;
 }
@@ -14,11 +13,10 @@ export function pendingPairPath(): string {
   return join(BAYA_HOME, "runtime", "pair-request.json");
 }
 
-export function issuePendingPairToken(roomId: string, ttlMs = 600_000): PendingPairToken {
+export function issuePendingPairToken(ttlMs = 600_000): PendingPairToken {
   const value: PendingPairToken = {
     // 128 bits: the token is single-use and expires within minutes.
     token: randomBytes(16).toString("base64url"),
-    room_id: roomId,
     expires_at: Date.now() + Math.max(10_000, Math.min(ttlMs, 600_000)),
     consumed_at: null,
   };
@@ -32,15 +30,9 @@ export function readPendingPairToken(): PendingPairToken | null {
   if (!existsSync(pendingPairPath())) return null;
   try {
     const value = JSON.parse(readFileSync(pendingPairPath(), "utf8")) as Partial<PendingPairToken>;
-    if (
-      typeof value.token !== "string" ||
-      typeof value.room_id !== "string" ||
-      typeof value.expires_at !== "number"
-    )
-      return null;
+    if (typeof value.token !== "string" || typeof value.expires_at !== "number") return null;
     return {
       token: value.token,
-      room_id: value.room_id,
       expires_at: value.expires_at,
       consumed_at: typeof value.consumed_at === "number" ? value.consumed_at : null,
     };
@@ -49,12 +41,9 @@ export function readPendingPairToken(): PendingPairToken | null {
   }
 }
 
-export function consumePendingPairToken(
-  token: string,
-  roomId: string,
-): "ok" | "expired" | "consumed" | "unknown" {
+export function consumePendingPairToken(token: string): "ok" | "expired" | "consumed" | "unknown" {
   const pending = readPendingPairToken();
-  if (!pending || !sameSecret(pending.token, token) || pending.room_id !== roomId) {
+  if (!pending || !sameSecret(pending.token, token)) {
     return "unknown";
   }
   if (pending.consumed_at !== null) return "consumed";
@@ -68,7 +57,6 @@ export function clearPendingPairToken(): void {
   if (!existsSync(pendingPairPath())) return;
   const empty: PendingPairToken = {
     token: "",
-    room_id: "",
     expires_at: 0,
     consumed_at: Date.now(),
   };

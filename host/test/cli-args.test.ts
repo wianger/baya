@@ -7,6 +7,7 @@ describe("CLI argument parsing", () => {
       command: "up",
       positionals: [],
       flags: new Map(),
+      passthrough: [],
     });
     expect(parseArgs(["--cwd", "C:\\work"]).command).toBe("up");
   });
@@ -16,6 +17,7 @@ describe("CLI argument parsing", () => {
       command: "help",
       positionals: [],
       flags: new Map(),
+      passthrough: [],
     });
     expect(parseArgs(["--help"]).command).toBe("help");
     expect(parseArgs(["start", "--help"]).command).toBe("help");
@@ -31,6 +33,18 @@ describe("CLI argument parsing", () => {
         ["name", "Review"],
         ["json", true],
       ]),
+      passthrough: [],
+    });
+  });
+
+  test("keeps an agent command after -- verbatim, even its own --help", () => {
+    expect(
+      parseArgs(["agents", "add", "x", "--name", "X", "--", "npx", "-y", "a", "--help"]),
+    ).toEqual({
+      command: "agents",
+      positionals: ["add", "x"],
+      flags: new Map([["name", "X"]]),
+      passthrough: ["npx", "-y", "a", "--help"],
     });
   });
 });

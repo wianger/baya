@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { type HostInfo, TailnetPairingServer } from "../src/tailnet/pairing_server.ts";
+import type { DirectServer } from "../src/transport/direct_server.ts";
 
 const self = { dnsName: "box.tail.ts.net", name: "box", login: "me@github" };
 const info: HostInfo = { label: "windows", name: "BOX (Windows)", key: "a2V5" };
@@ -7,7 +8,11 @@ const info: HostInfo = { label: "windows", name: "BOX (Windows)", key: "a2V5" };
 describe("Tailscale endpoint", () => {
   test("serves this host's own path to the owner's devices only", async () => {
     let issued = 0;
-    const server = new TailnetPairingServer(info, async () => `baya://pair?n=${++issued}`);
+    const server = new TailnetPairingServer(
+      info,
+      async () => `baya://pair?n=${++issued}`,
+      {} as DirectServer,
+    );
     const port = 20_000 + Math.floor(Math.random() * 20_000);
     await server.start(self, port);
     const url = `http://127.0.0.1:${port}/baya-pair`;

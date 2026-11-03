@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
-import { directServer } from "../transport/direct_server.ts";
+import type { DirectServer } from "../transport/direct_server.ts";
 
 const run = promisify(execFile);
 
@@ -117,18 +117,20 @@ export function serveCommand(label: HostLabel = hostLabel()): string {
  *   names the caller in `Tailscale-User-Login`, trusted on loopback where
  *   nothing else can set it. Tailscale authenticates and encrypts the
  *   request, so the host key arrives as safely as through a QR code.
- * - a WebSocket upgrade on `…/direct` is a paired phone connecting with no
- *   proxy but `tailscale serve` in between (see [DirectServer]).
+ * - a WebSocket upgrade on `…/direct` is a phone connecting with nothing
+ *   but `tailscale serve` in between (see [DirectServer]).
  */
 export class TailnetPairingServer {
   private server: Server | null = null;
   private lastIssued = 0;
   private readonly info: HostInfo;
   private readonly issue: () => Promise<string>;
+  private readonly direct: DirectServer;
 
-  constructor(info: HostInfo, issue: () => Promise<string>) {
+  constructor(info: HostInfo, issue: () => Promise<string>, direct: DirectServer) {
     this.info = info;
     this.issue = issue;
+    this.direct = direct;
   }
 
   async start(self: TailnetSelf, port = tailnetPairPort(this.info.label)): Promise<void> {
@@ -166,7 +168,7 @@ export class TailnetPairingServer {
     const server = createServer(handler);
     server.on("upgrade", (request, socket, head) => {
       if ((request.url ?? "").split("?")[0] !== `${base}/direct`) return socket.destroy();
-      directServer().handleUpgrade(request, socket, head);
+      this.direct.handleUpgrade(request, socket, head);
     });
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);

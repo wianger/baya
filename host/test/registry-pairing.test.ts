@@ -24,32 +24,29 @@ describe("standalone session registry", () => {
   test("creates a stable record and persists user-visible changes", async () => {
     isolatedHome();
     const registry = await import("../src/session/registry.js");
-    const created = registry.addSession({
-      cwd: process.cwd(),
-      agent: "pi",
-      name: "Review",
-    });
+    const created = registry.addSession({ cwd: process.cwd(), agent: "claude" });
     expect(created.id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(created.pi_session_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(created).toMatchObject({ title: null, agentSessionId: null });
     expect(registry.listSessions()).toEqual([created]);
 
-    const updated = registry.updateSession(created.id, { name: "Review renamed" });
-    expect(updated?.name).toBe("Review renamed");
-    expect(registry.findSession(created.id.slice(0, 8))?.name).toBe("Review renamed");
+    const updated = registry.updateSession(created.id, { title: "Review", agentSessionId: "a1" });
+    expect(updated).toMatchObject({ title: "Review", agentSessionId: "a1" });
+    expect(registry.findSession(created.id.slice(0, 8))?.title).toBe("Review");
+    expect(registry.findSession("Review")?.id).toBe(created.id);
     expect(registry.removeSession(created.id)).toBe(true);
     expect(registry.listSessions()).toEqual([]);
   });
 });
 
 describe("pairing token storage", () => {
-  test("accepts one matching room once and rejects reuse or another room", async () => {
+  test("accepts a token once and rejects reuse or a wrong token", async () => {
     isolatedHome();
     const tokens = await import("../src/pairing/token_store.js");
-    const pending = tokens.issuePendingPairToken("room-a", 30_000);
+    const pending = tokens.issuePendingPairToken(30_000);
 
-    expect(tokens.consumePendingPairToken(pending.token, "room-b")).toBe("unknown");
-    expect(tokens.consumePendingPairToken(pending.token, "room-a")).toBe("ok");
-    expect(tokens.consumePendingPairToken(pending.token, "room-a")).toBe("consumed");
+    expect(tokens.consumePendingPairToken("wrong")).toBe("unknown");
+    expect(tokens.consumePendingPairToken(pending.token)).toBe("ok");
+    expect(tokens.consumePendingPairToken(pending.token)).toBe("consumed");
     expect(tokens.readPendingPairToken()?.consumed_at).toBeTypeOf("number");
   });
 });

@@ -1,4 +1,4 @@
-export type ControlCommand = "status" | "list" | "open" | "remove" | "pair" | "stop";
+export type ControlCommand = "status" | "open" | "remove" | "pair" | "unpair" | "stop";
 
 export interface ControlRequest {
   token: string;
@@ -19,4 +19,27 @@ export interface ControlInfo {
   token: string;
   pid: number;
   started_at: number;
+}
+
+/** One session as `baya status` shows it. */
+export interface SessionStatus {
+  id: string;
+  title: string;
+  cwd: string;
+  agent: string;
+  running: boolean;
+  working: boolean;
+  error: string | null;
+}
+
+export interface HostStatus {
+  pid: number;
+  version: string;
+  started_at: number;
+  /** Short Tailscale name phones can type, when Tailscale is on. */
+  tailnet: string | null;
+  /** Where phones connect, when `tailscale serve` routes to this host. */
+  direct: string | null;
+  phones_connected: number;
+  sessions: SessionStatus[];
 }

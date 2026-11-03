@@ -12,6 +12,7 @@ import {
 import { hostname } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SessionHub } from "./acp/hub.ts";
 import { booleanFlag, type ParsedArgs, parseArgs, stringFlag } from "./cli/args.ts";
 import {
   bold,
@@ -29,16 +30,23 @@ import {
   warn,
   yellow,
 } from "./cli/ui.ts";
-import { BAYA_HOME, ensureBayaHome, loadConfig } from "./config.ts";
+import {
+  AGENT_ID,
+  BAYA_HOME,
+  defaultAgentId,
+  ensureBayaHome,
+  loadConfig,
+  saveConfig,
+} from "./config.ts";
 import { controlCall, readControlInfo } from "./control/client.ts";
+import type { HostStatus, SessionStatus } from "./control/protocol.ts";
 import { ControlServer } from "./control/server.ts";
-import { BayaManager, type SessionStatus } from "./host/manager.ts";
-import { roomIdForBayaSession } from "./host/session_host.ts";
 import { buildQRUri, displayQR } from "./pairing/qr.ts";
 import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/storage.ts";
+import { issuePendingPairToken, type PendingPairToken } from "./pairing/token_store.ts";
 import { packageVersion } from "./runtime/version.ts";
 import { installStartup, uninstallStartup } from "./service.ts";
-import { findSession, listSessions, removeSession } from "./session/registry.ts";
+import { findSession, folderName, listSessions, removeSession } from "./session/registry.ts";
 import {
   directEndpoint,
   hostLabel,
@@ -46,26 +54,12 @@ import {
   TailnetPairingServer,
   tailnetSelf,
 } from "./tailnet/pairing_server.ts";
-import { workspaceAgentDefinition } from "./workspace/agents.ts";
+import { DirectServer } from "./transport/direct_server.ts";
+import { findExecutable, resolveDirectory } from "./workspace/directories.ts";
 
 const LABEL_NAMES = { windows: "Windows", wsl: "WSL", linux: "Linux", macos: "macOS" } as const;
 
-import { availableAgents, resolveDirectory } from "./workspace/directories.ts";
-import type { WorkspaceAgent } from "./workspace/types.ts";
-
-interface HostStatus {
-  pid: number;
-  version: string;
-  started_at: number;
-  /** Short Tailscale name phones can type, when Tailscale is on. */
-  tailnet: string | null;
-  /** Where phones connect, when `tailscale serve` routes to this host. */
-  direct: string | null;
-  phones_connected: number;
-  sessions: SessionStatus[];
-}
-
-type PairInvite = ReturnType<BayaManager["pair"]>;
+type PairInvite = PendingPairToken;
 
 const LOG_FILE = join(BAYA_HOME, "logs", "host.log");
 
@@ -74,12 +68,18 @@ const HELP =
 
 ${bold("Get started")}
   baya                    Start Baya in the background; shows a pairing code if no phone is paired
-  baya pair [session]     Show a code to pair another phone
+  baya pair               Show a code to pair another phone
 
 ${bold("Sessions")}
   baya status             Host, phones and sessions at a glance
-  baya open [folder]      Start a session in a folder  ${dim("--agent pi|codex|deepseek")}
-  baya close <session>    Stop and remove a session  ${dim("(id prefix or name)")}
+  baya open [folder]      Add a session in a folder  ${dim("--agent <id>")}
+  baya close <session>    Remove a session and its history  ${dim("(id prefix or title)")}
+
+${bold("Agents")} ${dim("— any command that speaks ACP (agentclientprotocol.com)")}
+  baya agents             List agents
+  baya agents add <id> [--name <name>] -- <command> [args…]
+  baya agents remove <id>
+  baya agents default <id>
 
 ${bold("Phones")}
   baya devices            List paired phones
@@ -89,7 +89,6 @@ ${bold("Host")}
   baya start | stop | restart
   baya logs [-f]          Show the host log  ${dim("-f follows it")}
   baya doctor             Check Tailscale, identity, agents and pairing
-  baya agents             Which agents are installed
   baya autostart on|off   Start Baya when you log in  ${dim("(no admin rights)")}
 
 ${dim("Add --json to status, devices, agents, pair or doctor for machine-readable output.")}
@@ -125,12 +124,13 @@ function printJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
-function agentFlag(args: ParsedArgs): WorkspaceAgent | undefined {
+function agentFlag(args: ParsedArgs): string | undefined {
   const value = stringFlag(args, "agent");
   if (value === undefined) return undefined;
-  const definition = workspaceAgentDefinition(value);
-  if (!definition) throw new Error("--agent must be pi, codex or deepseek.");
-  return definition.id;
+  if (!loadConfig().agents.some((agent) => agent.id === value)) {
+    throw new Error(`No agent named "${value}". See \`baya agents\`.`);
+  }
+  return value;
 }
 
 async function hostStatus(timeoutMs = 1_500): Promise<HostStatus | null> {
@@ -145,21 +145,30 @@ async function hostStatus(timeoutMs = 1_500): Promise<HostStatus | null> {
 function sessionRows(sessions: SessionStatus[]): string[] {
   return table(
     sessions.map((session) => [
-      session.online ? (session.busy ? cyan("● working") : green("● ready")) : red("○ stopped"),
-      bold(session.name),
+      session.error
+        ? red("✗ failed")
+        : session.working
+          ? cyan("● working")
+          : session.running
+            ? green("● ready")
+            : dim("○ idle"),
+      bold(session.title),
       session.agent,
       dim(session.id.slice(0, 8)),
-      dim(session.cwd),
+      dim(session.error ?? session.cwd),
     ]),
   ).map((line) => `  ${line}`);
 }
 
 function offlineSessions(): SessionStatus[] {
   return listSessions().map((record) => ({
-    ...record,
-    online: false,
-    busy: false,
-    room_id: roomIdForBayaSession(record),
+    id: record.id,
+    title: record.title ?? folderName(record.cwd),
+    cwd: record.cwd,
+    agent: record.agent,
+    running: false,
+    working: false,
+    error: null,
   }));
 }
 
@@ -180,14 +189,18 @@ async function printStatus(status: HostStatus): Promise<void> {
   );
   if (!status.direct) out(hint("baya doctor"));
   else if (peers.length === 0) out(hint("baya pair"));
+  if (loadConfig().agents.length === 0) {
+    out(warn("No agent set up"), hint("baya agents add <id> -- <command that speaks ACP>"));
+  }
   out("", bold("Sessions"));
-  if (status.sessions.length === 0) out(dim("  none"), hint("baya open <folder>"));
+  if (status.sessions.length === 0)
+    out(dim("  none — start one from the app, or: baya open <folder>"));
   else out(...sessionRows(status.sessions));
 }
 
 // ── host lifecycle ──────────────────────────────────────────────────────────
 
-async function startBackground(args: ParsedArgs): Promise<HostStatus> {
+async function startBackground(): Promise<HostStatus> {
   const current = await hostStatus();
   if (current) return current;
 
@@ -196,12 +209,6 @@ async function startBackground(args: ParsedArgs): Promise<HostStatus> {
   mkdirSync(join(BAYA_HOME, "logs"), { recursive: true, mode: 0o700 });
   const log = openSync(LOG_FILE, "a", 0o600);
   const serveArgs = [fileURLToPath(import.meta.url), "serve"];
-  const cwdValue = stringFlag(args, "cwd");
-  serveArgs.push("--cwd", cwdValue ? await resolveDirectory(resolve(cwdValue)) : process.cwd());
-  const agent = agentFlag(args);
-  if (agent) serveArgs.push("--agent", agent);
-  const name = stringFlag(args, "name");
-  if (name) serveArgs.push("--name", name);
   try {
     spawn(process.execPath, serveArgs, {
       detached: true,
@@ -233,9 +240,9 @@ async function stopHost(): Promise<boolean> {
 /** `baya`: the one command a new user needs. */
 async function up(args: ParsedArgs): Promise<void> {
   const already = await hostStatus();
-  const status = already ?? (await startBackground(args));
+  const status = already ?? (await startBackground());
   if (json(args)) return printJson(status);
-  if (!already) out(ok(`Baya started in ${dim(process.cwd())}`), "");
+  if (!already) out(ok("Baya started"), "");
   await printStatus(status);
   if (status.direct && (await listPeers()).length === 0) {
     out(
@@ -247,38 +254,30 @@ async function up(args: ParsedArgs): Promise<void> {
   }
 }
 
-async function runForeground(args: ParsedArgs): Promise<void> {
+async function runForeground(): Promise<void> {
   if (await hostStatus()) throw new Error("Baya is already running. See `baya status`.");
-  const manager = new BayaManager();
+  const hub = new SessionHub();
   let control: ControlServer | null = null;
   let stopping = false;
   const shutdown = async (): Promise<void> => {
     if (stopping) return;
     stopping = true;
     await control?.close();
-    await manager.stop();
+    hub.stop();
     process.exit(0);
   };
   process.on("SIGINT", () => void shutdown());
   process.on("SIGTERM", () => void shutdown());
 
-  const agent = agentFlag(args);
-  const cwdValue = stringFlag(args, "cwd");
-  const cwd = cwdValue ? await resolveDirectory(resolve(cwdValue)) : undefined;
-  const name = stringFlag(args, "name");
-  await manager.start({
-    ...(cwd ? { cwd } : {}),
-    ...(agent ? { agent } : {}),
-    ...(name ? { name } : {}),
-  });
-  control = new ControlServer(manager, () => void shutdown());
+  await hub.start();
+  control = new ControlServer(hub, () => void shutdown());
   // Before the control socket answers, so status knows where phones connect.
-  await startTailnet(manager, control);
+  await startTailnet(hub, control);
   const info = await control.start();
   out(`[baya] Host ${info.pid} online; state ${BAYA_HOME}`);
   if (control.direct && process.stdout.isTTY && (await listPeers()).length === 0) {
     out("", "No phone is paired yet. Scan this code with the Baya app:");
-    await printPairingCode(manager.pair());
+    await printPairingCode(issuePendingPairToken());
   }
 }
 
@@ -286,7 +285,7 @@ async function runForeground(args: ParsedArgs): Promise<void> {
  * Opens this host to phones on the owner's Tailscale account: they connect
  * through `tailscale serve`, and pair by typing this computer's name.
  */
-async function startTailnet(manager: BayaManager, control: ControlServer): Promise<void> {
+async function startTailnet(hub: SessionHub, control: ControlServer): Promise<void> {
   const self = await tailnetSelf();
   if (!self) {
     out("[baya] Tailscale is not running; phones cannot reach this host. See: baya doctor");
@@ -300,7 +299,8 @@ async function startTailnet(manager: BayaManager, control: ControlServer): Promi
       name: `${hostname()} (${LABEL_NAMES[label]})`,
       key: Buffer.from(identity.publicKey).toString("base64"),
     },
-    () => pairingUri(manager.pair()),
+    () => pairingUri(issuePendingPairToken()),
+    new DirectServer(hub),
   );
   try {
     await server.start(self);
@@ -334,30 +334,31 @@ async function status(args: ParsedArgs): Promise<void> {
 
 async function open(args: ParsedArgs): Promise<void> {
   const cwd = await resolveDirectory(resolve(args.positionals[0] ?? process.cwd()));
-  const agent = agentFlag(args) ?? loadConfig().defaultAgent ?? "pi";
-  await startBackground(args);
-  const opened = await controlCall<{ id: string; name: string }>("open", { cwd, agent });
+  const agent = agentFlag(args) ?? defaultAgentId();
+  if (!agent) throw new Error("No agent is set up. Add one: baya agents add <id> -- <command>");
+  await startBackground();
+  const opened = await controlCall<SessionStatus>("open", { cwd, agent });
   if (json(args)) return printJson(opened);
   out(
-    ok(`Started ${bold(opened.name)} ${dim(`${agent} · ${cwd}`)}`),
+    ok(`Added ${bold(opened.title)} ${dim(`${agent} · ${cwd}`)}`),
     dim("  It shows up in the app now."),
   );
 }
 
 async function close(args: ParsedArgs): Promise<void> {
   const query = args.positionals[0];
-  if (!query) throw new Error("Which session? Pass its id prefix or name (see `baya status`).");
-  const record = findSession(query) ?? listSessions().find((session) => session.name === query);
+  if (!query) throw new Error("Which session? Pass its id prefix or title (see `baya status`).");
+  const record = findSession(query);
   if (!record) throw new Error(`No session matches "${query}". See \`baya status\`.`);
   if (await hostStatus()) await controlCall("remove", { id: record.id });
   else removeSession(record.id);
-  out(ok(`Closed ${bold(record.name)}`));
+  out(ok(`Closed ${bold(record.title ?? folderName(record.cwd))}`));
 }
 
 // ── phones ──────────────────────────────────────────────────────────────────
 
 async function pair(args: ParsedArgs): Promise<void> {
-  await startBackground(args);
+  await startBackground();
   const ttlValue = stringFlag(args, "ttl");
   const ttlSeconds = ttlValue === undefined ? undefined : Number(ttlValue);
   if (
@@ -366,10 +367,10 @@ async function pair(args: ParsedArgs): Promise<void> {
   ) {
     throw new Error("--ttl must be between 10 and 600 seconds.");
   }
-  const invite = await controlCall<PairInvite>("pair", {
-    ...(args.positionals[0] ? { id: args.positionals[0] } : {}),
-    ...(ttlSeconds === undefined ? {} : { ttl_ms: Math.floor(ttlSeconds * 1000) }),
-  });
+  const invite = await controlCall<PairInvite>(
+    "pair",
+    ttlSeconds === undefined ? {} : { ttl_ms: Math.floor(ttlSeconds * 1000) },
+  );
   if (json(args)) return printJson({ ...invite, uri: await pairingUri(invite) });
   out("Open the Baya app and scan this code:");
   await printPairingCode(invite);
@@ -381,13 +382,8 @@ async function pairingUri(invite: PairInvite): Promise<string> {
   const self = await tailnetSelf();
   const endpoint = self ? await directEndpoint(self) : null;
   if (!endpoint) throw new Error("Phones can't reach this host yet. Run `baya doctor`.");
-  return buildQRUri({
-    token: invite.token,
-    publicKey: identity.publicKey,
-    sessionName: invite.session_name,
-    roomId: invite.room_id,
-    endpoint,
-  });
+  const name = `${hostname()} (${LABEL_NAMES[hostLabel()]})`;
+  return buildQRUri({ token: invite.token, publicKey: identity.publicKey, name, endpoint });
 }
 
 async function printPairingCode(invite: PairInvite): Promise<void> {
@@ -415,7 +411,10 @@ async function devices(args: ParsedArgs): Promise<void> {
 async function unpair(args: ParsedArgs): Promise<void> {
   const query = args.positionals[0];
   if (!query) throw new Error("Which phone? Pass its name or key prefix (see `baya devices`).");
-  const removed = await removePeers(query);
+  const removed = (await hostStatus())
+    ? (await controlCall<{ removed: Awaited<ReturnType<typeof removePeers>> }>("unpair", { query }))
+        .removed
+    : await removePeers(query);
   if (removed.length === 0) throw new Error(`No paired phone matches "${query}".`);
   if (json(args)) return printJson({ removed });
   for (const peer of removed) {
@@ -450,7 +449,7 @@ async function logs(args: ParsedArgs): Promise<void> {
 
 async function doctor(args: ParsedArgs): Promise<void> {
   const [agentList, peers, host, self, identityError] = await Promise.all([
-    availableAgents(),
+    agentStatuses(),
     listPeers(),
     hostStatus(),
     tailnetSelf(),
@@ -499,31 +498,94 @@ async function doctor(args: ParsedArgs): Promise<void> {
   for (const agent of agentList) {
     lines.push(
       agent.available
-        ? ok(`${agent.name} installed`)
-        : warn(`${agent.name} not available${agent.reason ? dim(` — ${agent.reason}`) : ""}`),
+        ? ok(`${agent.name} ${dim(agent.command.join(" "))}`)
+        : warn(`${agent.name}: ${bold(agent.command[0]!)} is not on PATH`),
     );
   }
-  if (!agentList.some((agent) => agent.available)) {
-    lines.push(hint("install pi, codex or deepseek (dsh) and make sure it is on PATH"));
+  if (agentList.length === 0) {
+    lines.push(fail("No agent set up"), hint("baya agents add <id> -- <command that speaks ACP>"));
   }
   out(...lines);
 }
 
-async function agents(args: ParsedArgs): Promise<void> {
-  const list = await availableAgents();
-  if (json(args)) return printJson(list);
-  out(
-    ...table(
-      list.map((agent) => [
-        agent.available ? green("✓") : yellow("–"),
-        bold(agent.name),
-        dim(
-          (agent.available ? agent.description : agent.reason) ??
-            (agent.available ? "" : "not installed"),
-        ),
-      ]),
-    ),
+async function agentStatuses(): Promise<
+  Array<{ id: string; name: string; command: string[]; available: boolean; default: boolean }>
+> {
+  const config = loadConfig();
+  const fallback = defaultAgentId(config);
+  return Promise.all(
+    config.agents.map(async (agent) => ({
+      ...agent,
+      available: (await findExecutable(agent.command[0]!)) !== null,
+      default: agent.id === fallback,
+    })),
   );
+}
+
+async function agents(args: ParsedArgs): Promise<void> {
+  const [action, id] = args.positionals;
+  const config = loadConfig();
+  switch (action) {
+    case undefined: {
+      const list = await agentStatuses();
+      if (json(args)) return printJson(list);
+      if (list.length === 0) {
+        return out(
+          warn("No agent set up"),
+          hint("baya agents add <id> [--name <name>] -- <command that speaks ACP>"),
+        );
+      }
+      return out(
+        ...table(
+          list.map((agent) => [
+            agent.available ? green("✓") : yellow("–"),
+            bold(agent.id),
+            agent.name,
+            dim(agent.command.join(" ")),
+            agent.default ? cyan("default") : "",
+          ]),
+        ),
+      );
+    }
+    case "add": {
+      if (!id || !AGENT_ID.test(id)) {
+        throw new Error("Give the agent a short id: lowercase letters, digits, - or _.");
+      }
+      if (args.passthrough.length === 0) {
+        throw new Error(`Put the command after --, e.g. baya agents add ${id} -- my-agent --acp`);
+      }
+      const name = stringFlag(args, "name") ?? id;
+      const entry = { id, name, command: args.passthrough };
+      const others = config.agents.filter((agent) => agent.id !== id);
+      saveConfig({ ...config, agents: [...others, entry] });
+      out(ok(`${others.length < config.agents.length ? "Updated" : "Added"} ${bold(name)}`));
+      if (!(await findExecutable(args.passthrough[0]!))) {
+        out(warn(`${args.passthrough[0]} is not on PATH yet`));
+      }
+      return;
+    }
+    case "remove": {
+      if (!id || !config.agents.some((agent) => agent.id === id)) {
+        throw new Error(`No agent named "${id ?? ""}". See \`baya agents\`.`);
+      }
+      const { defaultAgent, ...rest } = config;
+      saveConfig({
+        ...rest,
+        agents: config.agents.filter((agent) => agent.id !== id),
+        ...(defaultAgent && defaultAgent !== id ? { defaultAgent } : {}),
+      });
+      return out(ok(`Removed ${bold(id)}; its sessions stay until you close them.`));
+    }
+    case "default": {
+      if (!id || !config.agents.some((agent) => agent.id === id)) {
+        throw new Error(`No agent named "${id ?? ""}". See \`baya agents\`.`);
+      }
+      saveConfig({ ...config, defaultAgent: id });
+      return out(ok(`New sessions use ${bold(id)} unless you pick another.`));
+    }
+    default:
+      throw new Error("Use `baya agents`, `baya agents add`, `remove` or `default`.");
+  }
 }
 
 function autostart(args: ParsedArgs): void {
@@ -555,16 +617,16 @@ async function main(): Promise<void> {
     case "up":
       return up(args);
     case "serve":
-      return runForeground(args);
+      return runForeground();
     case "start": {
-      const current = await startBackground(args);
+      const current = await startBackground();
       return json(args) ? printJson(current) : printStatus(current);
     }
     case "stop":
       return out((await stopHost()) ? ok("Baya stopped") : dim("Baya was not running"));
     case "restart":
       await stopHost();
-      return printStatus(await startBackground(args));
+      return printStatus(await startBackground());
     case "status":
       return status(args);
     case "open":

@@ -2,11 +2,33 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { dirname, join } from "node:path";
+import type { HostedSession } from "../acp/hosted_session.ts";
+import type { SessionHub } from "../acp/hub.ts";
 import { BAYA_HOME } from "../config.ts";
-import type { BayaManager } from "../host/manager.ts";
+import { removePeers } from "../pairing/storage.ts";
+import { issuePendingPairToken } from "../pairing/token_store.ts";
 import { packageVersion } from "../runtime/version.ts";
-import { directServer } from "../transport/direct_server.ts";
-import type { ControlInfo, ControlRequest, ControlResponse } from "./protocol.ts";
+import { resolveDirectory } from "../workspace/directories.ts";
+import type {
+  ControlInfo,
+  ControlRequest,
+  ControlResponse,
+  HostStatus,
+  SessionStatus,
+} from "./protocol.ts";
+
+export function sessionStatus(session: HostedSession): SessionStatus {
+  const info = session.info()["_meta"] as { baya: { error?: string } };
+  return {
+    id: session.id,
+    title: session.title,
+    cwd: session.record.cwd,
+    agent: session.record.agent,
+    running: session.running,
+    working: session.working,
+    error: info.baya.error ?? null,
+  };
+}
 
 export function controlInfoPath(): string {
   return join(BAYA_HOME, "runtime", "control.json");
@@ -21,11 +43,11 @@ export class ControlServer {
   /** Where phones connect, when `tailscale serve` routes to this host. */
   direct: string | null = null;
 
-  private readonly manager: BayaManager;
+  private readonly hub: SessionHub;
   private readonly stopProcess: () => void;
 
-  constructor(manager: BayaManager, stopProcess: () => void) {
-    this.manager = manager;
+  constructor(hub: SessionHub, stopProcess: () => void) {
+    this.hub = hub;
     this.stopProcess = stopProcess;
   }
 
@@ -125,27 +147,30 @@ export class ControlServer {
           started_at: this.startedAt,
           tailnet: this.tailnetName,
           direct: this.direct,
-          phones_connected: directServer().connected,
-          sessions: this.manager.list(),
-        };
-      case "list":
-        return { sessions: this.manager.list() };
+          phones_connected: this.hub.connectedPhones,
+          sessions: this.hub.list().map(sessionStatus),
+        } satisfies HostStatus;
       case "open": {
         if (typeof params["cwd"] !== "string") throw new Error("cwd is required.");
-        if (typeof params["agent"] !== "string") throw new Error("agent is required.");
-        return this.manager.openWorkspace(params["cwd"], params["agent"]);
+        const agent = typeof params["agent"] === "string" ? params["agent"] : undefined;
+        return sessionStatus(this.hub.create(await resolveDirectory(params["cwd"]), agent));
       }
       case "remove": {
         if (typeof params["id"] !== "string") throw new Error("id is required.");
-        return { removed: this.manager.deleteById(params["id"]) };
+        return { removed: this.hub.delete(params["id"]) };
       }
       case "pair": {
-        const id = typeof params["id"] === "string" ? params["id"] : undefined;
         const ttlMs =
           typeof params["ttl_ms"] === "number" && Number.isFinite(params["ttl_ms"])
             ? params["ttl_ms"]
             : undefined;
-        return this.manager.pair(id, ttlMs);
+        return issuePendingPairToken(ttlMs);
+      }
+      case "unpair": {
+        if (typeof params["query"] !== "string") throw new Error("query is required.");
+        const removed = await removePeers(params["query"]);
+        await this.hub.refreshPeers();
+        return { removed };
       }
       case "stop":
         return { stopping: true };

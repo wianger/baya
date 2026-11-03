@@ -76,7 +76,7 @@ export async function browseSessionFiles(
           path: canonical,
           type: "directory",
           size: null,
-          modified_at: Math.round(info.mtimeMs),
+          modifiedAt: Math.round(info.mtimeMs),
         });
       } else if (info.isFile()) {
         entries.push({
@@ -84,7 +84,7 @@ export async function browseSessionFiles(
           path: canonical,
           type: "file",
           size: info.size,
-          modified_at: Math.round(info.mtimeMs),
+          modifiedAt: Math.round(info.mtimeMs),
         });
       }
     } catch {
@@ -123,7 +123,7 @@ export async function readSessionFile(cwd: string, input: string): Promise<Sessi
     name: path.slice(path.lastIndexOf(sep) + 1),
     path,
     size: info.size,
-    modified_at: Math.round(info.mtimeMs),
+    modifiedAt: Math.round(info.mtimeMs),
     content: binary ? null : buffer.toString("utf8"),
     binary,
     truncated: info.size > MAX_FILE_BYTES,

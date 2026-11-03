@@ -12,14 +12,13 @@ import {
 } from "../src/transport/e2e.ts";
 
 const fixture = JSON.parse(
-  readFileSync(new URL("../../.orchestration/contracts/e2e_v1.json", import.meta.url), "utf8"),
+  readFileSync(new URL("../../.orchestration/contracts/e2e_v2.json", import.meta.url), "utf8"),
 ) as {
   phone_seed: string;
   phone_pk: string;
   host_seed: string;
   host_pk: string;
   session_key: string;
-  room: string;
   ts: number;
   p2h: { plaintext: string; box: string };
   h2p: { plaintext: string; box: string };
@@ -63,13 +62,12 @@ describe("sealed frames", () => {
     expect(
       deriveSessionKey(b64(fixture.phone_seed), b64(fixture.phone_pk), b64(fixture.host_pk)),
     ).toEqual(key);
-    const p2h = open(key, "p2h", fixture.room, b64(fixture.p2h.box));
+    const p2h = open(key, "p2h", b64(fixture.p2h.box));
     expect(p2h.plaintext.toString()).toBe(fixture.p2h.plaintext);
     expect(p2h.sentAt).toBe(fixture.ts);
     const h2p = seal(
       key,
       "h2p",
-      fixture.room,
       Buffer.from(fixture.h2p.plaintext),
       fixture.ts,
       b64(fixture.h2p.box).subarray(2, 14),
@@ -77,22 +75,19 @@ describe("sealed frames", () => {
     expect(h2p.toString("base64")).toBe(fixture.h2p.box);
   });
 
-  test("direction, room, and tampering are all authenticated", () => {
+  test("direction and tampering are authenticated", () => {
     const box = b64(fixture.p2h.box);
-    expect(() => open(key, "h2p", fixture.room, box)).toThrow(/authentication/);
-    expect(() => open(key, "p2h", "otherRoom", box)).toThrow(/authentication/);
+    expect(() => open(key, "h2p", box)).toThrow(/authentication/);
     const tampered = Buffer.from(box);
     tampered[20]! ^= 1;
-    expect(() => open(key, "p2h", fixture.room, tampered)).toThrow(/authentication/);
-    expect(() => open(Buffer.alloc(32), "p2h", fixture.room, box)).toThrow(/authentication/);
-    expect(() => open(key, "p2h", fixture.room, Buffer.from('{"type":"ping"}'))).toThrow(
-      /Not an encrypted/,
-    );
+    expect(() => open(key, "p2h", tampered)).toThrow(/authentication/);
+    expect(() => open(Buffer.alloc(32), "p2h", box)).toThrow(/authentication/);
+    expect(() => open(key, "p2h", Buffer.from('{"type":"ping"}'))).toThrow(/Not an encrypted/);
   });
 
   test("the replay guard rejects stale and repeated frames", () => {
     const guard = new ReplayGuard(1_000);
-    const opened = open(key, "p2h", fixture.room, b64(fixture.p2h.box));
+    const opened = open(key, "p2h", b64(fixture.p2h.box));
     expect(guard.check(opened, fixture.ts + 2_000)).toBe("stale");
     expect(guard.check(opened, fixture.ts + 10)).toBe("ok");
     expect(guard.check(opened, fixture.ts + 20)).toBe("replayed");

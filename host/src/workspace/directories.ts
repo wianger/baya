@@ -2,9 +2,7 @@ import { constants } from "node:fs";
 import { access, readdir, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, parse } from "node:path";
-import { workspaceAgents } from "./agents.ts";
-import { hasDeepSeekHarness } from "./dsh_executable.ts";
-import type { WorkspaceAgentInfo, WorkspaceDirectory } from "./types.ts";
+import type { WorkspaceDirectory } from "./types.ts";
 
 const MAX_DIRECTORIES = 300;
 
@@ -30,31 +28,6 @@ export async function findExecutable(name: string): Promise<string | null> {
     }
   }
   return null;
-}
-
-export async function availableAgents(
-  resolveExecutable: (command: string) => Promise<string | null> = findExecutable,
-  /**
-   * Fallback probe for the DeepSeek Harness desktop app, which ships its ACP
-   * CLI inside the install directory instead of putting `dsh` on PATH.
-   */
-  probeDeepSeekHarness: () => Promise<boolean> = hasDeepSeekHarness,
-): Promise<WorkspaceAgentInfo[]> {
-  return Promise.all(
-    workspaceAgents.map(async ({ id, name, command, description }) => {
-      const override = id === "deepseek" ? process.env["BAYA_DSH_BIN"]?.trim() : undefined;
-      const onPath = (await resolveExecutable(override || command)) !== null;
-      const available =
-        onPath || (id === "deepseek" && !override && (await probeDeepSeekHarness()));
-      return {
-        id,
-        name,
-        description,
-        available,
-        ...(!available ? { reason: `${name} is not installed on this computer.` } : {}),
-      };
-    }),
-  );
 }
 
 /** Only directories are returned; browsing never reads a file's contents. */
@@ -106,7 +79,6 @@ export async function browseDirectory(
     home,
     roots: [...new Set([home, parse(path).root])],
     directories: directories.slice(0, MAX_DIRECTORIES),
-    agents: await availableAgents(),
     truncated: directories.length > MAX_DIRECTORIES,
   };
 }

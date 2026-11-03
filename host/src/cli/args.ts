@@ -2,19 +2,20 @@ export interface ParsedArgs {
   command: string;
   positionals: string[];
   flags: Map<string, string | true>;
+  /** Everything after `--`, verbatim: an agent's command line. */
+  passthrough: string[];
 }
 
-export function parseArgs(argv: string[]): ParsedArgs {
+export function parseArgs(input: string[]): ParsedArgs {
+  const separator = input.indexOf("--");
+  const argv = separator >= 0 ? input.slice(0, separator) : input;
+  const passthrough = separator >= 0 ? input.slice(separator + 1) : [];
   if (argv[0] === "help" || argv.includes("--help") || argv.includes("-h")) {
-    return {
-      command: "help",
-      positionals: [],
-      flags: new Map(),
-    };
+    return { command: "help", positionals: [], flags: new Map(), passthrough };
   }
   const first = argv[0];
   if (first === "--version" || first === "-v") {
-    return { command: "version", positionals: [], flags: new Map() };
+    return { command: "version", positionals: [], flags: new Map(), passthrough };
   }
   // No command: `baya` starts (or shows) the host — the one thing to remember.
   const command = first && !first.startsWith("-") ? first : "up";
@@ -43,7 +44,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       flags.set(rawKey, true);
     }
   }
-  return { command, positionals, flags };
+  return { command, positionals, flags, passthrough };
 }
 
 export function stringFlag(args: ParsedArgs, name: string): string | undefined {
