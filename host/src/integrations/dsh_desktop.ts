@@ -89,11 +89,24 @@ export class DshDesktop {
     this.flush();
   }
 
+  /** Drops a deleted session that was still waiting to be recorded. */
+  forget(sessionId: string): void {
+    const pending = this.load();
+    const left = pending.filter((item) => item.sessionId !== sessionId);
+    if (left.length !== pending.length) this.save(left);
+  }
+
   /** Writes what is pending if the desktop app is closed; else retries later. */
   flush(): void {
     const pending = this.load();
-    if (pending.length === 0) return this.stopRetrying();
-    if (this.isRunning()) return this.retry();
+    if (pending.length === 0) {
+      this.stopRetrying();
+      return;
+    }
+    if (this.isRunning()) {
+      this.retry();
+      return;
+    }
     for (const [dshHome, items] of groupBy(pending, (item) => item.dshHome)) {
       try {
         record(dshHome, items);
@@ -158,10 +171,12 @@ function record(dshHome: string, items: Pending[]): void {
   if (data.unit?.name !== "workspace" || data.unit.version !== 2) {
     throw new Error(`unknown workspace file format in ${file}; left unchanged`);
   }
-  const workspaces = (data.tables ??= {}).workspaces ?? {};
+  data.tables = data.tables ?? {};
+  const workspaces = data.tables.workspaces ?? {};
   data.tables.workspaces = workspaces;
-  const global = (data.global ??= {});
-  const order = (global.workspaceIds ??= []);
+  data.global = data.global ?? {};
+  const order = data.global.workspaceIds ?? [];
+  data.global.workspaceIds = order;
   const now = new Date().toISOString();
   let changed = false;
   for (const { sessionId, cwd } of items) {

@@ -77,8 +77,11 @@ describe("DeepSeek desktop registration", () => {
     desktop.register(definition, "s1", project);
     expect(readFileSync(file, "utf8")).toBe(before);
     expect(read(pending)).toHaveLength(1);
+    desktop.register(definition, "gone", project);
+    desktop.forget("gone");
     running = false;
     desktop.flush();
     expect(JSON.stringify(read(file))).toContain('"s1"');
+    expect(JSON.stringify(read(file))).not.toContain('"gone"');
   });
 });

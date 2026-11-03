@@ -244,6 +244,7 @@ export class HostedSession {
   /** Stops the agent and forgets the history. */
   destroy(): void {
     const agent = this.process;
+    if (this.record.agentSessionId) dshDesktop.forget(this.record.agentSessionId);
     if (this.record.agentSessionId && agent?.info?.agentCapabilities?.sessionCapabilities?.delete) {
       void agent
         .request("session/delete", { sessionId: this.record.agentSessionId })
