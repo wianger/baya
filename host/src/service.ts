@@ -12,7 +12,7 @@ export interface StartupTarget {
   nodePath: string;
   entryPath: string;
   cwd: string;
-  /** PATH for the service, so it finds `pi`, `codex`, and friends. */
+  /** PATH for the service, so it finds the agents' commands. */
   path: string;
   logDir: string;
 }

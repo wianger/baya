@@ -147,7 +147,7 @@ class Preferences extends ChangeNotifier {
         }
       }
     } on FormatException {
-      /* Invalid preference, fall back to the announced room name. */
+      /* Invalid preference, fall back to the session title. */
     }
     if (!mapEquals(names, _sessionNames)) {
       _sessionNames = names;
@@ -208,8 +208,8 @@ class Preferences extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
-  static String _conversationKey(String epk, String room) =>
-      '${toStandardB64(epk)}:$room';
+  static String _conversationKey(String epk, String sessionId) =>
+      '${toStandardB64(epk)}:$sessionId';
 
   String? get selectedWorkspace => _selectedWorkspace;
   String? get selectedDeviceEpk => _selectedDeviceEpk;
@@ -224,11 +224,11 @@ class Preferences extends ChangeNotifier {
   /// Local display-name override for a conversation. Null → use the name the
   /// computer announced. Kept on this phone so renaming never touches the
   /// running agent or another device.
-  String? sessionName(String epk, String room) =>
-      _sessionNames[_conversationKey(epk, room)];
+  String? sessionName(String epk, String sessionId) =>
+      _sessionNames[_conversationKey(epk, sessionId)];
 
-  Future<void> setSessionName(String epk, String room, String? name) async {
-    final key = _conversationKey(epk, room);
+  Future<void> setSessionName(String epk, String sessionId, String? name) async {
+    final key = _conversationKey(epk, sessionId);
     final trimmed = name?.trim();
     final next = (trimmed == null || trimmed.isEmpty) ? null : trimmed;
     final before = _sessionNames[key];
@@ -271,9 +271,9 @@ class Preferences extends ChangeNotifier {
     );
   }
 
-  String? workspaceForSession(String epk, String room) {
+  String? workspaceForSession(String epk, String sessionId) {
     final device = toStandardB64(epk);
-    final workspace = _sessionWorkspaces[_conversationKey(device, room)];
+    final workspace = _sessionWorkspaces[_conversationKey(device, sessionId)];
     return workspace != null && isWorkspaceKeyForDevice(workspace, device)
         ? workspace
         : null;
@@ -281,10 +281,10 @@ class Preferences extends ChangeNotifier {
 
   Future<void> setSessionWorkspace(
     String epk,
-    String room,
+    String sessionId,
     String? workspaceKey,
   ) async {
-    final key = _conversationKey(epk, room);
+    final key = _conversationKey(epk, sessionId);
     final next = workspaceKey?.trim();
     final device = toStandardB64(epk);
     if (next != null &&

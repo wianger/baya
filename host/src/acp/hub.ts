@@ -23,7 +23,7 @@ export interface HubPhone extends PhoneLink {
   close(code: number, reason: string): void;
 }
 
-export const CLOSE_UNPAIRED = 4003;
+const CLOSE_UNPAIRED = 4003;
 
 /**
  * Every session on this computer and every connected phone. Sessions load

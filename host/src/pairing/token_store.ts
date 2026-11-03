@@ -53,16 +53,6 @@ export function consumePendingPairToken(token: string): "ok" | "expired" | "cons
   return "ok";
 }
 
-export function clearPendingPairToken(): void {
-  if (!existsSync(pendingPairPath())) return;
-  const empty: PendingPairToken = {
-    token: "",
-    expires_at: 0,
-    consumed_at: Date.now(),
-  };
-  writeFileSync(pendingPairPath(), `${JSON.stringify(empty, null, 2)}\n`, { mode: 0o600 });
-}
-
 /** Constant-time comparison so no one can time their way to a token. */
 function sameSecret(expected: string, received: string): boolean {
   const a = Buffer.from(expected);

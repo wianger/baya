@@ -72,7 +72,7 @@ void main() {
       expect(sel.matches('epk', 'main'), isFalse);
     });
 
-    test('select sets current and matches the (epk, room)', () {
+    test('select sets current and matches the (computer, session)', () {
       final sel = SessionSelection();
       var notifications = 0;
       sel.addListener(() => notifications++);
@@ -94,7 +94,7 @@ void main() {
       sel.addListener(() => notifications++);
 
       sel.select('epkA', 'main', 'Title A again');
-      expect(notifications, 0, reason: 'same (epk, room) must not notify');
+      expect(notifications, 0, reason: 'same (computer, session) must not notify');
       expect(sel.current?.title, 'Title A', reason: 'unchanged');
     });
 

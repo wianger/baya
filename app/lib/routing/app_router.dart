@@ -48,7 +48,7 @@ class _BootState extends ChangeNotifier {
   ///
   /// Drives the redirect: only fresh identities **and** an empty peer
   /// list get sent to the onboarding stepper; everything else lands on
-  /// /home (which itself shows a friendly "pair your first Pi" state
+  /// /home (which itself shows a friendly "pair your first computer" state
   /// when peers is empty).
   bool get identityWasGenerated => _identityWasGenerated;
 
@@ -103,7 +103,7 @@ GoRouter buildRouter(
 
   // Watch for Owner-key drift on the sync surface. When the
   // platform delivers a different keypair (restored on a new device,
-  // user wiped and re-installed elsewhere), the bridge wipes peers/rooms
+  // user wiped and re-installed elsewhere), the bridge wipes peers and session lists
   // and we reset the boot state so the router redirects through /boot.
   //
   // Hook is captured here but only installed AFTER boot() succeeds —

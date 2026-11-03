@@ -100,11 +100,11 @@ class HomeViewModel extends ViewModel<HomeState> {
         workspaceKey,
       );
 
-  Future<void> assignSessionRoomToWorkspace(
+  Future<void> assignSessionIdToWorkspace(
     String deviceEpk,
-    String roomId,
+    String sessionId,
     String workspaceKey,
-  ) => _prefs.setSessionWorkspace(deviceEpk, roomId, workspaceKey);
+  ) => _prefs.setSessionWorkspace(deviceEpk, sessionId, workspaceKey);
 
   /// Name shown in lists and the chat header. A phone-local rename wins over
   /// the title the computer gives the session.

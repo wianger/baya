@@ -17,7 +17,7 @@ import type {
   SessionStatus,
 } from "./protocol.ts";
 
-export function sessionStatus(session: HostedSession): SessionStatus {
+function sessionStatus(session: HostedSession): SessionStatus {
   const info = session.info()["_meta"] as { baya: { error?: string } };
   return {
     id: session.id,

@@ -21,7 +21,7 @@ import { deriveSessionKey, E2EError, open, ReplayGuard, seal } from "./e2e.ts";
 const SPKI_ED25519_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 const HELLO_TIMEOUT_MS = 5_000;
 const PING_MS = 25_000;
-export const CLOSE_CLOCK_SKEW = 4001;
+const CLOSE_CLOCK_SKEW = 4001;
 
 export class DirectServer {
   private readonly wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 * 1024 });

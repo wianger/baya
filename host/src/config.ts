@@ -12,7 +12,7 @@ export interface AgentDefinition {
   command: string[];
 }
 
-export interface BayaConfig {
+interface BayaConfig {
   agents: AgentDefinition[];
   /** Agent for sessions started without one; the first agent otherwise. */
   defaultAgent?: string;
@@ -24,7 +24,7 @@ export function configPath(): string {
   return join(BAYA_HOME, "config.json");
 }
 
-export function parseConfig(value: unknown): BayaConfig {
+function parseConfig(value: unknown): BayaConfig {
   const record =
     value && typeof value === "object" && !Array.isArray(value)
       ? (value as Record<string, unknown>)

@@ -7,7 +7,7 @@ import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 
 /// Phone-local conversation rename. Empty input clears the override so the
-/// computer's announced room name is shown again.
+/// computer's session title is shown again.
 Future<String?> showSessionRenameDialog(
   BuildContext context, {
   required String currentName,

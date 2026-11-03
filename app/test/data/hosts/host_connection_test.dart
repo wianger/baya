@@ -74,7 +74,7 @@ void main() {
     await conn.start();
     await settle();
     expect(conn.status, HostStatus.unpaired);
-    expect(conn.error, contains('no longer paired'));
+    expect(conn.error, contains('re-pair'));
     conn.dispose();
   });
 

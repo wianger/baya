@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:app/acp/acp.dart';
 import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/transport/host_socket.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
@@ -179,8 +180,8 @@ class HostConnection extends ChangeNotifier {
   // ── connection ──────────────────────────────────────────────────────────
 
   String get _offlineMessage => _status == HostStatus.unpaired
-      ? 'This phone is no longer paired with ${_host.label}.'
-      : '${_host.label} is not connected.';
+      ? appL10n.pairingRevoked
+      : appL10n.hostOffline(_host.label);
 
   Future<void> _open() async {
     if (_stopped || _socket != null) return;
@@ -193,7 +194,7 @@ class HostConnection extends ChangeNotifier {
         identity: await _identity(),
       ).timeout(const Duration(seconds: 12));
     } catch (error) {
-      _error = 'Could not reach ${_host.label}.';
+      _error = appL10n.hostUnreachable(_host.label);
       _scheduleRetry();
       return;
     }
@@ -262,14 +263,14 @@ class HostConnection extends ChangeNotifier {
     }
     if (closed.clockSkewMinutes != null) {
       _clockSkewMinutes = closed.clockSkewMinutes;
-      _error = "This phone's clock is ${closed.clockSkewMinutes} min off.";
+      _error = appL10n.errorClockSkew;
     }
     if (_status != HostStatus.unpaired) _scheduleRetry();
   }
 
   void _becomeUnpaired() {
     _retry?.cancel();
-    _error = 'This phone is no longer paired with ${_host.label}.';
+    _error = appL10n.pairingRevoked;
     _setStatus(HostStatus.unpaired);
   }
 

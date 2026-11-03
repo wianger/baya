@@ -24,7 +24,7 @@ Future<OpenedWorkspace?> openNewSession(
   await home.selectDevice(workspace.hostId);
   if (!context.mounted) return workspace;
   if (selectedWorkspace != null) {
-    await home.assignSessionRoomToWorkspace(
+    await home.assignSessionIdToWorkspace(
       workspace.hostId,
       workspace.sessionId,
       selectedWorkspace,

@@ -13,7 +13,7 @@ import 'package:provider/provider.dart';
 
 /// Onboarding step 3 — embeds the existing pairing flow. Watches the
 /// already-registered `PairingViewModel` (Provider) and notifies the
-/// onboarding flow when `pair_ok` lands.
+/// onboarding flow when pairing succeeds.
 class PairStep extends StatefulWidget {
   final VoidCallback onPaired;
   final VoidCallback onBack;

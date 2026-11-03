@@ -192,7 +192,10 @@ class _Overview extends StatelessWidget {
             busy: busy == option.id,
             onTap: option.choices.isEmpty ? null : () => onOpen(option.id),
           ),
-      if (modes != null && modes.available.isNotEmpty)
+      // ACP: an agent that offers a `mode` config option manages modes there.
+      if (modes != null &&
+          modes.available.isNotEmpty &&
+          session.configFor('mode') == null)
         _Row(
           key: const ValueKey('setting-mode'),
           icon: LucideIcons.toggleRight,

@@ -27,7 +27,7 @@ export interface PhoneLink {
   ask(method: string, params: Json): { id: RpcId; result: Promise<unknown> };
 }
 
-export interface SessionEvents {
+interface SessionEvents {
   /** Title, activity or running state changed. */
   changed(session: HostedSession): void;
 }

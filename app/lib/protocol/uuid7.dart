@@ -2,10 +2,10 @@
 // Layout: 48-bit unix_ts_ms | ver=7 | 12-bit rand_a | variant=10 | 62-bit rand_b
 //
 // Used as a globally-unique correlation id for protocol messages
-// (pair_request, user_message, etc). Per-device counters collide
+// (prompt message ids). Per-device counters collide
 // across devices owned by the same human — see
 // the symptom where Android's `cli_4` would prematurely confirm the
-// iPhone's `cli_4` pending bubble via the Pi rebroadcast.
+// iPhone's `cli_4` pending bubble via the computer's echo.
 
 import 'dart:math';
 import 'dart:typed_data';

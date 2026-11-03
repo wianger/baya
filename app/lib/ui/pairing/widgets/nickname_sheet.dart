@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 /// Post-pair nickname modal.
 ///
 /// Asks the user for a friendly label for the just-paired computer. The
-/// caller seeds [defaultName] with `pair_ok.hostname` when present
+/// caller seeds [defaultName] with the hostname `_baya/pair` returned when present
 /// (e.g. "Studio"), or the session name as a softer fallback, or `null`
 /// so the field hints with the generic placeholder "Computer".
 ///

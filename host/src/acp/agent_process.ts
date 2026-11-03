@@ -5,7 +5,7 @@ import { packageVersion } from "../runtime/version.ts";
 import { type Json, JsonRpcPeer, NdjsonDecoder, type RequestHandler } from "./jsonrpc.ts";
 import { type InitializeResponse, PROTOCOL_VERSION } from "./schema.ts";
 
-export interface AgentProcessHandlers {
+interface AgentProcessHandlers {
   onRequest: RequestHandler;
   onNotification: (method: string, params: Json) => void;
   onExit: (error: Error) => void;

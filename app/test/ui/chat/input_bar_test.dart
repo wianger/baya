@@ -228,7 +228,7 @@ void main() {
   });
 
   // `streaming` (the whole working turn, fed by vm.isWorking) keeps
-  // the composer editable for steering while empty input still exposes Stop.
+  // the composer editable for follow-ups while empty input still exposes Stop.
   testWidgets('streaming with no text shows stop and keeps typing enabled', (
     tester,
   ) async {
@@ -266,20 +266,20 @@ void main() {
       ),
     );
 
-    await tester.enterText(find.byType(TextField), 'steer me');
+    await tester.enterText(find.byType(TextField), 'and then this');
     await tester.pump();
     expect(find.byKey(const Key('input-bar-queue')), findsNothing);
     await tester.tap(find.byKey(const Key('input-bar-action')));
     await tester.pump();
 
-    expect(sent, 'steer me');
+    expect(sent, 'and then this');
     expect(
       tester.widget<TextField>(find.byType(TextField)).controller?.text,
       '',
     );
   });
 
-  testWidgets('streaming + text turns send into steering', (tester) async {
+  testWidgets('streaming + text queues a follow-up', (tester) async {
     String? sent;
     await tester.pumpWidget(
       MaterialApp(
@@ -300,7 +300,7 @@ void main() {
     expect(
       find.byKey(const Key('input-bar-inline-stop')),
       findsOneWidget,
-      reason: 'Stop remains reachable while the main action sends steering',
+      reason: 'Stop remains reachable while the main action queues a follow-up',
     );
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();

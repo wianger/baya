@@ -160,25 +160,25 @@ void main() {
         final p = Preferences(store);
         await p.load();
         final device = base64Encode(List.filled(32, 19));
-        const room = 'room-alpha';
+        const session = 'session-alpha';
         final workspace = '$device:workspace:release';
 
         await p.setWorkspaceName(workspace, 'Release train');
-        await p.setSessionWorkspace(device, room, workspace);
+        await p.setSessionWorkspace(device, session, workspace);
         await p.setSelectedWorkspace(workspace);
         expect(p.isCustomWorkspace(workspace), isTrue);
-        expect(p.workspaceForSession(device, room), workspace);
+        expect(p.workspaceForSession(device, session), workspace);
         expect(p.workspaceForDevice(device), workspace);
 
         await p.deleteWorkspace(workspace);
         expect(p.isCustomWorkspace(workspace), isFalse);
-        expect(p.workspaceForSession(device, room), isNull);
+        expect(p.workspaceForSession(device, session), isNull);
         expect(p.workspaceForDevice(device), isNull);
 
         final restored = Preferences(store);
         await restored.load();
         expect(restored.workspaceName(workspace), isNull);
-        expect(restored.workspaceForSession(device, room), isNull);
+        expect(restored.workspaceForSession(device, session), isNull);
         expect(restored.workspaceForDevice(device), isNull);
         restored.dispose();
       },
@@ -196,7 +196,7 @@ void main() {
       );
       await store.write(
         key: 'prefs.session_workspaces',
-        value: jsonEncode({'$device:room': '$device:/code/old'}),
+        value: jsonEncode({'$device:session': '$device:/code/old'}),
       );
       await store.write(
         key: 'prefs.workspace_names',
@@ -208,7 +208,7 @@ void main() {
 
       expect(p.selectedDeviceEpk, device);
       expect(p.workspaceForDevice(device), isNull);
-      expect(p.workspaceForSession(device, 'room'), isNull);
+      expect(p.workspaceForSession(device, 'session'), isNull);
       expect(p.isCustomWorkspace('$device:/code/old'), isFalse);
       p.dispose();
     });
@@ -221,10 +221,10 @@ void main() {
       final foreign = workspaceKey(second, 'foreign');
 
       await expectLater(
-        p.setSessionWorkspace(first, 'room', foreign),
+        p.setSessionWorkspace(first, 'session', foreign),
         throwsArgumentError,
       );
-      expect(p.workspaceForSession(first, 'room'), isNull);
+      expect(p.workspaceForSession(first, 'session'), isNull);
       p.dispose();
     });
 
@@ -257,15 +257,15 @@ void main() {
       final device = base64Encode(List.filled(32, 27));
       final workspace = workspaceKey(device, 'release');
       await p.setWorkspaceName(workspace, 'Release');
-      await p.setSessionWorkspace(device, 'room-a', workspace);
-      await p.setSessionWorkspace(device, 'room-b', workspace);
+      await p.setSessionWorkspace(device, 'session-a', workspace);
+      await p.setSessionWorkspace(device, 'session-b', workspace);
       await p.setSelectedWorkspace(workspace);
 
       await p.deleteWorkspace(workspace);
 
       expect(p.isCustomWorkspace(workspace), isFalse);
-      expect(p.workspaceForSession(device, 'room-a'), isNull);
-      expect(p.workspaceForSession(device, 'room-b'), isNull);
+      expect(p.workspaceForSession(device, 'session-a'), isNull);
+      expect(p.workspaceForSession(device, 'session-b'), isNull);
       expect(
         p.workspaceForDevice(device) ?? inboxWorkspaceKey(device),
         inboxWorkspaceKey(device),

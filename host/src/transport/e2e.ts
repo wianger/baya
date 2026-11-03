@@ -29,8 +29,8 @@ import {
  * short window.
  */
 
-export const E2E_MAGIC = Buffer.from([0xbe, 0x02]);
-export const REPLAY_WINDOW_MS = 5 * 60_000;
+const E2E_MAGIC = Buffer.from([0xbe, 0x02]);
+const REPLAY_WINDOW_MS = 5 * 60_000;
 const NONCE_BYTES = 12;
 const TAG_BYTES = 16;
 const LABEL = "baya-e2e-v2";
@@ -38,7 +38,7 @@ const PKCS8_X25519_PREFIX = Buffer.from("302e020100300506032b656e04220420", "hex
 const SPKI_X25519_PREFIX = Buffer.from("302a300506032b656e032100", "hex");
 const P = 2n ** 255n - 19n;
 
-export type Direction = "p2h" | "h2p";
+type Direction = "p2h" | "h2p";
 
 export class E2EError extends Error {
   override readonly name = "E2EError";
@@ -101,7 +101,7 @@ export function seal(
   return Buffer.concat([E2E_MAGIC, nonce, ciphertext, cipher.getAuthTag()]);
 }
 
-export interface Opened {
+interface Opened {
   plaintext: Buffer;
   sentAt: number;
   nonce: string;
@@ -131,7 +131,7 @@ export function open(key: Uint8Array, direction: Direction, box: Uint8Array): Op
   };
 }
 
-export function isSealed(data: Uint8Array): boolean {
+function isSealed(data: Uint8Array): boolean {
   return data.length >= 2 && data[0] === E2E_MAGIC[0] && data[1] === E2E_MAGIC[1];
 }
 

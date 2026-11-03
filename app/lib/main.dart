@@ -86,7 +86,7 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
           value: services.selection,
         ),
         // Shell layout state — lets the adaptive shell collapse the split
-        // into a single centered pane on zero-state Home (no Pi / empty).
+        // into a single centered pane on zero-state Home (no computer / empty).
         ChangeNotifierProvider<BackedUpOwnerIdentityStore>.value(
           value: services.identityStore,
         ),

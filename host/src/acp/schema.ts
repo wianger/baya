@@ -9,12 +9,10 @@ export const PROTOCOL_VERSION = 1;
 /** `text`, `image`, `audio`, `resource_link` or `resource`. */
 export type ContentBlock = { type: string; [key: string]: unknown };
 
-export type ToolCallStatus = "pending" | "in_progress" | "completed" | "failed";
-
 /** One `session/update` payload; `sessionUpdate` is the discriminator. */
 export type SessionUpdate = { sessionUpdate: string; [key: string]: unknown };
 
-export interface PromptCapabilities {
+interface PromptCapabilities {
   image?: boolean;
   audio?: boolean;
   embeddedContext?: boolean;

@@ -14,16 +14,16 @@ class PairingScanning extends PairingState {
   const PairingScanning();
 }
 
-/// QR scanned; opening transport + sending pair_request.
+/// QR scanned; connecting and calling `_baya/pair`.
 class PairingConnecting extends PairingState {
   final String sessionName;
   const PairingConnecting({required this.sessionName});
 }
 
-/// Pi confirmed; channel adopted. UI navigates straight to chat
+/// The computer accepted the code. UI navigates straight to chat
 /// after the post-pair nickname modal is dismissed.
 ///
-/// [hostnameHint] is the computer's hostname from `pair_ok.hostname`; the
+/// [hostnameHint] is the computer's hostname `_baya/pair` returned; the
 /// post-pair nickname modal pre-fills its input with it.
 class PairingPaired extends PairingState {
   final PeerRecord peer;
@@ -40,7 +40,7 @@ class PairingPaired extends PairingState {
   int get hashCode => Object.hash(peer.remoteEpk, hostnameHint);
 }
 
-/// QR parse, transport, or pair_request failed.
+/// QR parse, connection, or pairing failed.
 class PairingError extends PairingState {
   final String message;
   final bool canRetry;

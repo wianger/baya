@@ -6,7 +6,7 @@ sealed class HomeState {
   const HomeState();
 }
 
-/// Which presence slice of the Home list is shown. A pure view filter.
+/// Which connection slice of the Home list is shown. A pure view filter.
 enum HomeFilter { all, online, offline }
 
 class HomeLoading extends HomeState {

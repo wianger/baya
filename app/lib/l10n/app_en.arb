@@ -29,10 +29,7 @@
   "rename": "Rename",
   "info": "Info",
   "delete": "Delete",
-  "sessionNotFoundToDelete": "Could not find this session to delete.",
-  "noActiveDevice": "No active device",
   "nothingHere": "Nothing here",
-  "model": "Model",
   "cameraAccessOff": "Camera access is off",
   "enableCameraInSettings": "Enable it in Settings to attach a photo.",
   "openSettings": "Open Settings",
@@ -41,41 +38,14 @@
   "enableMicrophoneInSettings": "Enable it in Settings to dictate.",
   "jumpToLatest": "Jump to latest",
   "pairingRevoked": "Pairing revoked by the computer — re-pair to continue",
-  "couldNotLoadCommands": "Could not load slash commands.",
   "loading": "Loading",
   "notReported": "Not reported",
   "contextUsage": "Context usage",
-  "refreshContextUsage": "Refresh context usage",
-  "usedTokens": "Used tokens",
-  "contextWindow": "Context window",
   "usage": "Usage",
-  "modelChangeFailed": "Model change failed",
-  "selectModel": "Select model",
-  "reasoningEffort": "Reasoning effort",
-  "failedToLoadModels": "Failed to load models",
-  "effort": "Effort",
-  "defaultLabel": "Default",
-  "effortOff": "Off",
-  "effortMinimal": "Minimal",
-  "effortLow": "Low",
-  "effortMedium": "Medium",
-  "effortHigh": "High",
-  "effortExtraHigh": "Extra high",
-  "effortMax": "Max",
-  "effortUltra": "Ultra",
-  "closeModelPicker": "Close model picker",
-  "backToModelSummary": "Back to model summary",
-  "refreshModels": "Refresh models",
   "reasoning": "Reasoning",
-  "noModelsAvailable": "No models available",
   "tryAgain": "Try again",
   "retry": "Retry",
   "session": "Session",
-  "chooseModel": "Choose a model",
-  "thinking": "Thinking",
-  "noConfigurableEffort": "This model has no configurable effort.",
-  "answerNotAccepted": "Answer was not accepted.",
-  "notConnectedRetry": "Not connected — check the link to Pi and retry.",
   "slideToCancel": "slide to cancel",
   "releaseToCancel": "release to cancel",
   "copied": "Copied",
@@ -83,16 +53,7 @@
   "camera": "Camera",
   "photoLibrary": "Photo Library",
   "close": "Close",
-  "clarificationNeeded": "Clarification needed",
   "cancel": "Cancel",
-  "typeYourOwn": "Type your own…",
-  "pleaseConfirm": "Please confirm.",
-  "noResponseYet": "No response from Pi yet — retry or cancel.",
-  "submit": "Submit",
-  "steerCurrentResponse": "Steer current response…",
-  "queuedTapToEdit": "Queued. Tap to edit.",
-  "queuedFollowUp": "Queued follow-up.",
-  "clearQueuedMessage": "Clear queued message",
   "attachImage": "Attach image",
   "voiceInput": "Voice input",
   "stopResponse": "Stop response",
@@ -110,7 +71,6 @@
   "skill": "Skill",
   "prompt": "Prompt",
   "agentCommand": "Agent command",
-  "notDelivered": "not delivered",
   "contextCompacted": "Context compacted",
   "copy": "Copy",
   "stopReading": "Stop reading",
@@ -124,38 +84,17 @@
   "error": "Error",
   "completedWithoutOutput": "Completed without output.",
   "tool": "Tool",
-  "waitingForApproval": "Waiting for approval",
-  "runningCommand": "Running command",
-  "ranCommand": "Ran command",
-  "editingFile": "Editing file",
-  "editedFile": "Edited file",
-  "messagingAgent": "Messaging agent",
-  "messagedAgent": "Messaged agent",
-  "readingFile": "Reading file",
-  "readFile": "Read file",
-  "searchingWeb": "Searching the web",
-  "searchingFiles": "Searching files",
-  "searchedWeb": "Searched the web",
-  "searchedFiles": "Searched files",
-  "waiting": "Waiting",
   "running": "Running",
   "completed": "Completed",
   "failed": "Failed",
-  "denied": "Denied",
-  "expired": "Expired",
   "message": "Message",
   "file": "File",
   "query": "Query",
   "search": "Search",
   "input": "Input",
-  "messageDelivered": "Message delivered.",
-  "messageSent": "Message sent.",
-  "recipientDenied": "The recipient denied the message.",
-  "messageDeliveryTimedOut": "Message delivery timed out.",
   "showLess": "Show less",
   "showFullOutput": "Show full output",
   "agentWaitingApproval": "The agent is waiting for your approval.",
-  "deny": "Deny",
   "allowOnce": "Allow once",
   "approval": "Approval",
   "done": "Done",
@@ -257,7 +196,6 @@
   "name": "Name",
   "path": "Path",
   "owner": "Owner",
-  "room": "Room",
   "paired": "Paired",
   "couldNotOpenSession": "Could not open this session. Try again.",
   "couldNotRemoveSession": "Could not remove this session. Try again.",
@@ -344,14 +282,6 @@
   },
   "aboutTagline": "A focused remote client for coding-agent sessions on your own computers.",
   "updateKeepsDataAndroid": "Your pairings and settings are kept when Android installs the update.",
-  "contextWindowK": "{k}k context",
-  "@contextWindowK": {
-    "placeholders": {
-      "k": {
-        "type": "int"
-      }
-    }
-  },
   "replyToAgentOrTalk": "Reply to {agent} or hold to talk…",
   "@replyToAgentOrTalk": {
     "placeholders": {
@@ -376,87 +306,6 @@
       }
     }
   },
-  "tokensApprox": "~{tokens} tokens",
-  "@tokensApprox": {
-    "placeholders": {
-      "tokens": {
-        "type": "String"
-      }
-    }
-  },
-  "editingFiles": "Editing {count} files",
-  "@editingFiles": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "editedFiles": "Edited {count} files",
-  "@editedFiles": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "usingTool": "Using {tool}",
-  "@usingTool": {
-    "placeholders": {
-      "tool": {
-        "type": "String"
-      }
-    }
-  },
-  "usedTool": "Used {tool}",
-  "@usedTool": {
-    "placeholders": {
-      "tool": {
-        "type": "String"
-      }
-    }
-  },
-  "fromLine": "from line {start}",
-  "@fromLine": {
-    "placeholders": {
-      "start": {
-        "type": "int"
-      }
-    }
-  },
-  "lineRange": "lines {start}-{end}",
-  "@lineRange": {
-    "placeholders": {
-      "start": {
-        "type": "int"
-      },
-      "end": {
-        "type": "int"
-      }
-    }
-  },
-  "queryInScope": "{query}\nin {scope}",
-  "@queryInScope": {
-    "placeholders": {
-      "query": {
-        "type": "String"
-      },
-      "scope": {
-        "type": "String"
-      }
-    }
-  },
-  "messageTo": "To {recipient}\n\n{body}",
-  "@messageTo": {
-    "placeholders": {
-      "recipient": {
-        "type": "String"
-      },
-      "body": {
-        "type": "String"
-      }
-    }
-  },
   "andMore": "{first}  ·  +{count} more",
   "@andMore": {
     "placeholders": {
@@ -465,30 +314,6 @@
       },
       "count": {
         "type": "int"
-      }
-    }
-  },
-  "deliveredTo": "Delivered to {target}.",
-  "@deliveredTo": {
-    "placeholders": {
-      "target": {
-        "type": "String"
-      }
-    }
-  },
-  "targetDenied": "{target} denied the message.",
-  "@targetDenied": {
-    "placeholders": {
-      "target": {
-        "type": "String"
-      }
-    }
-  },
-  "deliveryToTimedOut": "Message delivery to {target} timed out.",
-  "@deliveryToTimedOut": {
-    "placeholders": {
-      "target": {
-        "type": "String"
       }
     }
   },
@@ -657,9 +482,6 @@
   },
   "pasteCodeHint": "Can't scan the code? Paste the text `baya pair` printed. It starts with baya://pair?…",
   "errorClockSkew": "This phone's clock is off from the computer. Turn on automatic date & time, then try again.",
-  "errorRateLimited": "The agent is rate-limited right now. Wait a moment and try again.",
-  "errorTooLarge": "That message is too large to send. Try a smaller image or shorter text.",
-  "errorTimeout": "The computer took too long to answer. Try again.",
   "keyBackup": "Key backup",
   "keyBackedUp": "Backed up with Google Backup. A new phone keeps your pairings.",
   "keyNotBackedUp": "Only on this phone. Tap to back up.",
@@ -721,5 +543,21 @@
   "sessionOffline": "The computer is offline. The conversation appears when it reconnects.",
   "yourAgent": "your agent",
   "queueFollowUp": "Queue a follow-up…",
-  "sessionId": "Session"
+  "sessionId": "Session",
+  "hostUnreachable": "Can't reach {name}.",
+  "@hostUnreachable": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "hostOffline": "{name} is not connected.",
+  "@hostOffline": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

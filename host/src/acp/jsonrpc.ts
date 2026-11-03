@@ -6,7 +6,7 @@
 export type RpcId = number | string;
 export type Json = Record<string, unknown>;
 
-export interface RpcErrorShape {
+interface RpcErrorShape {
   code: number;
   message: string;
   data?: unknown;
@@ -45,7 +45,7 @@ export class RpcError extends Error {
 }
 
 export type RequestHandler = (method: string, params: Json, id: RpcId) => Promise<unknown>;
-export type NotificationHandler = (method: string, params: Json) => void;
+type NotificationHandler = (method: string, params: Json) => void;
 
 interface Pending {
   resolve: (value: unknown) => void;
@@ -142,7 +142,7 @@ export class JsonRpcPeer {
   }
 }
 
-export function toRpcError(error: unknown): RpcError {
+function toRpcError(error: unknown): RpcError {
   if (error instanceof RpcError) return error;
   return new RpcError(-32603, error instanceof Error ? error.message : String(error));
 }

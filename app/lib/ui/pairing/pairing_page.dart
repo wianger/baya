@@ -17,7 +17,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 
 // ---------------------------------------------------------------------------
-// PairingPage — QR scanner + pair_request in one screen
+// PairingPage — QR scanner + `_baya/pair` in one screen
 // ---------------------------------------------------------------------------
 
 class PairingPage extends StatefulWidget {

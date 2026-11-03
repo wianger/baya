@@ -1,13 +1,13 @@
 import { type ChildProcess, execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, join } from "node:path";
 
-export interface SpawnTarget {
+interface SpawnTarget {
   command: string;
   prefixArgs: string[];
 }
 
-export interface SpawnPlan extends SpawnTarget {
+interface SpawnPlan extends SpawnTarget {
   shellWrapper: boolean;
   windowsVerbatimArguments: boolean;
 }
@@ -21,7 +21,7 @@ function quotedWindowsCommand(command: string, args: string[]): string {
   ].join(" ");
 }
 
-export function resolveExecutable(
+function resolveExecutable(
   executable: string,
   platform: NodeJS.Platform = process.platform,
 ): string {
@@ -46,35 +46,6 @@ export function resolveExecutable(
   }
 }
 
-function managedInstallerTarget(commandPath: string): string | null {
-  try {
-    if (!/"%~dp0pi-launcher\.js"/iu.test(readFileSync(commandPath, "utf8"))) return null;
-    const install = join(dirname(dirname(commandPath)), "install");
-    const version = readFileSync(join(install, "current-version"), "utf8").trim();
-    if (!version || version === "." || version === ".." || !/^[0-9A-Za-z._+-]+$/u.test(version)) {
-      return null;
-    }
-    const root = join(
-      install,
-      "releases",
-      version,
-      "node_modules",
-      "@earendil-works",
-      "pi-coding-agent",
-    );
-    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
-      bin?: string | { pi?: string };
-    };
-    const bin = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.pi;
-    if (typeof bin !== "string") return null;
-    const target = resolve(root, bin);
-    const rel = relative(root, target);
-    return !rel.startsWith("..") && !isAbsolute(rel) && existsSync(target) ? target : null;
-  } catch {
-    return null;
-  }
-}
-
 function npmShimTarget(commandPath: string): string | null {
   try {
     const content = readFileSync(commandPath, "utf8");
@@ -87,7 +58,7 @@ function npmShimTarget(commandPath: string): string | null {
   }
 }
 
-export function resolveSpawnTarget(
+function resolveSpawnTarget(
   executable: string,
   platform: NodeJS.Platform = process.platform,
   nodeExecutable = process.execPath,
@@ -96,7 +67,7 @@ export function resolveSpawnTarget(
   if (platform !== "win32" || !/\.(cmd|bat)$/iu.test(resolved)) {
     return { command: resolved, prefixArgs: [] };
   }
-  const jsTarget = managedInstallerTarget(resolved) ?? npmShimTarget(resolved);
+  const jsTarget = npmShimTarget(resolved);
   return jsTarget
     ? { command: nodeExecutable, prefixArgs: [jsTarget] }
     : { command: resolved, prefixArgs: [] };

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:app/acp/json_rpc.dart';
-import 'package:app/pairing/pair_request_flow.dart';
+import 'package:app/pairing/pairing_flow.dart';
 import 'package:app/pairing/qr_scanner.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';

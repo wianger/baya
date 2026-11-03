@@ -348,7 +348,7 @@ class _InputBarState extends State<InputBar> {
     // look empty by removing its only entry point.
     final showQuickActions = canInteract && !showStrip && hasQuickActions;
 
-    // During a working turn with typed content, the main action sends steering;
+    // During a working turn with typed content, the main action queues a follow-up;
     // keep a compact Stop affordance beside it so cancellation remains reachable.
     final showInlineStop =
         widget.streaming &&

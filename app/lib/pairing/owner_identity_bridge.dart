@@ -22,7 +22,7 @@ final class IdentityReady {
 ///   the host's challenge-response (production transport factory).
 /// - Watch-on-sync hook: when the platform delivers a different
 ///   Owner-key (restored on a new device, owner re-installed elsewhere),
-///   wipe local peer/room caches because the previous device's
+///   wipe local peer and session-list caches because the previous device's
 ///   `remote_epk` set is meaningless against a fresh identity.
 class OwnerIdentityBridge extends ChangeNotifier {
   final OwnerIdentityStore _store;
@@ -87,7 +87,7 @@ class OwnerIdentityBridge extends ChangeNotifier {
 
   /// Subscribe to platform sync events. When the incoming Owner-pk
   /// differs from [_current], the bridge:
-  ///   1. wipes [PairingStorage] (peers + rooms) — stale handles.
+  ///   1. wipes [PairingStorage] (peers + session lists) — stale handles.
   ///   2. caches the new identity.
   ///   3. calls [onReset] so the host can force a fresh router boot.
   ///

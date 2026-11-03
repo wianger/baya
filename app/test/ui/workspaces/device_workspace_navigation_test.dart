@@ -221,7 +221,7 @@ void main() {
     final vm = HomeViewModel(hosts, storage, prefs);
     host.push('_baya/session_changed', {
       'session': testSession(
-        id: 'room-alpha',
+        id: 'session-alpha',
         cwd: '/code/api',
         title: 'API',
         updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
@@ -229,7 +229,7 @@ void main() {
     });
     host.push('_baya/session_changed', {
       'session': testSession(
-        id: 'room-beta',
+        id: 'session-beta',
         cwd: '/code/mobile',
         title: 'Mobile',
         updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
@@ -237,10 +237,10 @@ void main() {
     });
     await pumpEventQueue();
     final alpha = vm.allItems.firstWhere(
-      (item) => item.sessionId == 'room-alpha',
+      (item) => item.sessionId == 'session-alpha',
     );
     final beta = vm.allItems.firstWhere(
-      (item) => item.sessionId == 'room-beta',
+      (item) => item.sessionId == 'session-beta',
     );
 
     final workspace = await vm.createWorkspace(
@@ -254,11 +254,11 @@ void main() {
     expect(vm.selectedWorkspace, workspace);
     expect(
       vm.workspaceItems.map((item) => item.sessionId),
-      unorderedEquals(['room-alpha', 'room-beta']),
+      unorderedEquals(['session-alpha', 'session-beta']),
     );
     expect(vm.workspaces[workspace], '2 sessions · 2 folders');
 
-    await vm.openSession(pc.remoteEpk, 'room-alpha');
+    await vm.openSession(pc.remoteEpk, 'session-alpha');
     expect(
       vm.selectedWorkspace,
       workspace,
@@ -268,8 +268,8 @@ void main() {
     final restored = Preferences();
     await restored.load();
     expect(restored.workspaceName(workspace), 'Release train');
-    expect(restored.workspaceForSession(pc.remoteEpk, 'room-alpha'), workspace);
-    expect(restored.workspaceForSession(pc.remoteEpk, 'room-beta'), workspace);
+    expect(restored.workspaceForSession(pc.remoteEpk, 'session-alpha'), workspace);
+    expect(restored.workspaceForSession(pc.remoteEpk, 'session-beta'), workspace);
     restored.dispose();
 
     await vm.deleteWorkspace(workspace);
@@ -277,7 +277,7 @@ void main() {
     expect(vm.selectedWorkspace, inboxWorkspaceKey(pc.remoteEpk));
     expect(
       vm.workspaceItems.map((item) => item.sessionId),
-      unorderedEquals(['room-alpha', 'room-beta']),
+      unorderedEquals(['session-alpha', 'session-beta']),
       reason: 'Deleting a workspace moves all of its sessions to Inbox',
     );
 
@@ -285,11 +285,11 @@ void main() {
     await restoredAfterDelete.load();
     expect(restoredAfterDelete.workspaceName(workspace), isNull);
     expect(
-      restoredAfterDelete.workspaceForSession(pc.remoteEpk, 'room-alpha'),
+      restoredAfterDelete.workspaceForSession(pc.remoteEpk, 'session-alpha'),
       isNull,
     );
     expect(
-      restoredAfterDelete.workspaceForSession(pc.remoteEpk, 'room-beta'),
+      restoredAfterDelete.workspaceForSession(pc.remoteEpk, 'session-beta'),
       isNull,
     );
     restoredAfterDelete.dispose();
@@ -313,7 +313,7 @@ void main() {
       final vm = HomeViewModel(hosts, storage, prefs);
       host.push('_baya/session_changed', {
         'session': testSession(
-          id: 'room-alpha',
+          id: 'session-alpha',
           cwd: '/code/project',
           title: 'Alpha',
           updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
@@ -321,7 +321,7 @@ void main() {
       });
       host.push('_baya/session_changed', {
         'session': testSession(
-          id: 'room-beta',
+          id: 'session-beta',
           cwd: '/code/project',
           title: 'Beta',
           updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
@@ -337,23 +337,23 @@ void main() {
         name: 'Beta workspace',
         deviceEpk: pc.remoteEpk,
       );
-      await vm.assignSessionRoomToWorkspace(
+      await vm.assignSessionIdToWorkspace(
         pc.remoteEpk,
-        'room-alpha',
+        'session-alpha',
         alphaWorkspace,
       );
-      await vm.assignSessionRoomToWorkspace(
+      await vm.assignSessionIdToWorkspace(
         pc.remoteEpk,
-        'room-beta',
+        'session-beta',
         betaWorkspace,
       );
       await pumpEventQueue();
 
       await vm.selectWorkspace(alphaWorkspace);
-      expect(vm.workspaceItems.map((item) => item.sessionId), ['room-alpha']);
+      expect(vm.workspaceItems.map((item) => item.sessionId), ['session-alpha']);
 
       await vm.selectWorkspace(betaWorkspace);
-      expect(vm.workspaceItems.map((item) => item.sessionId), ['room-beta']);
+      expect(vm.workspaceItems.map((item) => item.sessionId), ['session-beta']);
 
       await vm.selectWorkspace(inboxWorkspaceKey(pc.remoteEpk));
       expect(vm.workspaceItems, isEmpty);
@@ -385,7 +385,7 @@ void main() {
     final vm = HomeViewModel(hosts, storage, prefs);
     host.push('_baya/session_changed', {
       'session': testSession(
-        id: 'room-alpha',
+        id: 'session-alpha',
         cwd: '/code/project',
         title: 'Alpha',
         updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
@@ -396,7 +396,7 @@ void main() {
     final inbox = inboxWorkspaceKey(canonicalEpk);
     expect(vm.workspaces, hasLength(1));
     expect(vm.workspaces.keys.single, inbox);
-    expect(vm.workspaceItems.map((item) => item.sessionId), ['room-alpha']);
+    expect(vm.workspaceItems.map((item) => item.sessionId), ['session-alpha']);
 
     vm.dispose();
     hosts.dispose();

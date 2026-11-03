@@ -6,7 +6,7 @@ import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/host_socket.dart';
 import 'package:app/pairing/tailnet_pairing.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
-import 'package:app/pairing/pair_request_flow.dart' as pair_flow;
+import 'package:app/pairing/pairing_flow.dart' as pair_flow;
 import 'package:app/pairing/qr_scanner.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
