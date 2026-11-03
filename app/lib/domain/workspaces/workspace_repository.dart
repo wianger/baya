@@ -1,3 +1,4 @@
+import 'package:app/acp/acp.dart';
 import 'package:app/domain/contracts/repository.dart';
 
 /// An agent set up on the selected computer (`baya agents`).
@@ -110,14 +111,24 @@ class WorkspaceFailure implements Exception {
 
 abstract class IWorkspaceRepository extends Repository {
   Future<List<WorkspaceHost>> listHosts();
+
+  /// The agent's own conversations in [path] that can be continued here.
+  Future<List<AgentSessionInfo>> agentSessions(
+    String hostId,
+    String path,
+    WorkspaceAgent agent,
+  );
   Future<WorkspaceDirectory> browse(
     String hostId, {
     String? path,
     bool showHidden = false,
   });
+
+  /// Starts a session, or continues the agent's own [agentSessionId].
   Future<OpenedWorkspace> open(
     String hostId,
     String path,
-    WorkspaceAgent agent,
-  );
+    WorkspaceAgent agent, {
+    String? agentSessionId,
+  });
 }

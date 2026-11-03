@@ -107,6 +107,9 @@ class ToolEvent extends ChatMessage {
   /// A permission question for this call is open.
   final bool awaitingApproval;
 
+  /// The live terminal this call runs, when it runs one.
+  final TerminalSnapshot? terminal;
+
   const ToolEvent({
     required super.id,
     required this.toolCallId,
@@ -118,7 +121,12 @@ class ToolEvent extends ChatMessage {
     this.rawInput,
     this.rawOutput,
     this.awaitingApproval = false,
+    this.terminal,
   });
+
+  /// Terminal ids this call shows.
+  Iterable<String> get terminalIds =>
+      content.whereType<ToolCallTerminal>().map((item) => item.terminalId);
 
   /// Applies an ACP patch: absent fields keep their value.
   ToolEvent apply(ToolCallPatch patch) => ToolEvent(
@@ -132,6 +140,21 @@ class ToolEvent extends ChatMessage {
     rawInput: patch.rawInput ?? rawInput,
     rawOutput: patch.rawOutput ?? rawOutput,
     awaitingApproval: awaitingApproval,
+    terminal: terminal,
+  );
+
+  ToolEvent withTerminal(TerminalSnapshot snapshot) => ToolEvent(
+    id: id,
+    toolCallId: toolCallId,
+    title: title,
+    kind: kind,
+    status: status,
+    content: content,
+    locations: locations,
+    rawInput: rawInput,
+    rawOutput: rawOutput,
+    awaitingApproval: awaitingApproval,
+    terminal: snapshot,
   );
 
   ToolEvent withApproval(bool awaiting) => awaitingApproval == awaiting
@@ -147,6 +170,7 @@ class ToolEvent extends ChatMessage {
           rawInput: rawInput,
           rawOutput: rawOutput,
           awaitingApproval: awaiting,
+          terminal: terminal,
         );
 
   static ToolEventStatus statusOf(ToolStatus status) => switch (status) {
@@ -171,11 +195,21 @@ class NoticeMsg extends ChatMessage {
   /// `info`, `warning` or `error`.
   final String severity;
   final String text;
+
+  /// The agent that needs a sign-in, when that is what this is about.
+  final String? authAgent;
   const NoticeMsg({
     required super.id,
     required this.severity,
     required this.text,
+    this.authAgent,
   });
+}
+
+/// An image the agent showed.
+class AgentImageMsg extends ChatMessage {
+  final MessageImage image;
+  const AgentImageMsg({required super.id, required this.image});
 }
 
 /// A context compaction, with the agent's summary once it has one.

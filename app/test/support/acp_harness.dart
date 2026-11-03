@@ -156,6 +156,10 @@ class FakeHost {
   void update(String sessionId, Json update) =>
       push('session/update', {'sessionId': sessionId, 'update': update});
 
+  /// Asks the phone to fill in a form (or open a link).
+  Future<Object?> askElicitation(Json params) =>
+      socket!.peer.request('elicitation/create', params);
+
   /// Asks the phone a permission question; completes with its answer.
   Future<Object?> askPermission(Json params) =>
       socket!.peer.request('session/request_permission', params);

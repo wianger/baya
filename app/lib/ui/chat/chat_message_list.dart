@@ -4,6 +4,7 @@ library;
 
 import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/chat/widgets/image_bubble.dart';
 import 'package:app/ui/chat/widgets/message_bubble.dart';
 import 'package:app/ui/chat/widgets/thinking_block.dart';
 import 'package:app/ui/chat/widgets/tool_request_card.dart';
@@ -355,6 +356,13 @@ class _ChatMessageListState extends State<ChatMessageList> {
                       CompactionMsg() => CompactionBubble(msg),
                       NoticeMsg() => NoticeBubble(msg),
                       PlanMsg() => PlanCard(msg),
+                      AgentImageMsg() => Align(
+                        alignment: Alignment.centerLeft,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 320),
+                          child: ImageBubble(image: msg.image, caption: ''),
+                        ),
+                      ),
                     },
                   ),
                 );

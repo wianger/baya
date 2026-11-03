@@ -102,8 +102,8 @@ void main() {
       final conn = connection(host);
       await conn.start();
       await settle();
-      final asked = <PermissionEvent>[];
-      conn.permissions.listen(asked.add);
+      final asked = <QuestionEvent>[];
+      conn.questions.listen(asked.add);
       final answer = host.askPermission({
         'sessionId': 's1',
         'toolCall': {'toolCallId': 't1', 'title': 'rm -rf build'},
@@ -132,7 +132,7 @@ void main() {
       host.push(r'$/cancel_request', {'requestId': second.requestId});
       await settle();
       expect(conn.openPermissions, isEmpty);
-      expect(asked.last.request, isNull);
+      expect(asked.last.requestId, second.requestId);
       conn.dispose();
     },
   );

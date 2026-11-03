@@ -109,6 +109,20 @@ class ToolContent {
   }
 
   ToolOutput get output {
+    final terminal = tool.terminal;
+    if (terminal != null) {
+      final status = !terminal.exited
+          ? ''
+          : terminal.exitCode != null
+          ? '\n[exit ${terminal.exitCode}]'
+          : terminal.signal != null
+          ? '\n[${terminal.signal}]'
+          : '';
+      return ToolOutput(
+        text:
+            '${terminal.truncated ? '…\n' : ''}${terminal.output.trimRight()}$status',
+      );
+    }
     final texts = [
       for (final item in tool.content)
         if (item is ToolCallText && item.content.displayText.trim().isNotEmpty)

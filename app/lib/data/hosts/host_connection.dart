@@ -36,13 +36,18 @@ class SessionEvent {
   const SessionEvent(this.sessionId, this.update);
 }
 
-/// A permission question arrived ([request] set) or was withdrawn.
-class PermissionEvent {
-  final PermissionRequest? request;
+/// A question from an agent (permission or elicitation) arrived, was
+/// withdrawn, or (for links) completed.
+class QuestionEvent {
   final Object requestId;
-  PermissionEvent.asked(PermissionRequest this.request)
-    : requestId = request.requestId;
-  const PermissionEvent.withdrawn(this.requestId) : request = null;
+  const QuestionEvent(this.requestId);
+}
+
+/// Terminal output for one of this computer's sessions.
+class TerminalEvent {
+  final String sessionId;
+  final TerminalSnapshot snapshot;
+  const TerminalEvent(this.sessionId, this.snapshot);
 }
 
 typedef IdentityLoader = Future<SimpleKeyPair> Function();
@@ -73,11 +78,17 @@ class HostConnection extends ChangeNotifier {
   String? _error;
   HostIntro? _intro;
   List<SessionSummary> _sessions = const [];
-  final _pendingPermissions = <Object, Completer<Json>>{};
-  final _askedPermissions = <Object, PermissionRequest>{};
+
+  /// Open questions (PermissionRequest or ElicitationRequest) by request id.
+  final _questions = <Object, Object>{};
+  final _answers = <Object, Completer<Json>>{};
+
+  /// Link elicitations the agent finished, by elicitation id.
+  final _completedLinks = <String>{};
 
   final _updates = StreamController<SessionEvent>.broadcast();
-  final _permissions = StreamController<PermissionEvent>.broadcast();
+  final _questionEvents = StreamController<QuestionEvent>.broadcast();
+  final _terminals = StreamController<TerminalEvent>.broadcast();
   final _online = StreamController<void>.broadcast();
 
   PeerRecord get host => _host;
@@ -92,14 +103,23 @@ class HostConnection extends ChangeNotifier {
   List<SessionSummary> get sessions => _sessions;
 
   Stream<SessionEvent> get updates => _updates.stream;
-  Stream<PermissionEvent> get permissions => _permissions.stream;
+  Stream<QuestionEvent> get questions => _questionEvents.stream;
+  Stream<TerminalEvent> get terminals => _terminals.stream;
 
   /// Fires each time the connection (re)comes up.
   Stream<void> get onOnline => _online.stream;
 
   /// Permission questions still open, oldest first.
   List<PermissionRequest> get openPermissions =>
-      _askedPermissions.values.toList();
+      _questions.values.whereType<PermissionRequest>().toList();
+
+  /// Elicitations still open, oldest first.
+  List<ElicitationRequest> get openElicitations =>
+      _questions.values.whereType<ElicitationRequest>().toList();
+
+  /// Whether the agent said a link elicitation is done.
+  bool linkCompleted(String elicitationId) =>
+      _completedLinks.contains(elicitationId);
 
   SessionSummary? session(String sessionId) =>
       _sessions.where((s) => s.sessionId == sessionId).firstOrNull;
@@ -157,13 +177,24 @@ class HostConnection extends ChangeNotifier {
       _peer?.notify(method, params);
 
   /// Answers an open permission question; null [optionId] cancels it.
-  void answerPermission(Object requestId, String? optionId) {
-    _askedPermissions.remove(requestId);
-    _pendingPermissions.remove(requestId)?.complete({
-      'outcome': optionId == null
-          ? {'outcome': 'cancelled'}
-          : {'outcome': 'selected', 'optionId': optionId},
-    });
+  void answerPermission(Object requestId, String? optionId) =>
+      _answer(requestId, {
+        'outcome': optionId == null
+            ? {'outcome': 'cancelled'}
+            : {'outcome': 'selected', 'optionId': optionId},
+      });
+
+  /// Answers an elicitation: `accept` with [content], `decline` or `cancel`.
+  void answerElicitation(Object requestId, String action, [Json? content]) =>
+      _answer(requestId, {'action': action, 'content': ?content});
+
+  void _answer(Object requestId, Json result) {
+    _questions.remove(requestId);
+    _answers.remove(requestId)?.complete(result);
+    if (!_questionEvents.isClosed) {
+      _questionEvents.add(QuestionEvent(requestId));
+    }
+    notifyListeners();
   }
 
   Future<List<SessionSummary>> refreshSessions() async {
@@ -248,7 +279,7 @@ class HostConnection extends ChangeNotifier {
     _socket = null;
     _peer?.close(RpcClosed(_offlineMessage));
     _peer = null;
-    for (final id in _askedPermissions.keys.toList()) {
+    for (final id in _questions.keys.toList()) {
       _withdraw(id);
     }
     _setSessions([
@@ -296,18 +327,15 @@ class HostConnection extends ChangeNotifier {
   // ── from the computer ───────────────────────────────────────────────────
 
   Future<Object?> _onRequest(String method, Json params, Object id) {
-    if (method != 'session/request_permission') {
-      return Future.error(
-        RpcError(RpcError.methodNotFound, 'Method not found: $method'),
-      );
-    }
-    final request = PermissionRequest.fromJson(id, params);
+    final Object question = switch (method) {
+      'session/request_permission' => PermissionRequest.fromJson(id, params),
+      'elicitation/create' => ElicitationRequest.fromJson(id, params),
+      _ => throw RpcError(RpcError.methodNotFound, 'Method not found: $method'),
+    };
     final answer = Completer<Json>();
-    _pendingPermissions[id] = answer;
-    _askedPermissions[id] = request;
-    if (!_permissions.isClosed) {
-      _permissions.add(PermissionEvent.asked(request));
-    }
+    _answers[id] = answer;
+    _questions[id] = question;
+    if (!_questionEvents.isClosed) _questionEvents.add(QuestionEvent(id));
     notifyListeners();
     return answer.future;
   }
@@ -343,14 +371,32 @@ class HostConnection extends ChangeNotifier {
       case r'$/cancel_request':
         final id = params['requestId'];
         if (id is Object) _withdraw(id);
+      case 'elicitation/complete':
+        final id = params['elicitationId'];
+        if (id is String) {
+          _completedLinks.add(id);
+          for (final MapEntry(:key, :value) in _questions.entries.toList()) {
+            if (value is ElicitationRequest && value.elicitationId == id) {
+              _withdraw(key);
+            }
+          }
+          notifyListeners();
+        }
+      case '_baya/terminal':
+        final sessionId = params['sessionId'];
+        if (sessionId is String && !_terminals.isClosed) {
+          _terminals.add(
+            TerminalEvent(sessionId, TerminalSnapshot.fromJson(params)),
+          );
+        }
     }
   }
 
   void _withdraw(Object requestId) {
-    final known = _askedPermissions.remove(requestId) != null;
-    _pendingPermissions.remove(requestId);
-    if (known && !_permissions.isClosed) {
-      _permissions.add(PermissionEvent.withdrawn(requestId));
+    final known = _questions.remove(requestId) != null;
+    _answers.remove(requestId);
+    if (known && !_questionEvents.isClosed) {
+      _questionEvents.add(QuestionEvent(requestId));
     }
     notifyListeners();
   }
@@ -370,7 +416,8 @@ class HostConnection extends ChangeNotifier {
   void dispose() {
     unawaited(stop());
     unawaited(_updates.close());
-    unawaited(_permissions.close());
+    unawaited(_questionEvents.close());
+    unawaited(_terminals.close());
     unawaited(_online.close());
     super.dispose();
   }

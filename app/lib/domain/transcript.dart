@@ -8,6 +8,9 @@ class Transcript {
 
   /// Prompts sent from this phone that the computer has not started yet.
   final _pending = <UserMsg>[];
+
+  /// Terminal output by terminal id, attached to the tool calls showing it.
+  final _terminals = <String, TerminalSnapshot>{};
   int _sequence = 0;
 
   /// Confirmed rows, then this phone's pending prompts.
@@ -17,6 +20,7 @@ class Transcript {
 
   void clear() {
     _rows.clear();
+    _terminals.clear();
     _sequence = 0;
   }
 
@@ -33,6 +37,25 @@ class Transcript {
         _rows[i] = ThinkingMsg(id: row.id, text: row.text);
       }
     }
+  }
+
+  /// A terminal's latest output, shown on the tool call that runs it.
+  void terminal(TerminalSnapshot snapshot) {
+    _terminals[snapshot.terminalId] = snapshot;
+    for (var i = 0; i < _rows.length; i++) {
+      final row = _rows[i];
+      if (row is ToolEvent && row.terminalIds.contains(snapshot.terminalId)) {
+        _rows[i] = row.withTerminal(snapshot);
+      }
+    }
+  }
+
+  ToolEvent _withKnownTerminal(ToolEvent tool) {
+    for (final id in tool.terminalIds) {
+      final snapshot = _terminals[id];
+      if (snapshot != null) return tool.withTerminal(snapshot);
+    }
+    return tool;
   }
 
   /// Marks the tool calls a permission question is waiting on.
@@ -55,7 +78,19 @@ class Transcript {
           case ChunkRole.user:
             _userChunk(content, messageId);
           case ChunkRole.agent:
-            _agentChunk(content.displayText, messageId);
+            if (content is ImageContent) {
+              _rows.add(
+                AgentImageMsg(
+                  id: _nextId('image'),
+                  image: MessageImage(
+                    data: content.data,
+                    mime: content.mimeType,
+                  ),
+                ),
+              );
+            } else {
+              _agentChunk(content.displayText, messageId);
+            }
           case ChunkRole.thought:
             _thoughtChunk(content.displayText, messageId);
         }
@@ -64,13 +99,17 @@ class Transcript {
           (row) => row is ToolEvent && row.toolCallId == patch.id,
         );
         if (index >= 0) {
-          _rows[index] = (_rows[index] as ToolEvent).apply(patch);
+          _rows[index] = _withKnownTerminal(
+            (_rows[index] as ToolEvent).apply(patch),
+          );
         } else {
           _rows.add(
-            ToolEvent(
-              id: 'tool-${patch.id}',
-              toolCallId: patch.id,
-            ).apply(patch),
+            _withKnownTerminal(
+              ToolEvent(
+                id: 'tool-${patch.id}',
+                toolCallId: patch.id,
+              ).apply(patch),
+            ),
           );
         }
       case PlanUpdate(:final entries):
@@ -84,9 +123,14 @@ class Transcript {
         } else {
           _rows.add(plan);
         }
-      case NoticeUpdate(:final severity, :final title):
+      case NoticeUpdate(:final severity, :final title, :final authAgent):
         _rows.add(
-          NoticeMsg(id: _nextId('notice'), severity: severity, text: title),
+          NoticeMsg(
+            id: _nextId('notice'),
+            severity: severity,
+            text: title,
+            authAgent: authAgent,
+          ),
         );
       case CompactionUpdate(:final id, :final status, :final summary):
         final index = _compaction(id);

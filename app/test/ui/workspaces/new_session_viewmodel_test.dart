@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:app/acp/acp.dart';
+
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
@@ -74,11 +76,19 @@ class FakeWorkspaces extends IWorkspaceRepository {
   }
 
   @override
-  Future<OpenedWorkspace> open(
+  Future<List<AgentSessionInfo>> agentSessions(
     String hostId,
     String path,
     WorkspaceAgent agent,
-  ) async {
+  ) async => const [AgentSessionInfo('old-1', 'Earlier work')];
+
+  @override
+  Future<OpenedWorkspace> open(
+    String hostId,
+    String path,
+    WorkspaceAgent agent, {
+    String? agentSessionId,
+  }) async {
     opened.add(agent);
     return OpenedWorkspace(
       hostId: hostId,

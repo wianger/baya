@@ -93,7 +93,7 @@ class ResourceLinkContent extends ContentBlock {
   };
 
   @override
-  String get displayText => title ?? name;
+  String get displayText => '[${title ?? name}]($uri)';
 }
 
 class ResourceContent extends ContentBlock {
@@ -476,6 +476,7 @@ sealed class SessionUpdate {
         return NoticeUpdate(
           _string(json['severity']) ?? 'info',
           _string(json['title']) ?? '',
+          _string(bayaMeta(json)['authRequired']),
         );
       case 'compaction_update':
         final summary = _maps(json['summary'])
@@ -544,7 +545,10 @@ class UsageUpdate extends SessionUpdate {
 class NoticeUpdate extends SessionUpdate {
   final String severity;
   final String title;
-  const NoticeUpdate(this.severity, this.title);
+
+  /// The agent that needs a sign-in, when that is what the notice is about.
+  final String? authAgent;
+  const NoticeUpdate(this.severity, this.title, [this.authAgent]);
 }
 
 class CompactionUpdate extends SessionUpdate {
@@ -797,4 +801,191 @@ class SessionSetup {
       working: baya['working'] == true,
     );
   }
+}
+
+// ── Terminals, elicitation, sign-in ──────────────────────────────────────
+
+/// A terminal an agent runs on the computer (`_baya/terminal`).
+class TerminalSnapshot {
+  final String terminalId;
+  final String output;
+  final bool truncated;
+
+  /// Null while it runs.
+  final int? exitCode;
+  final String? signal;
+  final bool exited;
+
+  const TerminalSnapshot({
+    required this.terminalId,
+    required this.output,
+    this.truncated = false,
+    this.exitCode,
+    this.signal,
+    this.exited = false,
+  });
+
+  factory TerminalSnapshot.fromJson(Json json) {
+    final exit = json['exitStatus'];
+    final status = exit is Map ? exit.cast<String, dynamic>() : null;
+    return TerminalSnapshot(
+      terminalId: _string(json['terminalId']) ?? '',
+      output: _string(json['output']) ?? '',
+      truncated: json['truncated'] == true,
+      exitCode: (status?['exitCode'] as num?)?.toInt(),
+      signal: _string(status?['signal']),
+      exited: status != null,
+    );
+  }
+}
+
+enum ElicitationFieldType {
+  text,
+  number,
+  integer,
+  boolean,
+  choice,
+  multiChoice,
+}
+
+/// One field of an elicitation form (a JSON Schema property).
+class ElicitationField {
+  final String name;
+  final String title;
+  final ElicitationFieldType type;
+  final bool required;
+  final Object? defaultValue;
+
+  /// For choices: value → label.
+  final List<(String, String)> options;
+
+  /// `email`, `uri`, `date`, `date-time` for text fields.
+  final String? format;
+
+  const ElicitationField({
+    required this.name,
+    required this.title,
+    required this.type,
+    this.required = false,
+    this.defaultValue,
+    this.options = const [],
+    this.format,
+  });
+}
+
+/// `elicitation/create`: the agent asks the user for structured input or to
+/// open a link.
+class ElicitationRequest {
+  final Object requestId;
+  final String? sessionId;
+  final String message;
+
+  /// Link mode: open [url]; the agent says when it is done.
+  final String? url;
+  final String? elicitationId;
+  final String? title;
+  final List<ElicitationField> fields;
+
+  const ElicitationRequest({
+    required this.requestId,
+    required this.message,
+    this.sessionId,
+    this.url,
+    this.elicitationId,
+    this.title,
+    this.fields = const [],
+  });
+
+  bool get isLink => url != null;
+
+  factory ElicitationRequest.fromJson(Object requestId, Json json) {
+    final schema = _map(json['requestedSchema']);
+    final required = {
+      for (final name in (schema['required'] as List? ?? const [])) '$name',
+    };
+    final fields = <ElicitationField>[];
+    for (final MapEntry(:key, :value) in _map(schema['properties']).entries) {
+      final property = _map(value);
+      final options = <(String, String)>[
+        for (final option in _maps(property['oneOf']))
+          (_string(option['const']) ?? '', _string(option['title']) ?? ''),
+        for (final value in (property['enum'] as List? ?? const []))
+          ('$value', '$value'),
+      ];
+      final items = _map(property['items']);
+      final itemOptions = <(String, String)>[
+        for (final option in _maps(items['anyOf'] ?? items['oneOf']))
+          (_string(option['const']) ?? '', _string(option['title']) ?? ''),
+        for (final value in (items['enum'] as List? ?? const []))
+          ('$value', '$value'),
+      ];
+      final type = switch (property['type']) {
+        'number' => ElicitationFieldType.number,
+        'integer' => ElicitationFieldType.integer,
+        'boolean' => ElicitationFieldType.boolean,
+        'array' => ElicitationFieldType.multiChoice,
+        _ when options.isNotEmpty => ElicitationFieldType.choice,
+        _ => ElicitationFieldType.text,
+      };
+      fields.add(
+        ElicitationField(
+          name: key,
+          title: _string(property['title']) ?? key,
+          type: type,
+          required: required.contains(key),
+          defaultValue: property['default'],
+          options: type == ElicitationFieldType.multiChoice
+              ? itemOptions
+              : options,
+          format: _string(property['format']),
+        ),
+      );
+    }
+    return ElicitationRequest(
+      requestId: requestId,
+      sessionId: _string(json['sessionId']),
+      message: _string(json['message']) ?? '',
+      url: json['mode'] == 'url' ? _string(json['url']) : null,
+      elicitationId: _string(json['elicitationId']),
+      title: _string(schema['title']),
+      fields: fields,
+    );
+  }
+}
+
+/// How an agent signs in.
+class AuthMethod {
+  final String id;
+  final String name;
+  final String? description;
+
+  /// Terminal sign-in: run the agent with [args] on the computer.
+  final List<String>? terminalArgs;
+
+  const AuthMethod(this.id, this.name, {this.description, this.terminalArgs});
+
+  bool get needsComputer => terminalArgs != null;
+
+  factory AuthMethod.fromJson(Json json) => AuthMethod(
+    _string(json['id']) ?? '',
+    _string(json['name']) ?? '',
+    description: _string(json['description']),
+    terminalArgs: json['type'] == 'terminal'
+        ? [for (final arg in (json['args'] as List? ?? const [])) '$arg']
+        : null,
+  );
+}
+
+/// One of an agent's own conversations, not yet in Baya.
+class AgentSessionInfo {
+  final String sessionId;
+  final String title;
+  final DateTime? updatedAt;
+  const AgentSessionInfo(this.sessionId, this.title, [this.updatedAt]);
+
+  factory AgentSessionInfo.fromJson(Json json) => AgentSessionInfo(
+    _string(json['sessionId']) ?? '',
+    _string(json['title']) ?? '',
+    DateTime.tryParse(_string(json['updatedAt']) ?? ''),
+  );
 }

@@ -1,3 +1,5 @@
+import 'package:app/acp/acp.dart';
+import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/hosts/host_connection.dart';
 import 'package:app/data/hosts/session_controller.dart';
 import 'package:app/domain/session_state.dart';
@@ -199,6 +201,92 @@ void main() {
     });
     await settle();
     expect(session.working, isTrue);
+    session.dispose();
+    conn.dispose();
+  });
+
+  test('terminal output shows on the tool call that runs it', () async {
+    final (host, conn) = await online(FakeHost(sessions: [testSession()]));
+    final session = SessionController(conn, 's1');
+    await settle();
+    host.update('s1', {
+      'sessionUpdate': 'tool_call',
+      'toolCallId': 't1',
+      'title': 'npm test',
+      'kind': 'execute',
+      'content': [
+        {'type': 'terminal', 'terminalId': 'term-1'},
+      ],
+    });
+    host.push('_baya/terminal', {
+      'sessionId': 's1',
+      'terminalId': 'term-1',
+      'output': 'ok 12 tests',
+      'truncated': false,
+      'exitStatus': {'exitCode': 0, 'signal': null},
+    });
+    await settle();
+    final tool = session.messages.single as ToolEvent;
+    expect(tool.terminal?.output, 'ok 12 tests');
+    expect(tool.terminal?.exitCode, 0);
+    session.dispose();
+    conn.dispose();
+  });
+
+  test('an elicitation form is shown and answered', () async {
+    final (host, conn) = await online(FakeHost(sessions: [testSession()]));
+    final session = SessionController(conn, 's1');
+    await settle();
+    final answer = host.askElicitation({
+      'sessionId': 's1',
+      'mode': 'form',
+      'message': 'Deploy where?',
+      'requestedSchema': {
+        'type': 'object',
+        'properties': {
+          'target': {
+            'type': 'string',
+            'title': 'Target',
+            'oneOf': [
+              {'const': 'staging', 'title': 'Staging'},
+              {'const': 'prod', 'title': 'Production'},
+            ],
+          },
+          'dryRun': {'type': 'boolean', 'title': 'Dry run', 'default': true},
+        },
+        'required': ['target'],
+      },
+    });
+    await settle();
+    final form = session.elicitation!;
+    expect(form.message, 'Deploy where?');
+    expect(form.fields.map((f) => f.type), [
+      ElicitationFieldType.choice,
+      ElicitationFieldType.boolean,
+    ]);
+    expect(form.fields.first.options.last, ('prod', 'Production'));
+    session.answerElicitation('accept', {'target': 'staging', 'dryRun': true});
+    expect(await answer, {
+      'action': 'accept',
+      'content': {'target': 'staging', 'dryRun': true},
+    });
+    await settle();
+    expect(session.elicitation, isNull);
+    session.dispose();
+    conn.dispose();
+  });
+
+  test('a turn that needs a sign-in names the agent', () async {
+    final (host, conn) = await online(FakeHost(sessions: [testSession()]));
+    host.handlers['session/prompt'] = (_) => throw const RpcError(
+      -32000,
+      'Authentication required',
+      {'reason': 'auth_required', 'agent': 'claude'},
+    );
+    final session = SessionController(conn, 's1');
+    await settle();
+    await session.prompt('Hi');
+    expect(session.authAgent, 'claude');
     session.dispose();
     conn.dispose();
   });
