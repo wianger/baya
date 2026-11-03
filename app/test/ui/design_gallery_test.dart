@@ -174,6 +174,7 @@ void main() {
     });
     await hosts.start();
     await pumpOnline(tester, hosts);
+    await prefs.setSelectedDevice(desktop.remoteEpk);
     final home = HomeViewModel(hosts, storage, prefs);
     final selection = SessionSelection();
     final common = <SingleChildWidget>[

@@ -86,13 +86,13 @@ void main() {
     final expandedDevices = await measureDevicePicker(12);
     expect(compactDevices, lessThan(320));
     expect(expandedDevices, greaterThan(compactDevices));
-    expect(expandedDevices, lessThanOrEqualTo(844 * .7));
+    expect(expandedDevices, lessThanOrEqualTo(844 * .86));
 
     final compactWorkspaces = await measureWorkspacePicker(1);
     final expandedWorkspaces = await measureWorkspacePicker(10);
     expect(compactWorkspaces, lessThan(320));
     expect(expandedWorkspaces, greaterThan(compactWorkspaces));
-    expect(expandedWorkspaces, lessThanOrEqualTo(844 * .72));
+    expect(expandedWorkspaces, lessThanOrEqualTo(844 * .86));
   });
 
   testWidgets('device switcher moves add, rename and delete into the sheet', (

@@ -1,126 +1,47 @@
-import 'package:app/routing/adaptive.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/ui/core/widgets/dismiss_on_session_change.dart';
-import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:provider/provider.dart';
 
-/// Which source the user picked from the attach sheet (#2).
+/// What to attach to the next prompt.
 enum AttachSource { camera, gallery, file }
 
-/// Bottom sheet offering Camera / Gallery (decision #2, interpreted as an
-/// action sheet to match the quick-actions sheet idiom). Returns the chosen
-/// [AttachSource], or null if dismissed. Pure UI — the caller drives the
-/// picker ViewModel with the result.
+/// Camera, photos (when the agent takes images) or a file from the session's
+/// folder. Closes if the tablet switches to another session meanwhile.
 Future<AttachSource?> showAttachSheet(
   BuildContext context, {
   bool images = true,
 }) {
-  // Auto-close if the tablet's selected session changes out from under the
-  // sheet (same fix as the Quick Actions sheet — the modal lives on the
-  // detail-pane navigator and would otherwise orphan over a different chat).
-  final selection = context.read<SessionSelection>();
-  return showModalBottomSheet<AttachSource>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: 0.6),
-    isScrollControlled: true,
-    showDragHandle: false,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-    builder: (ctx) => BayaSurface(
-      role: BayaSurfaceRole.overlay,
-      radius: 32,
-      elevated: false,
-      child: DismissOnSessionChange(
-        selection: selection,
-        child: _AttachSheetBody(images: images),
-      ),
-    ),
-  );
-}
-
-class _AttachSheetBody extends StatelessWidget {
-  const _AttachSheetBody({required this.images});
-
-  /// Whether the agent takes images; files from the computer always work.
-  final bool images;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: context.colors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
+  return showBayaSheet<AttachSource>(
+    context,
+    title: context.l10n.attach,
+    dismissOnSessionChange: true,
+    builder: (sheetContext) {
+      void pick(AttachSource source) => Navigator.of(sheetContext).pop(source);
+      return BayaGroup(
+        children: [
+          if (images) ...[
+            BayaRow(
+              key: const Key('attach-camera'),
+              icon: LucideIcons.camera,
+              label: context.l10n.camera,
+              onTap: () => pick(AttachSource.camera),
             ),
-            if (images) ...[
-              _AttachOption(
-                key: const Key('attach-camera'),
-                icon: LucideIcons.camera,
-                label: context.l10n.camera,
-                onTap: () => Navigator.of(context).pop(AttachSource.camera),
-              ),
-              _AttachOption(
-                key: const Key('attach-gallery'),
-                icon: LucideIcons.image,
-                label: context.l10n.photoLibrary,
-                onTap: () => Navigator.of(context).pop(AttachSource.gallery),
-              ),
-            ],
-            _AttachOption(
-              key: const Key('attach-file'),
-              icon: LucideIcons.fileCode,
-              label: context.l10n.fileFromFolder,
-              onTap: () => Navigator.of(context).pop(AttachSource.file),
+            BayaRow(
+              key: const Key('attach-gallery'),
+              icon: LucideIcons.image,
+              label: context.l10n.photoLibrary,
+              onTap: () => pick(AttachSource.gallery),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AttachOption extends StatelessWidget {
-  const _AttachOption({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(icon, color: colors.accent, size: 20),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontFamily: kMonoFamily,
-          fontSize: 14,
-          color: colors.text,
-        ),
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    );
-  }
+          BayaRow(
+            key: const Key('attach-file'),
+            icon: LucideIcons.fileCode,
+            label: context.l10n.fileFromFolder,
+            onTap: () => pick(AttachSource.file),
+          ),
+        ],
+      );
+    },
+  );
 }

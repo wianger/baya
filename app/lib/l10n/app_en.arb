@@ -49,7 +49,6 @@
   "slideToCancel": "slide to cancel",
   "releaseToCancel": "release to cancel",
   "copied": "Copied",
-  "copyCode": "Copy code",
   "camera": "Camera",
   "photoLibrary": "Photo Library",
   "close": "Close",
@@ -92,8 +91,6 @@
   "query": "Query",
   "search": "Search",
   "input": "Input",
-  "showLess": "Show less",
-  "showFullOutput": "Show full output",
   "agentWaitingApproval": "The agent is waiting for your approval.",
   "allowOnce": "Allow once",
   "approval": "Approval",
@@ -104,7 +101,6 @@
   "connectToDevice": "Connect to your device",
   "scanQrThatAppears": "Scan the QR code that appears:",
   "scanLater": "Scan later",
-  "continueLabel": "Continue",
   "welcomeTagline": "Your agents. Across devices.",
   "pairSecurely": "Pair securely",
   "pairSecurelyHint": "Connect your own computers in seconds.",
@@ -146,7 +142,6 @@
   "emptyFile": "Empty file",
   "noTextContent": "There is no text content to display.",
   "preview": "Preview",
-  "copyContents": "Copy contents",
   "first256Kb": "Showing the first 256 KB of this file.",
   "couldNotReadSessionDirectory": "Could not read the session directory.",
   "couldNotReadFile": "Could not read file.",
@@ -183,20 +178,16 @@
   "chooseWorkspace": "Choose a workspace",
   "noWorkspacesOnComputer": "No workspaces on this computer",
   "chooseWorkspaceTitle": "Choose Workspace",
-  "closeWorkspacePicker": "Close workspace picker",
   "renameConversation": "Rename conversation",
   "leaveEmptyForComputerName": "Leave empty to use the computer name",
   "renameDevice": "Rename device",
   "nameShownInApp": "Name shown in this app",
   "renameWorkspace": "Rename workspace",
-  "deleteSessionTitle": "Delete session?",
-  "sessionInfo": "Session info",
   "name": "Name",
   "path": "Path",
   "owner": "Owner",
   "paired": "Paired",
   "couldNotOpenSession": "Could not open this session. Try again.",
-  "couldNotRemoveSession": "Could not remove this session. Try again.",
   "couldNotRenameSession": "Could not rename this session.",
   "noDeviceSelected": "No device selected",
   "pairBeforeWorkspace": "Pair a computer first, then create a workspace.",
@@ -220,13 +211,8 @@
   "openNavigation": "Open navigation",
   "bringFirstComputerOnline": "Bring your first computer online",
   "noWorkspace": "No workspace",
-  "currentWorkspace": "CURRENT WORKSPACE",
   "runningNow": "Running now",
-  "useSidebarHint": "Use the sidebar for devices, workspaces and the full session list.",
-  "previousSessions": "Previous sessions",
-  "closePreviousSessions": "Close previous sessions",
   "noWorkspaceSelected": "No workspace selected",
-  "useSidebarToStart": "Use the sidebar to start one in any folder on this computer.",
   "useSidebarToChooseWorkspace": "Use the sidebar to choose or create a workspace.",
   "pairToOpenSession": "Pair a computer to open a session.",
   "couldNotLoadComputers": "Could not load your computers. Try again.",
@@ -234,16 +220,12 @@
   "couldNotStartSession": "Could not start the session. Try again.",
   "agent": "Agent",
   "chooseAgent": "Choose an agent",
-  "chooseAgentTitle": "Choose Agent",
-  "closeAgentPicker": "Close agent picker",
   "searchAgents": "Search agents",
-  "noMatchingAgents": "No matching agents",
   "notAvailableOnComputer": "Not available on this computer",
   "unavailable": "Unavailable",
   "device": "Device",
   "chooseDeviceTitle": "Choose Device",
   "onePairedDevice": "1 paired device",
-  "closeDevicePicker": "Close device picker",
   "searchDevices": "Search devices",
   "noMatchingDevices": "No matching devices",
   "switchDevice": "Switch device",
@@ -442,22 +424,6 @@
   },
   "noSessionsInWorkspace": "No sessions in this workspace yet. Start one in any folder.",
   "pairDeviceHint": "Pair a device to see its workspaces and activity here. Your navigation and session list will appear in the sidebar.",
-  "runningCount": "{count} running",
-  "@runningCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "previousSessionsCount": "Previous sessions ({count})",
-  "@previousSessionsCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "computerDidNotConnect": "The selected computer did not connect in time. Start Baya on it, then try again.",
   "pairedDevicesCount": "{count} paired devices",
   "@pairedDevicesCount": {
@@ -620,5 +586,45 @@
     }
   },
   "source": "Source",
-  "agentStartupNotes": "Startup notes"
+  "agentStartupNotes": "Startup notes",
+  "attach": "Attach",
+  "recent": "Recent",
+  "allSessionsRunning": "Every session here is running.",
+  "whatShouldAgentDo": "What should the agent do?",
+  "pickFolderAndAgent": "Pick a folder and an agent",
+  "justNow": "just now",
+  "showAllSessions": "{count, plural, other{Show all {count}}}",
+  "@showAllSessions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "minutesAgo": "{count}m ago",
+  "@minutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursAgo": "{count}h ago",
+  "@hoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "daysAgo": "{count}d ago",
+  "@daysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "startOneAbove": "Start one above.",
+  "allSessions": "All sessions"
 }

@@ -9,11 +9,11 @@ import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
-import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_actions.dart';
+import 'package:app/ui/workspaces/widgets/session_row.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
 import 'package:app/ui/workspaces/widgets/scope_switchers.dart';
 import 'package:flutter/material.dart';
@@ -320,26 +320,27 @@ class _SessionSidebarState extends State<SessionSidebar> {
                               child: Column(
                                 children: [
                                   for (final item in items)
-                                    _SessionRow(
-                                      item: item,
-                                      displayName: vm.displayNameOf(item),
-                                      selected: selection.matches(
-                                        item.peer.remoteEpk,
-                                        item.sessionId,
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 2),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: SessionRow(
+                                          key: ValueKey(
+                                            'session-row-${item.peer.remoteEpk}-${item.sessionId}',
+                                          ),
+                                          vm: vm,
+                                          item: item,
+                                          highlighted: selection.matches(
+                                            item.peer.remoteEpk,
+                                            item.sessionId,
+                                          ),
+                                          onOpen: () {
+                                            if (!_opening) _open(item);
+                                          },
+                                          onMore: () =>
+                                              showSessionActions(context, item),
+                                        ),
                                       ),
-                                      online: vm.isRoomLive(
-                                        item.peer.remoteEpk,
-                                        item.sessionId,
-                                      ),
-                                      working: vm.isRoomWorking(
-                                        item.peer.remoteEpk,
-                                        item.sessionId,
-                                      ),
-                                      onTap: _opening
-                                          ? null
-                                          : () => _open(item),
-                                      onMore: () =>
-                                          showSessionActions(context, item),
                                     ),
                                 ],
                               ),
@@ -472,131 +473,6 @@ class _SidebarSearchField extends StatelessWidget {
           icon: Icon(LucideIcons.x, size: 19, color: colors.muted2),
         ),
       ],
-    );
-  }
-}
-
-class _SessionRow extends StatelessWidget {
-  const _SessionRow({
-    required this.item,
-    required this.displayName,
-    required this.selected,
-    required this.online,
-    required this.working,
-    this.onTap,
-    this.onMore,
-  });
-  final HomeItem item;
-  final String displayName;
-  final bool selected, online, working;
-  final VoidCallback? onTap;
-  final VoidCallback? onMore;
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final agentLabel = item.session.agentName;
-    final title = displayName;
-    final statusColor = working
-        ? colors.working
-        : online
-        ? colors.success
-        : colors.muted;
-    final listTile = ListTile(
-      key: ValueKey('session-row-${item.peer.remoteEpk}-${item.sessionId}'),
-      selected: selected,
-      selectedTileColor: colors.selection,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      leading: Padding(
-        padding: const EdgeInsets.only(top: 3),
-        child: Icon(
-          selected ? LucideIcons.messagesSquare : LucideIcons.messageSquare,
-          size: 19,
-          color: selected ? colors.accent : colors.muted2,
-        ),
-      ),
-      title: Text(
-        title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 15,
-          color: colors.text,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  agentLabel,
-                  style: TextStyle(fontSize: 11, color: colors.muted2),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  width: 5,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Flexible(
-                  child: Text(
-                    context.l10n.sessionStatus(
-                      working: working,
-                      online: online,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: statusColor),
-                  ),
-                ),
-              ],
-            ),
-            if (item.session.cwd case final cwd when cwd.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Text(
-                  cwd,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.typo.monoSmall.copyWith(
-                    fontSize: 10,
-                    color: colors.muted,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-      trailing: onMore == null
-          ? null
-          : IconButton(
-              key: ValueKey(
-                'session-more-${item.peer.remoteEpk}-${item.sessionId}',
-              ),
-              tooltip: context.l10n.sessionActions,
-              visualDensity: VisualDensity.compact,
-              onPressed: onMore,
-              icon: Icon(LucideIcons.ellipsis, size: 18, color: colors.muted),
-            ),
-      onTap: onTap,
-    );
-    final tile = Material(
-      color: selected ? colors.selection : Colors.transparent,
-      borderRadius: BorderRadius.circular(18),
-      clipBehavior: Clip.antiAlias,
-      child: listTile,
-    );
-    return BayaReveal(
-      offset: 5,
-      child: Padding(padding: const EdgeInsets.only(bottom: 2), child: tile),
     );
   }
 }

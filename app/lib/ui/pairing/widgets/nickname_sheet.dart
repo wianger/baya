@@ -1,5 +1,5 @@
-import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 
@@ -22,21 +22,11 @@ Future<String?> showNicknameSheet(
   BuildContext context, {
   required String? defaultName,
 }) {
-  return showModalBottomSheet<String>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    isDismissible: true,
-    enableDrag: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (_) => BayaSurface(
-      role: BayaSurfaceRole.overlay,
-      radius: 32,
-      elevated: false,
-      child: _NicknameSheet(defaultName: defaultName),
-    ),
+  return showBayaSheet<String>(
+    context,
+    title: context.l10n.nameThisPc,
+    subtitle: context.l10n.nicknameHint,
+    builder: (_) => _NicknameSheet(defaultName: defaultName),
   );
 }
 
@@ -80,91 +70,39 @@ class _NicknameSheetState extends State<_NicknameSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final viewInsets = MediaQuery.of(context).viewInsets;
-    return Padding(
-      padding: EdgeInsets.only(bottom: viewInsets.bottom),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 18),
-                  decoration: BoxDecoration(
-                    color: colors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                context.l10n.nameThisPc,
-                style: TextStyle(
-                  color: colors.text,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                context.l10n.nicknameHint,
-                style: TextStyle(color: colors.muted2, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                key: const Key('nickname-sheet-field'),
-                controller: _controller,
-                autofocus: true,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _save(),
-                style: TextStyle(color: colors.text, fontFamily: kMonoFamily),
-                decoration: InputDecoration(
-                  hintText: _placeholder,
-                  hintStyle: TextStyle(color: colors.muted),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: colors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: colors.accent),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      key: const Key('nickname-sheet-skip'),
-                      onPressed: _skip,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: Text(
-                        context.l10n.skip,
-                        style: TextStyle(color: colors.muted),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: BayaButton(
-                      buttonKey: const Key('nickname-sheet-save'),
-                      onPressed: _save,
-                      label: Text(context.l10n.save),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const Key('nickname-sheet-field'),
+          controller: _controller,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _save(),
+          decoration: InputDecoration(hintText: _placeholder),
         ),
-      ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                key: const Key('nickname-sheet-skip'),
+                onPressed: _skip,
+                child: Text(context.l10n.skip),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: BayaButton(
+                buttonKey: const Key('nickname-sheet-save'),
+                onPressed: _save,
+                label: Text(context.l10n.save),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

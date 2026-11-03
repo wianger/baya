@@ -1,6 +1,7 @@
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_group.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
@@ -76,32 +77,38 @@ class SettingsPage extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 36),
                   children: [
-                    _SettingsSectionLabel(context.l10n.security),
+                    BayaSectionLabel(context.l10n.security),
                     const _KeyBackupEntry(),
                     const SizedBox(height: 22),
-                    _SettingsSectionLabel(context.l10n.chatAndAppearance),
-                    _SettingsEntryCard(
-                      child: _SettingsEntry(
-                        key: const Key('settings-display'),
-                        icon: LucideIcons.monitor,
-                        title: context.l10n.displayAndConversation,
-                        subtitle: _displaySummary(prefs),
-                        onTap: () => _openDetail(
-                          context,
-                          () => const DisplaySettingsPage(),
+                    BayaSectionLabel(context.l10n.chatAndAppearance),
+                    BayaGroup(
+                      children: [
+                        BayaRow(
+                          key: const Key('settings-display'),
+                          icon: LucideIcons.monitor,
+                          label: context.l10n.displayAndConversation,
+                          subtitle: _displaySummary(prefs),
+                          chevron: true,
+                          onTap: () => _openDetail(
+                            context,
+                            () => const DisplaySettingsPage(),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                     const SizedBox(height: 22),
-                    _SettingsSectionLabel(context.l10n.information),
-                    _SettingsEntryCard(
-                      child: _SettingsEntry(
-                        key: const Key('settings-about'),
-                        icon: LucideIcons.info,
-                        title: context.l10n.about,
-                        subtitle: context.l10n.aboutHint,
-                        onTap: () => context.push('/about'),
-                      ),
+                    BayaSectionLabel(context.l10n.information),
+                    BayaGroup(
+                      children: [
+                        BayaRow(
+                          key: const Key('settings-about'),
+                          icon: LucideIcons.info,
+                          label: context.l10n.about,
+                          subtitle: context.l10n.aboutHint,
+                          chevron: true,
+                          onTap: () => context.push('/about'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -340,98 +347,6 @@ class _DetailControl extends StatelessWidget {
   }
 }
 
-class _SettingsSectionLabel extends StatelessWidget {
-  const _SettingsSectionLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: context.colors.muted,
-          letterSpacing: 1.4,
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingsEntryCard extends StatelessWidget {
-  const _SettingsEntryCard({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return BayaSurface(
-      radius: 24,
-      child: Material(color: Colors.transparent, child: child),
-    );
-  }
-}
-
-class _SettingsEntry extends StatelessWidget {
-  const _SettingsEntry({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return ListTile(
-      minVerticalPadding: 18,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-      leading: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: colors.selection,
-          borderRadius: BorderRadius.circular(13),
-        ),
-        alignment: Alignment.center,
-        child: Icon(icon, size: 20, color: colors.accent),
-      ),
-      title: Text(
-        title,
-        style: context.typo.sansBody.copyWith(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 3),
-        child: Text(
-          subtitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: context.typo.sansBody.copyWith(
-            color: colors.muted,
-            fontSize: 12,
-            height: 1.35,
-          ),
-        ),
-      ),
-      trailing: Icon(LucideIcons.chevronRight, size: 18, color: colors.muted),
-      onTap: onTap,
-    );
-  }
-}
-
 /// Shows whether the owner key survives a phone change. Never blocks: without
 /// Google Backup the app works, the pairing just lives on this phone only.
 class _KeyBackupEntry extends StatelessWidget {
@@ -446,21 +361,26 @@ class _KeyBackupEntry extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final l10n = context.l10n;
-    return _SettingsEntryCard(
-      child: _SettingsEntry(
-        key: const Key('settings-key-backup'),
-        icon: store.backedUp ? LucideIcons.cloudCheck : LucideIcons.cloudAlert,
-        title: l10n.keyBackup,
-        subtitle: store.backedUp ? l10n.keyBackedUp : l10n.keyNotBackedUp,
-        onTap: () => Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => ChangeNotifierProvider.value(
-              value: store,
-              child: const KeyBackupPage(),
+    return BayaGroup(
+      children: [
+        BayaRow(
+          key: const Key('settings-key-backup'),
+          icon: store.backedUp
+              ? LucideIcons.cloudCheck
+              : LucideIcons.cloudAlert,
+          label: l10n.keyBackup,
+          subtitle: store.backedUp ? l10n.keyBackedUp : l10n.keyNotBackedUp,
+          chevron: true,
+          onTap: () => Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              builder: (_) => ChangeNotifierProvider.value(
+                value: store,
+                child: const KeyBackupPage(),
+              ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

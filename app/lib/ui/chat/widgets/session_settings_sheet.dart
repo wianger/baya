@@ -5,7 +5,7 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_dialog.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -13,14 +13,10 @@ import 'package:provider/provider.dart';
 /// How full the agent's context is, from the header's ring.
 Future<void> showContextUsage(BuildContext context) {
   final session = context.read<SessionController>();
-  return showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: .34),
-    sheetAnimationStyle: AnimationStyle(
-      duration: BayaMotion.standard,
-      curve: BayaMotion.enter,
-    ),
+  return showBayaSheet<void>(
+    context,
+    sheetKey: const Key('context-sheet'),
+    title: context.l10n.contextUsage,
     builder: (_) => ChangeNotifierProvider<SessionController>.value(
       value: session,
       child: const _ContextSheet(),
@@ -37,49 +33,32 @@ class _ContextSheet extends StatelessWidget {
     final usage = session.usage;
     final colors = context.colors;
     final canCompact = session.commands.any((c) => c.name == 'compact');
-    return SafeArea(
-      top: false,
-      child: BayaSurface(
-        key: const Key('context-sheet'),
-        role: BayaSurfaceRole.overlay,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              context.l10n.contextUsage,
-              style: context.typo.sansBody.copyWith(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 14),
-            if (usage == null)
-              Text(
-                context.l10n.notReported,
-                style: context.typo.sansBody.copyWith(color: colors.muted),
-              )
-            else
-              _UsageBar(usage: usage),
-            if (canCompact) ...[
-              const SizedBox(height: 18),
-              OutlinedButton.icon(
-                key: const Key('context-compact'),
-                onPressed: session.working
-                    ? null
-                    : () {
-                        Navigator.of(context).pop();
-                        session.prompt('/compact');
-                      },
-                icon: const Icon(LucideIcons.foldVertical, size: 16),
-                label: Text(context.l10n.compactContext),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (usage == null)
+          Text(
+            context.l10n.notReported,
+            style: context.typo.sansBody.copyWith(color: colors.muted),
+          )
+        else
+          _UsageBar(usage: usage),
+        if (canCompact) ...[
+          const SizedBox(height: 18),
+          OutlinedButton.icon(
+            key: const Key('context-compact'),
+            onPressed: session.working
+                ? null
+                : () {
+                    Navigator.of(context).pop();
+                    session.prompt('/compact');
+                  },
+            icon: const Icon(LucideIcons.foldVertical, size: 16),
+            label: Text(context.l10n.compactContext),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -89,16 +68,8 @@ class _ContextSheet extends StatelessWidget {
 /// mode list. A row opens its choices; picking one applies it.
 Future<void> showSessionSettings(BuildContext context, {String? focus}) {
   final session = context.read<SessionController>();
-  return showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: .34),
-    isScrollControlled: true,
-    showDragHandle: false,
-    sheetAnimationStyle: AnimationStyle(
-      duration: BayaMotion.standard,
-      curve: BayaMotion.enter,
-    ),
+  return showBayaSheet<void>(
+    context,
     builder: (_) => ChangeNotifierProvider<SessionController>.value(
       value: session,
       child: _SettingsBody(focus: focus),
@@ -154,7 +125,6 @@ class _SettingsBodyState extends State<_SettingsBody> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<SessionController>();
-    final mq = MediaQuery.of(context);
     final open = _open == _modes
         ? null
         : session.configOptions.where((o) => o.id == _open).firstOrNull;
@@ -206,22 +176,11 @@ class _SettingsBodyState extends State<_SettingsBody> {
         modesId: _modes,
       );
     }
-    return SafeArea(
-      top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: mq.size.height * .84),
-        child: BayaSurface(
-          role: BayaSurfaceRole.overlay,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
-          padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
-          child: AnimatedSize(
-            duration: BayaMotion.standard,
-            curve: BayaMotion.enter,
-            alignment: Alignment.topCenter,
-            child: body,
-          ),
-        ),
-      ),
+    return AnimatedSize(
+      duration: BayaMotion.standard,
+      curve: BayaMotion.enter,
+      alignment: Alignment.topCenter,
+      child: body,
     );
   }
 }
@@ -248,29 +207,35 @@ class _Overview extends StatelessWidget {
     final rows = <Widget>[
       for (final option in session.configOptions)
         if (option.isBoolean)
-          SwitchListTile(
+          BayaRow(
             key: ValueKey('setting-${option.id}'),
-            value: option.enabled ?? false,
-            onChanged: busy == null ? (value) => onToggle(option, value) : null,
-            title: Text(option.name),
-            subtitle: option.description == null
-                ? null
-                : Text(option.description!),
+            icon: LucideIcons.toggleRight,
+            label: option.name,
+            subtitle: option.description,
+            trailing: Switch(
+              value: option.enabled ?? false,
+              onChanged: busy == null
+                  ? (value) => onToggle(option, value)
+                  : null,
+            ),
           )
         else
-          _Row(
+          BayaRow(
             key: ValueKey('setting-${option.id}'),
             icon: _iconFor(option.category),
             label: option.name,
             value: option.current?.name ?? option.value ?? '—',
-            busy: busy == option.id,
-            onTap: option.choices.isEmpty ? null : () => onOpen(option.id),
+            chevron: busy != option.id,
+            trailing: busy == option.id ? const _Busy() : null,
+            onTap: option.choices.isEmpty || busy != null
+                ? null
+                : () => onOpen(option.id),
           ),
       // ACP: an agent that offers a `mode` config option manages modes there.
       if (modes != null &&
           modes.available.isNotEmpty &&
           session.configFor('mode') == null)
-        _Row(
+        BayaRow(
           key: const ValueKey('setting-mode'),
           icon: LucideIcons.toggleRight,
           label: context.l10n.mode,
@@ -280,45 +245,25 @@ class _Overview extends StatelessWidget {
                   .firstOrNull
                   ?.name ??
               modes.currentModeId,
-          busy: busy == modesId,
-          onTap: () => onOpen(modesId),
+          chevron: busy != modesId,
+          trailing: busy == modesId ? const _Busy() : null,
+          onTap: busy != null ? null : () => onOpen(modesId),
         ),
     ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-          child: Text(
-            session.agentName.isEmpty
-                ? context.l10n.settings
-                : session.agentName,
-            style: context.typo.sansBody.copyWith(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: colors.text,
-            ),
-          ),
+        _SheetTitle(
+          session.agentName.isEmpty ? context.l10n.settings : session.agentName,
         ),
         if (rows.isEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-            child: Text(
-              context.l10n.noSessionSettings,
-              style: context.typo.sansBody.copyWith(color: colors.muted),
-            ),
+          Text(
+            context.l10n.noSessionSettings,
+            style: context.typo.sansBody.copyWith(color: colors.muted),
           )
         else
-          Flexible(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: rows,
-              ),
-            ),
-          ),
+          BayaGroup(children: rows),
         _SignOut(session: session),
       ],
     );
@@ -398,69 +343,66 @@ class _UsageBar extends StatelessWidget {
   }
 }
 
-class _Row extends StatelessWidget {
-  const _Row({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.busy,
-    required this.onTap,
-  });
+/// The title row inside the settings sheet, which changes as it navigates.
+class _SheetTitle extends StatelessWidget {
+  const _SheetTitle(this.title, {this.onBack, this.busy = false});
 
-  final IconData icon;
-  final String label;
-  final String value;
+  final String title;
+  final VoidCallback? onBack;
   final bool busy;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: busy ? null : onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: SizedBox(
+        height: 36,
         child: Row(
           children: [
-            Icon(icon, size: 19, color: colors.muted2),
-            const SizedBox(width: 14),
-            Text(
-              label,
-              style: context.typo.sansBody.copyWith(
-                fontSize: 15.5,
-                color: colors.text,
+            if (onBack != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: IconButton(
+                  tooltip: context.l10n.back,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onBack,
+                  icon: const Icon(LucideIcons.chevronLeft, size: 20),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Text(
-                value,
-                textAlign: TextAlign.end,
+                title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: context.typo.sansBody.copyWith(
-                  fontSize: 14.5,
-                  color: colors.muted,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -.3,
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            busy
-                ? SizedBox.square(
-                    dimension: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      color: colors.muted,
-                    ),
-                  )
-                : Icon(LucideIcons.chevronRight, size: 16, color: colors.muted),
+            if (busy) const _Busy(),
           ],
         ),
       ),
     );
   }
+}
+
+class _Busy extends StatelessWidget {
+  const _Busy();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: 8, right: 8),
+    child: SizedBox.square(
+      dimension: 14,
+      child: CircularProgressIndicator(
+        strokeWidth: 1.5,
+        color: context.colors.muted,
+      ),
+    ),
+  );
 }
 
 typedef _Choice = ({
@@ -488,111 +430,39 @@ class _Choices extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final rows = <Widget>[];
-    String? group;
+    // Choices the agent groups (models by provider, say) get one card each.
+    final groups = <(String?, List<_Choice>)>[];
     for (final choice in choices) {
-      if (choice.group != null && choice.group != group) {
-        group = choice.group;
-        rows.add(
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
-            child: Text(
-              group!,
-              style: context.typo.sansBody.copyWith(
-                fontSize: 12,
-                color: colors.muted,
-              ),
-            ),
-          ),
-        );
+      if (groups.isEmpty || groups.last.$1 != choice.group) {
+        groups.add((choice.group, []));
       }
-      rows.add(
-        InkWell(
-          key: ValueKey('choice-${choice.id}'),
-          borderRadius: BorderRadius.circular(18),
-          onTap: busy || choice.selected ? null : () => onPick(choice.id),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        choice.label,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 15.5,
-                          color: colors.text,
-                          fontWeight: choice.selected ? FontWeight.w600 : null,
-                        ),
-                      ),
-                      if (choice.detail != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            choice.detail!,
-                            style: context.typo.sansBody.copyWith(
-                              fontSize: 12.5,
-                              color: colors.muted,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (choice.selected)
-                  Icon(LucideIcons.check, size: 17, color: colors.accent),
-              ],
-            ),
-          ),
-        ),
-      );
+      groups.last.$2.add(choice);
     }
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            IconButton(
-              tooltip: context.l10n.back,
-              onPressed: onBack,
-              icon: Icon(LucideIcons.chevronLeft, size: 20, color: colors.text),
-            ),
-            Expanded(
-              child: Text(
-                title,
-                style: context.typo.sansBody.copyWith(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: colors.text,
+        _SheetTitle(title, onBack: onBack, busy: busy),
+        for (var i = 0; i < groups.length; i++) ...[
+          if (groups[i].$1 case final label?)
+            BayaSectionLabel(label, top: i == 0 ? 0 : 14)
+          else if (i > 0)
+            const SizedBox(height: 12),
+          BayaGroup(
+            children: [
+              for (final choice in groups[i].$2)
+                BayaRow(
+                  key: ValueKey('choice-${choice.id}'),
+                  label: choice.label,
+                  subtitle: choice.detail,
+                  selected: choice.selected,
+                  onTap: busy || choice.selected
+                      ? null
+                      : () => onPick(choice.id),
                 ),
-              ),
-            ),
-            if (busy)
-              Padding(
-                padding: const EdgeInsets.only(right: 14),
-                child: SizedBox.square(
-                  dimension: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.6,
-                    color: colors.muted,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        Flexible(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: rows,
-            ),
+            ],
           ),
-        ),
+        ],
       ],
     );
   }
@@ -667,23 +537,18 @@ class _SignOutState extends State<_SignOut> {
       builder: (context, snapshot) {
         if (snapshot.data != true) return const SizedBox.shrink();
         return Padding(
-          padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              key: const Key('sign-out'),
-              onPressed: _busy ? null : () => _signOut(agent),
-              style: TextButton.styleFrom(
-                foregroundColor: context.colors.error,
+          padding: const EdgeInsets.only(top: 12),
+          child: BayaGroup(
+            children: [
+              BayaRow(
+                key: const Key('sign-out'),
+                icon: LucideIcons.logOut,
+                label: context.l10n.signOutOf(agent),
+                destructive: true,
+                trailing: _busy ? const _Busy() : null,
+                onTap: _busy ? null : () => _signOut(agent),
               ),
-              icon: _busy
-                  ? const SizedBox.square(
-                      dimension: 14,
-                      child: CircularProgressIndicator(strokeWidth: 1.6),
-                    )
-                  : const Icon(LucideIcons.logOut, size: 16),
-              label: Text(context.l10n.signOutOf(agent)),
-            ),
+            ],
           ),
         );
       },

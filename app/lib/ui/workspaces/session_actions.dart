@@ -5,14 +5,14 @@ import 'dart:async';
 
 import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
-import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
-import 'package:app/ui/workspaces/session_overview.dart';
 import 'package:app/ui/workspaces/session_sheet.dart';
+import 'package:app/ui/workspaces/widgets/session_row.dart';
 import 'package:app/ui/workspaces/workspace_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -50,28 +50,27 @@ Future<void> openSession(
   }
 }
 
+/// Every session in the workspace, newest first.
 Future<void> showPreviousSessions(
   BuildContext context,
   List<HomeItem> items,
 ) async {
   final vm = context.read<HomeViewModel>();
-  final workspaceName =
-      vm.workspaceLabel(vm.selectedWorkspace) ?? context.l10n.workspace;
-  final selected = await showModalBottomSheet<HomeItem>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    showDragHandle: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => BayaSurface(
-      role: BayaSurfaceRole.overlay,
-      radius: 34,
-      elevated: false,
-      child: PreviousSessionsSheet(
-        vm: vm,
-        items: items,
-        workspaceName: workspaceName,
-      ),
+  final selected = await showBayaSheet<HomeItem>(
+    context,
+    sheetKey: const Key('previous-sessions-sheet'),
+    title: context.l10n.allSessions,
+    subtitle: vm.workspaceLabel(vm.selectedWorkspace),
+    builder: (sheetContext) => BayaGroup(
+      children: [
+        for (final item in items)
+          SessionRow(
+            key: ValueKey('previous-session-${item.sessionId}'),
+            vm: vm,
+            item: item,
+            onOpen: () => Navigator.of(sheetContext).pop(item),
+          ),
+      ],
     ),
   );
   if (!context.mounted || selected == null) return;
@@ -131,87 +130,43 @@ Future<void> showCreateWorkspace(BuildContext context) async {
     return;
   }
   final name = TextEditingController();
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-      ),
-      child: BayaSurface(
-        key: const Key('new-workspace-sheet'),
-        role: BayaSurfaceRole.overlay,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        elevated: false,
-        child: StatefulBuilder(
-          builder: (sheetContext, setSheetState) => SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: sheetContext.colors.border,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    context.l10n.newWorkspace,
-                    style: sheetContext.typo.title.copyWith(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    context.l10n.workspaceExplainer,
-                    style: sheetContext.typo.sansBody.copyWith(
-                      color: sheetContext.colors.muted,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  TextField(
-                    controller: name,
-                    autofocus: true,
-                    textInputAction: TextInputAction.done,
-                    onChanged: (_) => setSheetState(() {}),
-                    decoration: InputDecoration(
-                      hintText: context.l10n.workspaceNameHint,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  BayaButton(
-                    onPressed: name.text.trim().isEmpty
-                        ? null
-                        : () async {
-                            await vm.createWorkspace(
-                              name: name.text,
-                              deviceEpk: device,
-                            );
-                            if (sheetContext.mounted) {
-                              Navigator.of(sheetContext).pop();
-                            }
-                          },
-                    icon: const Icon(LucideIcons.layoutDashboard, size: 18),
-                    label: Text(context.l10n.createWorkspace),
-                    minimumSize: const Size.fromHeight(50),
-                  ),
-                ],
-              ),
+  await showBayaSheet<void>(
+    context,
+    sheetKey: const Key('new-workspace-sheet'),
+    title: context.l10n.newWorkspace,
+    subtitle: context.l10n.workspaceExplainer,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (sheetContext, setSheetState) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: name,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            onChanged: (_) => setSheetState(() {}),
+            decoration: InputDecoration(
+              hintText: context.l10n.workspaceNameHint,
             ),
           ),
-        ),
+          const SizedBox(height: 16),
+          BayaButton(
+            onPressed: name.text.trim().isEmpty
+                ? null
+                : () async {
+                    await vm.createWorkspace(
+                      name: name.text,
+                      deviceEpk: device,
+                    );
+                    if (sheetContext.mounted) {
+                      Navigator.of(sheetContext).pop();
+                    }
+                  },
+            icon: const Icon(LucideIcons.layoutDashboard, size: 18),
+            label: Text(context.l10n.createWorkspace),
+            minimumSize: const Size.fromHeight(50),
+          ),
+        ],
       ),
     ),
   );

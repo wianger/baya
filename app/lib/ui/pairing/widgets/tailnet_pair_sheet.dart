@@ -2,6 +2,7 @@ import 'package:app/data/preferences/preferences.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/tailnet_pairing.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -13,21 +14,11 @@ Future<void> showTailnetPairSheet(
   BuildContext context, {
   required void Function(String raw) onSubmit,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    builder: (sheetContext) => BayaSurface(
-      role: BayaSurfaceRole.overlay,
-      radius: 28,
-      elevated: false,
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        child: _TailnetPairBody(onSubmit: onSubmit),
-      ),
-    ),
+  return showBayaSheet<void>(
+    context,
+    title: context.l10n.pairOverTailscale,
+    subtitle: context.l10n.pairOverTailscaleHint,
+    builder: (_) => _TailnetPairBody(onSubmit: onSubmit),
   );
 }
 
@@ -111,69 +102,61 @@ class _TailnetPairBodyState extends State<_TailnetPairBody> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(l10n.pairOverTailscale, style: context.typo.title),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const Key('tailnet-name'),
+          controller: _name,
+          autofocus: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          textInputAction: TextInputAction.go,
+          onSubmitted: (_) => _pair(),
+          decoration: InputDecoration(
+            hintText: l10n.computerNameHint,
+            errorText: _error,
+            errorMaxLines: 3,
+            prefixIcon: const Icon(LucideIcons.monitor),
+          ),
+        ),
+        if (_choices case final hosts?) ...[
+          const SizedBox(height: 14),
+          Text(l10n.chooseBaya, style: context.typo.sansBody),
           const SizedBox(height: 8),
-          Text(
-            l10n.pairOverTailscaleHint,
-            style: context.typo.sansBody.copyWith(color: colors.muted),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            key: const Key('tailnet-name'),
-            controller: _name,
-            autofocus: true,
-            autocorrect: false,
-            enableSuggestions: false,
-            textInputAction: TextInputAction.go,
-            onSubmitted: (_) => _pair(),
-            decoration: InputDecoration(
-              hintText: l10n.computerNameHint,
-              errorText: _error,
-              errorMaxLines: 3,
-              prefixIcon: const Icon(LucideIcons.monitor),
-            ),
-          ),
-          if (_choices case final hosts?) ...[
-            const SizedBox(height: 12),
-            Text(l10n.chooseBaya, style: context.typo.sansBody),
-            for (final host in hosts)
-              ListTile(
-                key: Key('tailnet-host-${host.label}'),
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  host.label == 'windows'
+          BayaGroup(
+            children: [
+              for (final host in hosts)
+                BayaRow(
+                  key: Key('tailnet-host-${host.label}'),
+                  icon: host.label == 'windows'
                       ? LucideIcons.appWindow
                       : LucideIcons.terminal,
+                  label: host.name,
+                  onTap: _busy
+                      ? null
+                      : () => _pairWith(host, _name.text.trim()),
                 ),
-                title: Text(host.name),
-                enabled: !_busy,
-                onTap: () => _pairWith(host, _name.text.trim()),
-              ),
-          ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: BayaButton(
-              buttonKey: const Key('tailnet-pair'),
-              onPressed: _busy ? null : _pair,
-              label: _busy
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l10n.pair),
-            ),
+            ],
           ),
         ],
-      ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: BayaButton(
+            buttonKey: const Key('tailnet-pair'),
+            onPressed: _busy ? null : _pair,
+            label: _busy
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(l10n.pair),
+          ),
+        ),
+      ],
     );
   }
 }

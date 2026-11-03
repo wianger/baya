@@ -1,10 +1,8 @@
-import 'dart:math' as math;
-
 import 'package:app/l10n/l10n.dart';
 
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/workspaces/widgets/workspace_scope_field.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -68,17 +66,15 @@ class DevicePickerField extends StatelessWidget {
       ),
       enabled: active,
       onTap: () async {
-        final choice = await showModalBottomSheet<String>(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => BayaSurface(
-            role: BayaSurfaceRole.overlay,
-            radius: 34,
-            elevated: false,
-            child: _DevicePickerSheet(devices: devices, selected: selected),
-          ),
+        final choice = await showBayaSheet<String>(
+          context,
+          sheetKey: const ValueKey('new-session-device-sheet'),
+          title: context.l10n.chooseDeviceTitle,
+          subtitle: devices.length == 1
+              ? context.l10n.onePairedDevice
+              : context.l10n.pairedDevicesCount(devices.length),
+          builder: (_) =>
+              _DevicePickerSheet(devices: devices, selected: selected),
         );
         if (!context.mounted || choice == null) return;
         onChanged(choice);
@@ -110,168 +106,46 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
               '${device.label} ${device.id}'.toLowerCase().contains(query),
         )
         .toList();
-    final media = MediaQuery.of(context);
-    final height = math.min(
-      560.0,
-      math.max(
-        210.0,
-        (media.size.height - media.viewInsets.bottom - media.padding.top) * .8,
-      ),
-    );
-    return Padding(
-      key: const ValueKey('new-session-device-sheet'),
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: height),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.l10n.chooseDeviceTitle,
-                          style: context.typo.title,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.devices.length == 1
-                              ? context.l10n.onePairedDevice
-                              : context.l10n.pairedDevicesCount(
-                                  widget.devices.length,
-                                ),
-                          style: context.typo.sansBody.copyWith(
-                            fontSize: 12,
-                            color: colors.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: context.l10n.closeDevicePicker,
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(LucideIcons.x, size: 20),
-                  ),
-                ],
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // A search only once the list is long enough to need one.
+        if (widget.devices.length > 6) ...[
+          TextField(
+            key: const ValueKey('new-session-device-search'),
+            onChanged: (value) => setState(() => _query = value),
+            decoration: InputDecoration(
+              hintText: context.l10n.searchDevices,
+              prefixIcon: const Icon(LucideIcons.search, size: 18),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: TextField(
-                key: const ValueKey('new-session-device-search'),
-                decoration: InputDecoration(
-                  hintText: context.l10n.searchDevices,
-                  prefixIcon: Icon(LucideIcons.search, size: 18),
-                  isDense: true,
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (devices.isEmpty)
+          Text(
+            context.l10n.noMatchingDevices,
+            style: context.typo.sansBody.copyWith(color: colors.muted),
+          )
+        else
+          BayaGroup(
+            children: [
+              for (final device in devices)
+                BayaRow(
+                  key: ValueKey('new-session-host-${device.id}'),
+                  icon: LucideIcons.monitor,
+                  label: device.label,
+                  subtitle: device.online
+                      ? context.l10n.statusReady
+                      : context.l10n.statusOffline,
+                  selected: device.id == widget.selected.id,
+                  onTap: device.online
+                      ? () => Navigator.of(context).pop(device.id)
+                      : null,
                 ),
-                onChanged: (value) => setState(() => _query = value),
-              ),
-            ),
-            Flexible(
-              fit: FlexFit.loose,
-              child: devices.isEmpty
-                  ? SizedBox(
-                      height: 128,
-                      child: Center(
-                        child: Text(
-                          context.l10n.noMatchingDevices,
-                          style: context.typo.sansBody.copyWith(
-                            color: colors.muted,
-                          ),
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const ClampingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-                      itemCount: devices.length,
-                      itemBuilder: (context, index) {
-                        final device = devices[index];
-                        final selected = widget.selected.id == device.id;
-                        final statusColor = device.online
-                            ? colors.success
-                            : colors.muted;
-                        return Opacity(
-                          opacity: device.online ? 1 : .52,
-                          child: ListTile(
-                            key: ValueKey('new-session-host-${device.id}'),
-                            enabled: device.online,
-                            selected: selected,
-                            selectedTileColor: colors.selection,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            leading: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: colors.selection,
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              child: Icon(
-                                LucideIcons.monitor,
-                                size: 19,
-                                color: selected ? colors.accent : colors.muted2,
-                              ),
-                            ),
-                            title: Text(
-                              device.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.typo.sansBody.copyWith(
-                                fontSize: 15,
-                                fontWeight: selected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                              ),
-                            ),
-                            subtitle: Row(
-                              children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: statusColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  device.online
-                                      ? context.l10n.statusReady
-                                      : context.l10n.statusOffline,
-                                  style: context.typo.sansBody.copyWith(
-                                    fontSize: 12,
-                                    color: statusColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            trailing: selected
-                                ? Icon(
-                                    LucideIcons.check,
-                                    size: 18,
-                                    color: colors.accent,
-                                  )
-                                : null,
-                            onTap: !device.online
-                                ? null
-                                : () => Navigator.of(context).pop(device.id),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+      ],
     );
   }
 }

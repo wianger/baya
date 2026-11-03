@@ -1,7 +1,8 @@
 import 'package:app/domain/value_objects/workspace.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/widgets/baya_sheet.dart';
+import 'package:app/ui/workspaces/widgets/workspace_scope_field.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -67,73 +68,17 @@ class DeviceSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return BayaSurface(
-      role: BayaSurfaceRole.content,
-      radius: 22,
-      elevated: false,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(22),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          key: const Key('device-switch'),
-          onTap: _canOpen ? () => _pick(context) : null,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: colors.selection,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    LucideIcons.monitor,
-                    size: 22,
-                    color: colors.accent,
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'DEVICE',
-                        style: context.typo.monoSmall.copyWith(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1,
-                          color: colors.muted,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        devices[selected] ?? context.l10n.pairADevice,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  LucideIcons.chevronDown,
-                  size: 16,
-                  color: _canOpen ? colors.muted2 : colors.muted,
-                ),
-              ],
-            ),
-          ),
-        ),
+    return WorkspaceScopeField(
+      interactionKey: const Key('device-switch'),
+      label: context.l10n.device,
+      value: devices[selected] ?? context.l10n.pairADevice,
+      leading: Icon(
+        LucideIcons.monitor,
+        size: 20,
+        color: context.colors.accent,
       ),
+      enabled: _canOpen,
+      onTap: () => _pick(context),
     );
   }
 }
@@ -211,7 +156,6 @@ class WorkspaceSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final detail = workspaces[selected];
     final title = detail == null
         ? hasDevice
@@ -219,73 +163,17 @@ class WorkspaceSwitcher extends StatelessWidget {
               : context.l10n.chooseDeviceFirst
         : labels[selected] ?? _name(selected!);
     final canOpen = enabled && hasDevice;
-    return BayaSurface(
-      role: BayaSurfaceRole.content,
-      radius: 22,
-      elevated: false,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(22),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          key: const Key('workspace-switch'),
-          onTap: canOpen ? () => _pick(context) : null,
-          child: Padding(
-            // Same geometry as DeviceSwitcher so the two cards line up.
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: colors.selection,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    LucideIcons.layoutDashboard,
-                    size: 22,
-                    color: canOpen ? colors.accent : colors.muted,
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'WORKSPACE',
-                        style: context.typo.monoSmall.copyWith(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1,
-                          color: colors.muted,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  LucideIcons.chevronDown,
-                  size: 16,
-                  color: canOpen ? colors.muted2 : colors.muted,
-                ),
-              ],
-            ),
-          ),
-        ),
+    return WorkspaceScopeField(
+      interactionKey: const Key('workspace-switch'),
+      label: context.l10n.workspace,
+      value: title,
+      leading: Icon(
+        LucideIcons.layoutDashboard,
+        size: 20,
+        color: canOpen ? context.colors.accent : context.colors.muted,
       ),
+      enabled: canOpen,
+      onTap: () => _pick(context),
     );
   }
 }
@@ -347,203 +235,75 @@ Future<({_ScopeAction action, String? key})?> _showScopeSheet(
   required List<_ScopeRow> rows,
   Widget? empty,
 }) {
-  return showModalBottomSheet<({_ScopeAction action, String? key})>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    constraints: BoxConstraints(
-      maxHeight: MediaQuery.sizeOf(context).height * .7,
+  return showBayaSheet<({_ScopeAction action, String? key})>(
+    context,
+    sheetKey: sheetKey,
+    title: title,
+    action: Builder(
+      builder: (headerContext) => Tooltip(
+        message: addLabel,
+        child: OutlinedButton.icon(
+          key: Key('$prefix-add'),
+          onPressed: canAdd
+              ? () =>
+                    Navigator.of(headerContext)
+                        .pop((action: _ScopeAction.add, key: null))
+              : null,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            visualDensity: VisualDensity.compact,
+          ),
+          icon: const Icon(LucideIcons.plus, size: 16),
+          label: Text(headerContext.l10n.newItem),
+        ),
+      ),
     ),
     builder: (sheetContext) {
       final colors = sheetContext.colors;
       void close(_ScopeAction action, [String? key]) =>
           Navigator.of(sheetContext).pop((action: action, key: key));
-      return BayaSurface(
-        key: sheetKey,
-        role: BayaSurfaceRole.overlay,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        elevated: false,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: colors.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: sheetContext.typo.title.copyWith(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w600,
-                        ),
+      if (rows.isEmpty && empty != null) return empty;
+      return BayaGroup(
+        children: [
+          for (final row in rows)
+            BayaRow(
+              key: ValueKey('$prefix-choice-${row.key}'),
+              icon: icon,
+              label: row.label,
+              subtitle: row.subtitle,
+              selected: row.key == selected,
+              onTap: () => close(_ScopeAction.pick, row.key),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (row.rename)
+                    IconButton(
+                      key: ValueKey('$prefix-rename-${row.key}'),
+                      tooltip: sheetContext.l10n.rename,
+                      onPressed: () => close(_ScopeAction.rename, row.key),
+                      icon: Icon(
+                        LucideIcons.pencil,
+                        size: 16,
+                        color: colors.muted2,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Tooltip(
-                      message: addLabel,
-                      child: OutlinedButton.icon(
-                        key: Key('$prefix-add'),
-                        onPressed: canAdd
-                            ? () => close(_ScopeAction.add)
-                            : null,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 38),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        icon: const Icon(LucideIcons.plus, size: 16),
-                        label: Text(sheetContext.l10n.newItem),
+                  if (row.delete)
+                    IconButton(
+                      key: ValueKey('$prefix-delete-${row.key}'),
+                      tooltip: sheetContext.l10n.delete,
+                      onPressed: () => close(_ScopeAction.delete, row.key),
+                      icon: Icon(
+                        LucideIcons.trash2,
+                        size: 16,
+                        color: colors.muted2,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (rows.isEmpty && empty != null)
-                  empty
-                else
-                  Flexible(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (final row in rows)
-                          _ScopeTile(
-                            key: ValueKey('$prefix-choice-${row.key}'),
-                            prefix: prefix,
-                            row: row,
-                            icon: icon,
-                            selected: row.key == selected,
-                            onPick: () => close(_ScopeAction.pick, row.key),
-                            onRename: () => close(_ScopeAction.rename, row.key),
-                            onDelete: () => close(_ScopeAction.delete, row.key),
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ),
+        ],
       );
     },
   );
-}
-
-class _ScopeTile extends StatelessWidget {
-  const _ScopeTile({
-    super.key,
-    required this.prefix,
-    required this.row,
-    required this.icon,
-    required this.selected,
-    required this.onPick,
-    required this.onRename,
-    required this.onDelete,
-  });
-
-  final String prefix;
-  final _ScopeRow row;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onPick;
-  final VoidCallback onRename;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Material(
-        color: selected ? colors.inputFill : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: selected ? colors.border : Colors.transparent,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onPick,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 19,
-                  color: selected ? colors.accent : colors.muted2,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        row.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 15,
-                          fontWeight: selected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                        ),
-                      ),
-                      if (row.subtitle != null)
-                        Text(
-                          row.subtitle!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.typo.sansBody.copyWith(
-                            color: colors.muted,
-                            fontSize: 12,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (row.rename)
-                  IconButton(
-                    key: ValueKey('$prefix-rename-${row.key}'),
-                    tooltip: context.l10n.rename,
-                    onPressed: onRename,
-                    icon: Icon(
-                      LucideIcons.pencil,
-                      size: 16,
-                      color: colors.muted2,
-                    ),
-                  ),
-                if (row.delete)
-                  IconButton(
-                    key: ValueKey('$prefix-delete-${row.key}'),
-                    tooltip: context.l10n.delete,
-                    onPressed: onDelete,
-                    icon: Icon(
-                      LucideIcons.trash2,
-                      size: 16,
-                      color: colors.muted2,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

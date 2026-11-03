@@ -2,6 +2,7 @@ import 'package:app/acp/acp.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
@@ -377,11 +378,11 @@ class _NewSessionPageState extends State<NewSessionPage> {
 
   Future<void> _continueEarlier() async {
     final vm = context.read<NewSessionViewModel>();
-    final id = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _EarlierSessions(sessions: vm.earlierSessions()),
+    final sessions = vm.earlierSessions();
+    final id = await showBayaSheet<String>(
+      context,
+      title: context.l10n.continueEarlier,
+      builder: (_) => _EarlierSessions(sessions: sessions),
     );
     if (id != null && mounted) await _open(agentSessionId: id);
   }
@@ -396,94 +397,49 @@ class _EarlierSessions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return SafeArea(
-      top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * .7,
-        ),
-        child: BayaSurface(
-          role: BayaSurfaceRole.overlay,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          padding: const EdgeInsets.fromLTRB(8, 18, 8, 8),
-          child: FutureBuilder(
-            future: sessions,
-            builder: (context, snapshot) => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                  child: Text(
-                    context.l10n.continueEarlier,
-                    style: context.typo.sansBody.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                if (snapshot.connectionState != ConnectionState.done)
-                  const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                else if (snapshot.hasError || snapshot.data!.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-                    child: Text(
-                      snapshot.hasError
-                          ? '${snapshot.error}'
-                          : context.l10n.noEarlierConversations,
-                      style: TextStyle(
-                        color: snapshot.hasError ? colors.error : colors.muted,
-                      ),
-                    ),
-                  )
-                else
-                  Flexible(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (final session in snapshot.data!)
-                          ListTile(
-                            key: ValueKey('earlier-${session.sessionId}'),
-                            leading: Icon(
-                              LucideIcons.messageSquare,
-                              size: 18,
-                              color: colors.muted2,
-                            ),
-                            title: Text(
-                              session.title.isEmpty
-                                  ? context.l10n.untitledSession
-                                  : session.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: session.updatedAt == null
-                                ? null
-                                : Text(
-                                    MaterialLocalizations.of(context)
-                                        .formatMediumDate(
-                                          session.updatedAt!.toLocal(),
-                                        ),
-                                    style: TextStyle(
-                                      color: colors.muted,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                            onTap: () =>
-                                Navigator.of(context).pop(session.sessionId),
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
+    return FutureBuilder(
+      future: sessions,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
+        if (snapshot.hasError || snapshot.data!.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              snapshot.hasError
+                  ? '${snapshot.error}'
+                  : context.l10n.noEarlierConversations,
+              style: TextStyle(
+                color: snapshot.hasError ? colors.error : colors.muted,
+              ),
             ),
-          ),
-        ),
-      ),
+          );
+        }
+        final localizations = MaterialLocalizations.of(context);
+        return BayaGroup(
+          children: [
+            for (final session in snapshot.data!)
+              BayaRow(
+                key: ValueKey('earlier-${session.sessionId}'),
+                icon: LucideIcons.messageSquare,
+                label: session.title.isEmpty
+                    ? context.l10n.untitledSession
+                    : session.title,
+                subtitle: session.updatedAt == null
+                    ? null
+                    : localizations.formatMediumDate(
+                        session.updatedAt!.toLocal(),
+                      ),
+                chevron: true,
+                onTap: () => Navigator.of(context).pop(session.sessionId),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -521,140 +477,30 @@ class _WorkspacePickerField extends StatelessWidget {
       ),
       enabled: active,
       onTap: () async {
-        final choice = await showModalBottomSheet<WorkspaceGroup>(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => BayaSurface(
-            role: BayaSurfaceRole.overlay,
-            radius: 34,
-            elevated: false,
-            child: _WorkspacePickerSheet(
-              workspaces: workspaces,
-              selected: selected,
-              computerLabel: computerLabel,
-            ),
+        final choice = await showBayaSheet<WorkspaceGroup>(
+          context,
+          sheetKey: const ValueKey('new-session-workspace-sheet'),
+          title: context.l10n.chooseWorkspaceTitle,
+          subtitle: context.l10n.onComputer(computerLabel),
+          builder: (sheetContext) => BayaGroup(
+            children: [
+              for (final workspace in workspaces)
+                BayaRow(
+                  key: ValueKey(
+                    'new-session-workspace-${workspace.workspaceKey}',
+                  ),
+                  icon: LucideIcons.layoutDashboard,
+                  label: workspace.label,
+                  subtitle: workspace.subtitle,
+                  selected: workspace.workspaceKey == selected?.workspaceKey,
+                  onTap: () => Navigator.of(sheetContext).pop(workspace),
+                ),
+            ],
           ),
         );
         if (!context.mounted || choice == null) return;
         onChanged(choice);
       },
-    );
-  }
-}
-
-class _WorkspacePickerSheet extends StatelessWidget {
-  const _WorkspacePickerSheet({
-    required this.workspaces,
-    required this.selected,
-    required this.computerLabel,
-  });
-
-  final List<WorkspaceGroup> workspaces;
-  final WorkspaceGroup? selected;
-  final String computerLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return ConstrainedBox(
-      key: const ValueKey('new-session-workspace-sheet'),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * .68,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        context.l10n.chooseWorkspaceTitle,
-                        style: context.typo.title,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        context.l10n.onComputer(computerLabel),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 12,
-                          color: colors.muted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: context.l10n.closeWorkspacePicker,
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(LucideIcons.x, size: 20),
-                ),
-              ],
-            ),
-          ),
-          Flexible(
-            fit: FlexFit.loose,
-            child: ListView.builder(
-              shrinkWrap: true,
-              physics: const ClampingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-              itemCount: workspaces.length,
-              itemBuilder: (context, index) {
-                final workspace = workspaces[index];
-                final isSelected =
-                    workspace.workspaceKey == selected?.workspaceKey;
-                return ListTile(
-                  key: ValueKey(
-                    'new-session-workspace-${workspace.workspaceKey}',
-                  ),
-                  selected: isSelected,
-                  selectedTileColor: colors.userBubble,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  leading: Icon(
-                    LucideIcons.layoutDashboard,
-                    size: 20,
-                    color: colors.muted2,
-                  ),
-                  title: Text(
-                    workspace.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.typo.sansBody.copyWith(
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                    ),
-                  ),
-                  subtitle: workspace.subtitle.isEmpty
-                      ? null
-                      : Text(
-                          workspace.subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.typo.sansBody.copyWith(
-                            fontSize: 12,
-                            color: colors.muted,
-                          ),
-                        ),
-                  trailing: isSelected
-                      ? Icon(LucideIcons.check, size: 18, color: colors.accent)
-                      : null,
-                  onTap: () => Navigator.of(context).pop(workspace),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
