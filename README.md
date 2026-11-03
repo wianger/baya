@@ -43,24 +43,12 @@ from WSL, run it on Windows):
 tailscale serve --bg --set-path /baya-pair/windows http://127.0.0.1:7481/baya-pair/windows
 ```
 
-Add an agent, then start Baya. The first time, it prints a pairing code;
-scan it with the app and you are done:
+Set up an agent (see [Agents](#agents)), then start Baya. The first time, it
+prints a pairing code; scan it with the app and you are done:
 
-```sh
-# Adapters that drive the CLIs you already have:
-npm i -g @agentclientprotocol/claude-agent-acp @agentclientprotocol/codex-acp pi-acp
-baya agents add claude --name "Claude Code" -- CLAUDE_CODE_EXECUTABLE=$(which claude) claude-agent-acp
-baya agents add codex --name Codex -- CODEX_PATH=$(which codex) codex-acp
-baya agents add pi --name Pi -- pi-acp
-baya agents add deepseek --name DeepSeek -- dsh --profile acp
-baya agents                  # list them; the first is the default
-baya agents default codex
+```powershell
+baya
 ```
-
-`claude`, `codex` and `pi` do not speak ACP themselves; each adapter
-translates. `NAME=value` words before the command become the agent's
-environment: here they make the adapters run your installed CLIs, with your
-sign-in and settings, instead of the copies they bundle.
 
 Start sessions from the app (pick a folder and an agent), or from the
 computer with `baya open <folder>`.
@@ -97,14 +85,21 @@ An agent is any command that speaks ACP on stdin/stdout. Baya starts it in the
 session's folder when the session is used and stops it after twenty idle
 minutes; the conversation stays on the computer either way.
 
-```powershell
-baya agents add claude --name "Claude Code" -- npx -y @agentclientprotocol/claude-agent-acp
-baya agents add codex --name Codex -- npx -y @agentclientprotocol/codex-acp
-baya agents add pi --name Pi -- npx -y pi-acp
+```sh
+# Adapters that drive the CLIs you already have:
+npm i -g @agentclientprotocol/claude-agent-acp @agentclientprotocol/codex-acp pi-acp
+baya agents add claude --name "Claude Code" -- CLAUDE_CODE_EXECUTABLE=$(which claude) claude-agent-acp
+baya agents add codex --name Codex -- CODEX_PATH=$(which codex) codex-acp
+baya agents add pi --name Pi -- pi-acp
 baya agents add deepseek --name DeepSeek -- dsh --profile acp
 baya agents                  # list them; the first is the default
 baya agents default codex
 ```
+
+`claude`, `codex` and `pi` do not speak ACP themselves; each adapter
+translates. `NAME=value` words before the command become the agent's
+environment: here they make the adapters run your installed CLIs, with your
+sign-in and settings, instead of the copies they bundle.
 
 Each agent signs in the way it normally does on that computer. Model,
 reasoning effort and modes in the app are the agent's own ACP settings, and
