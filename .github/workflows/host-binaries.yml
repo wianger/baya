@@ -36,7 +36,7 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: host/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm build:binary
       - run: ./build/bin/baya-* --version
         shell: bash
