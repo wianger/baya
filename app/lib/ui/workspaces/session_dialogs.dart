@@ -1,6 +1,4 @@
-import 'package:app/pairing/storage.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/acp/acp.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_dialog.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -101,33 +99,6 @@ Future<bool> showWorkspaceDeleteDialog(
   return confirmed == true;
 }
 
-Future<bool> showSessionDeleteDialog(
-  BuildContext context, {
-  required String name,
-}) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => BayaDialog(
-      title: Text(context.l10n.deleteSessionTitle),
-      content: Text(context.l10n.deleteSessionBody(name)),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: Text(context.l10n.cancel),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: Text(
-            context.l10n.delete,
-            style: TextStyle(color: dialogContext.colors.error),
-          ),
-        ),
-      ],
-    ),
-  );
-  return confirmed == true;
-}
-
 Future<String?> showNameDialog(
   BuildContext context, {
   required String title,
@@ -194,81 +165,4 @@ class _NameDialogState extends State<_NameDialog> {
       ),
     ],
   );
-}
-
-/// Shared by the sidebar action sheet and the chat header menu, so both show
-/// the same folder, agent and computer details.
-Future<void> showSessionInfoDialog(
-  BuildContext context, {
-  required PeerRecord peer,
-  required SessionSummary? session,
-  required String name,
-}) {
-  final owner = peer.label;
-  final paired = peer.pairedAt.contains('T')
-      ? peer.pairedAt.split('T').first
-      : peer.pairedAt;
-  return showDialog<void>(
-    context: context,
-    builder: (dialogContext) {
-      return BayaDialog(
-        title: Text(context.l10n.sessionInfo, style: dialogContext.typo.title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _InfoRow(label: context.l10n.name, value: name),
-            _InfoRow(label: context.l10n.path, value: session?.cwd ?? '—'),
-            _InfoRow(label: context.l10n.owner, value: owner),
-            if (session != null)
-              _InfoRow(label: context.l10n.agent, value: session.agentName),
-            _InfoRow(
-              label: context.l10n.sessionId,
-              value: session?.sessionId ?? '—',
-            ),
-            _InfoRow(label: context.l10n.paired, value: paired),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(context.l10n.close),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 72,
-            child: Text(
-              label,
-              style: context.typo.monoSmall.copyWith(color: colors.muted),
-            ),
-          ),
-          Expanded(
-            child: SelectableText(
-              value,
-              style: context.typo.monoSmall.copyWith(color: colors.text),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

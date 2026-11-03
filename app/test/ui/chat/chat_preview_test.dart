@@ -85,6 +85,11 @@ FakeHost _computer() =>
           'title': 'grep -rn "redirect" src/auth',
           'kind': 'search',
           'status': 'completed',
+          'rawInput': {
+            'pattern': 'redirect',
+            'path': 'src/auth',
+            'glob': '*.ts',
+          },
           'content': [
             {
               'type': 'content',
@@ -284,6 +289,25 @@ void main() {
     }).ignore();
     await tester.pump(const Duration(seconds: 1));
     await _save(tester, boundary, '$output/chat.png');
+
+    await tester.tap(find.byKey(const Key('tool-run-group')));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.byKey(const ValueKey('tool-details-t1')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await _save(tester, boundary, '$output/tools-open.png');
+
+    await tester.tap(find.byKey(const Key('chat-actions')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await _save(tester, boundary, '$output/session-sheet.png');
+    await tester.tap(find.byKey(const ValueKey('session-action-delete')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await _save(tester, boundary, '$output/session-delete.png');
+    Navigator.of(tester.element(find.byKey(const Key('session-sheet')))).pop();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     final context = tester.element(find.byType(ChatPage));
     showContextUsage(context);

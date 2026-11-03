@@ -601,5 +601,6 @@
       }
     }
   },
-  "thinking": "Thinking"
+  "thinking": "Thinking",
+  "deleteSession": "Delete session"
 }

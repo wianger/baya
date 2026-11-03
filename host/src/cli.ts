@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import {
-  closeSync,
   createReadStream,
   existsSync,
   mkdirSync,
   openSync,
   statSync,
   watch,
+  writeSync,
 } from "node:fs";
 import { hostname } from "node:os";
 import { join, resolve } from "node:path";
@@ -209,17 +209,23 @@ async function startBackground(): Promise<HostStatus> {
   ensureBayaHome();
   mkdirSync(join(BAYA_HOME, "runtime"), { recursive: true, mode: 0o700 });
   mkdirSync(join(BAYA_HOME, "logs"), { recursive: true, mode: 0o700 });
-  const log = openSync(LOG_FILE, "a", 0o600);
-  const serveArgs = [fileURLToPath(import.meta.url), "serve"];
-  try {
+  const serveArgs = [fileURLToPath(import.meta.url), "serve", "--log", LOG_FILE];
+  if (process.platform === "win32") {
+    // A headless console the host and everything it starts share: agents and
+    // their tools then never pop up a console window of their own.
+    const conhost = join(process.env["SystemRoot"] || "C:\\Windows", "System32", "conhost.exe");
+    spawn(conhost, ["--headless", process.execPath, ...serveArgs], {
+      detached: true,
+      env: { ...process.env },
+      stdio: "ignore",
+      windowsHide: true,
+    }).unref();
+  } else {
     spawn(process.execPath, serveArgs, {
       detached: true,
       env: { ...process.env },
-      stdio: ["ignore", log, log],
-      windowsHide: true,
+      stdio: "ignore",
     }).unref();
-  } finally {
-    closeSync(log);
   }
   for (let attempt = 0; attempt < 75; attempt++) {
     await new Promise((done) => setTimeout(done, 200));
@@ -254,6 +260,18 @@ async function up(args: ParsedArgs): Promise<void> {
     );
     await printPairingCode(await controlCall<PairInvite>("pair"));
   }
+}
+
+/** Sends the host's output to [path], for a host with no terminal. */
+function logTo(path: string): void {
+  const fd = openSync(path, "a", 0o600);
+  const write = (chunk: string | Uint8Array): boolean => {
+    if (typeof chunk === "string") writeSync(fd, chunk);
+    else writeSync(fd, chunk);
+    return true;
+  };
+  process.stdout.write = write as typeof process.stdout.write;
+  process.stderr.write = write as typeof process.stderr.write;
 }
 
 async function runForeground(): Promise<void> {
@@ -622,8 +640,11 @@ async function main(): Promise<void> {
   switch (args.command) {
     case "up":
       return up(args);
-    case "serve":
+    case "serve": {
+      const log = stringFlag(args, "log");
+      if (log) logTo(log);
       return runForeground();
+    }
     case "start": {
       const current = await startBackground();
       return json(args) ? printJson(current) : printStatus(current);

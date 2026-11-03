@@ -1,8 +1,8 @@
 # Baya artwork
 
-The mark is a baya weaver in flight: a straw-gold silhouette on a graphite
-tile, the far wing a shade deeper. Graphite `#131315`, straw `#F8DE97` →
-`#DC9A3A`.
+The mark is a baya weaver in flight: one ink silhouette (`#141416`) on a
+light tile (`#F3F1EC`), the wing and its feathers set apart by thin cuts. In
+the app the bird takes the text colour, so it reads in both themes.
 
 Everything comes from one geometry in `generate.py`. Run it from the
 repository root after any change:

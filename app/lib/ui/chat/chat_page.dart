@@ -21,9 +21,9 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
-import 'package:app/ui/core/widgets/baya_top_right_popover.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
+import 'package:app/ui/workspaces/session_sheet.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
 import 'package:app/ui/workspaces/workspace_navigation.dart';
 import 'package:app_settings/app_settings.dart';
@@ -226,21 +226,15 @@ class ChatPage extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ContextUsageButton(enabled: session.online),
-                  _HeaderActionAnchor(
-                    builder: (origin) => IconButton(
-                      key: const Key('chat-actions'),
-                      tooltip: context.l10n.sessionActions,
-                      onPressed: () => _openSessionActions(
-                        context,
-                        session,
-                        title,
-                        origin: origin(),
-                      ),
-                      icon: Icon(
-                        LucideIcons.ellipsis,
-                        size: 21,
-                        color: colors.muted2,
-                      ),
+                  IconButton(
+                    key: const Key('chat-actions'),
+                    tooltip: context.l10n.sessionActions,
+                    onPressed: () =>
+                        _openSessionActions(context, session, title),
+                    icon: Icon(
+                      LucideIcons.ellipsis,
+                      size: 21,
+                      color: colors.muted2,
                     ),
                   ),
                 ],
@@ -255,107 +249,38 @@ class ChatPage extends StatelessWidget {
   Future<void> _openSessionActions(
     BuildContext context,
     SessionController session,
-    String displayName, {
-    Rect? origin,
-  }) async {
-    final action = await showBayaTopRightPopover<String>(
-      context: context,
-      origin: origin,
-      width: 224,
-      surfaceRadius: 22,
-      child: KeyedSubtree(
-        key: const Key('session-actions-popover'),
-        child: BayaSurface(
-          role: BayaSurfaceRole.overlay,
-          radius: 22,
-          padding: const EdgeInsets.symmetric(vertical: 7),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _SessionActionTile(
-                icon: LucideIcons.folderOpen,
-                label: context.l10n.files,
-                value: 'files',
-              ),
-              _SessionActionTile(
-                icon: LucideIcons.pencil,
-                label: context.l10n.rename,
-                value: 'rename',
-              ),
-              _SessionActionTile(
-                icon: LucideIcons.info,
-                label: context.l10n.info,
-                value: 'info',
-              ),
-              Divider(
-                height: 1,
-                thickness: 1,
-                indent: 12,
-                endIndent: 12,
-                color: context.colors.border,
-              ),
-              _SessionActionTile(
-                icon: LucideIcons.trash2,
-                label: context.l10n.delete,
-                value: 'delete',
-                destructive: true,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (action == null || !context.mounted) return;
-    await _handleSessionAction(context, session, action, displayName);
-  }
-
-  Future<void> _handleSessionAction(
-    BuildContext context,
-    SessionController session,
-    String value,
     String displayName,
-  ) async {
-    final hostKey = session.host.key;
-    if (value == 'files') {
-      context.push('/session-files');
-      return;
-    }
-    if (value == 'rename') {
-      final name = await showSessionRenameDialog(
-        context,
-        currentName: displayName,
-      );
-      if (name == null || !context.mounted) return;
-      await context.read<Preferences>().setSessionName(
-        hostKey,
-        session.sessionId,
-        name,
-      );
-      return;
-    }
-    if (value == 'info') {
-      await showSessionInfoDialog(
-        context,
-        peer: session.host.host,
-        session: session.summary,
-        name: displayName,
-      );
-      return;
-    }
-    if (value != 'delete' || !context.mounted) return;
-    final confirmed = await showSessionDeleteDialog(context, name: displayName);
-    if (!confirmed || !context.mounted) return;
-    try {
-      await session.host.call('session/delete', {
-        'sessionId': session.sessionId,
-      });
-    } catch (error) {
-      if (context.mounted) await showBayaError(context, message: '$error');
-      return;
-    }
-    if (!context.mounted) return;
-    context.read<SessionSelection>().clear();
-    context.go('/home');
+  ) {
+    return showSessionSheet(
+      context,
+      title: displayName,
+      agent: session.agentName.isEmpty
+          ? context.l10n.yourAgent
+          : session.agentName,
+      computer: session.host.host.label,
+      folder: session.summary?.cwd,
+      onFiles: () => context.push('/session-files'),
+      onRename: () async {
+        final name = await showSessionRenameDialog(
+          context,
+          currentName: displayName,
+        );
+        if (name == null || !context.mounted) return;
+        await context.read<Preferences>().setSessionName(
+          session.host.key,
+          session.sessionId,
+          name,
+        );
+      },
+      onDelete: () async {
+        await session.host.call('session/delete', {
+          'sessionId': session.sessionId,
+        });
+        if (!context.mounted) return;
+        context.read<SessionSelection>().clear();
+        context.go('/home');
+      },
+    );
   }
 
   Widget _buildBody(BuildContext context, SessionController session) {
@@ -541,77 +466,6 @@ class ChatPage extends StatelessWidget {
           onConfirm: AppSettings.openAppSettings,
         );
     }
-  }
-}
-
-/// Provides the exact square bounds of a header action at press time.
-class _HeaderActionAnchor extends StatefulWidget {
-  const _HeaderActionAnchor({required this.builder});
-
-  final Widget Function(Rect? Function() origin) builder;
-
-  @override
-  State<_HeaderActionAnchor> createState() => _HeaderActionAnchorState();
-}
-
-class _HeaderActionAnchorState extends State<_HeaderActionAnchor> {
-  final GlobalKey _boundsKey = GlobalKey();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox.square(
-      key: _boundsKey,
-      dimension: 48,
-      child: widget.builder(() {
-        final anchor = _boundsKey.currentContext;
-        return anchor == null ? null : bayaRectOf(anchor);
-      }),
-    );
-  }
-}
-
-/// One row inside the session-action popover opened from the chat header.
-class _SessionActionTile extends StatelessWidget {
-  const _SessionActionTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.destructive = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final tint = destructive ? colors.error : colors.text;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: ValueKey('session-action-$value'),
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => Navigator.of(context).pop(value),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-          child: Row(
-            children: [
-              Icon(icon, size: 19, color: tint),
-              const SizedBox(width: 14),
-              Text(
-                label,
-                style: context.typo.sansBody.copyWith(
-                  fontSize: 16,
-                  color: tint,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

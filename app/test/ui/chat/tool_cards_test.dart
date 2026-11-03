@@ -51,7 +51,7 @@ void main() {
       expect(content.workingDirectory, '/code');
       expect(content.output.text, 'ok');
       expect(content.output.stderr, 'warn');
-      expect(content.inputText, isNull);
+      expect(content.inputFields, isEmpty);
     });
 
     test('an edit shows its diff and path', () {
@@ -87,6 +87,36 @@ void main() {
       expect(content.title, 'Read');
       expect(content.output.text, 'file body');
       expect(content.detailLine, 'README.md');
+    });
+
+    test('input reads as labelled fields, not JSON', () {
+      final content = ToolContent(
+        tool(
+          't',
+          kind: ToolKind.search,
+          rawInput: {
+            'pattern': 'redirect',
+            'filePath': 'src/auth',
+            'globs': ['*.ts', '*.tsx'],
+            'limit': 20,
+            'empty': '',
+          },
+        ),
+      );
+      expect(content.inputFields, [
+        (label: 'Pattern', value: 'redirect'),
+        (label: 'File path', value: 'src/auth'),
+        (label: 'Globs', value: '*.ts, *.tsx'),
+        (label: 'Limit', value: '20'),
+      ]);
+    });
+
+    test('terminal colour codes and redraws are cleaned up', () {
+      expect(
+        cleanTerminalText('\x1B[32;1mMode\x1B[0m  Name\r\n10%\r55%\r100%'),
+        'Mode  Name\n100%',
+      );
+      expect(cleanTerminalText('\x1B]0;title\x07ok'), 'ok');
     });
 
     test('a failed call with nothing to show says it failed', () {

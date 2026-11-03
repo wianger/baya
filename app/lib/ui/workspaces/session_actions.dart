@@ -12,6 +12,7 @@ import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
 import 'package:app/ui/workspaces/session_overview.dart';
+import 'package:app/ui/workspaces/session_sheet.dart';
 import 'package:app/ui/workspaces/workspace_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -77,27 +78,29 @@ Future<void> showPreviousSessions(
   await openSession(context, selected);
 }
 
-Future<void> deleteFromPhone(BuildContext context, HomeItem item) async {
+/// The session sheet for a row in the session list.
+Future<void> showSessionActions(BuildContext context, HomeItem item) {
   final vm = context.read<HomeViewModel>();
   final selection = context.read<SessionSelection>();
-  final wasSelected = selection.matches(item.peer.remoteEpk, item.sessionId);
-  final confirmed = await showSessionDeleteDialog(
+  return showSessionSheet(
     context,
-    name: item.displayName,
+    title: vm.displayNameOf(item),
+    agent: item.session.agentName,
+    computer: item.peer.label,
+    folder: item.session.cwd,
+    onRename: () => renameSession(context, item),
+    onDelete: () async {
+      final wasSelected = selection.matches(
+        item.peer.remoteEpk,
+        item.sessionId,
+      );
+      await vm.deleteSession(item);
+      if (wasSelected) {
+        selection.clear();
+        if (context.mounted) context.go('/home');
+      }
+    },
   );
-  if (!context.mounted || !confirmed) return;
-  try {
-    await vm.deleteSession(item);
-    if (!context.mounted) return;
-    if (wasSelected) {
-      selection.clear();
-      context.go('/home');
-    }
-  } catch (_) {
-    if (context.mounted) {
-      await showBayaError(context, message: context.l10n.couldNotRemoveSession);
-    }
-  }
 }
 
 Future<void> renameSession(BuildContext context, HomeItem item) async {

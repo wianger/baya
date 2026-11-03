@@ -15,6 +15,35 @@ export interface TerminalSnapshot {
 
 const DEFAULT_OUTPUT_LIMIT = 256 * 1024;
 
+/**
+ * Decodes command output: UTF-8, until a chunk is not valid UTF-8; then the
+ * console's legacy code page (GBK on Chinese Windows, and so on).
+ */
+export function outputDecoder(fallback = legacyEncoding()): (chunk: Buffer) => string {
+  let utf8: TextDecoder | null = new TextDecoder("utf-8", { fatal: true });
+  const legacy = new TextDecoder(fallback);
+  return (chunk) => {
+    if (utf8) {
+      try {
+        return utf8.decode(chunk, { stream: true });
+      } catch {
+        utf8 = null;
+      }
+    }
+    return legacy.decode(chunk, { stream: true });
+  };
+}
+
+function legacyEncoding(): string {
+  if (process.platform !== "win32") return "utf-8";
+  const locale = Intl.DateTimeFormat().resolvedOptions().locale;
+  if (/^zh-(TW|HK|MO)|Hant/u.test(locale)) return "big5";
+  if (locale.startsWith("zh")) return "gbk";
+  if (locale.startsWith("ja")) return "shift_jis";
+  if (locale.startsWith("ko")) return "euc-kr";
+  return "windows-1252";
+}
+
 class Terminal {
   readonly id = `term-${randomUUID()}`;
   private chunks = "";
@@ -34,12 +63,13 @@ class Terminal {
     this.child = spawn(command, args, {
       cwd: options.cwd,
       env: { ...process.env, ...options.env },
+      // Shares the host's headless console; see AgentProcess.
       stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
     });
     this.child.stdin.end();
+    const decode = outputDecoder();
     const append = (chunk: Buffer) => {
-      this.chunks += chunk.toString("utf8");
+      this.chunks += decode(chunk);
       // Keep the tail within the byte limit, cutting on a character boundary.
       while (Buffer.byteLength(this.chunks) > this.limit) {
         this.chunks = this.chunks.slice(Math.max(1, this.chunks.length - this.limit));

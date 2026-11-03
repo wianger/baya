@@ -215,7 +215,6 @@ class AppColors extends ThemeExtension<AppColors> {
 
 /// The mark's colors, the same as branding/baya-mark.svg.
 abstract final class AppBrandColors {
-  static const graphite = Color(0xFF131315);
-  static const strawLight = Color(0xFFF8DE97);
-  static const strawDeep = Color(0xFFDC9A3A);
+  static const ink = Color(0xFF141416);
+  static const tile = Color(0xFFF3F1EC);
 }

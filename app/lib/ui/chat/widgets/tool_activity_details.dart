@@ -24,7 +24,7 @@ class ToolActivityDetails extends StatelessWidget {
     final content = ToolContent(tool);
     final output = content.output;
     final error = content.error;
-    final input = content.inputText;
+    final fields = content.inputFields;
     final changes = content.changesText;
     final command = content.command;
     final hasCommand = content.isCommand && command != null;
@@ -64,20 +64,11 @@ class ToolActivityDetails extends StatelessWidget {
             const SizedBox(height: 8),
             _WorkingDirectory(path: cwd),
           ],
-        ] else if (!content.isCommand && input != null) ...[
-          _Section(
-            key: const Key('tool-input'),
-            label: content.inputLabel,
-            body: input,
-            monospace: !content.usesProseDetails,
-            maxHeight: resultMaxHeight,
-            copyKey: ValueKey('tool-copy-${tool.toolCallId}-input'),
-          ),
+        ] else if (fields.isNotEmpty) ...[
+          _InputFields(key: const Key('tool-input'), fields: fields),
         ],
         if (hasResult) ...[
-          if (hasCommand ||
-              changes != null ||
-              (!content.isCommand && input != null))
+          if (hasCommand || changes != null || fields.isNotEmpty)
             const SizedBox(height: 10),
           _Section(
             key: const Key('tool-result'),
@@ -124,6 +115,68 @@ class ToolActivityDetails extends StatelessWidget {
               fontSize: 12.5,
               color: context.colors.muted,
             ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// A call's input: short values as label–value lines, long ones as blocks.
+class _InputFields extends StatelessWidget {
+  const _InputFields({super.key, required this.fields});
+
+  final List<({String label, String value})> fields;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final short = [
+      for (final field in fields)
+        if (field.value.length <= 90 && !field.value.contains('\n')) field,
+    ];
+    final long = [
+      for (final field in fields)
+        if (!short.contains(field)) field,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final field in short)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 92,
+                  child: Text(
+                    field.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.typo.sansBody.copyWith(
+                      fontSize: 12,
+                      color: colors.muted,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: SelectableText(
+                    field.value,
+                    style: context.typo.mono.copyWith(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        for (final field in long) ...[
+          const SizedBox(height: 4),
+          _Section(
+            label: field.label,
+            body: field.value,
+            monospace: true,
+            maxHeight: 220,
           ),
         ],
       ],

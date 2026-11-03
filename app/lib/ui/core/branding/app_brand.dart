@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 
 const kAppName = 'Baya';
 
-/// A baya weaver in flight, straw gold, the far wing a shade deeper. The
-/// paths come from branding/generate.py (108-unit grid).
+/// A baya weaver in flight: one ink silhouette, the wing and its feathers
+/// set apart by thin cuts. The paths come from branding/generate.py
+/// (108-unit grid).
 ///
-/// [tile] draws it on its graphite tile, as on the launcher; without one the
-/// bird sits on the page with its eye cut through.
+/// [tile] draws it ink on its light tile, as on the launcher; without one
+/// the bird takes the text colour and its cuts the page colour.
 class AppMark extends StatelessWidget {
   const AppMark({super.key, this.size = 28, this.tile = false});
   final double size;
@@ -16,12 +17,17 @@ class AppMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Semantics(
       label: kAppName,
       image: true,
       child: CustomPaint(
         size: Size.square(size),
-        painter: AppMarkPainter(tile: tile),
+        painter: AppMarkPainter(
+          tile: tile,
+          ink: tile ? AppBrandColors.ink : colors.text,
+          paper: tile ? AppBrandColors.tile : colors.bg,
+        ),
       ),
     );
   }
@@ -52,13 +58,21 @@ class AppWordmark extends StatelessWidget {
 }
 
 class AppMarkPainter extends CustomPainter {
-  const AppMarkPainter({required this.tile});
+  const AppMarkPainter({
+    required this.tile,
+    required this.ink,
+    required this.paper,
+  });
 
   final bool tile;
+  final Color ink;
+
+  /// The colour behind the bird, which its cuts show through to.
+  final Color paper;
 
   static final _body = _parse(kMarkBody);
-  static final _nearWing = _parse(kMarkNearWing);
-  static final _farWing = _parse(kMarkFarWing);
+  static final _wing = _parse(kMarkWing);
+  static final _cuts = [for (final cut in kMarkCuts) _parse(cut)];
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -70,22 +84,30 @@ class AppMarkPainter extends CustomPainter {
           const Rect.fromLTWH(0, 0, 108, 108),
           const Radius.circular(24),
         ),
-        Paint()..color = AppBrandColors.graphite,
+        Paint()..color = paper,
       );
     }
-    canvas.translate(kMarkShift.$1, kMarkShift.$2);
-    final (x1, y1, x2, y2) = kMarkGradient;
-    final straw = Paint()
-      ..shader = const LinearGradient(
-        colors: [AppBrandColors.strawLight, AppBrandColors.strawDeep],
-      ).createShader(Rect.fromPoints(Offset(x1, y1), Offset(x2, y2)));
-    final (cx, cy, r) = kMarkEye;
-    final eye = Path()
-      ..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r));
     canvas
-      ..drawPath(_farWing, Paint()..color = AppBrandColors.strawDeep)
-      ..drawPath(Path.combine(PathOperation.difference, _body, eye), straw)
-      ..drawPath(_nearWing, straw)
+      ..translate(54, 54)
+      ..scale(kMarkScale)
+      ..translate(-54 + kMarkShift.$1, -54 + kMarkShift.$2);
+    final fill = Paint()..color = ink;
+    final cut = Paint()
+      ..color = paper
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final (cx, cy, r) = kMarkEye;
+    canvas
+      ..drawPath(_body, fill)
+      ..drawPath(_wing, cut..strokeWidth = kMarkWingGap)
+      ..drawPath(_wing, fill);
+    cut.strokeWidth = kMarkCutWidth;
+    for (final line in _cuts) {
+      canvas.drawPath(line, cut);
+    }
+    canvas
+      ..drawCircle(Offset(cx, cy), r, Paint()..color = paper)
       ..restore();
   }
 
@@ -117,5 +139,6 @@ class AppMarkPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(AppMarkPainter old) => old.tile != tile;
+  bool shouldRepaint(AppMarkPainter old) =>
+      old.tile != tile || old.ink != ink || old.paper != paper;
 }

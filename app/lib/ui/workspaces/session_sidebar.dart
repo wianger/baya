@@ -338,10 +338,8 @@ class _SessionSidebarState extends State<SessionSidebar> {
                                       onTap: _opening
                                           ? null
                                           : () => _open(item),
-                                      onRename: () =>
-                                          renameSession(context, item),
-                                      onDelete: () =>
-                                          deleteFromPhone(context, item),
+                                      onMore: () =>
+                                          showSessionActions(context, item),
                                     ),
                                 ],
                               ),
@@ -486,15 +484,13 @@ class _SessionRow extends StatelessWidget {
     required this.online,
     required this.working,
     this.onTap,
-    this.onRename,
-    this.onDelete,
+    this.onMore,
   });
   final HomeItem item;
   final String displayName;
   final bool selected, online, working;
   final VoidCallback? onTap;
-  final VoidCallback? onRename;
-  final Future<void> Function()? onDelete;
+  final VoidCallback? onMore;
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -579,16 +575,16 @@ class _SessionRow extends StatelessWidget {
           ],
         ),
       ),
-      trailing: onRename == null
+      trailing: onMore == null
           ? null
           : IconButton(
               key: ValueKey(
-                'session-rename-${item.peer.remoteEpk}-${item.sessionId}',
+                'session-more-${item.peer.remoteEpk}-${item.sessionId}',
               ),
-              tooltip: context.l10n.renameSession,
+              tooltip: context.l10n.sessionActions,
               visualDensity: VisualDensity.compact,
-              onPressed: onRename,
-              icon: Icon(LucideIcons.pencil, size: 16, color: colors.muted2),
+              onPressed: onMore,
+              icon: Icon(LucideIcons.ellipsis, size: 18, color: colors.muted),
             ),
       onTap: onTap,
     );
@@ -600,62 +596,7 @@ class _SessionRow extends StatelessWidget {
     );
     return BayaReveal(
       offset: 5,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 2),
-        child: onDelete == null
-            ? tile
-            : ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Dismissible(
-                  key: ValueKey(
-                    'session-delete-${item.peer.remoteEpk}-${item.sessionId}',
-                  ),
-                  direction: DismissDirection.endToStart,
-                  dismissThresholds: const {DismissDirection.endToStart: .34},
-                  background: const _SessionDeleteBackground(),
-                  confirmDismiss: (_) async {
-                    await onDelete!();
-                    // The ViewModel owns the actual removal and the dialog may
-                    // be cancelled. Keep the row in place until state changes.
-                    return false;
-                  },
-                  child: tile,
-                ),
-              ),
-      ),
-    );
-  }
-}
-
-class _SessionDeleteBackground extends StatelessWidget {
-  const _SessionDeleteBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return ColoredBox(
-      color: colors.error.withValues(alpha: .16),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Padding(
-          padding: const EdgeInsets.only(right: 20),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(LucideIcons.trash2, size: 18, color: colors.error),
-              const SizedBox(width: 8),
-              Text(
-                context.l10n.delete,
-                style: context.typo.sansBody.copyWith(
-                  color: colors.error,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: Padding(padding: const EdgeInsets.only(bottom: 2), child: tile),
     );
   }
 }

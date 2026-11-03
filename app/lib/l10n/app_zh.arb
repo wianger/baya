@@ -359,5 +359,6 @@
   "languageHint": "应用显示的语言。",
   "newItem": "新建",
   "tokensOf": "{used} / {size} tokens",
-  "thinking": "思考中"
+  "thinking": "思考中",
+  "deleteSession": "删除会话"
 }

@@ -34,8 +34,10 @@ export class AgentProcess {
     const plan = spawnPlan(executable!, args);
     const child = spawn(plan.command, plan.prefixArgs, {
       cwd,
+      // No windowsHide: with piped stdio it would start the agent without a
+      // console, and every tool it runs would then open a visible one. The
+      // agent shares the host's (headless) console instead.
       stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
       windowsVerbatimArguments: plan.windowsVerbatimArguments,
       env: { ...process.env, ...this.definition.env },
     });

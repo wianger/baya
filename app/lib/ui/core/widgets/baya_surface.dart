@@ -1,5 +1,4 @@
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 
 /// What a surface is for. Hierarchy comes from tone, a hairline edge and
@@ -69,34 +68,13 @@ class BayaSurface extends StatelessWidget {
         ? BorderSide(color: colors.border, width: 1)
         : BorderSide.none;
     final shadow = elevated && !highContrast && role == BayaSurfaceRole.overlay;
-    final contentMotion = BayaSurfaceContentMotion.surfaceOf(context);
     final content = Padding(padding: padding, child: child);
     final material = Material(
       color: fill,
       surfaceTintColor: Colors.transparent,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: corners, side: outline),
-      child: contentMotion == null
-          ? content
-          : AnimatedBuilder(
-              animation: Listenable.merge([
-                contentMotion.animation,
-                ?contentMotion.surfaceScale,
-              ]),
-              child: content,
-              builder: (context, child) => Transform.scale(
-                key: const ValueKey('baya-surface-content-scale'),
-                scale: contentMotion.surfaceScale == null
-                    ? 1
-                    : 1 / contentMotion.surfaceScale!.value.clamp(0.01, 1.0),
-                alignment: Alignment.topRight,
-                child: Opacity(
-                  key: const ValueKey('baya-surface-content-opacity'),
-                  opacity: contentMotion.animation.value.clamp(0.0, 1.0),
-                  child: child,
-                ),
-              ),
-            ),
+      child: content,
     );
     if (!shadow) return material;
     // One soft, wide shadow: the overlay floats without a grey halo.

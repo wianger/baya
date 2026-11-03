@@ -75,17 +75,49 @@ class ToolContent {
     for (final location in tool.locations) location.path,
   }.toList();
 
-  String get inputLabel => appL10n.input;
-
-  /// The call's input, when it is not already shown as a command or diff.
-  String? get inputText {
-    if (isCommand && command != null) return null;
+  /// The call's input as labelled fields, leaving out what the row already
+  /// shows as a command or a diff.
+  List<({String label, String value})> get inputFields {
     final raw = tool.rawInput;
-    if (raw == null) return null;
-    if (raw is String) return raw.trim().isEmpty ? null : raw;
-    if (raw is Map && raw.isEmpty) return null;
-    return const JsonEncoder.withIndent('  ').convert(raw);
+    if (raw == null) return const [];
+    if (raw is String) {
+      return raw.trim().isEmpty
+          ? const []
+          : [(label: appL10n.input, value: raw)];
+    }
+    if (raw is! Map) return [(label: appL10n.input, value: _show(raw))];
+    const shownElsewhere = {'command', 'cmd', 'script', 'cwd', 'workdir'};
+    return [
+      for (final MapEntry(:key, :value) in raw.entries)
+        if (value != null &&
+            !(isCommand && shownElsewhere.contains(key)) &&
+            !(value is String && value.trim().isEmpty) &&
+            !(value is Iterable && value.isEmpty) &&
+            !(value is Map && value.isEmpty))
+          (label: _label('$key'), value: _show(value)),
+    ];
   }
+
+  static String _label(String key) {
+    final words = key
+        .replaceAllMapped(
+          RegExp(r'([a-z0-9])([A-Z])'),
+          (m) => '${m[1]} ${m[2]}',
+        )
+        .replaceAll(RegExp(r'[_\-]+'), ' ')
+        .trim()
+        .toLowerCase();
+    return words.isEmpty ? key : words[0].toUpperCase() + words.substring(1);
+  }
+
+  static String _show(Object? value) => switch (value) {
+    final String text => text,
+    num() || bool() => '$value',
+    final Iterable<Object?> items
+        when items.every((i) => i is String || i is num) =>
+      items.join(', '),
+    _ => const JsonEncoder.withIndent('  ').convert(value),
+  };
 
   /// Unified-style diff of every file the call changed.
   String? get changesText {
@@ -109,17 +141,17 @@ class ToolContent {
           : '';
       return ToolOutput(
         text:
-            '${terminal.truncated ? '…\n' : ''}${terminal.output.trimRight()}$status',
+            '${terminal.truncated ? '…\n' : ''}${cleanTerminalText(terminal.output).trimRight()}$status',
       );
     }
     final texts = [
       for (final item in tool.content)
         if (item is ToolCallText && item.content.displayText.trim().isNotEmpty)
-          item.content.displayText,
+          cleanTerminalText(item.content.displayText),
     ];
     if (texts.isNotEmpty) return ToolOutput(text: texts.join('\n'));
     final raw = tool.rawOutput;
-    if (raw is String) return ToolOutput(text: raw);
+    if (raw is String) return ToolOutput(text: cleanTerminalText(raw));
     if (raw is Map) {
       final map = raw.cast<String, dynamic>();
       final text = _first(map, const [
@@ -132,11 +164,11 @@ class ToolContent {
       final stderr = _first(map, const ['stderr']);
       return ToolOutput(
         text: text is String
-            ? text
+            ? cleanTerminalText(text)
             : (text == null && stderr == null
                   ? const JsonEncoder.withIndent('  ').convert(map)
                   : null),
-        stderr: stderr is String ? stderr : null,
+        stderr: stderr is String ? cleanTerminalText(stderr) : null,
       );
     }
     return const ToolOutput();
@@ -212,6 +244,25 @@ class ToolContent {
 
   static String _oneLine(String value) =>
       value.trim().replaceAll(RegExp(r'\s*\n+\s*'), ' ');
+}
+
+final _osc = RegExp('\x1B\\][^\x07\x1B]*(?:\x07|\x1B\\\\)');
+final _csi = RegExp('\x1B\\[[0-?]*[ -/]*[@-~]');
+final _escape = RegExp('\x1B[@-Z\\\\-_]');
+
+/// Terminal output as plain text: color and cursor codes removed, and a line
+/// redrawn with carriage returns (progress bars) kept at its last state.
+String cleanTerminalText(String text) {
+  final plain = text
+      .replaceAll(_osc, '')
+      .replaceAll(_csi, '')
+      .replaceAll(_escape, '')
+      .replaceAll('\r\n', '\n');
+  if (!plain.contains('\r')) return plain;
+  return [
+    for (final line in plain.split('\n'))
+      line.split('\r').lastWhere((part) => part.isNotEmpty, orElse: () => ''),
+  ].join('\n');
 }
 
 class ToolOutput {

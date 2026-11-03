@@ -9,6 +9,7 @@ import 'package:app/ui/chat/widgets/message_bubble.dart';
 import 'package:app/ui/chat/widgets/thinking_block.dart';
 import 'package:app/ui/chat/widgets/tool_run_group.dart';
 import 'package:app/ui/chat/widgets/working_indicator.dart';
+import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -138,6 +139,30 @@ class _ChatFrameState extends State<ChatFrame> {
       children: [
         Positioned.fill(
           child: _ComposerHeight(notifier: _composerHeight, child: widget.body),
+        ),
+        // The transcript scrolls under the floating header; a fade to the
+        // page colour keeps the title readable over it.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 88,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0, .62, 1],
+                  colors: [
+                    context.colors.bg,
+                    context.colors.bg.withValues(alpha: .92),
+                    context.colors.bg.withValues(alpha: 0),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
         Positioned(top: 8, left: 12, right: 12, child: widget.topBar),
         if (widget.revoked != null)

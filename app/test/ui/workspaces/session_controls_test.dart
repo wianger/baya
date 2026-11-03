@@ -442,29 +442,22 @@ void main() {
       expect(find.text('Beta task'), findsOneWidget);
       expect(find.text('Alpha task'), findsNothing);
       expect(prefs.selectedWorkspace, betaWorkspace);
-      // Rename stays on the pencil; deletion moved to a left-swipe on the
-      // whole session row (no more long-press menu).
-      expect(find.byTooltip('Rename session'), findsOneWidget);
-      final betaDelete = find.byKey(
-        ValueKey('session-delete-${peer.remoteEpk}-beta'),
+      // Each row's ⋯ opens the session sheet: rename, and delete confirmed
+      // inside the sheet.
+      final betaMore = find.byKey(
+        ValueKey('session-more-${peer.remoteEpk}-beta'),
       );
-      expect(betaDelete, findsOneWidget);
-      final betaRow = find.byKey(
-        ValueKey('session-row-${peer.remoteEpk}-beta'),
-      );
-      await tester.ensureVisible(betaRow);
+      await tester.ensureVisible(betaMore);
+      await tester.tap(betaMore);
       await tester.pumpAndSettle();
-      final betaCenter = tester.getCenter(betaRow);
-      await tester.dragFrom(
-        Offset(betaCenter.dx + 70, betaCenter.dy),
-        const Offset(-260, 0),
-      );
+      expect(find.byKey(const Key('session-sheet')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('session-action-delete')));
       await tester.pumpAndSettle();
-      expect(find.text('Delete session?'), findsOneWidget);
+      expect(find.byKey(const Key('session-delete-confirm')), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-
-      await tester.tap(find.byTooltip('Rename session'));
+      expect(find.byKey(const Key('session-delete-confirm')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('session-action-rename')));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.descendant(
@@ -487,25 +480,17 @@ void main() {
       await tester.tap(find.byKey(const Key('sidebar-search-close')));
       await tester.pumpAndSettle();
 
-      final renamedBeta = find.byKey(
-        ValueKey('session-row-${peer.remoteEpk}-beta'),
+      final renamedMore = find.byKey(
+        ValueKey('session-more-${peer.remoteEpk}-beta'),
       );
-      await tester.ensureVisible(renamedBeta);
+      await tester.ensureVisible(renamedMore);
+      await tester.tap(renamedMore);
       await tester.pumpAndSettle();
-      final renamedCenter = tester.getCenter(renamedBeta);
-      await tester.dragFrom(
-        Offset(renamedCenter.dx + 70, renamedCenter.dy),
-        const Offset(-260, 0),
-      );
+      await tester.tap(find.byKey(const ValueKey('session-action-delete')));
       await tester.pumpAndSettle();
-      expect(find.text('Delete session?'), findsOneWidget);
-      await tester.tap(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.text('Delete'),
-        ),
-      );
+      await tester.tap(find.byKey(const Key('session-delete-confirm-button')));
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('session-sheet')), findsNothing);
       // Deleting removes the session on the computer, which tells every phone.
       expect(host.calls.last.method, 'session/delete');
       expect(vm.allItems.map((item) => item.sessionId), ['alpha']);
