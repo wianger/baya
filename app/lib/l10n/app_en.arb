@@ -166,8 +166,6 @@
   "textSizeHint": "Scale the whole app, including chat text.",
   "hideToolCalls": "Hide tool calls in chat",
   "hideToolCallsHint": "Only show your messages and assistant replies.",
-  "appUpdates": "App updates",
-  "updateKeepsData": "Open the download to update this app. Your pairings and settings are kept.",
   "chooseFolderHint": "Choose a folder on your computer. A fresh agent session will start there.",
   "refreshComputers": "Refresh computers",
   "folderPath": "Folder path",

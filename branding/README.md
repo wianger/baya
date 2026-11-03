@@ -23,5 +23,5 @@ It writes:
 The Flutter `AppMarkPainter` (`app/lib/ui/core/branding/app_brand.dart`)
 draws the same paths.
 
-`banner.png` is `banner.svg` rendered at 1280×640 with the bundled Geist font
-(`app/assets/fonts/Geist`), for example with resvg.
+`banner.png` is `banner.svg` rendered at 1280×640 with the bundled Pinyon
+Script and Geist fonts (`app/assets/fonts`), for example with resvg.

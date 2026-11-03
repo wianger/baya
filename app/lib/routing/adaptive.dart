@@ -37,21 +37,6 @@ class ResponsiveCenter extends StatelessWidget {
   }
 }
 
-/// Adaptive shell layout state. [isZeroState] is `true` when there is
-/// nothing to list (no paired computer or no sessions); the shell then shows
-/// one centered pane instead of a split with an empty placeholder. It starts
-/// `false` so the common case does not flash single → split at boot.
-class ShellLayout extends ChangeNotifier {
-  bool _zeroState = false;
-  bool get isZeroState => _zeroState;
-
-  void setZeroState(bool value) {
-    if (value == _zeroState) return;
-    _zeroState = value;
-    notifyListeners();
-  }
-}
-
 /// The session selected in the UI (the tablet detail pane, highlighted in
 /// the list). Starts `null` so no chat is preselected at launch, and is not
 /// restored between runs.

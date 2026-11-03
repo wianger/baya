@@ -121,41 +121,4 @@ void main() {
       hosts.dispose();
     });
   });
-
-  group('HomeViewModel — presence filter', () {
-    test(
-      'online and offline split by whether the computer is connected',
-      () async {
-        final up = testPeer(seed: 1, name: 'Up');
-        final down = testPeer(seed: 2, name: 'Down');
-        final storage = MemoryStorage([up, down]);
-        storage.sessions[down.remoteEpk] = [testSession(id: 'cached')];
-        final hosts = testHostsFor(storage, {
-          up.remoteEpk: FakeHost(sessions: [testSession(id: 'live')]),
-        });
-        final vm = HomeViewModel(hosts, storage, await _prefs());
-        await hosts.start();
-        await settle();
-
-        expect(vm.counts, (all: 2, online: 1, offline: 1));
-        expect(vm.visibleItems.map((i) => i.sessionId), ['live']);
-        vm.setFilter(HomeFilter.offline);
-        expect(vm.visibleItems.map((i) => i.sessionId), ['cached']);
-        vm.setFilter(HomeFilter.all);
-        expect(vm.visibleItems, hasLength(2));
-        vm.dispose();
-        hosts.dispose();
-      },
-    );
-
-    test('counts and visibleItems are empty outside a list', () {
-      final storage = MemoryStorage();
-      final hosts = testHosts(storage, FakeHost());
-      final vm = HomeViewModel(hosts, storage, Preferences());
-      expect(vm.counts, (all: 0, online: 0, offline: 0));
-      expect(vm.visibleItems, isEmpty);
-      vm.dispose();
-      hosts.dispose();
-    });
-  });
 }

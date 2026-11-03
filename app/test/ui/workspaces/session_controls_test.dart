@@ -414,7 +414,10 @@ void main() {
       expect(find.text('All'), findsNothing);
       expect(find.textContaining('Working'), findsNothing);
       expect(find.byType(AppMark), findsOneWidget);
-      expect(find.text('Baya'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('Baya')).style?.fontFamily,
+        'Pinyon Script',
+      );
       // Claude-style footer: settings circle + primary New session pill.
       final settings = find.byKey(const Key('sidebar-settings'));
       expect(settings, findsOneWidget);

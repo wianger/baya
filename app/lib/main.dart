@@ -89,7 +89,6 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
         ChangeNotifierProvider<BackedUpOwnerIdentityStore>.value(
           value: services.identityStore,
         ),
-        ChangeNotifierProvider<ShellLayout>.value(value: services.shellLayout),
         ChangeNotifierProvider<Hosts>.value(value: services.hosts),
       ],
       // Theme is reactive: toggling the mode in Settings notifies

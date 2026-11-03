@@ -1,4 +1,4 @@
-import { createPrivateKey, createPublicKey, getRandomValues, sign } from "node:crypto";
+import { createPrivateKey, createPublicKey, getRandomValues } from "node:crypto";
 
 export interface Ed25519Keypair {
   publicKey: Uint8Array;
@@ -23,14 +23,10 @@ function publicKeyFor(seed: Uint8Array): Uint8Array {
   return Buffer.from(jwk.x!, "base64url");
 }
 
-/** Generates an Ed25519 keypair for challenge-response auth. */
+/** Generates the host's Ed25519 identity keypair. */
 export function generateEd25519Keypair(): Ed25519Keypair {
   const secretKey = getRandomValues(new Uint8Array(ED25519_KEY_BYTES));
   return { secretKey, publicKey: publicKeyFor(secretKey) };
-}
-
-export function ed25519Sign(seed: Uint8Array, message: Uint8Array): Uint8Array {
-  return sign(null, message, privateKey(seed));
 }
 
 /**

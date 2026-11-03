@@ -10,7 +10,6 @@ import 'package:app/routing/adaptive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
 GoRouter _buildAdaptiveRouter() {
   return GoRouter(
@@ -190,80 +189,6 @@ void main() {
         await _pumpAt(tester, const Size(932, 430));
         expect(find.text('MASTER'), findsOneWidget);
         expect(find.text('DETAIL'), findsNothing);
-      },
-    );
-  });
-
-  group('zero-state collapse', () {
-    GoRouter buildGatedRouter() {
-      return GoRouter(
-        initialLocation: '/home',
-        routes: [
-          StatefulShellRoute(
-            builder: (ctx, st, navShell) => navShell,
-            navigatorContainerBuilder: (ctx, navShell, children) {
-              final twoPane =
-                  isWideLayout(ctx) && !ctx.watch<ShellLayout>().isZeroState;
-              if (!twoPane) return children[navShell.currentIndex];
-              return Row(
-                children: [
-                  SizedBox(width: 360, child: children[0]),
-                  Expanded(child: children[1]),
-                ],
-              );
-            },
-            branches: [
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: '/home',
-                    builder: (_, _) =>
-                        const Scaffold(body: Center(child: Text('MASTER'))),
-                  ),
-                ],
-              ),
-              StatefulShellBranch(
-                preload: true,
-                routes: [
-                  GoRoute(
-                    path: '/session',
-                    builder: (_, _) =>
-                        const Scaffold(body: Center(child: Text('DETAIL'))),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    testWidgets(
-      'wide + zero-state shows only master; flipping back re-splits',
-      (tester) async {
-        final shell = ShellLayout()..setZeroState(true);
-        tester.view.devicePixelRatio = 1.0;
-        tester.view.physicalSize = const Size(1200, 800);
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        await tester.pumpWidget(
-          ChangeNotifierProvider<ShellLayout>.value(
-            value: shell,
-            child: MaterialApp.router(routerConfig: buildGatedRouter()),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // Zero-state on a wide screen → single pane (no split).
-        expect(find.text('MASTER'), findsOneWidget);
-        expect(find.text('DETAIL'), findsNothing);
-
-        // Sessions appear → the split returns.
-        shell.setZeroState(false);
-        await tester.pumpAndSettle();
-        expect(find.text('MASTER'), findsOneWidget);
-        expect(find.text('DETAIL'), findsOneWidget);
       },
     );
   });

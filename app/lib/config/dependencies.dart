@@ -73,7 +73,6 @@ final class AppServices {
   // ── App-wide UI state ─────────────────────────────────────────────────
   /// The session the tablet detail pane shows; starts empty.
   late final selection = SessionSelection();
-  late final shellLayout = ShellLayout();
 
   // ── Data ──────────────────────────────────────────────────────────────
   late final IWorkspaceRepository workspaces = WorkspaceRepository(hosts);

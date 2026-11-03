@@ -68,9 +68,9 @@ def svg_banner() -> str:
     return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640">
   <rect width="1280" height="640" fill="#0E0E10"/>
   <svg x="184" y="200" width="240" height="240" viewBox="0 0 108 108">{mark}</svg>
-  <text x="484" y="338" fill="#EDEDEF" font-family="Geist" font-weight="600"
-    font-size="132" letter-spacing="-5">Baya</text>
-  <text x="490" y="408" fill="#8A8A93" font-family="Geist" font-size="34">
+  <text x="478" y="318" fill="#EDEDEF" font-family="Pinyon Script"
+    font-size="150">Baya</text>
+  <text x="490" y="436" fill="#8A8A93" font-family="Geist" font-size="34">
     Your coding agents, from your phone.</text>
 </svg>
 """

@@ -1,6 +1,7 @@
 import 'package:app/acp/acp.dart';
 import 'package:app/data/hosts/host_connection.dart';
 import 'package:app/data/hosts/hosts.dart';
+import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 
 /// Folders and new sessions on a paired computer (`_baya/browse`,
@@ -14,7 +15,9 @@ class WorkspaceRepository extends IWorkspaceRepository {
   Future<List<WorkspaceHost>> listHosts() async => [
     for (final host in _hosts.all)
       WorkspaceHost(
-        id: host.key,
+        // Workspaces are keyed by the standard base64 key, as the sidebar
+        // keys computers; pairing stores the QR's base64url form.
+        id: toStandardB64(host.key),
         label: host.host.label,
         online: host.isOnline,
       ),

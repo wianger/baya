@@ -6,9 +6,6 @@ sealed class HomeState {
   const HomeState();
 }
 
-/// Which connection slice of the Home list is shown. A pure view filter.
-enum HomeFilter { all, online, offline }
-
 class HomeLoading extends HomeState {
   const HomeLoading();
 }
@@ -46,21 +43,12 @@ class HomeList extends HomeState {
 
   /// Standard-base64 key → sessions on that computer.
   final Map<String, List<SessionSummary>> sessionsByPeer;
-  final HomeFilter filter;
 
   const HomeList({
     required this.peers,
     this.onlineByEpk = const {},
     this.sessionsByPeer = const {},
-    this.filter = HomeFilter.online,
   });
-
-  HomeList copyWith({HomeFilter? filter}) => HomeList(
-    peers: peers,
-    onlineByEpk: onlineByEpk,
-    sessionsByPeer: sessionsByPeer,
-    filter: filter ?? this.filter,
-  );
 
   /// One row per (computer, session): computers by label, sessions newest
   /// first.
@@ -79,7 +67,6 @@ class HomeList extends HomeState {
   @override
   bool operator ==(Object other) =>
       other is HomeList &&
-      other.filter == filter &&
       listEquals(other.peers, peers) &&
       mapEquals(other.onlineByEpk, onlineByEpk) &&
       _sameSessions(other.sessionsByPeer, sessionsByPeer);
@@ -97,7 +84,6 @@ class HomeList extends HomeState {
 
   @override
   int get hashCode => Object.hash(
-    filter,
     Object.hashAll(peers),
     Object.hashAllUnordered(
       onlineByEpk.entries.map((e) => '${e.key}:${e.value}'),

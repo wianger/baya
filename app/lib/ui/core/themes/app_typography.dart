@@ -10,39 +10,23 @@ const String kMonoFamily = 'Geist Mono';
 /// System fallback handles CJK and other scripts.
 const List<String>? kFontFallback = null;
 
-/// General branded labels use the bundled interface face.
-TextStyle brandTextStyle({
-  required double fontSize,
-  FontWeight fontWeight = FontWeight.w700,
-  Color? color,
-  double? letterSpacing,
-  double? height,
-}) {
-  return TextStyle(
-    fontFamily: kSansFamily,
-    fontFamilyFallback: kFontFallback,
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    color: color,
-    letterSpacing: letterSpacing,
-    height: height,
-  );
-}
+/// The Baya wordmark's script face (OFL, bundled).
+const kWordmarkFamily = 'Pinyon Script';
 
-/// The wordmark: Geist, tight and confident.
+/// The Baya wordmark, set in Pinyon Script.
 TextStyle brandDisplayTextStyle({
   required double fontSize,
-  FontWeight fontWeight = FontWeight.w600,
+  FontWeight fontWeight = FontWeight.w400,
   Color? color,
 }) {
   return TextStyle(
-    fontFamily: kSansFamily,
+    fontFamily: kWordmarkFamily,
     fontFamilyFallback: kFontFallback,
     fontSize: fontSize,
     fontWeight: fontWeight,
     color: color,
-    letterSpacing: -fontSize * .045,
-    height: 1.1,
+    letterSpacing: .2,
+    height: 1.2,
   );
 }
 

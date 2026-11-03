@@ -110,7 +110,7 @@ void main() {
 
       expect(result, isA<IdentityReady>());
       expect(result.generated, isTrue);
-      expect(bridge.currentOwnerPk, isNotNull);
+      expect(bridge.currentIdentity?.ownerPk, isNotNull);
     });
 
     test(
@@ -129,7 +129,7 @@ void main() {
 
         expect(result, isA<IdentityReady>());
         expect(result.generated, isFalse);
-        expect(bridge.currentOwnerPk, id.ownerPk);
+        expect(bridge.currentIdentity?.ownerPk, id.ownerPk);
       },
     );
   });

@@ -26,7 +26,6 @@ class ToolContent {
 
   bool get isRead => tool.kind == ToolKind.read;
   bool get isSearch => tool.kind == ToolKind.search;
-  bool get isWeb => tool.kind == ToolKind.fetch;
   bool get isAgentMessage => false;
 
   /// Reasoning and other prose read better in the body font.

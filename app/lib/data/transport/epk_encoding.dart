@@ -19,9 +19,7 @@ String toStandardB64(String b64) {
   try {
     final pad = (4 - b64.length % 4) % 4;
     final bytes = base64Url.decode(b64 + '=' * pad);
-    final out = base64.encode(bytes);
-    if (out != b64) {}
-    return out;
+    return base64.encode(bytes);
   } catch (_) {
     return b64;
   }

@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:app/data/workspaces/workspace_repository.dart';
+import 'package:app/pairing/storage.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -46,6 +49,24 @@ void main() {
       repo.browse(testPeer().remoteEpk),
       throwsA(isA<WorkspaceFailure>()),
     );
+    hosts.dispose();
+  });
+
+  test('computers are identified by the key workspaces use', () async {
+    // Pairing stores the QR's base64url key; workspaces use standard base64.
+    final bytes = List.filled(32, 0xfb);
+    final peer = testPeer();
+    final paired = PeerRecord(
+      remoteEpk: base64Url.encode(bytes).replaceAll('=', ''),
+      name: peer.name,
+      endpoint: peer.endpoint,
+      pairedAt: peer.pairedAt,
+    );
+    final hosts = testHosts(MemoryStorage([paired]), FakeHost());
+    await hosts.start();
+    await settle();
+    final computers = await WorkspaceRepository(hosts).listHosts();
+    expect(computers.single.id, base64.encode(bytes));
     hosts.dispose();
   });
 }

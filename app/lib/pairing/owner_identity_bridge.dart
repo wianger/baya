@@ -37,11 +37,6 @@ class OwnerIdentityBridge extends ChangeNotifier {
 
   OwnerIdentity? get currentIdentity => _current;
 
-  /// Public key of the currently-loaded Owner identity (or null when
-  /// the bridge hasn't booted yet). Surfaces this for the router's
-  /// guard logic.
-  Uint8List? get currentOwnerPk => _current?.ownerPk;
-
   /// Load the Owner identity, or create one on first run.
   Future<IdentityReady> boot() async {
     try {

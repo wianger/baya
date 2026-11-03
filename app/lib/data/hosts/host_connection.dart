@@ -83,9 +83,6 @@ class HostConnection extends ChangeNotifier {
   final _questions = <Object, Object>{};
   final _answers = <Object, Completer<Json>>{};
 
-  /// Link elicitations the agent finished, by elicitation id.
-  final _completedLinks = <String>{};
-
   final _updates = StreamController<SessionEvent>.broadcast();
   final _questionEvents = StreamController<QuestionEvent>.broadcast();
   final _terminals = StreamController<TerminalEvent>.broadcast();
@@ -116,10 +113,6 @@ class HostConnection extends ChangeNotifier {
   /// Elicitations still open, oldest first.
   List<ElicitationRequest> get openElicitations =>
       _questions.values.whereType<ElicitationRequest>().toList();
-
-  /// Whether the agent said a link elicitation is done.
-  bool linkCompleted(String elicitationId) =>
-      _completedLinks.contains(elicitationId);
 
   SessionSummary? session(String sessionId) =>
       _sessions.where((s) => s.sessionId == sessionId).firstOrNull;
@@ -374,7 +367,6 @@ class HostConnection extends ChangeNotifier {
       case 'elicitation/complete':
         final id = params['elicitationId'];
         if (id is String) {
-          _completedLinks.add(id);
           for (final MapEntry(:key, :value) in _questions.entries.toList()) {
             if (value is ElicitationRequest && value.elicitationId == id) {
               _withdraw(key);

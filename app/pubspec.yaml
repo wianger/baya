@@ -1,7 +1,7 @@
 name: app
 description: "Baya mobile client for computers running the standalone Baya host."
 publish_to: "none"
-version: 2.2.1+93
+version: 2.2.2+94
 
 environment:
   sdk: ^3.13.0
@@ -66,9 +66,13 @@ flutter:
   assets:
     - assets/fonts/GeistMono/OFL.txt
     - assets/fonts/Geist/OFL.txt
+    - assets/fonts/PinyonScript/OFL.txt
 
   # Unmodified upstream static fonts; sources and checksums in assets/fonts.
   fonts:
+    - family: Pinyon Script
+      fonts:
+        - asset: assets/fonts/PinyonScript/PinyonScript-Regular.ttf
     - family: Geist
       fonts:
         - asset: assets/fonts/Geist/Geist-Regular.ttf

@@ -15,8 +15,8 @@
     <ellipse cx="54" cy="85" rx="3.6" ry="3.2" fill="#131315"/>
   </g>
 </svg>
-  <text x="484" y="338" fill="#EDEDEF" font-family="Geist" font-weight="600"
-    font-size="132" letter-spacing="-5">Baya</text>
-  <text x="490" y="408" fill="#8A8A93" font-family="Geist" font-size="34">
+  <text x="478" y="318" fill="#EDEDEF" font-family="Pinyon Script"
+    font-size="150">Baya</text>
+  <text x="490" y="436" fill="#8A8A93" font-family="Geist" font-size="34">
     Your coding agents, from your phone.</text>
 </svg>

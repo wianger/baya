@@ -247,8 +247,16 @@ void main() {
       name: 'Release train',
       deviceEpk: pc.remoteEpk,
     );
-    await vm.assignSessionToWorkspace(alpha, workspace);
-    await vm.assignSessionToWorkspace(beta, workspace);
+    await vm.assignSessionIdToWorkspace(
+      alpha.peer.remoteEpk,
+      alpha.sessionId,
+      workspace,
+    );
+    await vm.assignSessionIdToWorkspace(
+      beta.peer.remoteEpk,
+      beta.sessionId,
+      workspace,
+    );
     await pumpEventQueue();
 
     expect(vm.selectedWorkspace, workspace);

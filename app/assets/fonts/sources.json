@@ -48,5 +48,15 @@
     "file": "Geist/OFL.txt",
     "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/OFL.txt",
     "sha256": "942560b236adfa83745b2c64e5fc09ebaf91cb331751b1157eb92187e5d6e930"
+  },
+  {
+    "file": "PinyonScript/PinyonScript-Regular.ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/pinyonscript/PinyonScript-Regular.ttf",
+    "sha256": "4aab130a6ed27f8b8117738c84a5602edf9300cdcc0651a9a65bf96f451ac29a"
+  },
+  {
+    "file": "PinyonScript/OFL.txt",
+    "source": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/pinyonscript/OFL.txt",
+    "sha256": "5b6456d2e1a11e06ba40ed52863a9de58eef6221c78005abba4182bb4810fc73"
   }
 ]

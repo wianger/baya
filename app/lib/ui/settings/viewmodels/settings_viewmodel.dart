@@ -30,25 +30,6 @@ class SettingsViewModel extends ViewModel<SettingsState> {
     emit(SettingsList(peers: peers));
   }
 
-  /// Set or clear the local nickname for the peer at [epk].
-  Future<void> setNickname(String epk, String? nickname) async {
-    final s = state;
-    if (s is! SettingsList) return;
-    PeerRecord? target;
-    for (final p in s.peers) {
-      if (p.remoteEpk == epk) {
-        target = p;
-        break;
-      }
-    }
-    if (target == null) return;
-    final trimmed = nickname?.trim();
-    final normalized = (trimmed == null || trimmed.isEmpty) ? null : trimmed;
-    final updated = target.copyWith(nickname: normalized);
-    await _storage.savePeer(updated);
-    await _load();
-  }
-
   /// Forget the computer on this phone. If it was the last one, the next
   /// boot starts with onboarding again.
   Future<void> revoke(String epk) async {

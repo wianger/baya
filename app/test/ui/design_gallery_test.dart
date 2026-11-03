@@ -174,7 +174,6 @@ void main() {
       ChangeNotifierProvider<HomeViewModel>.value(value: home),
       ChangeNotifierProvider<SessionSelection>.value(value: selection),
       ChangeNotifierProvider<Hosts>.value(value: hosts),
-      ChangeNotifierProvider(create: (_) => ShellLayout()),
     ];
 
     await shoot(

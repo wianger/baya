@@ -14,7 +14,6 @@ void main() {
     expect(qr.epk, epk);
     expect(qr.name, 'Review');
     expect(qr.endpoint, 'https://endpoint.example');
-    expect(qr.epkBytes, hasLength(32));
   });
 
   test('accepts tokens of 16 to 64 bytes', () {

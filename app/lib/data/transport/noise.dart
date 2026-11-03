@@ -89,8 +89,6 @@ class CipherState {
     _nonce = 0;
   }
 
-  bool get hasKey => _key != null;
-
   List<int> _iv() {
     final iv = Uint8List(12);
     ByteData.sublistView(iv).setUint64(4, _nonce, Endian.little);

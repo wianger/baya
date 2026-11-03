@@ -93,8 +93,6 @@ class UpdateBannerViewModel extends ViewModel<UpdateBannerState> {
     }
   }
 
-  Future<bool> openReleases() => _opener.open(fallbackUrl);
-
   /// Open an arbitrary external link through the same platform opener the
   /// update flow uses, so About/markdown links share one error path.
   Future<bool> openUrl(String url) => _opener.open(url);

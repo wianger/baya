@@ -132,9 +132,7 @@ class AppColors extends ThemeExtension<AppColors> {
   /// Tonal layers. Material 3 expresses elevation through tone, not
   /// translucency or heavy shadows.
   Color get glassFill => inputFill;
-  Color get glassFillStrong => modelBadgeBg;
   Color get selection => accent.withValues(alpha: .12);
-  Color get quietFill => surface;
 
   @override
   AppColors copyWith({

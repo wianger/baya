@@ -38,7 +38,5 @@ class QrPairPayload {
     }
   }
 
-  List<int> get epkBytes => base64Url.decode(_pad(epk));
-
   static String _pad(String s) => s + '=' * ((4 - s.length % 4) % 4);
 }

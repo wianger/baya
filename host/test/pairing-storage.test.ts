@@ -1,4 +1,3 @@
-import { createPublicKey, verify } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,19 +25,6 @@ const PHONE_A = Buffer.alloc(32, 1);
 const PHONE_B = Buffer.alloc(32, 2);
 
 describe("Ed25519 helpers", () => {
-  test("sign with node:crypto and verify against the derived public key", async () => {
-    const { ed25519Sign, generateEd25519Keypair } = await import("../src/pairing/crypto.js");
-    const keypair = generateEd25519Keypair();
-    const message = Buffer.from("challenge");
-    const signature = ed25519Sign(keypair.secretKey, message);
-    const publicKey = createPublicKey({
-      key: { kty: "OKP", crv: "Ed25519", x: Buffer.from(keypair.publicKey).toString("base64url") },
-      format: "jwk",
-    });
-    expect(signature).toHaveLength(64);
-    expect(verify(null, message, publicKey, signature)).toBe(true);
-  });
-
   test("canonicalizes standard and URL-safe spellings to one key", async () => {
     const { canonicalizeEd25519PublicKey } = await import("../src/pairing/crypto.js");
     const key = Buffer.from(Array.from({ length: 32 }, (_, index) => index * 7 + 250));

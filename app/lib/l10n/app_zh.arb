@@ -166,8 +166,6 @@
   "textSizeHint": "缩放整个应用，包括聊天文字。",
   "hideToolCalls": "在聊天中隐藏工具调用",
   "hideToolCallsHint": "只显示你的消息和助手回复。",
-  "appUpdates": "应用更新",
-  "updateKeepsData": "打开下载即可更新，配对和设置都会保留。",
   "chooseFolderHint": "选择电脑上的一个文件夹，将在那里启动新的智能体会话。",
   "refreshComputers": "刷新电脑列表",
   "folderPath": "文件夹路径",

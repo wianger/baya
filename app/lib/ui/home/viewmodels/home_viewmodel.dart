@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:app/acp/acp.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/epk_encoding.dart';
@@ -31,7 +30,7 @@ class HomeViewModel extends ViewModel<HomeState> {
   }
 
   List<HomeItem> get allItems => state is HomeList
-      ? (state as HomeList).items(normalizeEpk: normalizeEpkForLookup)
+      ? (state as HomeList).items(normalizeEpk: toStandardB64)
       : const [];
 
   Map<String, PeerRecord> get devices {
@@ -48,10 +47,6 @@ class HomeViewModel extends ViewModel<HomeState> {
     if (choices.containsKey(remembered)) return remembered;
     return choices.keys.firstOrNull;
   }
-
-  List<HomeItem> get deviceItems => allItems
-      .where((item) => toStandardB64(item.peer.remoteEpk) == selectedDevice)
-      .toList();
 
   String workspaceKeyFor(HomeItem item) =>
       _prefs.workspaceForSession(item.peer.remoteEpk, item.sessionId) ??
@@ -92,13 +87,6 @@ class HomeViewModel extends ViewModel<HomeState> {
     if (name.trim().isEmpty) return Future.value();
     return _prefs.setWorkspaceName(key, name);
   }
-
-  Future<void> assignSessionToWorkspace(HomeItem item, String workspaceKey) =>
-      _prefs.setSessionWorkspace(
-        item.peer.remoteEpk,
-        item.sessionId,
-        workspaceKey,
-      );
 
   Future<void> assignSessionIdToWorkspace(
     String deviceEpk,
@@ -197,8 +185,6 @@ class HomeViewModel extends ViewModel<HomeState> {
     return result;
   }
 
-  String? workspaceSubtitle(String key) => workspaces[key];
-
   String? get selectedWorkspace {
     final choices = workspaces;
     final device = selectedDevice;
@@ -256,7 +242,6 @@ class HomeViewModel extends ViewModel<HomeState> {
       emit(const HomeNoPeer());
       return;
     }
-    final current = state;
     emit(
       HomeList(
         peers: [for (final host in hosts) host.host],
@@ -266,46 +251,8 @@ class HomeViewModel extends ViewModel<HomeState> {
         sessionsByPeer: {
           for (final host in hosts) toStandardB64(host.key): host.sessions,
         },
-        filter: current is HomeList ? current.filter : HomeFilter.online,
       ),
     );
-  }
-
-  /// Switch the presence tab. No reload: it only swaps the
-  /// `filter` in state so [visibleItems] re-derives. No-op when the state
-  /// isn't a list or the filter is unchanged.
-  void setFilter(HomeFilter filter) {
-    final s = state;
-    if (s is! HomeList) return;
-    if (s.filter == filter) return;
-    emit(s.copyWith(filter: filter));
-  }
-
-  /// `true` when the session's computer is connected: the Online/Offline split.
-  bool _online(HomeItem it) =>
-      _hosts.byKey(it.peer.remoteEpk)?.isOnline ?? false;
-
-  /// The items the current [HomeList.filter] keeps. A pure
-  /// view over `state.items()`; returns `const []` outside a list state.
-  List<HomeItem> get visibleItems {
-    final s = state;
-    if (s is! HomeList) return const [];
-    final all = s.items(normalizeEpk: normalizeEpkForLookup);
-    return switch (s.filter) {
-      HomeFilter.all => all,
-      HomeFilter.online => all.where(_online).toList(),
-      HomeFilter.offline => all.where((i) => !_online(i)).toList(),
-    };
-  }
-
-  /// Per-tab counts for the filter badges. Independent of
-  /// the active tab (each badge always shows its own slice's size).
-  ({int all, int online, int offline}) get counts {
-    final s = state;
-    if (s is! HomeList) return (all: 0, online: 0, offline: 0);
-    final all = s.items(normalizeEpk: normalizeEpkForLookup);
-    final online = all.where(_online).length;
-    return (all: all.length, online: online, offline: all.length - online);
   }
 
   /// Remember the workspace of the session the user opened.
@@ -316,17 +263,9 @@ class HomeViewModel extends ViewModel<HomeState> {
     );
   }
 
-  /// Helper for widgets: any base64 key → the standard form used as map key.
-  static String normalizeEpkForLookup(String epk) => toStandardB64(epk);
-
   /// `true` when the session's computer is connected.
   bool isRoomLive(String epk, String sessionId) =>
       _hosts.byKey(epk)?.isOnline ?? false;
-
-  /// The computer, for agents and connection state.
-  bool isDeviceOnline(String epk) => _hosts.byKey(epk)?.isOnline ?? false;
-
-  List<AgentInfo> agentsOf(String epk) => _hosts.byKey(epk)?.agents ?? const [];
 
   @override
   void dispose() {
