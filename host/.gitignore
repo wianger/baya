@@ -1,3 +1,4 @@
 
 # Windows npm paths mis-resolved under WSL
 /C:*
+build/

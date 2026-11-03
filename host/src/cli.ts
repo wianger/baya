@@ -11,7 +11,6 @@ import {
 } from "node:fs";
 import { hostname } from "node:os";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { SessionHub } from "./acp/hub.ts";
 import { booleanFlag, type ParsedArgs, parseArgs, stringFlag } from "./cli/args.ts";
 import {
@@ -47,6 +46,7 @@ import { dshDesktop, isDsh } from "./integrations/dsh_desktop.ts";
 import { buildQRUri, displayQR } from "./pairing/qr.ts";
 import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/storage.ts";
 import { issuePendingPairToken, type PendingPairToken } from "./pairing/token_store.ts";
+import { selfCommand } from "./runtime/self.ts";
 import { packageVersion } from "./runtime/version.ts";
 import { installStartup, uninstallStartup } from "./service.ts";
 import { findSession, folderName, listSessions, removeSession } from "./session/registry.ts";
@@ -210,14 +210,15 @@ async function startBackground(): Promise<HostStatus> {
   ensureBayaHome();
   mkdirSync(join(BAYA_HOME, "runtime"), { recursive: true, mode: 0o700 });
   mkdirSync(join(BAYA_HOME, "logs"), { recursive: true, mode: 0o700 });
-  const serveArgs = [fileURLToPath(import.meta.url), "serve", "--log", LOG_FILE];
+  const [executable, ...prefix] = selfCommand();
+  const serveArgs = [...prefix, "serve", "--log", LOG_FILE];
   if (process.platform === "win32") {
     // Start-Process gives the host a console of its own with its window
     // hidden. Agents and every tool they run share it; a host without a
     // console would make each of those open a visible console window.
     const quote = (value: string): string => `'${value.replace(/'/g, "''")}'`;
     const argumentList = serveArgs.map((arg) => `"${arg}"`).join(" ");
-    const script = `Start-Process -WindowStyle Hidden -FilePath ${quote(process.execPath)} -ArgumentList ${quote(argumentList)}`;
+    const script = `Start-Process -WindowStyle Hidden -FilePath ${quote(executable!)} -ArgumentList ${quote(argumentList)}`;
     await new Promise<void>((done, fail) => {
       spawn(
         "powershell.exe",
@@ -233,7 +234,7 @@ async function startBackground(): Promise<HostStatus> {
         .on("exit", () => done());
     });
   } else {
-    spawn(process.execPath, serveArgs, {
+    spawn(executable!, serveArgs, {
       detached: true,
       env: { ...process.env },
       stdio: "ignore",
@@ -640,8 +641,7 @@ function autostart(args: ParsedArgs): void {
     out(
       ok(
         installStartup({
-          nodePath: process.execPath,
-          entryPath: fileURLToPath(import.meta.url),
+          command: selfCommand(),
           cwd: resolve(process.cwd()),
           path: process.env["PATH"] ?? "",
           logDir: join(BAYA_HOME, "logs"),

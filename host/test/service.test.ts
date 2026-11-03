@@ -9,8 +9,7 @@ describe("per-user Windows startup", () => {
 
   test("builds a hidden command that preserves spaces and apostrophes", () => {
     const command = buildWindowsStartupCommand({
-      nodePath: "C:\\Program Files\\node.exe",
-      entryPath: "C:\\Users\\O'Brien\\baya\\dist\\cli.js",
+      command: ["C:\\Program Files\\node.exe", "C:\\Users\\O'Brien\\baya\\dist\\cli.js"],
       cwd: "C:\\Users\\O'Brien\\project space",
       systemRoot: "C:\\Windows",
     });
@@ -28,8 +27,7 @@ describe("per-user Windows startup", () => {
 });
 
 const target = {
-  nodePath: "/usr/bin/node",
-  entryPath: "/home/a b/baya/dist/cli.js",
+  command: ["/usr/bin/node", "/home/a b/baya/dist/cli.js"],
   cwd: '/home/a b/100% "done"',
   path: "/usr/local/bin:/usr/bin",
   logDir: "/home/a b/.baya/logs",

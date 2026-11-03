@@ -9,8 +9,8 @@ import { dirname, join, win32 } from "node:path";
  * a LaunchAgent. systemd and launchd also restart the host if it crashes.
  */
 interface StartupTarget {
-  nodePath: string;
-  entryPath: string;
+  /** Runs Baya: the executable, or Node and the script. */
+  command: string[];
   cwd: string;
   /** PATH for the service, so it finds the agents' commands. */
   path: string;
@@ -96,14 +96,14 @@ export function uninstallStartup(): string {
 }
 
 export function buildWindowsStartupCommand(input: {
-  nodePath: string;
-  entryPath: string;
+  command: string[];
   cwd: string;
   systemRoot: string;
 }): string {
+  const [executable, ...prefix] = input.command;
   const script = [
-    `& ${powerShellLiteral(input.nodePath)}`,
-    powerShellLiteral(input.entryPath),
+    `& ${powerShellLiteral(executable!)}`,
+    ...prefix.map(powerShellLiteral),
     "serve",
     "--cwd",
     powerShellLiteral(input.cwd),
@@ -120,7 +120,7 @@ export function buildWindowsStartupCommand(input: {
 }
 
 export function buildSystemdUnit(target: StartupTarget): string {
-  const exec = [target.nodePath, target.entryPath, "serve", "--cwd", target.cwd]
+  const exec = [...target.command, "serve", "--cwd", target.cwd]
     .map(systemdQuote)
     .join(" ");
   return `[Unit]
@@ -141,7 +141,7 @@ WantedBy=default.target
 }
 
 export function buildLaunchAgentPlist(target: StartupTarget): string {
-  const args = [target.nodePath, target.entryPath, "serve", "--cwd", target.cwd]
+  const args = [...target.command, "serve", "--cwd", target.cwd]
     .map((arg) => `    <string>${xml(arg)}</string>`)
     .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
