@@ -442,6 +442,7 @@ sealed class SessionUpdate {
           },
           ContentBlock.fromJson(_map(json['content'])),
           _string(json['messageId']),
+          startup: bayaMeta(json)['startup'] == true,
         );
       case 'tool_call':
         return ToolCallUpdate(ToolCallPatch.fromJson(json), isNew: true);
@@ -503,7 +504,15 @@ class MessageChunk extends SessionUpdate {
   final ChunkRole role;
   final ContentBlock content;
   final String? messageId;
-  const MessageChunk(this.role, this.content, this.messageId);
+
+  /// The agent said it on its own before the first prompt (Baya marks it).
+  final bool startup;
+  const MessageChunk(
+    this.role,
+    this.content,
+    this.messageId, {
+    this.startup = false,
+  });
 }
 
 class ToolCallUpdate extends SessionUpdate {

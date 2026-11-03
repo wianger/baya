@@ -207,12 +207,13 @@ void main() {
 
   test('startup chatter folds away and empty agent text is dropped', () {
     final items = toolRunItemsForMessages(const [
-      AssistantMsg(id: 'a0', text: 'pi v1.5.0\n## Skills'),
-      UserMsg(id: 'u1', text: 'Hi'),
+      AssistantMsg(id: 'a0', text: 'pi v1.5.0\n## Skills', startup: true),
       AssistantMsg(id: 'a1', text: '  '),
+      // A reply with no user message before it (history adopted from the
+      // agent, or only the tail loaded) stays a reply.
       AssistantMsg(id: 'a2', text: 'Hello'),
     ]);
-    expect(items, hasLength(3));
+    expect(items, hasLength(2));
     expect(items.first, isA<StartupNote>());
     expect((items.last as AssistantMsg).text, 'Hello');
   });

@@ -26,15 +26,13 @@ List<Object> toolRunItemsForMessages(List<ChatMessage> messages) {
     run.clear();
   }
 
-  var prompted = false;
   for (final message in messages) {
-    if (message is UserMsg) prompted = true;
     // Empty agent text (some agents open a turn with an empty chunk) has
     // nothing to show.
     if (message is AssistantMsg && message.text.trim().isEmpty) continue;
-    // What an agent says before anyone has asked it anything is its startup
-    // chatter (version, loaded skills), not a reply.
-    if (message is AssistantMsg && !prompted) {
+    // The computer marks what an agent says on its own before the first
+    // prompt (version, loaded skills): startup chatter, not a reply.
+    if (message is AssistantMsg && message.startup) {
       flushRun();
       items.add(StartupNote(message));
       continue;

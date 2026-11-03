@@ -50,12 +50,19 @@ async function handle(method, params) {
     case "session/new": {
       const sessionId = `fake-${sessions.size + 1}`;
       sessions.add(sessionId);
-      setTimeout(() =>
+      setTimeout(() => {
         update(sessionId, {
           sessionUpdate: "available_commands_update",
           availableCommands: [{ name: "compact", description: "Compact the context" }],
-        }),
-      );
+        });
+        // Like Pi: a banner before anyone has asked anything.
+        if (params.cwd?.includes("banner")) {
+          update(sessionId, {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: "fake v1, skills loaded" },
+          });
+        }
+      });
       return { sessionId, configOptions: config };
     }
     case "authenticate":

@@ -12,6 +12,24 @@ Map<String, dynamic> chunk(String kind, String text, [String? id]) => {
 };
 
 void main() {
+  test('startup chatter is kept apart from the reply that follows', () {
+    final t = Transcript()
+      ..apply(
+        u({
+          ...chunk('agent_message_chunk', 'pi v1.5'),
+          '_meta': {
+            'baya': {'startup': true},
+          },
+        }),
+      )
+      ..apply(u(chunk('agent_message_chunk', 'Hello')));
+    final rows = t.messages.whereType<AssistantMsg>().toList();
+    expect(rows.map((m) => (m.text, m.startup)), [
+      ('pi v1.5', true),
+      ('Hello', false),
+    ]);
+  });
+
   test('streamed chunks fold into one message per role', () {
     final t = Transcript()
       ..apply(u(chunk('user_message_chunk', 'Fix it', 'm1')))

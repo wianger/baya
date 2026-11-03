@@ -366,8 +366,46 @@ describe("ACP over the direct connection", () => {
       sessionUpdate: "agent_message_chunk",
       content: { type: "text", text: "remembered" },
     });
+    // The adopted history keeps the user's side too, and nothing in it is
+    // taken for startup chatter.
+    expect(a.updates(sessionId)).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "from the agent's history" },
+      }),
+    );
+    expect(JSON.stringify(a.updates(sessionId))).not.toContain("startup");
     const again = await a.call("_baya/agent_sessions", { agent: "fake", cwd: tmpdir() });
     expect(again["sessions"].map((s: Frame) => s["sessionId"])).not.toContain("old-1");
+  });
+
+  test("what an agent says before the first prompt is marked as startup", async () => {
+    const { host, port, storage, hub } = await setup();
+    const a = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "P", remote_epk: a.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const cwd = mkdtempSync(join(tmpdir(), "banner-"));
+    const { sessionId } = (await a.call("session/new", {
+      cwd,
+      mcpServers: [],
+      _meta: { baya: { agent: "fake" } },
+    })) as { sessionId: string };
+    for (let i = 0; i < 50 && !JSON.stringify(a.updates(sessionId)).includes("fake v1"); i++) {
+      await new Promise((done) => setTimeout(done, 20));
+    }
+    expect(a.updates(sessionId)).toContainEqual({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "fake v1, skills loaded" },
+      _meta: { baya: { startup: true } },
+    });
+    await a.call("session/prompt", {
+      sessionId,
+      prompt: [{ type: "text", text: "hi" }],
+    });
+    const replies = a
+      .updates(sessionId)
+      .filter((u: Frame) => u["sessionUpdate"] === "agent_message_chunk");
+    expect(replies.filter((u: Frame) => JSON.stringify(u).includes("startup"))).toHaveLength(1);
   });
 
   test("unpairing cuts the phone off at once", async () => {

@@ -64,14 +64,24 @@ class UserMsg extends ChatMessage {
 
 class AssistantMsg extends ChatMessage {
   final String text;
-  const AssistantMsg({required super.id, required this.text});
+
+  /// Startup chatter (version, loaded skills), not a reply.
+  final bool startup;
+  const AssistantMsg({
+    required super.id,
+    required this.text,
+    this.startup = false,
+  });
 
   @override
   bool operator ==(Object other) =>
-      other is AssistantMsg && other.id == id && other.text == text;
+      other is AssistantMsg &&
+      other.id == id &&
+      other.text == text &&
+      other.startup == startup;
 
   @override
-  int get hashCode => Object.hash(id, text);
+  int get hashCode => Object.hash(id, text, startup);
 }
 
 /// The agent's visible reasoning, separate from its reply.

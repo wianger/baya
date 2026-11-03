@@ -76,6 +76,8 @@ export class HostedSession {
   private process: AgentProcess | null = null;
   private starting: Promise<AgentProcess> | null = null;
   private replaying = false;
+  /** The agent is replaying a conversation Baya adopts and keeps. */
+  private loadingHistory = false;
   private setup: SessionSetup = {};
   private commands: SessionUpdate | null = null;
   private usage: SessionUpdate | null = null;
@@ -320,6 +322,7 @@ export class HostedSession {
           // The agent replays its history. Baya keeps it only for a session
           // it adopted from the agent and has no history of yet.
           this.replaying = this.transcript.updates.length > 0;
+          this.loadingHistory = !this.replaying;
           return (
             (await agent.request<SessionSetup>("session/load", {
               sessionId: previous,
@@ -339,6 +342,7 @@ export class HostedSession {
         if (!agent.running) throw error;
       } finally {
         this.replaying = false;
+        this.loadingHistory = false;
       }
     }
     const created = await agent.request<NewSessionResponse>("session/new", { cwd, mcpServers });
@@ -488,12 +492,27 @@ export class HostedSession {
         }
         break;
       case "user_message_chunk":
-        // Baya publishes prompts itself, as they leave the queue.
-        return;
+        // Baya publishes prompts itself, as they leave the queue; only an
+        // adopted conversation's history brings the user's messages.
+        if (!this.loadingHistory) return;
+        break;
+      case "agent_message_chunk":
+        // What the agent says on its own before the first prompt (its
+        // version, loaded skills) is startup chatter, not a reply.
+        if (!this.current && !this.loadingHistory && !this.prompted()) {
+          const meta = isObject(update["_meta"]) ? update["_meta"] : {};
+          const baya = isObject(meta["baya"]) ? meta["baya"] : {};
+          update["_meta"] = { ...meta, baya: { ...baya, startup: true } };
+        }
+        break;
     }
     // A loading agent replays history Baya already holds.
     if (this.replaying && isConversationUpdate(update)) return;
     this.publish(update);
+  }
+
+  private prompted(): boolean {
+    return this.transcript.updates.some((u) => u.sessionUpdate === "user_message_chunk");
   }
 
   private publish(update: SessionUpdate): void {

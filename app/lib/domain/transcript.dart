@@ -73,7 +73,12 @@ class Transcript {
       _completeThinking();
     }
     switch (update) {
-      case MessageChunk(:final role, :final content, :final messageId):
+      case MessageChunk(
+        :final role,
+        :final content,
+        :final messageId,
+        :final startup,
+      ):
         switch (role) {
           case ChunkRole.user:
             _userChunk(content, messageId);
@@ -89,7 +94,7 @@ class Transcript {
                 ),
               );
             } else {
-              _agentChunk(content.displayText, messageId);
+              _agentChunk(content.displayText, messageId, startup: startup);
             }
           case ChunkRole.thought:
             _thoughtChunk(content.displayText, messageId);
@@ -192,17 +197,26 @@ class Transcript {
     );
   }
 
-  void _agentChunk(String text, String? messageId) {
+  void _agentChunk(String text, String? messageId, {bool startup = false}) {
     final last = _rows.lastOrNull;
-    if (last is AssistantMsg && (messageId == null || last.id == messageId)) {
+    if (last is AssistantMsg &&
+        last.startup == startup &&
+        (messageId == null || last.id == messageId)) {
       _rows[_rows.length - 1] = AssistantMsg(
         id: last.id,
         text: last.text + text,
+        startup: startup,
       );
       return;
     }
     if (text.isEmpty) return;
-    _rows.add(AssistantMsg(id: messageId ?? _nextId('agent'), text: text));
+    _rows.add(
+      AssistantMsg(
+        id: messageId ?? _nextId('agent'),
+        text: text,
+        startup: startup,
+      ),
+    );
   }
 
   void _thoughtChunk(String text, String? messageId) {
