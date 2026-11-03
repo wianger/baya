@@ -120,9 +120,7 @@ export function buildWindowsStartupCommand(input: {
 }
 
 export function buildSystemdUnit(target: StartupTarget): string {
-  const exec = [...target.command, "serve", "--cwd", target.cwd]
-    .map(systemdQuote)
-    .join(" ");
+  const exec = [...target.command, "serve", "--cwd", target.cwd].map(systemdQuote).join(" ");
   return `[Unit]
 Description=Baya host
 After=network-online.target

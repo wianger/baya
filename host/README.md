@@ -21,8 +21,8 @@ overrides it); `baya doctor` prints the exact command. Under that path:
 
 - `GET …/info` and `GET …/pair` describe the host and issue a pairing code,
   only to devices signed in to the same Tailscale account;
-- `…/direct` is the phone's WebSocket: sealed JSON-RPC, end-to-end encrypted
-  between the phone and the host.
+- `…/direct` is the phone's WebSocket: JSON-RPC inside a Noise session,
+  end-to-end encrypted between the phone and the host.
 
 Pairing codes (scanned or fetched by typing the computer's name in the app)
 carry the `…/direct` address, and the phone connects there afterwards.
@@ -105,6 +105,7 @@ pnpm lint            # Biome: lint + format check (pnpm format to fix)
 pnpm typecheck       # src and tests
 pnpm test
 pnpm build           # tsc emits dist/ for publishing
+pnpm build:binary    # the single-file executable for this platform, in build/bin
 ```
 
 The source is erasable TypeScript (`erasableSyntaxOnly`), imported with `.ts`

@@ -19,21 +19,29 @@ end-to-end encrypted.
 
 Requirements:
 
-- Node.js 22.19 or newer
-- pnpm 10 or newer
 - An agent that speaks ACP (see [Agents](#agents))
 - [Tailscale](https://tailscale.com/download) on the computer and the phone,
   signed in to the same account
 
-Build and link the CLI:
+Download `baya` for your computer from the
+[host releases](https://github.com/wianger/baya/releases) (one file, Node
+included: `baya-linux-x64`, `baya-linux-arm64`, `baya-darwin-arm64`,
+`baya-darwin-x64` or `baya-win32-x64.exe`), put it on your PATH as `baya`
+(`chmod +x` it on Linux and macOS), and check the setup:
+
+```powershell
+baya doctor
+```
+
+To build it yourself instead (Node.js 24 and pnpm 10 or newer):
 
 ```powershell
 cd host
 pnpm install --ignore-scripts
-pnpm build
-pnpm add --global .
-baya doctor
+pnpm build:binary      # build/bin/baya-<platform>-<arch>
 ```
+
+Or run it from source with Node: `pnpm build`, then `pnpm add --global .`.
 
 Phones reach the computer over Tailscale, with nothing in between. Publish
 the host once with `tailscale serve` (`baya doctor` prints the exact command;
