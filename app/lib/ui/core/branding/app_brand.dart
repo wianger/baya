@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 
 const kAppName = 'Baya';
 
-/// A baya weaver in flight: one ink silhouette, the wing and its feathers
-/// set apart by thin cuts. The paths come from branding/generate.py
-/// (108-unit grid).
+/// A perched baya weaver, drawn as magpie draws its icon: one ink
+/// silhouette with white cut in for the crown, breast, wing and tail. The
+/// paths come from branding/generate.py (108-unit grid).
 ///
-/// [tile] draws it ink on its light tile, as on the launcher; without one
-/// the bird takes the text colour and its cuts the page colour.
+/// [tile] draws it on its grey tile, as on the launcher; without one the
+/// bird takes the text colour and its white parts the page colour.
 class AppMark extends StatelessWidget {
   const AppMark({super.key, this.size = 28, this.tile = false});
   final double size;
@@ -26,7 +26,7 @@ class AppMark extends StatelessWidget {
         painter: AppMarkPainter(
           tile: tile,
           ink: tile ? AppBrandColors.ink : colors.text,
-          paper: tile ? AppBrandColors.tile : colors.bg,
+          paper: tile ? AppBrandColors.paper : colors.bg,
         ),
       ),
     );
@@ -67,12 +67,14 @@ class AppMarkPainter extends CustomPainter {
   final bool tile;
   final Color ink;
 
-  /// The colour behind the bird, which its cuts show through to.
+  /// The white of the drawing: crown, breast, feather lines.
   final Color paper;
 
   static final _body = _parse(kMarkBody);
+  static final _breast = _parse(kMarkBreast);
+  static final _crown = _parse(kMarkCrown);
   static final _wing = _parse(kMarkWing);
-  static final _cuts = [for (final cut in kMarkCuts) _parse(cut)];
+  static final _lines = [for (final line in kMarkLines) _parse(line)];
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -84,30 +86,39 @@ class AppMarkPainter extends CustomPainter {
           const Rect.fromLTWH(0, 0, 108, 108),
           const Radius.circular(24),
         ),
-        Paint()..color = paper,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(kMarkTile.$1), Color(kMarkTile.$2)],
+          ).createShader(const Rect.fromLTWH(0, 0, 108, 108)),
       );
     }
     canvas
       ..translate(54, 54)
       ..scale(kMarkScale)
-      ..translate(-54 + kMarkShift.$1, -54 + kMarkShift.$2);
+      ..translate(-kMarkCenter.$1, -kMarkCenter.$2);
     final fill = Paint()..color = ink;
-    final cut = Paint()
+    final white = Paint()..color = paper;
+    final edge = Paint()
       ..color = paper
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    final (cx, cy, r) = kMarkEye;
+    final (ex, ey, ring, pupil) = kMarkEye;
     canvas
       ..drawPath(_body, fill)
-      ..drawPath(_wing, cut..strokeWidth = kMarkWingGap)
-      ..drawPath(_wing, fill);
-    cut.strokeWidth = kMarkCutWidth;
-    for (final line in _cuts) {
-      canvas.drawPath(line, cut);
+      ..drawPath(_breast, white)
+      ..drawPath(_crown, white)
+      ..drawPath(_wing, fill)
+      ..drawPath(_wing, edge..strokeWidth = kMarkWingEdge);
+    edge.strokeWidth = kMarkLineWidth;
+    for (final line in _lines) {
+      canvas.drawPath(line, edge);
     }
     canvas
-      ..drawCircle(Offset(cx, cy), r, Paint()..color = paper)
+      ..drawCircle(Offset(ex, ey), ring, white)
+      ..drawCircle(Offset(ex + .3, ey), pupil, fill)
       ..restore();
   }
 

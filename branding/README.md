@@ -1,8 +1,9 @@
 # Baya artwork
 
-The mark is a baya weaver in flight: one ink silhouette (`#141416`) on a
-light tile (`#F3F1EC`), the wing and its feathers set apart by thin cuts. In
-the app the bird takes the text colour, so it reads in both themes.
+The mark is a perched baya weaver, drawn the way magpie draws its icon: one
+ink silhouette on a soft grey tile, with white cut in for the weaver's
+crown, pale breast, wing and tail feathers. In the app the bird takes the
+text colour, so it reads in both themes.
 
 Everything comes from one geometry in `generate.py`. Run it from the
 repository root after any change:

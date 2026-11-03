@@ -2,16 +2,21 @@
 // The Baya mark on the 108-unit icon grid.
 
 const kMarkBody =
-    'M88 41L80 38C78.5 33.5 74.5 31 70 31.5C64.5 32 61 36.5 59.5 41.5C55.5 50.5 46 58 34 62.5L18 67.5L27 70.5L20 77L37 73C55 75 67 68 72.5 57C74.5 52 77 47.5 80 44.5Z';
+    'M60 31C66 27 76 28 80 36L91 41.5L80 46.5C83 60 76 74 61 77.5C52 79.5 45 77.5 40.5 73L24 79.5L28 72.5L21 68.5L38 60.5C44 50 50 40 60 31Z';
+const kMarkBreast =
+    'M80 50.5C80.5 61 75 71 62.5 74.4C55.5 76.2 49.5 75.2 46 72.4C54.5 69.8 62 63.5 66.2 55.6C69.2 51 74 49 80 50.5Z';
+const kMarkCrown =
+    'M79.2 35.4C76 29.6 66.6 28.8 60.6 33.8C63.6 33.3 67.4 33.4 70 34.6C73 35.9 76.4 36.1 79.2 35.4Z';
 const kMarkWing =
-    'M66 46C64 34 57 22 44 12C48 20 50 25 50.5 29C46 25 40 22 34 21C40 26 44 31 46.5 35C42 33 37 32.5 32 33.5C40 38 47 44 52 50Z';
-const kMarkCuts = [
-  'M50.5 29C54 35 57 40 59.5 46.5',
-  'M46.5 35C50 39 53 43 55.5 48.5',
-  'M27 70.5L37 66.5',
+    'M66.5 47C59 46 49 50.5 41.5 60.5C50 62.5 60 60.5 67 53C68.5 51 68.2 48.4 66.5 47Z';
+const kMarkLines = [
+  'M48 57.4L60.5 50.8',
+  'M38.5 61.4L24.5 70.8',
+  'M40.6 66.2L27.6 75.6',
 ];
-const kMarkEye = (72.0, 37.6, 1.8);
-const kMarkWingGap = 2.6;
-const kMarkCutWidth = 1.5;
-const kMarkShift = (1.0, 10.0);
-const kMarkScale = 1.08;
+const kMarkEye = (71.5, 40.2, 2.5, 1.3);
+const kMarkWingEdge = 1.5;
+const kMarkLineWidth = 1.3;
+const kMarkCenter = (56.0, 53.5);
+const kMarkScale = 1.12;
+const kMarkTile = (0xFFFAFAFA, 0xFFE6E6E6);

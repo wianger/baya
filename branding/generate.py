@@ -1,7 +1,8 @@
-"""Generate Baya's artwork from one geometry: a baya weaver in flight.
+"""Generate Baya's artwork from one geometry: a perched baya weaver.
 
-One ink silhouette on a light tile; thin cuts set the wing and its
-feathers apart from the body. Run from the repository root:
+Drawn the way magpie's icon is: one ink silhouette on a soft grey tile, with
+white cut into it for the weaver's crown, pale breast, wing and tail
+feathers. Run from the repository root:
 
     python branding/generate.py
 
@@ -16,65 +17,77 @@ ROOT = Path(__file__).resolve().parent
 RES = ROOT.parent / "app/android/app/src/main/res"
 DART = ROOT.parent / "app/lib/ui/core/branding/mark_geometry.g.dart"
 
-INK = "#141416"
-TILE = "#F3F1EC"
+INK = "#141414"
+PAPER = "#FFFFFF"
+TILE_TOP = "#FAFAFA"
+TILE_BOTTOM = "#E6E6E6"
 
 # 108-unit grid (the adaptive icon canvas). Absolute M/L/C/Z commands only,
 # so the app can parse them with a few lines.
 BODY = (
-    "M88 41L80 38C78.5 33.5 74.5 31 70 31.5C64.5 32 61 36.5 59.5 41.5"
-    "C55.5 50.5 46 58 34 62.5L18 67.5L27 70.5L20 77L37 73"
-    "C55 75 67 68 72.5 57C74.5 52 77 47.5 80 44.5Z"
+    "M60 31C66 27 76 28 80 36L91 41.5L80 46.5C83 60 76 74 61 77.5"
+    "C52 79.5 45 77.5 40.5 73L24 79.5L28 72.5L21 68.5L38 60.5C44 50 50 40 60 31Z"
 )
-WING = (
-    "M66 46C64 34 57 22 44 12C48 20 50 25 50.5 29C46 25 40 22 34 21"
-    "C40 26 44 31 46.5 35C42 33 37 32.5 32 33.5C40 38 47 44 52 50Z"
+BREAST = (
+    "M80 50.5C80.5 61 75 71 62.5 74.4C55.5 76.2 49.5 75.2 46 72.4"
+    "C54.5 69.8 62 63.5 66.2 55.6C69.2 51 74 49 80 50.5Z"
 )
-# Feather and tail lines, cut in the tile colour.
-CUTS = (
-    "M50.5 29C54 35 57 40 59.5 46.5",
-    "M46.5 35C50 39 53 43 55.5 48.5",
-    "M27 70.5L37 66.5",
+CROWN = (
+    "M79.2 35.4C76 29.6 66.6 28.8 60.6 33.8C63.6 33.3 67.4 33.4 70 34.6"
+    "C73 35.9 76.4 36.1 79.2 35.4Z"
 )
-EYE = (72, 37.6, 1.8)
-WING_GAP = 2.6
-CUT_WIDTH = 1.5
-# Centres the bird on the canvas, then sizes it.
-SHIFT = (1, 10)
-SCALE = 1.08
+WING = "M66.5 47C59 46 49 50.5 41.5 60.5C50 62.5 60 60.5 67 53C68.5 51 68.2 48.4 66.5 47Z"
+# Wing and tail feather lines, cut in white.
+LINES = ("M48 57.4L60.5 50.8", "M38.5 61.4L24.5 70.8", "M40.6 66.2L27.6 75.6")
+EYE = (71.5, 40.2, 2.5, 1.3)
+WING_EDGE = 1.5
+LINE_WIDTH = 1.3
+# The bird is drawn around CENTER, then sized by SCALE about the canvas centre.
+CENTER = (56, 53.5)
+SCALE = 1.12
 
 # The launcher masks the icon to the central 72 units; keep the bird inside.
 SAFE_SCALE = 0.86
 
 
-def eye_path() -> str:
-    cx, cy, r = EYE
+def circle(cx: float, cy: float, r: float) -> str:
     return f"M{cx - r} {cy}A{r} {r} 0 1 1 {cx + r} {cy}A{r} {r} 0 1 1 {cx - r} {cy}Z"
 
 
 def place(scale: float) -> str:
-    """SVG transform: the bird, sized and centred, inside [scale]."""
-    sx, sy = SHIFT
-    s = SCALE * scale
-    return f"translate(54 54) scale({s:.4f}) translate(-54 -54) translate({sx} {sy})"
+    cx, cy = CENTER
+    return f"translate(54 54) scale({SCALE * scale:.4f}) translate({-cx} {-cy})"
 
 
 def svg_bird(scale: float = 1.0) -> str:
-    cx, cy, r = EYE
-    cuts = "".join(f'<path d="{d}"/>' for d in CUTS)
+    ex, ey, ring, pupil = EYE
+    lines = "".join(f'<path d="{d}"/>' for d in LINES)
     return f"""  <g transform="{place(scale)}">
     <path d="{BODY}" fill="{INK}"/>
-    <path d="{WING}" fill="{INK}" stroke="{TILE}" stroke-width="{WING_GAP}" stroke-linejoin="round" paint-order="stroke"/>
-    <g fill="none" stroke="{TILE}" stroke-width="{CUT_WIDTH}" stroke-linecap="round">{cuts}</g>
-    <circle cx="{cx}" cy="{cy}" r="{r}" fill="{TILE}"/>
+    <path d="{BREAST}" fill="{PAPER}"/>
+    <path d="{CROWN}" fill="{PAPER}"/>
+    <path d="{WING}" fill="{INK}" stroke="{PAPER}" stroke-width="{WING_EDGE}" stroke-linejoin="round"/>
+    <g stroke="{PAPER}" stroke-width="{LINE_WIDTH}" stroke-linecap="round" fill="none">{lines}</g>
+    <circle cx="{ex}" cy="{ey}" r="{ring}" fill="{PAPER}"/>
+    <circle cx="{ex + 0.3}" cy="{ey}" r="{pupil}" fill="{INK}"/>
   </g>"""
 
 
+def svg_tile() -> str:
+    return f"""  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="{TILE_TOP}"/>
+      <stop offset="1" stop-color="{TILE_BOTTOM}"/>
+    </linearGradient>
+  </defs>
+  <rect width="108" height="108" rx="24" fill="url(#tile)"/>
+"""
+
+
 def svg_mark(background: bool, scale: float = 1.0) -> str:
-    tile = f'  <rect width="108" height="108" rx="24" fill="{TILE}"/>\n' if background else ""
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">\n'
-        f"{tile}{svg_bird(scale)}\n</svg>\n"
+        f"{svg_tile() if background else ''}{svg_bird(scale)}\n</svg>\n"
     )
 
 
@@ -92,12 +105,16 @@ def svg_banner() -> str:
 """
 
 
+def mono_path() -> str:
+    """The bird in one colour: crown, breast and eye cut out."""
+    ex, ey, ring, _ = EYE
+    return f"{BODY}{BREAST}{CROWN}{circle(ex, ey, ring)}"
+
+
 def svg_monochrome() -> str:
-    """One colour, the eye cut out: the system tints it for themed icons."""
     return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
-  <g transform="{place(SAFE_SCALE)}" fill="#000">
-    <path d="{WING}"/>
-    <path fill-rule="evenodd" d="{BODY}{eye_path()}"/>
+  <g transform="{place(SAFE_SCALE)}">
+    <path fill-rule="evenodd" fill="#000" d="{mono_path()}"/>
   </g>
 </svg>
 """
@@ -108,6 +125,7 @@ def vector(body: str) -> str:
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<!-- Generated by branding/generate.py; edit that file instead. -->\n'
         '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
+        '    xmlns:aapt="http://schemas.android.com/aapt"\n'
         '    android:width="108dp" android:height="108dp"\n'
         '    android:viewportWidth="108" android:viewportHeight="108">\n'
         f"{body}"
@@ -116,12 +134,12 @@ def vector(body: str) -> str:
 
 
 def group(body: str) -> str:
-    sx, sy = SHIFT
+    cx, cy = CENTER
     s = SCALE * SAFE_SCALE
     return (
         '  <group android:pivotX="54" android:pivotY="54"\n'
         f'      android:scaleX="{s:.4f}" android:scaleY="{s:.4f}">\n'
-        f'    <group android:translateX="{sx}" android:translateY="{sy}">\n'
+        f'    <group android:translateX="{54 - cx}" android:translateY="{54 - cy}">\n'
         f"{body}    </group>\n  </group>\n"
     )
 
@@ -131,19 +149,23 @@ def argb(color: str) -> str:
 
 
 def vector_foreground() -> str:
-    cuts = "".join(
-        f'      <path android:pathData="{d}" android:strokeColor="{argb(TILE)}"'
-        f' android:strokeWidth="{CUT_WIDTH}" android:strokeLineCap="round"/>\n'
-        for d in CUTS
+    ex, ey, ring, pupil = EYE
+    lines = "".join(
+        f'      <path android:pathData="{d}" android:strokeColor="{argb(PAPER)}"'
+        f' android:strokeWidth="{LINE_WIDTH}" android:strokeLineCap="round"/>\n'
+        for d in LINES
     )
     return vector(
         group(
             f'      <path android:pathData="{BODY}" android:fillColor="{argb(INK)}"/>\n'
-            f'      <path android:pathData="{WING}" android:strokeColor="{argb(TILE)}"'
-            f' android:strokeWidth="{WING_GAP}" android:strokeLineJoin="round"/>\n'
-            f'      <path android:pathData="{WING}" android:fillColor="{argb(INK)}"/>\n'
-            f"{cuts}"
-            f'      <path android:pathData="{eye_path()}" android:fillColor="{argb(TILE)}"/>\n'
+            f'      <path android:pathData="{BREAST}" android:fillColor="{argb(PAPER)}"/>\n'
+            f'      <path android:pathData="{CROWN}" android:fillColor="{argb(PAPER)}"/>\n'
+            f'      <path android:pathData="{WING}" android:fillColor="{argb(INK)}"'
+            f' android:strokeColor="{argb(PAPER)}" android:strokeWidth="{WING_EDGE}"'
+            ' android:strokeLineJoin="round"/>\n'
+            f"{lines}"
+            f'      <path android:pathData="{circle(ex, ey, ring)}" android:fillColor="{argb(PAPER)}"/>\n'
+            f'      <path android:pathData="{circle(ex + 0.3, ey, pupil)}" android:fillColor="{argb(INK)}"/>\n'
         )
     )
 
@@ -151,33 +173,45 @@ def vector_foreground() -> str:
 def vector_monochrome() -> str:
     return vector(
         group(
-            f'      <path android:pathData="{WING}" android:fillColor="#FF000000"/>\n'
-            f'      <path android:pathData="{BODY}{eye_path()}" android:fillType="evenOdd"'
+            f'      <path android:pathData="{mono_path()}" android:fillType="evenOdd"'
             ' android:fillColor="#FF000000"/>\n'
         )
     )
 
 
 def vector_background() -> str:
-    return vector(f'  <path android:pathData="M0 0H108V108H0Z" android:fillColor="{argb(TILE)}"/>\n')
+    return vector(
+        '  <path android:pathData="M0 0H108V108H0Z">\n'
+        '    <aapt:attr name="android:fillColor">\n'
+        '      <gradient android:type="linear" android:startX="0" android:startY="0"'
+        ' android:endX="0" android:endY="108">\n'
+        f'        <item android:offset="0" android:color="{argb(TILE_TOP)}"/>\n'
+        f'        <item android:offset="1" android:color="{argb(TILE_BOTTOM)}"/>\n'
+        "      </gradient>\n"
+        "    </aapt:attr>\n"
+        "  </path>\n"
+    )
 
 
 def dart_geometry() -> str:
-    cx, cy, r = EYE
-    sx, sy = SHIFT
-    cuts = "".join(f"\n  '{d}'," for d in CUTS)
+    ex, ey, ring, pupil = EYE
+    cx, cy = CENTER
+    lines = "".join(f"\n  '{d}'," for d in LINES)
     return f"""// Generated by branding/generate.py; edit that file instead.
 // The Baya mark on the 108-unit icon grid.
 
 const kMarkBody = '{BODY}';
+const kMarkBreast = '{BREAST}';
+const kMarkCrown = '{CROWN}';
 const kMarkWing = '{WING}';
-const kMarkCuts = [{cuts}
+const kMarkLines = [{lines}
 ];
-const kMarkEye = ({float(cx)}, {float(cy)}, {float(r)});
-const kMarkWingGap = {WING_GAP};
-const kMarkCutWidth = {CUT_WIDTH};
-const kMarkShift = ({float(sx)}, {float(sy)});
+const kMarkEye = ({float(ex)}, {float(ey)}, {float(ring)}, {float(pupil)});
+const kMarkWingEdge = {WING_EDGE};
+const kMarkLineWidth = {LINE_WIDTH};
+const kMarkCenter = ({float(cx)}, {float(cy)});
 const kMarkScale = {SCALE};
+const kMarkTile = (0xFF{TILE_TOP[1:]}, 0xFF{TILE_BOTTOM[1:]});
 """
 
 
