@@ -340,4 +340,38 @@ void main() {
     expect(chat.session.attachedFiles, isEmpty);
     await _finish(tester, chat);
   });
+
+  testWidgets('the agent can be signed out from session settings', (
+    tester,
+  ) async {
+    final computer = _computer();
+    computer.handlers['_baya/agent_auth'] = (_) => {
+      'authMethods': [
+        {'id': 'key', 'name': 'API key'},
+      ],
+      'logout': true,
+    };
+    computer.handlers['_baya/logout'] = (_) => const <String, dynamic>{};
+    final chat = await _pump(tester, computer: computer);
+    await tester.tap(find.byKey(const Key('context-usage')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sign-out')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sign-out-confirm')));
+    await tester.pumpAndSettle();
+    expect(
+      computer.calls.where((c) => c.method == '_baya/logout').single.params,
+      {'agent': 'claude'},
+    );
+    expect(find.byKey(const Key('sign-in-card')), findsOneWidget);
+    await _finish(tester, chat);
+  });
+
+  testWidgets('no sign-out for agents without logout', (tester) async {
+    final chat = await _pump(tester);
+    await tester.tap(find.byKey(const Key('context-usage')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('sign-out')), findsNothing);
+    await _finish(tester, chat);
+  });
 }

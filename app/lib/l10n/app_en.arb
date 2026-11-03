@@ -584,5 +584,16 @@
   },
   "continueEarlier": "Continue an earlier conversation",
   "noEarlierConversations": "The agent has no earlier conversations in this folder.",
-  "untitledSession": "Untitled"
+  "untitledSession": "Untitled",
+  "signOut": "Sign out",
+  "signOutOf": "Sign out of {agent}",
+  "@signOutOf": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "signOutBody": "The agent is signed out on this computer, for every session that uses it. You can sign in again from any chat.",
+  "signOutFailed": "Couldn't sign out"
 }

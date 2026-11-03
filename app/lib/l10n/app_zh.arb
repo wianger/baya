@@ -349,5 +349,9 @@
   "attachCount": "{count, plural, other{附加 {count} 个文件}}",
   "continueEarlier": "继续之前的对话",
   "noEarlierConversations": "智能体在这个文件夹中没有之前的对话。",
-  "untitledSession": "未命名"
+  "untitledSession": "未命名",
+  "signOut": "退出登录",
+  "signOutOf": "退出 {agent} 的登录",
+  "signOutBody": "这台电脑上的该智能体会退出登录，所有使用它的会话都会受影响。之后可以在任意对话中重新登录。",
+  "signOutFailed": "退出登录失败"
 }

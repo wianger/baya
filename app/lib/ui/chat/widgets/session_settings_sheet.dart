@@ -2,6 +2,7 @@ import 'package:app/acp/acp.dart';
 import 'package:app/data/hosts/session_controller.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_dialog.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -252,6 +253,7 @@ class _Overview extends StatelessWidget {
             child: _UsageBar(usage: usage),
           ),
         ],
+        _SignOut(session: session),
       ],
     );
   }
@@ -523,6 +525,99 @@ class _Choices extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Signs the session's agent out on the computer, for agents that support
+/// ACP `logout`.
+class _SignOut extends StatefulWidget {
+  const _SignOut({required this.session});
+  final SessionController session;
+
+  @override
+  State<_SignOut> createState() => _SignOutState();
+}
+
+class _SignOutState extends State<_SignOut> {
+  late final Future<bool> _supported = widget.session.authMethods().then(
+    (result) => result.$2,
+    onError: (_) => false,
+  );
+  bool _busy = false;
+
+  Future<void> _signOut(String agent) async {
+    final colors = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => BayaDialog(
+        title: Text(context.l10n.signOutOf(agent)),
+        content: Text(
+          context.l10n.signOutBody,
+          style: TextStyle(color: colors.muted2),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(context.l10n.cancel),
+          ),
+          TextButton(
+            key: const Key('sign-out-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              context.l10n.signOut,
+              style: TextStyle(color: colors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await widget.session.logout();
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      await showBayaNotice(
+        context,
+        title: context.l10n.signOutFailed,
+        message: '$error',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final agent = widget.session.agentName.isEmpty
+        ? context.l10n.yourAgent
+        : widget.session.agentName;
+    return FutureBuilder(
+      future: _supported,
+      builder: (context, snapshot) {
+        if (snapshot.data != true) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: const Key('sign-out'),
+              onPressed: _busy ? null : () => _signOut(agent),
+              style: TextButton.styleFrom(
+                foregroundColor: context.colors.error,
+              ),
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 14,
+                      child: CircularProgressIndicator(strokeWidth: 1.6),
+                    )
+                  : const Icon(LucideIcons.logOut, size: 16),
+              label: Text(context.l10n.signOutOf(agent)),
+            ),
+          ),
+        );
+      },
     );
   }
 }

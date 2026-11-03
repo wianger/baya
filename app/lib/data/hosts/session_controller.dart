@@ -218,6 +218,17 @@ class SessionController extends ChangeNotifier {
     _changed();
   }
 
+  /// Signs the agent out on the computer; every session with it needs a
+  /// new sign-in, which the sign-in card offers.
+  Future<void> logout() async {
+    final agent = _authAgent ?? summary?.agent;
+    await host.call('_baya/logout', {
+      'agent': agent,
+    }, const Duration(minutes: 2));
+    _authAgent = agent;
+    _changed();
+  }
+
   void answerPermission(String? optionId) {
     final open = permission;
     if (open == null) return;
