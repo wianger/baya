@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'package:app/ui/core/themes/app_colors.dart';
 
-/// Interface text uses the system face (Roboto / Google Sans), which shares
-/// metrics with the device's CJK font so mixed Chinese and Latin text sits
-/// on one baseline. Only code and the wordmark use bundled fonts.
-const String? kSansFamily = null;
+/// Geist for the interface and Geist Mono for code; scripts Geist lacks
+/// (Chinese among them) fall back to the system face.
+const String kSansFamily = 'Geist';
 const String kMonoFamily = 'Geist Mono';
-const String kWordmarkFamily = 'Pinyon Script';
 
 /// System fallback handles CJK and other scripts.
 const List<String>? kFontFallback = null;
@@ -31,21 +29,20 @@ TextStyle brandTextStyle({
   );
 }
 
-/// Display face for the app wordmark. Pinyon Script is an OFL-licensed formal
-/// script bundled for the Baya signature.
+/// The wordmark: Geist, tight and confident.
 TextStyle brandDisplayTextStyle({
   required double fontSize,
-  FontWeight fontWeight = FontWeight.w400,
+  FontWeight fontWeight = FontWeight.w600,
   Color? color,
 }) {
   return TextStyle(
-    fontFamily: kWordmarkFamily,
+    fontFamily: kSansFamily,
     fontFamilyFallback: kFontFallback,
     fontSize: fontSize,
     fontWeight: fontWeight,
     color: color,
-    letterSpacing: .2,
-    height: 1.2,
+    letterSpacing: -fontSize * .045,
+    height: 1.1,
   );
 }
 
@@ -113,9 +110,10 @@ class AppTypography extends ThemeExtension<AppTypography> {
       sansBody: TextStyle(
         fontFamily: kSansFamily,
         fontFamilyFallback: kFontFallback,
-        fontSize: 16.0,
+        fontSize: 15.0,
         color: c.text,
         height: 1.5,
+        letterSpacing: -0.1,
       ),
     );
   }

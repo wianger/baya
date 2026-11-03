@@ -49,6 +49,7 @@ class SessionController extends ChangeNotifier {
   Usage? _usage;
   List<PermissionRequest> _openPermissions = const [];
   List<ElicitationRequest> _openElicitations = const [];
+  List<ResourceLinkContent> _files = const [];
   String? _authAgent;
 
   // ── state ───────────────────────────────────────────────────────────────
@@ -84,6 +85,27 @@ class SessionController extends ChangeNotifier {
   /// The oldest open elicitation (form or link) for this session.
   ElicitationRequest? get elicitation => _openElicitations.firstOrNull;
 
+  /// Files from the computer to send with the next prompt.
+  List<ResourceLinkContent> get attachedFiles => _files;
+
+  void attachFile(String path, String name) {
+    // The computer may run Windows whatever the phone runs.
+    final windows = RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path);
+    final uri = Uri.file(path, windows: windows).toString();
+    if (_files.any((f) => f.uri == uri)) return;
+    _files = [..._files, ResourceLinkContent(name: name, uri: uri)];
+    _changed();
+  }
+
+  void removeFile(ResourceLinkContent file) {
+    _files = _files.where((f) => f.uri != file.uri).toList();
+    _changed();
+  }
+
+  /// Lists a folder of the session's computer (for attaching files).
+  Future<Map<String, dynamic>> browseFiles([String? path]) =>
+      host.call('_baya/files', {'sessionId': sessionId, 'path': ?path});
+
   /// The agent that last asked to be signed in, until it works again.
   String? get authAgent => _authAgent;
 
@@ -97,6 +119,10 @@ class SessionController extends ChangeNotifier {
     List<ResourceLinkContent> files = const [],
   }) async {
     final id = uuid7();
+    if (files.isEmpty && _files.isNotEmpty) {
+      files = _files;
+      _files = const [];
+    }
     _transcript.addPending(
       UserMsg(id: id, text: text, status: UserMsgStatus.pending, image: image),
     );

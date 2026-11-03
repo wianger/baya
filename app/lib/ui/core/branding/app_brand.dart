@@ -1,13 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'dart:ui' show Tangent;
+
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:flutter/material.dart';
 
 const kAppName = 'Baya';
 
-/// A weaverbird gathers devices, workspaces and conversations into one place.
-/// Geometry matches branding/baya-mark.svg and the Android vector icons: a
-/// tonal tile carrying a filled graphite-teal bird with one gold
-/// accent. The silhouette stays recognizable from launcher to sidebar sizes.
+/// The woven nest a baya weaver hangs from a branch: a round chamber, an
+/// entrance below, straw strands wound across it. Geometry matches
+/// branding/generate.py (108-unit grid).
+///
+/// [tile] draws it on its graphite tile, as on the launcher; without one the
+/// mark sits on the page, its gaps cut through to whatever is behind.
 class AppMark extends StatelessWidget {
   const AppMark({super.key, this.size = 28, this.tile = false});
   final double size;
@@ -16,203 +19,146 @@ class AppMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final mark = CustomPaint(
-      size: Size.square(size),
-      painter: AppMarkPainter(
-        foreground: tile
-            ? dark
-                  ? colors.text
-                  : AppBrandColors.foreground
-            : colors.text.withValues(alpha: .88),
-        foregroundLight: tile
-            ? dark
-                  ? colors.text.withValues(alpha: .78)
-                  : AppBrandColors.foregroundLight
-            : colors.text.withValues(alpha: .72),
-        highlight: tile
-            ? dark
-                  ? AppBrandColors.highlightLight
-                  : AppBrandColors.highlight
-            : colors.accent,
-        bodyShadow: tile
-            ? AppBrandColors.shadow.withValues(alpha: dark ? .44 : .24)
-            : colors.text.withValues(alpha: 0),
-        bodyRim: tile
-            ? Colors.white.withValues(alpha: dark ? .34 : .58)
-            : colors.text.withValues(alpha: .12),
-        cutout: tile
-            ? Color.alphaBlend(
-                Colors.white.withValues(alpha: dark ? .34 : .82),
-                colors.inputFill.withValues(alpha: dark ? .28 : .16),
-              )
-            : colors.bg,
-        // The negative-space wing thickens slightly when scaled down.
-        weight: size < 56 ? 1.22 : 1,
-      ),
-    );
     return Semantics(
       label: kAppName,
       image: true,
-      child: SizedBox.square(
-        dimension: size,
-        child: tile
-            ? BayaSurface(
-                role: BayaSurfaceRole.brand,
-                radius: size * .22,
-                elevated: size >= 52,
-                child: Padding(
-                  padding: EdgeInsets.all(size * .13),
-                  child: SizedBox.square(
-                    dimension: size * .74,
-                    child: FittedBox(child: mark),
-                  ),
-                ),
-              )
-            : mark,
+      child: CustomPaint(
+        size: Size.square(size),
+        painter: AppMarkPainter(
+          tile: tile,
+          branch: tile ? AppBrandColors.branch : colors.muted2,
+        ),
       ),
     );
   }
 }
 
-class AppMarkPainter extends CustomPainter {
-  const AppMarkPainter({
-    required this.foreground,
-    required this.foregroundLight,
-    required this.highlight,
-    required this.bodyShadow,
-    required this.bodyRim,
-    this.background,
-    this.backgroundEnd,
-    this.edge,
-    required this.cutout,
-    this.weight = 1,
-  });
+/// "Baya" set in Geist, beside the mark.
+class AppWordmark extends StatelessWidget {
+  const AppWordmark({super.key, this.size = 22});
+  final double size;
 
-  final Color foreground;
-  final Color foregroundLight;
-  final Color highlight;
-  final Color bodyShadow;
-  final Color bodyRim;
-  final Color cutout;
-  final Color? background, backgroundEnd, edge;
-  final double weight;
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppMark(size: size * 1.35),
+        SizedBox(width: size * .3),
+        Text(
+          kAppName,
+          style: brandDisplayTextStyle(
+            fontSize: size,
+            color: context.colors.text,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class AppMarkPainter extends CustomPainter {
+  const AppMarkPainter({required this.tile, required this.branch});
+
+  final bool tile;
+  final Color branch;
+
+  static Path get nest => Path()
+    ..moveTo(54, 29)
+    ..cubicTo(67.5, 29, 77, 40, 77, 53)
+    ..cubicTo(77, 66, 68, 75, 61.5, 80.5)
+    ..lineTo(61.5, 84.5)
+    ..arcToPoint(const Offset(46.5, 84.5), radius: const Radius.circular(7.5))
+    ..lineTo(46.5, 80.5)
+    ..cubicTo(40, 75, 31, 66, 31, 53)
+    ..cubicTo(31, 40, 40.5, 29, 54, 29)
+    ..close();
+
+  static Path get strands => Path()
+    ..moveTo(29, 45)
+    ..cubicTo(42, 52.5, 54, 63, 61.5, 77.5)
+    ..moveTo(33, 32)
+    ..cubicTo(51, 40, 67, 54, 77, 72);
+
+  static final _hole = Rect.fromCenter(
+    center: const Offset(54, 85),
+    width: 7.2,
+    height: 6.4,
+  );
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(size.width / 108, size.height / 108);
-    const bounds = Rect.fromLTWH(0, 0, 108, 108);
-    final background = this.background;
-    if (background != null) {
-      final tile = RRect.fromRectAndRadius(bounds, const Radius.circular(24));
-      final surface = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [background, backgroundEnd ?? background],
-        ).createShader(bounds);
-      canvas.drawRRect(tile, surface);
-      if (edge case final line?) {
-        canvas.drawRRect(
-          tile.deflate(0.5),
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1
-            ..color = line,
-        );
-      }
+    if (tile) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(0, 0, 108, 108),
+          const Radius.circular(24),
+        ),
+        Paint()..color = AppBrandColors.graphite,
+      );
     }
-
-    // Speech-bubble body that doubles as the bird's breast.
-    final body = Path()
-      ..moveTo(28, 65)
-      ..cubicTo(28, 54, 37, 46, 48, 46)
-      ..cubicTo(48, 32, 57, 24, 68, 26)
-      ..cubicTo(79, 27, 83, 38, 79, 48)
-      ..cubicTo(79, 65, 65, 79, 48, 79)
-      ..lineTo(28, 86)
-      ..lineTo(32, 74)
-      ..cubicTo(29, 71, 28, 68, 28, 65)
-      ..close();
-    if (bodyShadow.a > 0) {
-      canvas.drawShadow(body, bodyShadow, 7, false);
-    }
-    final bodyPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [foregroundLight, foreground],
-      ).createShader(body.getBounds());
-    canvas.drawPath(body, bodyPaint);
+    canvas.drawPath(
+      Path()
+        ..moveTo(30, 26.5)
+        ..cubicTo(44, 23.6, 64, 23.6, 78, 26.5),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..color = branch,
+    );
+    canvas.drawLine(
+      const Offset(54, 25),
+      const Offset(54, 31),
+      Paint()
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round
+        ..color = AppBrandColors.strawLight,
+    );
+    // The strands and the entrance are cut out, so the mark works on any
+    // background, the tile included.
+    final strandsOutline = _strokeOutline(strands, 3.4);
+    final body = Path.combine(
+      PathOperation.difference,
+      Path.combine(PathOperation.difference, nest, strandsOutline),
+      Path()..addOval(_hole),
+    );
     canvas.drawPath(
       body,
       Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = .8
-        ..strokeJoin = StrokeJoin.round
-        ..color = bodyRim,
-    );
-
-    canvas.save();
-    canvas.clipPath(body);
-    canvas.drawOval(
-      Rect.fromLTWH(31, 30, 45, 17),
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            bodyRim.withValues(alpha: bodyRim.a * .58),
-            bodyRim.withValues(alpha: 0),
-          ],
-        ).createShader(const Rect.fromLTWH(31, 30, 45, 17)),
-    );
-    canvas.restore();
-
-    // A single negative-space feather keeps the mark readable at small sizes.
-    canvas.drawPath(
-      Path()
-        ..moveTo(42, 59)
-        ..cubicTo(50, 66, 61, 66, 71, 57)
-        ..cubicTo(68, 68, 56, 74, 45, 70),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4.2 * weight
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..color = cutout,
-    );
-
-    // The gold beak is the only non-neutral color in the mark.
-    final beak = Path()
-      ..moveTo(80, 42.5)
-      ..lineTo(94, 48)
-      ..lineTo(79.5, 53.5)
-      ..close();
-    if (bodyShadow.a > 0) {
-      canvas.drawShadow(beak, bodyShadow, 3, false);
-    }
-    canvas.drawPath(beak, Paint()..color = highlight);
-
-    canvas.drawCircle(
-      const Offset(72, 39.5),
-      2.8 + (weight - 1) * 1.2,
-      Paint()..color = cutout,
+        ..shader = const LinearGradient(
+          begin: Alignment(-0.33, -1),
+          end: Alignment(0.3, 1),
+          colors: [AppBrandColors.strawLight, AppBrandColors.strawDeep],
+        ).createShader(const Rect.fromLTRB(31, 29, 77, 92)),
     );
     canvas.restore();
   }
 
+  /// The area a stroke of [width] along [path] covers, sampled as quads.
+  static Path _strokeOutline(Path path, double width) {
+    final outline = Path();
+    for (final metric in path.computeMetrics()) {
+      final steps = (metric.length / 1.5).ceil();
+      for (var i = 0; i < steps; i++) {
+        final a = metric.getTangentForOffset(metric.length * i / steps)!;
+        final b = metric.getTangentForOffset(metric.length * (i + 1) / steps)!;
+        Offset normal(Tangent t) =>
+            Offset(-t.vector.dy, t.vector.dx) * (width / 2);
+        outline.addPolygon([
+          a.position + normal(a),
+          b.position + normal(b),
+          b.position - normal(b),
+          a.position - normal(a),
+        ], true);
+      }
+    }
+    return outline;
+  }
+
   @override
   bool shouldRepaint(AppMarkPainter old) =>
-      old.foreground != foreground ||
-      old.foregroundLight != foregroundLight ||
-      old.highlight != highlight ||
-      old.bodyShadow != bodyShadow ||
-      old.bodyRim != bodyRim ||
-      old.background != background ||
-      old.backgroundEnd != backgroundEnd ||
-      old.edge != edge ||
-      old.cutout != cutout ||
-      old.weight != weight;
+      old.tile != tile || old.branch != branch;
 }

@@ -1,3 +1,4 @@
+import 'package:app/acp/acp.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -38,8 +39,10 @@ class _NewSessionPageState extends State<NewSessionPage> {
     if (mounted) context.pop();
   }
 
-  Future<void> _open() async {
-    final result = await context.read<NewSessionViewModel>().open();
+  Future<void> _open({String? agentSessionId}) async {
+    final result = await context.read<NewSessionViewModel>().open(
+      agentSessionId: agentSessionId,
+    );
     if (!mounted || result == null) return;
     setState(() => _leaving = true);
     await WidgetsBinding.instance.endOfFrame;
@@ -359,7 +362,128 @@ class _NewSessionPageState extends State<NewSessionPage> {
             minimumSize: const Size.fromHeight(52),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: TextButton.icon(
+            key: const ValueKey('new-session-continue'),
+            onPressed: state.canOpen ? _continueEarlier : null,
+            icon: const Icon(LucideIcons.history, size: 16),
+            label: Text(context.l10n.continueEarlier),
+          ),
+        ),
       ],
+    );
+  }
+
+  Future<void> _continueEarlier() async {
+    final vm = context.read<NewSessionViewModel>();
+    final id = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _EarlierSessions(sessions: vm.earlierSessions()),
+    );
+    if (id != null && mounted) await _open(agentSessionId: id);
+  }
+}
+
+/// The agent's own past conversations in the folder; picking one continues
+/// it in Baya.
+class _EarlierSessions extends StatelessWidget {
+  const _EarlierSessions({required this.sessions});
+  final Future<List<AgentSessionInfo>> sessions;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SafeArea(
+      top: false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * .7,
+        ),
+        child: BayaSurface(
+          role: BayaSurfaceRole.overlay,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          padding: const EdgeInsets.fromLTRB(8, 18, 8, 8),
+          child: FutureBuilder(
+            future: sessions,
+            builder: (context, snapshot) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                  child: Text(
+                    context.l10n.continueEarlier,
+                    style: context.typo.sansBody.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (snapshot.connectionState != ConnectionState.done)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else if (snapshot.hasError || snapshot.data!.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                    child: Text(
+                      snapshot.hasError
+                          ? '${snapshot.error}'
+                          : context.l10n.noEarlierConversations,
+                      style: TextStyle(
+                        color: snapshot.hasError ? colors.error : colors.muted,
+                      ),
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final session in snapshot.data!)
+                          ListTile(
+                            key: ValueKey('earlier-${session.sessionId}'),
+                            leading: Icon(
+                              LucideIcons.messageSquare,
+                              size: 18,
+                              color: colors.muted2,
+                            ),
+                            title: Text(
+                              session.title.isEmpty
+                                  ? context.l10n.untitledSession
+                                  : session.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: session.updatedAt == null
+                                ? null
+                                : Text(
+                                    MaterialLocalizations.of(context)
+                                        .formatMediumDate(
+                                          session.updatedAt!.toLocal(),
+                                        ),
+                                    style: TextStyle(
+                                      color: colors.muted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                            onTap: () =>
+                                Navigator.of(context).pop(session.sessionId),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -333,14 +333,12 @@ class _InputBarState extends State<InputBar> {
 
     // Attachment.
     final hasImage = attachState is AttachmentAttached;
-    final visionBlocked = attachState?.attachBlockedByVision ?? false;
     final hasContent = !_empty || hasImage;
     final attachEnabled =
         widget.onOpenAttach != null &&
         canInteract &&
         !widget.streaming &&
         !showStrip &&
-        !visionBlocked &&
         !hasImage;
 
     // Keep the model/thinking entry point reachable for the whole session.
@@ -533,14 +531,10 @@ class _InlineStopButton extends StatelessWidget {
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: colors.error.withValues(alpha: 0.14),
+          color: colors.text,
           borderRadius: BorderRadius.circular(19),
-          border: Border.all(
-            color: colors.error.withValues(alpha: 0.42),
-            width: 0.6,
-          ),
         ),
-        child: Icon(LucideIcons.square300, color: colors.error, size: 17),
+        child: Icon(LucideIcons.square, color: colors.bg, size: 13),
       ),
     );
   }
@@ -909,21 +903,16 @@ class _ComposerActionButton extends StatelessWidget {
     final visualEnabled =
         !disabled && (_mode != _ComposerMode.sendText || hasContent);
     final isVoice = _mode == _ComposerMode.sendAudio;
-    final isCancel = _mode == _ComposerMode.cancel;
     final background = !visualEnabled
         ? colors.inputFill
-        : isCancel
-        ? colors.error.withValues(alpha: .16)
         : isVoice
-        ? colors.selection
-        : colors.accent;
+        ? colors.inputFill
+        : colors.text;
     final foreground = !visualEnabled
         ? colors.muted
-        : isCancel
-        ? colors.error
         : isVoice
         ? colors.text
-        : colors.onAccent;
+        : colors.bg;
     return AnimatedContainer(
       duration: reduceMotion ? Duration.zero : BayaMotion.standard,
       curve: BayaMotion.enter,
@@ -948,17 +937,7 @@ class _ComposerActionButton extends StatelessWidget {
                   : colors.border,
               width: 0.5,
             ),
-            boxShadow:
-                visualEnabled && !isVoice && !MediaQuery.highContrastOf(context)
-                ? [
-                    BoxShadow(
-                      color: (isCancel ? colors.error : colors.accent)
-                          .withValues(alpha: .20),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
+            boxShadow: null,
           ),
           child: AnimatedSwitcher(
             duration: reduceMotion ? Duration.zero : BayaMotion.fast,

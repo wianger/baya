@@ -1,12 +1,10 @@
-import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 
-/// Semantic color tokens for the whole app, derived from one Material 3
-/// [ColorScheme].
+/// Baya's palette: graphite and paper neutrals with one straw-gold accent,
+/// taken from the woven-nest mark. The palette is the brand's own (it does
+/// not follow the wallpaper), so every screen reads as one product.
 ///
-/// On Android 12+ the scheme comes from the wallpaper (Material You); other
-/// devices use the brand seed. Widgets read `context.colors.<token>` and never
-/// hardcode colors, so the whole app follows the system palette.
+/// Widgets read `context.colors.<token>` and never hardcode colors.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
@@ -32,46 +30,82 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.inputFill,
   });
 
-  /// Maps the M3 tonal roles onto the app's semantic tokens. Status colors
-  /// have no M3 role, so fixed hues are harmonized toward the primary color.
-  factory AppColors.fromScheme(ColorScheme s) {
-    final dark = s.brightness == Brightness.dark;
-    Color status(int argb) => Color(argb).harmonizeWith(s.primary);
-    return AppColors(
-      bg: s.surface,
-      surface: s.surfaceContainerLow,
-      border: s.outlineVariant,
-      text: s.onSurface,
-      muted: s.onSurfaceVariant,
-      muted2: Color.lerp(s.onSurfaceVariant, s.onSurface, .45)!,
-      accent: s.primary,
-      onAccent: s.onPrimary,
-      highlight: s.tertiary,
-      success: status(dark ? 0xFF7DD99A : 0xFF1E7A43),
-      error: s.error,
-      warning: status(dark ? 0xFFF2B866 : 0xFF8C5A00),
-      working: s.tertiary,
-      codeBg: s.surfaceContainer,
-      userBubble: s.primaryContainer,
-      onUserBubble: s.onPrimaryContainer,
-      modelBadgeBg: s.surfaceContainerHighest,
-      modelBadgeBorder: s.outlineVariant,
-      denyBorder: s.error.withValues(alpha: .4),
-      inputFill: s.surfaceContainerHigh,
-    );
-  }
-
-  /// Brand seed for devices without a wallpaper palette.
-  static const seed = Color(0xFF2F6F73);
-
-  static ColorScheme fallbackScheme(Brightness brightness) =>
-      ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
-
-  static final AppColors light = AppColors.fromScheme(
-    fallbackScheme(Brightness.light),
+  /// Graphite: the default.
+  static const dark = AppColors(
+    bg: Color(0xFF0E0E10),
+    surface: Color(0xFF161618),
+    border: Color(0xFF26262A),
+    text: Color(0xFFEDEDEF),
+    muted: Color(0xFF8A8A93),
+    muted2: Color(0xFFB8B8BF),
+    accent: Color(0xFFF2CF7E),
+    onAccent: Color(0xFF1C1405),
+    highlight: Color(0xFFE9C27A),
+    success: Color(0xFF5CD69B),
+    error: Color(0xFFFF6B6B),
+    warning: Color(0xFFF5B94A),
+    working: Color(0xFFF2CF7E),
+    codeBg: Color(0xFF121214),
+    userBubble: Color(0xFF222226),
+    onUserBubble: Color(0xFFEDEDEF),
+    modelBadgeBg: Color(0xFF1E1E22),
+    modelBadgeBorder: Color(0xFF2E2E33),
+    denyBorder: Color(0x66FF6B6B),
+    inputFill: Color(0xFF1B1B1E),
   );
-  static final AppColors dark = AppColors.fromScheme(
-    fallbackScheme(Brightness.dark),
+
+  /// Paper.
+  static const light = AppColors(
+    bg: Color(0xFFFAF9F6),
+    surface: Color(0xFFF3F1EC),
+    border: Color(0xFFE3E0D8),
+    text: Color(0xFF17171A),
+    muted: Color(0xFF6E6C66),
+    muted2: Color(0xFF45433E),
+    accent: Color(0xFFA9711A),
+    onAccent: Color(0xFFFFFFFF),
+    highlight: Color(0xFF8E5A10),
+    success: Color(0xFF1B8A55),
+    error: Color(0xFFC93A32),
+    warning: Color(0xFF9C6205),
+    working: Color(0xFFA9711A),
+    codeBg: Color(0xFFF1EEE7),
+    userBubble: Color(0xFFECE9E2),
+    onUserBubble: Color(0xFF17171A),
+    modelBadgeBg: Color(0xFFEDEAE3),
+    modelBadgeBorder: Color(0xFFDDD9CF),
+    denyBorder: Color(0x66C93A32),
+    inputFill: Color(0xFFF0EDE6),
+  );
+
+  /// The Material scheme framework widgets read, from the same tokens.
+  ColorScheme scheme(Brightness brightness) => ColorScheme(
+    brightness: brightness,
+    primary: accent,
+    onPrimary: onAccent,
+    primaryContainer: userBubble,
+    onPrimaryContainer: onUserBubble,
+    secondary: muted2,
+    onSecondary: bg,
+    secondaryContainer: inputFill,
+    onSecondaryContainer: text,
+    tertiary: working,
+    onTertiary: onAccent,
+    error: error,
+    onError: bg,
+    surface: bg,
+    onSurface: text,
+    onSurfaceVariant: muted,
+    surfaceContainerLowest: bg,
+    surfaceContainerLow: surface,
+    surfaceContainer: codeBg,
+    surfaceContainerHigh: inputFill,
+    surfaceContainerHighest: modelBadgeBg,
+    outline: muted,
+    outlineVariant: border,
+    inverseSurface: text,
+    onInverseSurface: bg,
+    surfaceTint: Colors.transparent,
   );
 
   final Color bg; // surface
@@ -99,7 +133,6 @@ class AppColors extends ThemeExtension<AppColors> {
   /// translucency or heavy shadows.
   Color get glassFill => inputFill;
   Color get glassFillStrong => modelBadgeBg;
-  Color get glassShadow => const Color(0x1F000000);
   Color get selection => accent.withValues(alpha: .12);
   Color get quietFill => surface;
 
@@ -182,20 +215,10 @@ class AppColors extends ThemeExtension<AppColors> {
   }
 }
 
-/// Fixed launcher/brand tile colors, shared by light and dark presentations.
+/// The mark's colors, the same as branding/baya-mark.svg.
 abstract final class AppBrandColors {
-  /// Sculptural treatment: a softly lit ivory tile, a graphite-teal bird and
-  /// one restrained gold accent. Values match baya-mark.svg.
-  static const background = Color(0xFFFFFFFF);
-  static const backgroundLight = Color(0xFFFFFFFF);
-  static const backgroundDeep = Color(0xFFF4F0E7);
-  static const edge = Color(0xFFE8E3D9);
-  static const foreground = Color(0xFF18222B);
-  static const foregroundLight = Color(0xFF3C5358);
-  static const foregroundShade = Color(0xFF121920);
-  static const highlight = Color(0xFFC7933F);
-  static const highlightLight = Color(0xFFD8AE6A);
-  static const highlightDeep = Color(0xFF8C6326);
-  static const reflection = Color(0xFFFFFFFF);
-  static const shadow = Color(0xFF12151C);
+  static const graphite = Color(0xFF131315);
+  static const branch = Color(0xFFEDE6D8);
+  static const strawLight = Color(0xFFF8DE97);
+  static const strawDeep = Color(0xFFDC9A3A);
 }

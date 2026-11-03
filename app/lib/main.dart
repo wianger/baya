@@ -11,7 +11,6 @@ import 'package:app/ui/core/themes/app_font_licenses.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app_links/app_links.dart';
-import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -95,28 +94,26 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
       ],
       // Theme is reactive: toggling the mode in Settings notifies
       // [Preferences] → this Consumer rebuilds → MaterialApp swaps theme.
-      child: DynamicColorBuilder(
-        builder: (lightDynamic, darkDynamic) => Consumer<Preferences>(
-          builder: (context, prefs, _) => MaterialApp.router(
-            title: kAppName,
-            theme: buildLightTheme(lightDynamic),
-            darkTheme: buildDarkTheme(darkDynamic),
-            themeMode: prefs.themeMode,
-            routerConfig: _router,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            debugShowCheckedModeBanner: false,
-            // User-chosen text size. Applied here rather than by
-            // scaling `AppTypography`'s base sizes so the many per-widget
-            // `copyWith(fontSize: …)` overrides scale too. `TextScaler.linear`
-            // REPLACES the platform scaler, which is deliberate: Flutter can't
-            // read a per-app text size anyway (it only reads the global
-            // accessibility setting), so honoring both would compound them.
-            builder: (context, child) => MediaQuery.withClampedTextScaling(
-              minScaleFactor: prefs.fontScale.factor,
-              maxScaleFactor: prefs.fontScale.factor,
-              child: child ?? const SizedBox.shrink(),
-            ),
+      child: Consumer<Preferences>(
+        builder: (context, prefs, _) => MaterialApp.router(
+          title: kAppName,
+          theme: buildLightTheme(),
+          darkTheme: buildDarkTheme(),
+          themeMode: prefs.themeMode,
+          routerConfig: _router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          debugShowCheckedModeBanner: false,
+          // User-chosen text size. Applied here rather than by
+          // scaling `AppTypography`'s base sizes so the many per-widget
+          // `copyWith(fontSize: …)` overrides scale too. `TextScaler.linear`
+          // REPLACES the platform scaler, which is deliberate: Flutter can't
+          // read a per-app text size anyway (it only reads the global
+          // accessibility setting), so honoring both would compound them.
+          builder: (context, child) => MediaQuery.withClampedTextScaling(
+            minScaleFactor: prefs.fontScale.factor,
+            maxScaleFactor: prefs.fontScale.factor,
+            child: child ?? const SizedBox.shrink(),
           ),
         ),
       ),

@@ -59,6 +59,7 @@ class FakeWorkspaces extends IWorkspaceRepository {
   Future<WorkspaceDirectory> Function(String, String)? onBrowseHost;
   final requestedHosts = <String>[];
   final opened = <WorkspaceAgent>[];
+  final continued = <String?>[];
   @override
   Future<WorkspaceDirectory> browse(
     String hostId, {
@@ -90,6 +91,7 @@ class FakeWorkspaces extends IWorkspaceRepository {
     String? agentSessionId,
   }) async {
     opened.add(agent);
+    continued.add(agentSessionId);
     return OpenedWorkspace(
       hostId: hostId,
       hostLabel: host.label,
@@ -300,5 +302,31 @@ void main() {
     expect((vm.state as NewSessionReady).error, 'offline');
     expect((vm.state as NewSessionReady).loading, false);
     vm.dispose();
+  });
+
+  test('an earlier agent conversation is listed and continued', () async {
+    final repo = FakeWorkspaces();
+    final vm = NewSessionViewModel(
+      repo,
+      launch: const NewSessionLaunch(
+        workspaces: [
+          WorkspaceGroup(
+            workspaceKey: 'computer:workspace:web',
+            deviceId: 'computer',
+            label: 'Web',
+            subtitle: '',
+          ),
+        ],
+        selectedWorkspace: 'computer:workspace:web',
+      ),
+    );
+    addTearDown(vm.dispose);
+    await tick();
+    await tick();
+    final earlier = await vm.earlierSessions();
+    expect(earlier.single.title, 'Earlier work');
+    final opened = await vm.open(agentSessionId: earlier.single.sessionId);
+    expect(opened, isNotNull);
+    expect(repo.continued, ['old-1']);
   });
 }

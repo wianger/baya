@@ -25,13 +25,28 @@
     "sha256": "c683bfbcc7e087f5d37a54ef628f10387c451a83ddc459b151403a164ac46c90"
   },
   {
-    "file": "PinyonScript/PinyonScript-Regular.ttf",
-    "source": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/pinyonscript/PinyonScript-Regular.ttf",
-    "sha256": "4aab130a6ed27f8b8117738c84a5602edf9300cdcc0651a9a65bf96f451ac29a"
+    "file": "Geist/Geist-Regular.ttf",
+    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/Geist/ttf/Geist-Regular.ttf",
+    "sha256": "85a1c6b18a6b0a06dfe9fd4f6d6a5d4979f74ec861eaef4bc7868b5492b8a117"
   },
   {
-    "file": "PinyonScript/OFL.txt",
-    "source": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/pinyonscript/OFL.txt",
-    "sha256": "61d07cb0eaa943943648df2b11d0c2210e772053c192871e13f680b53fe0b77e"
+    "file": "Geist/Geist-Medium.ttf",
+    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/Geist/ttf/Geist-Medium.ttf",
+    "sha256": "3a3b36f0d0b981f4857f7f00eeef4a5ee123605575d362ab31ee7c19e3d11f2f"
+  },
+  {
+    "file": "Geist/Geist-SemiBold.ttf",
+    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/Geist/ttf/Geist-SemiBold.ttf",
+    "sha256": "b9f52322d6d20a7ff1e7fe1310ff12ec851aebb83d24f8b4f1d4149298f489b2"
+  },
+  {
+    "file": "Geist/Geist-Bold.ttf",
+    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/Geist/ttf/Geist-Bold.ttf",
+    "sha256": "3f21f02b827228c3f0c5fb230d027b5a1a263013618e8052bc1b3c5692812c88"
+  },
+  {
+    "file": "Geist/OFL.txt",
+    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/OFL.txt",
+    "sha256": "942560b236adfa83745b2c64e5fc09ebaf91cb331751b1157eb92187e5d6e930"
   }
 ]

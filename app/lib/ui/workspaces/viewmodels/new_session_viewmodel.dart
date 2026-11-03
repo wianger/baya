@@ -1,3 +1,4 @@
+import 'package:app/acp/acp.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
@@ -191,7 +192,20 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
     await browse(path: current.directory?.path);
   }
 
-  Future<OpenedWorkspace?> open() async {
+  /// The agent's own conversations in this folder that Baya can continue.
+  Future<List<AgentSessionInfo>> earlierSessions() async {
+    final current = state;
+    if (current is! NewSessionReady || !current.canOpen) return const [];
+    return _repository.agentSessions(
+      current.host.id,
+      current.directory!.path,
+      current.agent,
+    );
+  }
+
+  /// Starts a session here, or continues [agentSessionId] from
+  /// [earlierSessions].
+  Future<OpenedWorkspace?> open({String? agentSessionId}) async {
     final current = state;
     if (current is! NewSessionReady || !current.canOpen) return null;
     emit(current.copyWith(opening: true, clearError: true));
@@ -200,6 +214,7 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
         current.host.id,
         current.directory!.path,
         current.agent,
+        agentSessionId: agentSessionId,
       );
       return _disposed
           ? null

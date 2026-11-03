@@ -1,23 +1,27 @@
 # Baya artwork
 
-`baya-mark.svg` is the canonical colored mark: a soft ivory glass tile, a
-graphite-teal weaverbird, and one gold accent. Its speech-bubble silhouette and
-negative-space feather remain legible from launcher to sidebar sizes.
+The mark is a baya weaver's nest: a straw chamber hanging from a branch, two
+strands wound across it, the entrance tube below. Graphite `#131315`, branch
+`#EDE6D8`, straw `#F8DE97` → `#DC9A3A`.
 
-The `baya-foreground.svg` and `baya-monochrome.svg` files are the transparent
-Android adaptive and themed layers. `baya-mark.svg` and the Flutter
-`AppMarkPainter` share the same geometry.
+Everything comes from one geometry in `generate.py`. Run it from the
+repository root after any change:
 
-Legacy `logo-*.svg` filenames are kept as compatibility aliases for existing
-links and automation; their contents are the Baya artwork above.
-
-`banner.svg` is the repository/social banner. Render `banner.png` and
-`screenshot-app.png` with:
-
-```powershell
-magick branding\banner.svg -background none -resize 1280x640 branding\banner.png
-Copy-Item branding\banner.png branding\screenshot-app.png -Force
+```sh
+python branding/generate.py
 ```
 
-Run `python app/branding/sync_android_icons.py` from the repository root to
-refresh Android vectors and density fallbacks after changing the source art.
+It writes:
+
+- `baya-mark.svg`, the mark on its graphite tile;
+- `baya-foreground.svg` and `baya-monochrome.svg`, the Android adaptive and
+  themed-icon layers;
+- `banner.svg`, the repository and social banner;
+- the Android vector drawables `ic_launcher_foreground`,
+  `ic_launcher_monochrome` and `baya_icon_background`.
+
+The Flutter `AppMarkPainter` (`app/lib/ui/core/branding/app_brand.dart`)
+draws the same paths.
+
+`banner.png` is `banner.svg` rendered at 1280×640 with the bundled Geist font
+(`app/assets/fonts/Geist`), for example with resvg.

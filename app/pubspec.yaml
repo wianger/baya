@@ -1,7 +1,7 @@
 name: app
 description: "Baya mobile client for computers running the standalone Baya host."
 publish_to: "none"
-version: 2.1.0+91
+version: 2.2.0+92
 
 environment:
   sdk: ^3.13.0
@@ -24,8 +24,6 @@ dependencies:
   # baya://pair links open the app straight into pairing.
   app_links: ^7.2.0
 
-  # Material You: wallpaper-derived color schemes on Android 12+.
-  dynamic_color: ^1.7.0
 
   # State: ChangeNotifier view models exposed through provider.
   provider: ^6.1.2
@@ -67,13 +65,19 @@ flutter:
 
   assets:
     - assets/fonts/GeistMono/OFL.txt
-    - assets/fonts/PinyonScript/OFL.txt
+    - assets/fonts/Geist/OFL.txt
 
   # Unmodified upstream static fonts; sources and checksums in assets/fonts.
   fonts:
-    - family: Pinyon Script
+    - family: Geist
       fonts:
-        - asset: assets/fonts/PinyonScript/PinyonScript-Regular.ttf
+        - asset: assets/fonts/Geist/Geist-Regular.ttf
+        - asset: assets/fonts/Geist/Geist-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Geist/Geist-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Geist/Geist-Bold.ttf
+          weight: 700
     - family: Geist Mono
       fonts:
         - asset: assets/fonts/GeistMono/GeistMono-Regular.ttf

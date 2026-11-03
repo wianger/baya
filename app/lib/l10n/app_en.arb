@@ -54,7 +54,7 @@
   "photoLibrary": "Photo Library",
   "close": "Close",
   "cancel": "Cancel",
-  "attachImage": "Attach image",
+  "attachImage": "Attach",
   "voiceInput": "Voice input",
   "stopResponse": "Stop response",
   "sendMessage": "Send message",
@@ -558,5 +558,31 @@
         "type": "String"
       }
     }
-  }
+  },
+  "decline": "Decline",
+  "submit": "Submit",
+  "openLink": "Open link",
+  "waitingForAgent": "Waiting for the agent",
+  "signInOnComputer": "Sign in to this agent on the computer, then try again.",
+  "runOnComputer": "Run this on the computer:",
+  "fileFromFolder": "File from the folder",
+  "signInTo": "Sign in to {agent}",
+  "@signInTo": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "attachCount": "{count, plural, =1{Attach 1 file} other{Attach {count} files}}",
+  "@attachCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "continueEarlier": "Continue an earlier conversation",
+  "noEarlierConversations": "The agent has no earlier conversations in this folder.",
+  "untitledSession": "Untitled"
 }

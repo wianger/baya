@@ -1,6 +1,7 @@
 // The chat screen against an in-memory computer: history, header, sending,
 // permission questions and session settings.
 
+import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/hosts/session_controller.dart';
 import 'package:app/data/images/image_picker_service.dart';
@@ -219,6 +220,124 @@ void main() {
       'configId': 'model',
       'value': 'sonnet',
     });
+    await _finish(tester, chat);
+  });
+
+  testWidgets('an elicitation form is filled in and submitted', (tester) async {
+    final chat = await _pump(tester);
+    Object? answer;
+    chat.host
+        .askElicitation({
+          'sessionId': 's1',
+          'mode': 'form',
+          'message': 'Which branch?',
+          'requestedSchema': {
+            'type': 'object',
+            'properties': {
+              'branch': {'type': 'string', 'title': 'Branch'},
+              'push': {'type': 'boolean', 'title': 'Push'},
+            },
+            'required': ['branch'],
+          },
+        })
+        .then((value) => answer = value);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('elicitation-card')), findsOneWidget);
+    expect(find.text('Which branch?'), findsOneWidget);
+    final submit = find.byKey(const Key('elicitation-accept'));
+    expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+
+    await tester.enterText(find.byKey(const ValueKey('field-branch')), 'main');
+    await tester.tap(find.byKey(const ValueKey('field-push')));
+    await tester.pump();
+    await tester.tap(submit);
+    await tester.pumpAndSettle();
+    expect(answer, {
+      'action': 'accept',
+      'content': {'branch': 'main', 'push': true},
+    });
+    expect(find.byKey(const Key('elicitation-card')), findsNothing);
+    await _finish(tester, chat);
+  });
+
+  testWidgets('an agent that needs a sign-in offers its methods', (
+    tester,
+  ) async {
+    final computer = _computer();
+    computer.handlers['session/prompt'] = (_) => throw const RpcError(
+      -32000,
+      'Authentication required',
+      {'reason': 'auth_required', 'agent': 'claude'},
+    );
+    computer.handlers['_baya/agent_auth'] = (_) => {
+      'authMethods': [
+        {'id': 'key', 'name': 'API key'},
+        {
+          'id': 'login',
+          'name': 'Claude login',
+          'type': 'terminal',
+          'args': ['--login'],
+        },
+      ],
+    };
+    computer.handlers['_baya/authenticate'] = (_) => const <String, dynamic>{};
+    final chat = await _pump(tester, computer: computer);
+    await tester.enterText(find.byType(TextField), 'Fix it');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('input-bar-action')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('sign-in-card')), findsOneWidget);
+    expect(find.text('--login'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('sign-in-key')));
+    await tester.pumpAndSettle();
+    final call = computer.calls.lastWhere(
+      (c) => c.method == '_baya/authenticate',
+    );
+    expect(call.params, {'agent': 'claude', 'methodId': 'key'});
+    expect(find.byKey(const Key('sign-in-card')), findsNothing);
+    await _finish(tester, chat);
+  });
+
+  testWidgets('files picked from the folder go with the next prompt', (
+    tester,
+  ) async {
+    final computer = _computer();
+    computer.handlers['_baya/files'] = (params) => {
+      'path': '/home/me/web',
+      'parent': '/home/me',
+      'entries': [
+        {'name': 'src', 'path': '/home/me/web/src', 'type': 'directory'},
+        {'name': 'app.ts', 'path': '/home/me/web/app.ts', 'type': 'file'},
+      ],
+    };
+    final chat = await _pump(tester, computer: computer);
+    await tester.tap(find.byKey(const Key('input-bar-attach')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('attach-file')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('file-app.ts')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('file-picker-done')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('attached-file:///home/me/web/app.ts')),
+      findsOneWidget,
+    );
+
+    await tester.enterText(find.byType(TextField), 'Look at this');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('input-bar-action')));
+    await tester.pumpAndSettle();
+    final prompt = computer.calls.lastWhere(
+      (c) => c.method == 'session/prompt',
+    );
+    expect((prompt.params['prompt'] as List).last, {
+      'type': 'resource_link',
+      'name': 'app.ts',
+      'uri': 'file:///home/me/web/app.ts',
+    });
+    expect(chat.session.attachedFiles, isEmpty);
     await _finish(tester, chat);
   });
 }

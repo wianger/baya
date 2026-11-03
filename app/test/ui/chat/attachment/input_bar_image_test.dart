@@ -1,4 +1,4 @@
-// InputBar image wiring: attach button gating by vision, preview +
+// InputBar image wiring: attach button gating, preview +
 // remove, send-with-image. Drives a real AttachmentViewModel + fakes.
 
 import 'dart:convert';
@@ -63,14 +63,14 @@ void main() {
     expect(btn.onPressed, isNotNull);
   });
 
-  testWidgets('vision=false disables the attach button (#9)', (tester) async {
+  testWidgets('vision=false keeps attach open for files', (tester) async {
     vm.setVision(false);
     await pumpBar(tester);
     await tester.pump(); // resolve vision
     final btn = tester.widget<IconButton>(
       find.byKey(const Key('input-bar-attach')),
     );
-    expect(btn.onPressed, isNull);
+    expect(btn.onPressed, isNotNull);
   });
 
   testWidgets('offline (null onOpenAttach) disables the attach button', (

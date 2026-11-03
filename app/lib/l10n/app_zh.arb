@@ -54,7 +54,7 @@
   "photoLibrary": "相册",
   "close": "关闭",
   "cancel": "取消",
-  "attachImage": "附加图片",
+  "attachImage": "附加",
   "voiceInput": "语音输入",
   "stopResponse": "停止回复",
   "sendMessage": "发送消息",
@@ -337,5 +337,17 @@
   "queueFollowUp": "排队一条后续消息…",
   "sessionId": "会话",
   "hostUnreachable": "连不上 {name}。",
-  "hostOffline": "{name} 未连接。"
+  "hostOffline": "{name} 未连接。",
+  "decline": "拒绝",
+  "submit": "提交",
+  "openLink": "打开链接",
+  "waitingForAgent": "等待智能体",
+  "signInOnComputer": "请先在电脑上登录这个智能体，然后重试。",
+  "runOnComputer": "在电脑上运行：",
+  "fileFromFolder": "文件夹中的文件",
+  "signInTo": "登录 {agent}",
+  "attachCount": "{count, plural, other{附加 {count} 个文件}}",
+  "continueEarlier": "继续之前的对话",
+  "noEarlierConversations": "智能体在这个文件夹中没有之前的对话。",
+  "untitledSession": "未命名"
 }

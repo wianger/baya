@@ -2,8 +2,8 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 
-/// What a surface is for. Each role maps to one Material 3 tonal container,
-/// so hierarchy comes from tone and spacing instead of blur and shadows.
+/// What a surface is for. Hierarchy comes from tone, a hairline edge and
+/// spacing; only floating overlays cast a (soft) shadow.
 enum BayaSurfaceRole {
   navigation,
   card,
@@ -14,12 +14,12 @@ enum BayaSurfaceRole {
   brand,
 }
 
-/// A rounded Material 3 tonal surface.
+/// A rounded, flat surface with a hairline edge.
 class BayaSurface extends StatelessWidget {
   const BayaSurface({
     super.key,
     required this.child,
-    this.radius = 28,
+    this.radius = 20,
     this.borderRadius,
     this.padding = EdgeInsets.zero,
     this.elevated = true,
@@ -50,21 +50,29 @@ class BayaSurface extends StatelessWidget {
       BayaSurfaceRole.control => colors.inputFill,
       BayaSurfaceRole.content => colors.codeBg,
       BayaSurfaceRole.user => colors.userBubble,
-      BayaSurfaceRole.overlay => colors.inputFill,
+      BayaSurfaceRole.overlay => colors.surface,
       BayaSurfaceRole.brand => colors.surface,
     };
+    final hairline = switch (role) {
+      BayaSurfaceRole.card ||
+      BayaSurfaceRole.content ||
+      BayaSurfaceRole.overlay ||
+      BayaSurfaceRole.brand ||
+      BayaSurfaceRole.control => true,
+      BayaSurfaceRole.navigation || BayaSurfaceRole.user => false,
+    };
     final outline = emphasized
-        ? BorderSide(color: emphasisColor ?? colors.accent, width: 1.5)
+        ? BorderSide(color: emphasisColor ?? colors.accent, width: 1.2)
         : highContrast
         ? BorderSide(color: colors.muted2, width: 1.2)
+        : hairline
+        ? BorderSide(color: colors.border, width: 1)
         : BorderSide.none;
     final shadow = elevated && !highContrast && role == BayaSurfaceRole.overlay;
     final contentMotion = BayaSurfaceContentMotion.surfaceOf(context);
     final content = Padding(padding: padding, child: child);
-    return Material(
+    final material = Material(
       color: fill,
-      elevation: shadow ? 3 : 0,
-      shadowColor: colors.glassShadow,
       surfaceTintColor: Colors.transparent,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: corners, side: outline),
@@ -89,6 +97,25 @@ class BayaSurface extends StatelessWidget {
                 ),
               ),
             ),
+    );
+    if (!shadow) return material;
+    // One soft, wide shadow: the overlay floats without a grey halo.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: corners,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? .45
+                  : .07,
+            ),
+            blurRadius: 32,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: material,
     );
   }
 }

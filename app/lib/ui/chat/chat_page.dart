@@ -10,9 +10,12 @@ import 'package:app/ui/chat/chat_message_list.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/chat/widgets/attach_sheet.dart';
 import 'package:app/ui/chat/widgets/context_usage_button.dart';
+import 'package:app/ui/chat/widgets/elicitation_card.dart';
+import 'package:app/ui/chat/widgets/file_picker_sheet.dart';
 import 'package:app/ui/chat/widgets/input_bar.dart';
 import 'package:app/ui/chat/widgets/permission_card.dart';
 import 'package:app/ui/chat/widgets/session_settings_sheet.dart';
+import 'package:app/ui/chat/widgets/sign_in_card.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -84,6 +87,19 @@ class ChatPage extends StatelessWidget {
                         .lastOrNull,
                     onAnswer: session.answerPermission,
                   ),
+                if (session.elicitation case final request?)
+                  ElicitationCard(
+                    key: ValueKey('elicitation-${request.requestId}'),
+                    request: request,
+                    onAnswer: session.answerElicitation,
+                  ),
+                if (session.authAgent != null)
+                  SignInCard(
+                    key: ValueKey('sign-in-${session.authAgent}'),
+                    session: session,
+                  ),
+                if (session.attachedFiles.isNotEmpty)
+                  _AttachedFiles(session: session),
                 _buildInput(context, session),
               ],
             ),
@@ -465,7 +481,10 @@ class ChatPage extends StatelessWidget {
     BuildContext context,
     AttachmentViewModel vm,
   ) async {
-    final source = await showAttachSheet(context);
+    final source = await showAttachSheet(
+      context,
+      images: !vm.state.attachBlockedByVision,
+    );
     if (source == null) return;
     AttachHint? hint;
     final sub = vm.hints.listen((h) => hint = h);
@@ -474,6 +493,9 @@ class ChatPage extends StatelessWidget {
         await vm.pickFromCamera();
       case AttachSource.gallery:
         await vm.pickFromGallery();
+      case AttachSource.file:
+        if (!context.mounted) return;
+        return showFilePickerSheet(context, context.read<SessionController>());
     }
     await Future<void>.delayed(Duration.zero); // flush the hint microtask
     await sub.cancel();
@@ -680,6 +702,44 @@ class _RevokedBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Files from the computer that go with the next prompt.
+class _AttachedFiles extends StatelessWidget {
+  const _AttachedFiles({required this.session});
+  final SessionController session;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final file in session.attachedFiles)
+                InputChip(
+                  key: ValueKey('attached-${file.uri}'),
+                  avatar: Icon(
+                    LucideIcons.fileText,
+                    size: 15,
+                    color: colors.muted2,
+                  ),
+                  label: Text(file.name, style: context.typo.monoSmall),
+                  onDeleted: () => session.removeFile(file),
+                  deleteIcon: const Icon(LucideIcons.x, size: 14),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

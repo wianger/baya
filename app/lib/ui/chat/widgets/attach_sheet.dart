@@ -8,13 +8,16 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 /// Which source the user picked from the attach sheet (#2).
-enum AttachSource { camera, gallery }
+enum AttachSource { camera, gallery, file }
 
 /// Bottom sheet offering Camera / Gallery (decision #2, interpreted as an
 /// action sheet to match the quick-actions sheet idiom). Returns the chosen
 /// [AttachSource], or null if dismissed. Pure UI — the caller drives the
 /// picker ViewModel with the result.
-Future<AttachSource?> showAttachSheet(BuildContext context) {
+Future<AttachSource?> showAttachSheet(
+  BuildContext context, {
+  bool images = true,
+}) {
   // Auto-close if the tablet's selected session changes out from under the
   // sheet (same fix as the Quick Actions sheet — the modal lives on the
   // detail-pane navigator and would otherwise orphan over a different chat).
@@ -34,14 +37,17 @@ Future<AttachSource?> showAttachSheet(BuildContext context) {
       elevated: false,
       child: DismissOnSessionChange(
         selection: selection,
-        child: const _AttachSheetBody(),
+        child: _AttachSheetBody(images: images),
       ),
     ),
   );
 }
 
 class _AttachSheetBody extends StatelessWidget {
-  const _AttachSheetBody();
+  const _AttachSheetBody({required this.images});
+
+  /// Whether the agent takes images; files from the computer always work.
+  final bool images;
 
   @override
   Widget build(BuildContext context) {
@@ -61,17 +67,25 @@ class _AttachSheetBody extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
+            if (images) ...[
+              _AttachOption(
+                key: const Key('attach-camera'),
+                icon: LucideIcons.camera,
+                label: context.l10n.camera,
+                onTap: () => Navigator.of(context).pop(AttachSource.camera),
+              ),
+              _AttachOption(
+                key: const Key('attach-gallery'),
+                icon: LucideIcons.image,
+                label: context.l10n.photoLibrary,
+                onTap: () => Navigator.of(context).pop(AttachSource.gallery),
+              ),
+            ],
             _AttachOption(
-              key: const Key('attach-camera'),
-              icon: LucideIcons.camera,
-              label: context.l10n.camera,
-              onTap: () => Navigator.of(context).pop(AttachSource.camera),
-            ),
-            _AttachOption(
-              key: const Key('attach-gallery'),
-              icon: LucideIcons.image,
-              label: context.l10n.photoLibrary,
-              onTap: () => Navigator.of(context).pop(AttachSource.gallery),
+              key: const Key('attach-file'),
+              icon: LucideIcons.fileCode,
+              label: context.l10n.fileFromFolder,
+              onTap: () => Navigator.of(context).pop(AttachSource.file),
             ),
           ],
         ),

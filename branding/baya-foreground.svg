@@ -1,31 +1,16 @@
-<?xml version='1.0' encoding='utf-8'?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
   <defs>
-    <linearGradient id="tile" x1="8" y1="4" x2="100" y2="104" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFFFFF" />
-      <stop offset="1" stop-color="#F4F0E7" />
+    <linearGradient id="straw" x1="36" y1="28" x2="70" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8DE97"/>
+      <stop offset="1" stop-color="#DC9A3A"/>
     </linearGradient>
-    <linearGradient id="body" x1="40" y1="30" x2="70" y2="80" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3C5358" />
-      <stop offset="1" stop-color="#18222B" />
-    </linearGradient>
-    <linearGradient id="body-shine" x1="35" y1="29" x2="57" y2="51" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".28" />
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0" />
-    </linearGradient>
-    <clipPath id="tile-clip">
-      <rect width="108" height="108" rx="24" />
-    </clipPath>
   </defs>
-  <g transform="translate(11.88 11.88) scale(.78)">
-    <g id="baya-bird">
-      <path d="M28 65C28 54 37 46 49 46C50 34 59 27 70 28C80 29 85 38 81 49C80 65 65 78 48 79L30 88L34 76C30 74 28 70 28 65Z" fill="url(#body)" stroke="#FFFFFF" stroke-opacity=".34" stroke-width=".8" />
-      <path d="M32 47C35 34 48 29 61 31C52 35 40 41 32 47Z" fill="url(#body-shine)" />
-      <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M42 59C50 66 61 66 71 57C68 68 56 74 45 70" stroke-width="4.2" />
-      </g>
-      <path d="M80 42.5L94 48L79.5 53.5Z" fill="#C7933F" />
-      <circle cx="72" cy="39.5" r="2.8" fill="#FFFFFF" />
-    </g>
+  
+  <g transform="translate(7.56 7.56) scale(0.86)">
+    <path d="M30 26.5C44 23.6 64 23.6 78 26.5" fill="none" stroke="#EDE6D8" stroke-width="3" stroke-linecap="round"/>
+    <path d="M54 25V31" stroke="#F8DE97" stroke-width="4" stroke-linecap="round"/>
+    <path d="M54 29C67.5 29 77 40 77 53C77 66 68 75 61.5 80.5V84.5A7.5 7.5 0 0 1 46.5 84.5V80.5C40 75 31 66 31 53C31 40 40.5 29 54 29Z" fill="url(#straw)"/>
+    <g fill="none" stroke="#131315" stroke-width="3.4"><path d="M29 45C42 52.5 54 63 61.5 77.5"/><path d="M33 32C51 40 67 54 77 72"/></g>
+    <ellipse cx="54" cy="85" rx="3.6" ry="3.2" fill="#131315"/>
   </g>
 </svg>

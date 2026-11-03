@@ -1,6 +1,7 @@
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/domain/value_objects/workspace.dart';
 import 'package:app/routing/adaptive.dart';
+import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
@@ -412,10 +413,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('All'), findsNothing);
       expect(find.textContaining('Working'), findsNothing);
-      expect(
-        tester.widget<Text>(find.text('Baya')).style?.fontFamily,
-        'Pinyon Script',
-      );
+      expect(find.byType(AppMark), findsOneWidget);
+      expect(find.text('Baya'), findsOneWidget);
       // Claude-style footer: settings circle + primary New session pill.
       final settings = find.byKey(const Key('sidebar-settings'));
       expect(settings, findsOneWidget);

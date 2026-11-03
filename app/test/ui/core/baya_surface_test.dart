@@ -19,7 +19,7 @@ Material _material(WidgetTester tester) => tester.widget<Material>(
 );
 
 void main() {
-  testWidgets('each role paints its M3 tonal container, never a blur', (
+  testWidgets('each role paints its fill with a hairline, never a blur', (
     tester,
   ) async {
     final colors = buildLightTheme().extension<AppColors>()!;
@@ -28,7 +28,7 @@ void main() {
       BayaSurfaceRole.control: colors.inputFill,
       BayaSurfaceRole.content: colors.codeBg,
       BayaSurfaceRole.user: colors.userBubble,
-      BayaSurfaceRole.overlay: colors.inputFill,
+      BayaSurfaceRole.overlay: colors.surface,
     };
     for (final MapEntry(key: role, value: fill) in expected.entries) {
       await tester.pumpWidget(
@@ -40,12 +40,18 @@ void main() {
   });
 
   testWidgets('only elevated overlays cast a shadow', (tester) async {
+    final shadow = find.descendant(
+      of: find.byType(BayaSurface),
+      matching: find.byType(DecoratedBox),
+    );
     await tester.pumpWidget(
       _host(const BayaSurface(role: BayaSurfaceRole.overlay, child: Text('x'))),
     );
-    expect(_material(tester).elevation, greaterThan(0));
-    await tester.pumpWidget(_host(const BayaSurface(child: Text('x'))));
+    final box = tester.widget<DecoratedBox>(shadow.first).decoration;
+    expect((box as BoxDecoration).boxShadow, isNotEmpty);
     expect(_material(tester).elevation, 0);
+    await tester.pumpWidget(_host(const BayaSurface(child: Text('x'))));
+    expect(shadow, findsNothing);
   });
 
   testWidgets('high contrast and emphasis add a visible outline', (

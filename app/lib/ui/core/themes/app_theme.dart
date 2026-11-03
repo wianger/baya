@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:dynamic_color/dynamic_color.dart';
 
 import 'package:app/ui/core/themes/app_colors.dart';
 import 'package:app/ui/core/themes/app_typography.dart';
 
-/// Material 3 theme from one [ColorScheme]. Framework widgets use the scheme
-/// directly; app widgets read the same palette through [AppColors] and
-/// [AppTypography] extensions.
-ThemeData _buildTheme(ColorScheme scheme) {
-  final colors = AppColors.fromScheme(scheme);
+/// The theme from Baya's palette. Framework widgets read the derived
+/// [ColorScheme]; app widgets read [AppColors] and [AppTypography].
+ThemeData _buildTheme(AppColors colors, Brightness brightness) {
+  final scheme = colors.scheme(brightness);
   final typo = AppTypography.fromColors(colors, monoColor: colors.text);
   return ThemeData(
     useMaterial3: true,
+    brightness: brightness,
     colorScheme: scheme,
+    fontFamily: kSansFamily,
     scaffoldBackgroundColor: colors.bg,
     splashFactory: InkSparkle.splashFactory,
+    highlightColor: Colors.transparent,
     visualDensity: VisualDensity.standard,
     extensions: <ThemeExtension<dynamic>>[colors, typo],
     // Predictive back: the previous page peeks in while the gesture runs.
@@ -26,9 +27,10 @@ ThemeData _buildTheme(ColorScheme scheme) {
     appBarTheme: AppBarTheme(
       backgroundColor: colors.bg,
       foregroundColor: colors.text,
-      scrolledUnderElevation: 3,
-      surfaceTintColor: scheme.surfaceTint,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
       toolbarHeight: 64,
+      titleTextStyle: typo.title.copyWith(fontSize: 18),
     ),
     dividerTheme: DividerThemeData(
       color: colors.border,
@@ -41,17 +43,62 @@ ThemeData _buildTheme(ColorScheme scheme) {
         fontSize: 13,
         color: colors.muted,
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
-    filledButtonTheme: const FilledButtonThemeData(
-      style: ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(44, 48))),
+    // Buttons: compact pills; primary is ink on paper (text on the
+    // inverse surface), the accent stays for state and brand moments.
+    filledButtonTheme: FilledButtonThemeData(
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? colors.inputFill
+              : colors.text,
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.disabled) ? colors.muted : colors.bg,
+        ),
+        textStyle: WidgetStatePropertyAll(
+          typo.sansBody.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+        shape: const WidgetStatePropertyAll(StadiumBorder()),
+      ),
     ),
-    outlinedButtonTheme: const OutlinedButtonThemeData(
-      style: ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(44, 48))),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
+        foregroundColor: WidgetStatePropertyAll(colors.text),
+        side: WidgetStatePropertyAll(BorderSide(color: colors.border)),
+        textStyle: WidgetStatePropertyAll(
+          typo.sansBody.copyWith(fontSize: 15, fontWeight: FontWeight.w500),
+        ),
+        shape: const WidgetStatePropertyAll(StadiumBorder()),
+      ),
     ),
-    textButtonTheme: const TextButtonThemeData(
-      style: ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(44, 44))),
+    textButtonTheme: TextButtonThemeData(
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
+        foregroundColor: WidgetStatePropertyAll(colors.text),
+        textStyle: WidgetStatePropertyAll(
+          typo.sansBody.copyWith(fontSize: 15, fontWeight: FontWeight.w500),
+        ),
+      ),
     ),
+    switchTheme: SwitchThemeData(
+      trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      thumbColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? colors.onAccent
+            : colors.muted2,
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? colors.accent
+            : colors.inputFill,
+      ),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: colors.accent),
     // Sheets, dialogs and menus paint their own BayaSurface.
     bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: Colors.transparent,
@@ -83,12 +130,16 @@ ThemeData _buildTheme(ColorScheme scheme) {
       filled: true,
       fillColor: colors.inputFill,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: colors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: colors.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: colors.accent, width: 2),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: colors.muted, width: 1.2),
       ),
       hintStyle: typo.sansBody.copyWith(color: colors.muted, fontSize: 14),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -96,12 +147,8 @@ ThemeData _buildTheme(ColorScheme scheme) {
   );
 }
 
-/// Light theme from the wallpaper palette, or the brand seed without one.
-ThemeData buildLightTheme([ColorScheme? dynamic]) => _buildTheme(
-  dynamic?.harmonized() ?? AppColors.fallbackScheme(Brightness.light),
-);
+/// Paper.
+ThemeData buildLightTheme() => _buildTheme(AppColors.light, Brightness.light);
 
-/// Dark theme from the wallpaper palette, or the brand seed without one.
-ThemeData buildDarkTheme([ColorScheme? dynamic]) => _buildTheme(
-  dynamic?.harmonized() ?? AppColors.fallbackScheme(Brightness.dark),
-);
+/// Graphite.
+ThemeData buildDarkTheme() => _buildTheme(AppColors.dark, Brightness.dark);

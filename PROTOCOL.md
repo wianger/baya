@@ -24,12 +24,28 @@ baya agents add codex --name Codex -- CODEX_PATH=/path/to/codex codex-acp
 baya agents add deepseek --name DeepSeek -- dsh --profile acp
 ```
 
-Leading `NAME=value` words are stored as the agent's environment. The host is their client. It sends `initialize` with no file-system or
-terminal capability, so agents use their own tools on the computer. A
-session's agent process starts on first use and stops after twenty idle
+Leading `NAME=value` words are stored as the agent's environment; an
+agent's `mcpServers` in `config.json` go with every session it starts.
+
+The host is the agents' ACP client and implements the whole client side:
+
+- `fs/read_text_file` (with `line` and `limit`) and `fs/write_text_file`;
+- `terminal/create`, `terminal/output`, `terminal/wait_for_exit`,
+  `terminal/kill` and `terminal/release`, running commands on the computer
+  and keeping the last 256 KiB of output (or the agent's `outputByteLimit`);
+- `session/request_permission` and `elicitation/create` (form and URL
+  modes), answered by a phone;
+- `session/update` of every kind, including notices, compaction and
+  boolean config options.
+
+A session's agent process starts on first use and stops after twenty idle
 minutes; when it starts again the host reopens the agent's session with
 `session/load` (swallowing the replay) or `session/resume`, and otherwise
 starts a new one and adds a notice that the agent lost its context.
+
+When an agent answers a prompt with `-32000` (authentication required), the
+host passes the error on with `data: {"reason":"auth_required","agent":"<id>"}`
+and the phone offers the agent's sign-in methods.
 
 ## Reaching the host
 
@@ -126,7 +142,7 @@ Standard ACP methods, with Baya's meaning:
 | Method | |
 |---|---|
 | `session/list` | Every session on the computer, newest first. `SessionInfo._meta.baya` carries `agent`, `agentName`, `working`, `running` and, when the agent could not start, `error`. |
-| `session/new` | `{cwd, mcpServers, _meta.baya.agent}`; the configured default agent when omitted. |
+| `session/new` | `{cwd, mcpServers, _meta.baya.agent}`; the configured default agent when omitted. With `_meta.baya.agentSessionId` it adopts one of the agent's own conversations (see `_baya/agent_sessions`) and loads its history. |
 | `session/load` | Replays the transcript as `session/update` notifications, then answers with `configOptions`, `modes` and `_meta.baya` (`agentName`, `title`, `working`, `promptCapabilities`). The phone is attached until `session/close`. |
 | `session/resume` | Attaches without the replay. |
 | `session/prompt` | Queued behind a running turn. `_meta.baya.messageId` names the echoed `user_message_chunk`s. |
@@ -142,6 +158,13 @@ Baya methods:
 | `_baya/browse` | `{path?, showHidden?}` | `{path, parent, home, roots, directories:[{name,path}], truncated}` |
 | `_baya/files` | `{sessionId, path?, showHidden?}` | `{root, path, parent, entries:[{name,path,type,size,modifiedAt}], truncated}` |
 | `_baya/read_file` | `{sessionId, path}` | `{name, path, size, modifiedAt, content, binary, truncated}` (256 KiB at most) |
+| `_baya/agent_auth` | `{agent}` | `{authMethods, logout}`: the agent's ACP auth methods; `logout` when it supports signing out |
+| `_baya/authenticate` | `{agent, methodId}` | `{}`; the agent restarts signed in |
+| `_baya/logout` | `{agent}` | `{}` |
+| `_baya/agent_sessions` | `{agent, cwd}` | `{sessions}`: the agent's `session/list` in that folder, without those Baya already has |
+
+Files the phone attaches to a prompt go as ACP `resource_link` blocks with
+`file://` URIs on the computer; the agent reads them itself.
 
 Folder access stays read-only, and `_baya/files` cannot leave the session's
 folder.
@@ -158,9 +181,19 @@ and each tool call is stored once in its final state. State updates
 `current_mode_update`, `session_info_update`) are applied to the session and
 the latest commands and usage follow every replay.
 
-`session/request_permission` goes to every attached phone, and to phones that
-attach while it is open. The first answer is passed to the agent; the host
-withdraws the question from the other phones with `$/cancel_request`.
+`session/request_permission` and `elicitation/create` go to every attached
+phone, and to phones that attach while they are open. The first answer is
+passed to the agent; the host withdraws the question from the other phones
+with `$/cancel_request`. `elicitation/complete` is passed on as is.
+
+Terminals an agent runs stream to attached phones, at most every 150 ms, and
+are kept with the transcript and replayed on attach:
+
+```json
+{"jsonrpc":"2.0","method":"_baya/terminal","params":{"sessionId":"…","terminalId":"term-…","output":"…","truncated":false,"exitStatus":{"exitCode":0,"signal":null}}}
+```
+
+The phone shows each terminal inside the tool call that embeds it.
 
 Every paired phone also gets the session list as it changes:
 
@@ -180,7 +213,7 @@ The host keeps `$BAYA_HOME` (default `~/.baya`):
 config.json        agents and the default agent
 peers.json         paired phone keys
 sessions.json      sessions: id, cwd, agent, title, the agent's session id
-sessions/<id>.json each session's transcript
+sessions/<id>.json each session's transcript and terminals
 runtime/           control socket info, pending pairing token
 logs/host.log
 ```
