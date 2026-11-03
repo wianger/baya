@@ -1,7 +1,7 @@
 {
   "name": "@wianger/baya",
-  "version": "3.0.0",
-  "description": "Independent local agent host for Baya. Connects Pi, Codex, and DeepSeek to the Baya mobile client.",
+  "version": "4.0.0",
+  "description": "Baya host: runs ACP coding agents on this computer for the Baya phone app.",
   "type": "module",
   "main": "dist/cli.js",
   "types": "dist/cli.d.ts",
@@ -19,11 +19,10 @@
   },
   "keywords": [
     "baya",
+    "acp",
+    "agent-client-protocol",
     "coding-agent",
     "remote-control",
-    "pi",
-    "codex",
-    "deepseek",
     "mobile"
   ],
   "author": "wianger",

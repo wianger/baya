@@ -1,10 +1,10 @@
 # Baya
 
-Baya is a standalone host and Android client for controlling coding-agent
-conversations from a phone. It no longer depends on being installed as a Pi
-extension. The `baya` CLI owns local sessions, pairing, phone connections, and
-workspace/file access; Pi, Codex, and DeepSeek Harness are launched as ordinary
-child processes.
+Baya drives coding agents on your computers from your phone. It speaks the
+[Agent Client Protocol](https://agentclientprotocol.com) (ACP) end to end: any
+agent with an ACP command (Claude Code, Codex, Pi, DeepSeek Harness, …)
+runs on the computer, and the phone is an ACP client to it, over Tailscale and
+end-to-end encrypted.
 
 ## Components
 
@@ -13,7 +13,7 @@ child processes.
 | `host/` | Standalone TypeScript CLI and resident session host, published as the `baya` executable |
 | `app/` | Android Flutter client (`dev.wianger.baya`) |
 | `branding/` | Baya SVG and PNG identity assets |
-| `PROTOCOL.md` | Canonical wire protocol and security model |
+| `PROTOCOL.md` | Wire protocol (ACP plus Baya's extensions) and security model |
 
 ## Quick start
 
@@ -21,7 +21,7 @@ Requirements:
 
 - Node.js 22.19 or newer
 - pnpm 10 or newer
-- At least one agent on `PATH`: `pi`, `codex`, or DeepSeek Harness `dsh`
+- An agent that speaks ACP (see [Agents](#agents))
 - [Tailscale](https://tailscale.com/download) on the computer and the phone,
   signed in to the same account
 
@@ -43,13 +43,16 @@ from WSL, run it on Windows):
 tailscale serve --bg --set-path /baya-pair/windows http://127.0.0.1:7481/baya-pair/windows
 ```
 
-Start Baya in a project folder. The first time, it prints a pairing code;
+Add an agent, then start Baya. The first time, it prints a pairing code;
 scan it with the app and you are done:
 
 ```powershell
-cd C:\code\project
+baya agents add claude --name "Claude Code" -- npx -y @agentclientprotocol/claude-agent-acp
 baya
 ```
+
+Start sessions from the app (pick a folder and an agent), or from the
+computer with `baya open <folder>`.
 
 Three ways to pair, all equally secure:
 
@@ -77,17 +80,24 @@ baya autostart on     # baya autostart off to remove it
 
 The host stores its state in `%USERPROFILE%\.baya` (or `$BAYA_HOME` when set).
 
-## Pi integration
+## Agents
 
-Baya starts Pi with native RPC mode:
+An agent is any command that speaks ACP on stdin/stdout. Baya starts it in the
+session's folder when the session is used and stops it after twenty idle
+minutes; the conversation stays on the computer either way.
 
-```text
-pi --mode rpc --approve --session-id <id> --name <name>
+```powershell
+baya agents add claude --name "Claude Code" -- npx -y @agentclientprotocol/claude-agent-acp
+baya agents add codex --name Codex -- npx -y @agentclientprotocol/codex-acp
+baya agents add pi --name Pi -- npx -y pi-acp
+baya agents add deepseek --name DeepSeek -- dsh --profile acp
+baya agents                  # list them; the first is the default
+baya agents default codex
 ```
 
-It does not run `pi install`, does not pass `-e`, and does not load a Baya
-extension into Pi. That separation lets the normal Pi CLI and Baya host evolve
-independently.
+Each agent signs in the way it normally does on that computer. Model,
+reasoning effort and modes in the app are the agent's own ACP settings, and
+its permission questions appear on every phone that has the session open.
 
 ## Android
 
@@ -106,7 +116,7 @@ updates.
 Every frame between the phone and the computer is end-to-end encrypted
 (X25519 + ChaCha20-Poly1305, keyed by the paired Ed25519 identities), on top
 of Tailscale's own encryption, so not even `tailscale serve` can read or forge
-it. See [PROTOCOL.md](PROTOCOL.md#end-to-end-encryption-v1).
+it. See [PROTOCOL.md](PROTOCOL.md#end-to-end-encryption-v2).
 
 ## Validation
 

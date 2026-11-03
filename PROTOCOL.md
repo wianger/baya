@@ -1,18 +1,37 @@
 # Baya Wire Protocol
 
-This document describes the protocol between the standalone Baya host and the
-Baya Android client. Phones connect to each host directly over Tailscale.
+Baya speaks the [Agent Client Protocol](https://agentclientprotocol.com) (ACP
+v1) end to end:
 
-The host is independent of any agent: Pi, Codex and DeepSeek Harness run as
-ordinary child processes.
+```text
+phone (ACP client) ⇄ Baya host (ACP agent to the phone, ACP client to agents) ⇄ agent processes
+```
 
-## Security model
+To the phone, a computer is one ACP agent whose sessions run on whichever
+agent each was created with. The host starts an agent process when a session
+is used, keeps the transcript, and fans updates and permission questions out
+to every phone that has the session open. Baya's own features (pairing,
+folders, files, live session list) are `_baya/*` extension methods and
+`_meta.baya` fields, as ACP prescribes for extensions.
 
-Each computer has one long-lived Ed25519 identity. The identity is stored in
-the operating-system keyring, with a protected file fallback for headless
-environments. Each mobile installation also has an Ed25519 Owner identity.
+## Agents
 
-### Reaching the host
+An agent is any command that speaks ACP over stdio, set up per computer:
+
+```sh
+baya agents add claude --name "Claude Code" -- npx -y @agentclientprotocol/claude-agent-acp
+baya agents add codex --name Codex -- npx -y @agentclientprotocol/codex-acp
+baya agents add deepseek --name DeepSeek -- dsh --profile acp
+```
+
+The host is their client. It sends `initialize` with no file-system or
+terminal capability, so agents use their own tools on the computer. A
+session's agent process starts on first use and stops after twenty idle
+minutes; when it starts again the host reopens the agent's session with
+`session/load` (swallowing the replay) or `session/resume`, and otherwise
+starts a new one and adds a notice that the agent lost its context.
+
+## Reaching the host
 
 The host listens on loopback; `tailscale serve` publishes it at
 `https://<computer>.<tailnet>.ts.net/baya-pair/<label>`, where the label is
@@ -24,20 +43,23 @@ Under that path:
   (403 otherwise);
 - `…/direct` is the phone's WebSocket.
 
-The WebSocket authenticates the phone with a challenge-response:
+## Security
+
+Each computer has one long-lived Ed25519 identity, stored in the operating
+system keyring (or a protected file on headless machines). Each phone has its
+own Ed25519 owner identity.
+
+The WebSocket first proves the phone's key with JSON text frames:
 
 ```json
-{"type":"hello","pubkey":"base64-ed25519","room_id":"main"}
+{"type":"hello","pubkey":"base64-ed25519"}
 {"type":"challenge","nonce":"base64-32-bytes"}
 {"type":"auth","sig":"base64-ed25519-signature"}
 ```
 
-Only paired phone keys may read presence and rooms or reach a session;
-pairing requests are the only frames admitted from other keys. Every
-application frame is end-to-end encrypted between the phone and the computer,
-so `tailscale serve` or any proxy in between can neither read nor forge it.
+After that every frame is binary and sealed, in both directions.
 
-### End-to-end encryption (v1)
+### End-to-end encryption (v2)
 
 Both sides convert their Ed25519 identity to X25519 (RFC 8032 §5.1.5 for the
 private scalar, the birational map for the public key) and derive one key per
@@ -45,266 +67,132 @@ phone/computer pair:
 
 ```text
 key   = HKDF-SHA256(ikm  = X25519(self, peer),
-                    salt = "baya-e2e-v1",
+                    salt = "baya-e2e-v2",
                     info = min(ed_pk_a, ed_pk_b) || max(ed_pk_a, ed_pk_b))
-box   = 0xBE 0x01 || nonce(12) || ChaCha20-Poly1305(ts_ms_be64 || json)
-aad   = "baya-e2e-v1|" + ("p2h" | "h2p") + "|" + computer room id
+frame = 0xBE 0x02 || nonce(12) || ChaCha20-Poly1305(ts_ms_be64 || json)
+aad   = "baya-e2e-v2|" + ("p2h" | "h2p")
 ```
 
-The phone learns the computer key from the pairing QR, and the computer learns
-the phone key from the authenticated WebSocket, so even `pair_request` is
-encrypted and nothing in between can substitute keys. The direction and room in the
-AAD stop reflection to the sender and replay into another session. Receivers
-drop frames whose timestamp is more than five minutes off or whose nonce they
-have already seen; the computer answers a stale but authentic frame with
-`error` code `clock_skew`.
+`json` is one JSON-RPC 2.0 message. The phone learns the computer key from
+the pairing code and the computer learns the phone key from the handshake, so
+nothing in between, `tailscale serve` included, can read, forge or redirect a
+frame. The direction in the AAD stops reflection; receivers drop frames more
+than five minutes old or whose nonce they have seen. The test vector is
+`.orchestration/contracts/e2e_v2.json`.
 
 The key is static (no forward secrecy): a leaked identity key exposes recorded
 traffic. Rotating the computer identity and re-pairing replaces it.
 
-Plaintext frames are dropped on both sides. The shared test vector is `.orchestration/contracts/e2e_v1.json`.
+The host closes the socket with:
 
-## Envelope
-
-After authentication, application messages use one JSON object per WebSocket
-text frame. The phone addresses a session room; the host answers from it:
-
-```json
-{"peer":"computer-ed25519-public-key","room":"room-id","ct":"base64-sealed-box"}
-{"peer":"computer-ed25519-public-key","room":"room-id","to_room":"main","ct":"base64-sealed-box"}
-```
-
-`ct` opens to one of the message types below. Unknown fields are ignored by
-the current clients. Unknown message types receive an `error` or
-`action_error` where the receiving adapter can identify a request id.
+- `4001 clock_skew:<minutes>` for an authentic frame outside the window (the
+  phone's clock is wrong);
+- `4003 unpaired` when the phone's pairing is revoked (`baya unpair`), at once.
 
 ## Pairing
 
-`baya pair` asks the resident host for a random, single-use, room-bound token.
-The CLI renders a QR code and a copyable URI:
+`baya pair` (or `GET …/pair`) issues a random single-use token, valid for up
+to ten minutes:
 
 ```text
-baya://pair?t=<token>&epk=<computer-public-key>&n=<session-name>&rm=<room-id>&e=<endpoint>
+baya://pair?t=<token>&epk=<computer key>&n=<computer name>&e=<…/direct address>
 ```
 
-`e` is the host's `…/direct` address; the phone stores it with the pairing and
-connects there from then on. The same code is returned by `GET …/pair`.
-
-The mobile client sends:
+The phone connects with its own key and calls:
 
 ```json
-{"type":"pair_request","id":"request-id","token":"one-time-token","device_name":"Pixel"}
+{"jsonrpc":"2.0","id":1,"method":"_baya/pair","params":{"token":"…","deviceName":"Pixel"}}
+→ {"jsonrpc":"2.0","id":1,"result":{"hostname":"studio"}}
 ```
 
-The host consumes the token once, verifies it belongs to this room, and saves
-the authenticated sender key. It replies:
+Failures are JSON-RPC error `-32000` with `data.reason` `token_expired`,
+`token_consumed` or `token_unknown`. Until a key is paired, `_baya/pair` is the
+only method it may call; anything else fails with `-32000` and
+`data.reason: "unpaired"`.
 
-```json
-{
-  "type":"pair_ok",
-  "in_reply_to":"request-id",
-  "session_name":"Baya",
-  "session_started_at":1790000000000,
-  "room_id":"room-id",
-  "hostname":"example"
-}
-```
+## Phone → host
 
-Failures use `pair_error` with `token_expired`, `token_consumed`,
-`token_unknown`, or `internal_error`.
-
-## Sessions and rooms
-
-The host registry stores each logical session as:
+The phone sends `initialize` (protocol version 1). The answer describes the
+computer and its agents:
 
 ```json
 {
-  "id": "stable-baya-session-id",
-  "name": "Review",
-  "cwd": "C:\\code\\project",
-  "agent": "pi",
-  "created_at": 1790000000000,
-  "updated_at": 1790000000000,
-  "pi_session_id": "native-pi-session-id"
+  "protocolVersion": 1,
+  "agentInfo": {"name": "baya", "title": "Baya", "version": "4.0.0"},
+  "agentCapabilities": {
+    "loadSession": true,
+    "promptCapabilities": {"image": true},
+    "sessionCapabilities": {"list": {}, "resume": {}, "close": {}, "delete": {}}
+  },
+  "authMethods": [],
+  "_meta": {"baya": {"hostname": "studio", "agents": [{"id": "claude", "name": "Claude Code", "available": true}]}}
 }
 ```
 
-The room id is derived from the canonical `cwd` and a namespaced session key.
-Every session has an independent host room and child-agent process.
+Standard ACP methods, with Baya's meaning:
 
-### Presence and rooms
+| Method | |
+|---|---|
+| `session/list` | Every session on the computer, newest first. `SessionInfo._meta.baya` carries `agent`, `agentName`, `working`, `running` and, when the agent could not start, `error`. |
+| `session/new` | `{cwd, mcpServers, _meta.baya.agent}`; the configured default agent when omitted. |
+| `session/load` | Replays the transcript as `session/update` notifications, then answers with `configOptions`, `modes` and `_meta.baya` (`agentName`, `title`, `working`, `promptCapabilities`). The phone is attached until `session/close`. |
+| `session/resume` | Attaches without the replay. |
+| `session/prompt` | Queued behind a running turn. `_meta.baya.messageId` names the echoed `user_message_chunk`s. |
+| `session/cancel` | Ends the turn and drops queued prompts. |
+| `session/set_config_option`, `session/set_mode` | Passed to the agent; other attached phones get the matching update. |
+| `session/close` | Detaches this phone. |
+| `session/delete` | Stops the agent and deletes the session and its history. |
 
-On its connection the phone subscribes to the computer and asks for the
-current state:
+Baya methods:
 
-```json
-{"type":"subscribe_presence","peers":["computer-key"]}
-{"type":"presence_check","peers":["computer-key"]}
-{"type":"subscribe_rooms","peers":["computer-key"]}
-{"type":"rooms_check","peers":["computer-key"]}
-```
+| Method | Params | Result |
+|---|---|---|
+| `_baya/browse` | `{path?, showHidden?}` | `{path, parent, home, roots, directories:[{name,path}], truncated}` |
+| `_baya/files` | `{sessionId, path?, showHidden?}` | `{root, path, parent, entries:[{name,path,type,size,modifiedAt}], truncated}` |
+| `_baya/read_file` | `{sessionId, path}` | `{name, path, size, modifiedAt, content, binary, truncated}` (256 KiB at most) |
 
-The host answers `peer_online` / `presence`, a `rooms` snapshot, and then
-pushes changes:
+Folder access stays read-only, and `_baya/files` cannot leave the session's
+folder.
 
-```json
-{"type":"room_announced","peer":"computer-key","room_id":"room-id","agent":"pi","name":"Review","cwd":"/code/project","model":"gpt-5","working":false,"started_at":1790000000000}
-{"type":"room_meta_updated","peer":"computer-key","room_id":"room-id","meta":{"model":"gpt-5","working":true}}
-{"type":"room_ended","peer":"computer-key","room_id":"room-id","since_ts":1790000000000}
-```
+## Host → phone
 
-`room_meta_updated` always carries the room's full current `model`,
-`thinking` and `working`. A phone paired with several computers keeps one
-connection per computer; a computer whose connection drops is shown offline.
+`session/update` notifications reach every phone attached to the session,
+with the session's Baya id. Conversation updates (`user_message_chunk`,
+`agent_message_chunk`, `agent_thought_chunk`, `tool_call`,
+`tool_call_update`, `plan`, `notice`, `compaction_update`,
+`compaction_summary_chunk`) are also kept for replay, folded so each message
+and each tool call is stored once in its final state. State updates
+(`available_commands_update`, `usage_update`, `config_option_update`,
+`current_mode_update`, `session_info_update`) are applied to the session and
+the latest commands and usage follow every replay.
 
-`sessions_inventory` returns `room_ids`, the room of every session on the
-host. A complete inventory lets the phone remove cached rooms of sessions that
-no longer exist; incomplete scans must not delete history.
+`session/request_permission` goes to every attached phone, and to phones that
+attach while it is open. The first answer is passed to the agent; the host
+withdraws the question from the other phones with `$/cancel_request`.
 
-## Chat
-
-The mobile client sends:
-
-```json
-{
-  "type":"user_message",
-  "id":"stable-user-message-id",
-  "text":"Review this change",
-  "images":[{"data":"base64","mime":"image/jpeg"}],
-  "streaming_behavior":"steer"
-}
-```
-
-`images` and `streaming_behavior` are optional. The host broadcasts the same
-message to every connected owner as an echo, then streams:
+Every paired phone also gets the session list as it changes:
 
 ```json
-{"type":"agent_chunk","in_reply_to":"stable-user-message-id","delta":"partial text"}
-{"type":"agent_thinking","id":"stable-thinking-id","in_reply_to":"stable-user-message-id","text":"reasoning","complete":false}
-{"type":"tool_request","tool_call_id":"tool-id","tool":"powershell","args":{}}
-{"type":"tool_result","tool_call_id":"tool-id","result":"human-readable output"}
-{"type":"agent_done","in_reply_to":"stable-user-message-id","usage":{"input_tokens":123,"output_tokens":45}}
+{"jsonrpc":"2.0","method":"_baya/session_changed","params":{"session":{"sessionId":"…","cwd":"/code/app","title":"Fix login","updatedAt":"…","_meta":{"baya":{"agent":"claude","agentName":"Claude Code","working":true,"running":true}}}}}
+{"jsonrpc":"2.0","method":"_baya/session_removed","params":{"sessionId":"…"}}
 ```
 
-There is exactly one `agent_done` per accepted turn, emitted when the adapter's
-entire run settles. This remains true when tools divide a turn into multiple
-assistant messages.
+A session's title is the start of its first prompt until the agent names it
+(`session_info_update`).
 
-`cancel` aborts the current agent run and produces `cancelled`. Tool approval is
-adapter-specific and arrives as an `extension_ui_request` when the underlying
-agent supports interactive approval.
+## State
 
-## History
-
-`session_sync` requests a replay. The host emits ordered `session_history`
-fragments:
-
-```json
-{
-  "type":"session_history",
-  "in_reply_to":"sync-id",
-  "session_started_at":1790000000000,
-  "events":[],
-  "streaming":null,
-  "eos":true,
-  "truncated":false
-}
-```
-
-All fragments share `in_reply_to`. Only the last has `eos: true`. The host
-batches around 1 MiB of JSON and rejects a single event larger than 4 MiB
-rather than sending an incomplete transcript.
-
-History event types:
-
-- `user_input`
-- `agent_message`
-- `agent_thinking`
-- `tool_request`
-- `tool_result`
-- `compaction`
-
-The final fragment carries the live stream cursor when a run is in progress,
-or `streaming: null` when idle. Images are replayed inside `user_input`.
-
-## Models, reasoning, context, and commands
-
-The Android client can request:
+The host keeps `$BAYA_HOME` (default `~/.baya`):
 
 ```text
-list_models
-commands_get
-context_usage_get
-model_set
-thinking_set
+config.json        agents and the default agent
+peers.json         paired phone keys
+sessions.json      sessions: id, cwd, agent, title, the agent's session id
+sessions/<id>.json each session's transcript
+runtime/           control socket info, pending pairing token
+logs/host.log
 ```
 
-Responses are `models_list`, `commands_list`, `context_usage`, and
-`action_ok`/`action_error`. The current model is included in `models_list` when
-the adapter can identify it. Each model entry includes `thinking_levels`, the
-canonical `off`/`minimal`/`low`/`medium`/`high`/`xhigh`/`max`/`ultra` subset
-advertised by that provider. Pi derives it from `thinkingLevelMap`, Codex from
-`supportedReasoningEfforts`, and DeepSeek from its ACP thought-level option.
-The Android picker offers only those levels. Context usage contains `tokens`,
-`context_window`, and `percent`.
-
-The Pi adapter starts from Pi's documented RPC list and does not invent an SDK
-extension namespace.
-
-## Workspace and file access
-
-Directory browsing uses:
-
-- `workspace_browse`
-- `workspace_open`
-
-Replies are `workspace_listing`, `workspace_opened`, or `workspace_error`.
-Browsing returns directories only and resolves symlinks before use.
-
-Read-only access inside a session's `cwd` uses:
-
-- `session_files_browse`
-- `session_file_read`
-
-Replies are `session_files_listing`, `session_file_content`, or
-`session_file_error`. The host canonicalizes the session root and the requested
-path and rejects paths outside the root. Listings are capped at 500 entries;
-file previews are capped at 256 KiB and binaries return `content: null`.
-
-## Interactive extension prompts
-
-Pi and other adapters may request user input:
-
-```json
-{"type":"extension_ui_request","id":"prompt-id","method":"confirm","title":"Run command?","message":"..."}
-```
-
-Supported methods are `select`, `confirm`, `input`, `editor`, and `notify`.
-The mobile responds with exactly one discriminator:
-
-```json
-{"type":"extension_ui_response","id":"prompt-id","value":"choice"}
-{"type":"extension_ui_response","id":"prompt-id","confirmed":true}
-{"type":"extension_ui_response","id":"prompt-id","cancelled":true}
-```
-
-The Pi adapter translates this wire shape directly to Pi's
-`RpcExtensionUIResponse`. Rich extension-specific envelopes are not forwarded
-to standalone Pi.
-
-## Action lifecycle
-
-Every action carries a unique `id`. Mutating actions return:
-
-```json
-{"type":"action_ok","in_reply_to":"request-id","action":"model_set"}
-```
-
-or:
-
-```json
-{"type":"action_error","in_reply_to":"request-id","action":"model_set","error":"..."}
-```
-
-Ordinary protocol failures use `error` with a machine-readable `code`, an
-optional `in_reply_to`, and a user-readable `message`.
+The phone keeps its pairings and each computer's last session list, so the
+list shows before a connection is up. Conversations always come from the
+computer.
