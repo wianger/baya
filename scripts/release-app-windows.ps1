@@ -44,7 +44,8 @@ $certificate = [regex]::Match(($signature -join "`n"), 'certificate SHA-256 dige
 if (-not $certificate.Success -or $certificate.Groups[1].Value -ne $ExpectedCertificateSha256) {
     throw 'APK was not signed by the release key; existing installs could not update.'
 }
-$published = & $GhExe api 'repos/wianger/baya/releases?per_page=100'
+# Only tags and draft flags: release notes may not survive the console encoding.
+$published = & $GhExe api 'repos/wianger/baya/releases?per_page=100' --jq '[.[] | {tag_name, draft}]'
 if ($LASTEXITCODE -ne 0) { throw 'Could not check existing release version codes.' }
 $releases = $published | ConvertFrom-Json
 $tag = "app-v$version+$build"
