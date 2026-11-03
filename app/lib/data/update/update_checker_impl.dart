@@ -61,8 +61,7 @@ class UpdateCheckerImpl implements UpdateChecker {
       if (release is! Map || release['draft'] != false) continue;
       final tag = release['tag_name'];
       if (tag is! String) continue;
-      final match = RegExp(r'^android-dev-v(\d+\.\d+\.\d+)\+(\d+)$')
-          .firstMatch(tag);
+      final match = RegExp(r'^app-v(\d+\.\d+\.\d+)\+(\d+)$').firstMatch(tag);
       if (match == null) continue;
       final build = int.tryParse(match.group(2)!);
       final assets = release['assets'];

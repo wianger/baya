@@ -10,10 +10,11 @@ end-to-end encrypted.
 
 | Path | Purpose |
 |---|---|
-| `host/` | Standalone TypeScript CLI and resident session host, published as the `baya` executable |
-| `app/` | Android Flutter client (`dev.wianger.baya`) |
-| `branding/` | Baya SVG and PNG identity assets |
+| `host/` | The `baya` command and resident host (TypeScript), shipped as one executable |
+| `app/` | The Android app (Flutter, `dev.wianger.baya`) |
+| `branding/` | The mark, icon layers and banner, generated from one script |
 | `PROTOCOL.md` | Wire protocol (ACP plus Baya's extensions) and security model |
+| `docs/` | [Development](docs/development.md) and [releasing](docs/releasing.md) |
 
 ## Quick start
 
@@ -23,8 +24,8 @@ Requirements:
 - [Tailscale](https://tailscale.com/download) on the computer and the phone,
   signed in to the same account
 
-Download `baya` for your computer from the
-[host releases](https://github.com/wianger/baya/releases) (one file, Node
+Download `baya` for your computer from the latest `host-v…`
+[release](https://github.com/wianger/baya/releases) (one file, Node
 included: `baya-linux-x64`, `baya-linux-arm64`, `baya-darwin-arm64`,
 `baya-darwin-x64` or `baya-win32-x64.exe`), put it on your PATH as `baya`
 (`chmod +x` it on Linux and macOS), and check the setup:
@@ -115,15 +116,11 @@ its permission questions appear on every phone that has the session open.
 
 ## Android
 
-Build the release APK:
-
-```powershell
-scripts\build-mobile-windows.ps1
-```
-
-The package ID is `dev.wianger.baya`. Release artifacts are named
-`Baya-Android.apk` and published from this repository; the app checks them for
-updates.
+Install `Baya-Android.apk` from the latest `app-v…`
+[release](https://github.com/wianger/baya/releases); the app checks there for
+updates. The package ID is `dev.wianger.baya`. Building it yourself is
+described in [docs/development.md](docs/development.md), releasing in
+[docs/releasing.md](docs/releasing.md).
 
 ## Security
 
@@ -133,16 +130,8 @@ authentication with the paired identities and forward secrecy, on top of
 Tailscale's own encryption, so not even `tailscale serve` can read or forge
 it. See [PROTOCOL.md](PROTOCOL.md#noise).
 
-## Validation
+## Development
 
-```powershell
-cd host
-pnpm typecheck
-pnpm test
-pnpm build
-
-cd ..\app
-flutter pub get
-flutter analyze
-flutter test
-```
+See [docs/development.md](docs/development.md) for building and testing both
+parts, and [docs/releasing.md](docs/releasing.md) for branches, versions and
+releases.

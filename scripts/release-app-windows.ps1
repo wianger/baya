@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory)][string]$Apk,
     [Parameter(Mandatory)][string]$NotesFile,
     [string]$SourceRoot = (Split-Path $PSScriptRoot -Parent),
-    [string]$Branch = 'codex/baya-standalone-20261101',
+    [string]$Branch = 'main',
     [string]$AndroidSdk = 'C:\Scoop\persist\android-clt',
     [string]$JdkRoot = 'C:\Scoop\apps\temurin17-jdk\17.0.20-101',
     [string]$GhExe = 'gh',
@@ -15,12 +15,12 @@ $repo = (Resolve-Path -LiteralPath $SourceRoot).ProviderPath
 $apkFile = (Resolve-Path -LiteralPath $Apk).ProviderPath
 $notes = (Resolve-Path -LiteralPath $NotesFile).ProviderPath
 $branch = (& git -C $repo branch --show-current).Trim()
-if ($LASTEXITCODE -ne 0 -or $branch -ne $Branch) { throw "Use the $Branch development branch." }
+if ($LASTEXITCODE -ne 0 -or $branch -ne $Branch) { throw "Release from $Branch." }
 $dirty = & git -C $repo status --porcelain
-if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'Commit the development source and keep the checkout clean before publishing.' }
+if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'Commit everything and keep the checkout clean before releasing.' }
 $commit = (& git -C $repo rev-parse HEAD).Trim()
 $remote = (& $GhExe api "repos/wianger/baya/commits/$Branch" --jq '.sha').Trim()
-if ($LASTEXITCODE -ne 0 -or $remote -ne $commit) { throw 'Push this exact development commit before publishing.' }
+if ($LASTEXITCODE -ne 0 -or $remote -ne $commit) { throw 'Push this exact commit before releasing.' }
 $pubspec = [IO.File]::ReadAllText((Join-Path $repo 'app\pubspec.yaml'))
 $versionMatch = [regex]::Match($pubspec, '(?m)^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$')
 if (-not $versionMatch.Success) { throw 'pubspec needs version x.y.z+buildNumber.' }
@@ -36,21 +36,21 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not inspect APK.' }
 $package = [regex]::Match(($badging -join "`n"), "package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'")
 if (-not $package.Success -or $package.Groups[1].Value -ne 'dev.wianger.baya' -or
     [int]$package.Groups[2].Value -ne $build -or $package.Groups[3].Value -ne $version) {
-    throw 'APK package/version does not match the development source.'
+    throw 'APK package/version does not match app/pubspec.yaml.'
 }
 $signature = & (Join-Path $tools 'apksigner.bat') verify --print-certs $apkFile
 if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed.' }
 $certificate = [regex]::Match(($signature -join "`n"), 'certificate SHA-256 digest:\s*([0-9a-fA-F]+)')
 if (-not $certificate.Success -or $certificate.Groups[1].Value -ne $ExpectedCertificateSha256) {
-    throw 'APK was not signed by the personal development key; existing installs could not update.'
+    throw 'APK was not signed by the release key; existing installs could not update.'
 }
 $published = & $GhExe api 'repos/wianger/baya/releases?per_page=100'
 if ($LASTEXITCODE -ne 0) { throw 'Could not check existing release version codes.' }
 $releases = $published | ConvertFrom-Json
-$tag = "android-dev-v$version+$build"
+$tag = "app-v$version+$build"
 $existingCurrent = @($releases | Where-Object { $_.tag_name -eq $tag })
 foreach ($release in $releases) {
-    $previous = [regex]::Match($release.tag_name, '^android-dev-v\d+\.\d+\.\d+\+(\d+)$')
+    $previous = [regex]::Match($release.tag_name, '^app-v\d+\.\d+\.\d+\+(\d+)$')
     if ($previous.Success -and [int]$previous.Groups[1].Value -ge $build -and
         $release.tag_name -ne $tag -and $release.draft -ne $true) {
         throw 'Increment the Android build number before publishing. Existing releases are never overwritten.'

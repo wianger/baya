@@ -12,7 +12,7 @@ Map<String, Object?> release(
   bool draft = false,
   bool foreign = false,
 }) {
-  final tag = 'android-dev-v$version+$build';
+  final tag = 'app-v$version+$build';
   return {
     'draft': draft,
     'prerelease': true,
@@ -44,7 +44,7 @@ void main() {
     expect(info.version, '1.2.1');
     expect(info.notes, 'Release notes');
     expect(info.artifacts.single.sha256, 'abc');
-    expect(info.releaseUrl, endsWith('/tag/android-dev-v1.2.1+11'));
+    expect(info.releaseUrl, endsWith('/tag/app-v1.2.1+11'));
   });
   test('ignores drafts, upstream tags, foreign URLs and missing APKs', () {
     expect(

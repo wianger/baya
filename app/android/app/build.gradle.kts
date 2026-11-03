@@ -61,7 +61,7 @@ gradle.taskGraph.whenReady {
     if (buildsRelease && !hasReleaseKeystore) {
         throw GradleException(
             "Release signing is not configured. Create android/key.properties " +
-                "(see docs/mobile-dev.md) or build with --debug."
+                "(see docs/development.md) or build with --debug."
         )
     }
 }

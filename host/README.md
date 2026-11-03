@@ -68,7 +68,14 @@ Agent processes start when a session is used and stop after twenty idle
 minutes. If one exits, the session stays; the next prompt starts it again and
 the host reopens the agent's own session (`session/load` or `session/resume`)
 when the agent supports it.
-The background host writes `$BAYA_HOME/logs/host.log` (`baya logs`). The control socket is loopback-only and protected by
+DeepSeek Harness sessions also appear in DeepSeek's desktop app: the host
+records each one in the desktop workspace for its folder, while the app is
+closed (it would overwrite the file otherwise).
+
+The background host writes `$BAYA_HOME/logs/host.log` (`baya logs`). On
+Windows it runs with a hidden console of its own, which agents and their tools
+share, so none of them opens a console window. The control socket is
+loopback-only and protected by
 a random token stored with owner-only permissions.
 
 ## State
@@ -81,7 +88,7 @@ config.json        agents and the default agent
 peers.json         paired phones
 sessions.json      sessions
 sessions/<id>.json transcripts, replayed to phones on session/load
-runtime/
+runtime/           control socket, pairing token, DeepSeek desktop queue
 logs/
 ```
 
@@ -98,19 +105,6 @@ BAYA_ALLOW_FILE_IDENTITY=1
 
 ## Development
 
-```powershell
-pnpm install --ignore-scripts
-pnpm dev -- status   # runs src/cli.ts directly; Node strips the types
-pnpm lint            # Biome: lint + format check (pnpm format to fix)
-pnpm typecheck       # src and tests
-pnpm test
-pnpm build           # tsc emits dist/ for publishing
-pnpm build:binary    # the single-file executable for this platform, in build/bin
-```
-
-The source is erasable TypeScript (`erasableSyntaxOnly`), imported with `.ts`
-extensions, so Node runs it without a build step or loader.
-
-The pnpm setup ignores native install scripts. The keyring package's prebuilt
-binaries are sufficient; use `--ignore-scripts` if a newer pnpm reports ignored
-build policy entries before install.
+See [../docs/development.md](../docs/development.md). The source is erasable
+TypeScript (`erasableSyntaxOnly`), imported with `.ts` extensions, so Node
+runs it without a build step or loader.
