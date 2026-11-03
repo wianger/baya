@@ -25,11 +25,11 @@ import {
  * Pinned to the cacophony test vectors in test/noise.test.ts.
  */
 
-export const PROTOCOL_NAME = "Noise_IK_25519_ChaChaPoly_SHA256";
+const PROTOCOL_NAME = "Noise_IK_25519_ChaChaPoly_SHA256";
 const DH_LEN = 32;
 const TAG_LEN = 16;
 /** The largest Noise message, ciphertext and tag included. */
-export const MAX_MESSAGE = 65_535;
+const MAX_MESSAGE = 65_535;
 
 const PKCS8_X25519 = Buffer.from("302e020100300506032b656e04220420", "hex");
 const SPKI_X25519 = Buffer.from("302a300506032b656e032100", "hex");
@@ -94,7 +94,7 @@ function hkdf(chainingKey: Uint8Array, input: Uint8Array): [Buffer, Buffer] {
 }
 
 /** One direction of transport: a key and a 64-bit message counter. */
-export class CipherState {
+class CipherState {
   private key: Buffer | null = null;
   private nonce = 0n;
 
@@ -193,7 +193,7 @@ class SymmetricState {
   }
 }
 
-export interface Session {
+interface Session {
   send: CipherState;
   receive: CipherState;
   /** Binds the session: equal on both sides, unique per handshake. */

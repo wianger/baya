@@ -148,7 +148,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('device-switch')));
     await tester.pumpAndSettle();
-    await tester.drag(find.text('Computer B'), const Offset(-500, 0));
+    await tester.tap(find.byKey(const Key('device-delete-computer-b')));
     await tester.pumpAndSettle();
     expect(deleteCalls, 1);
 
@@ -165,7 +165,7 @@ void main() {
     expect(switched, 'computer-b');
   });
 
-  testWidgets('workspace switcher adds from a circle and deletes on swipe', (
+  testWidgets('workspace switcher adds, renames and deletes from the sheet', (
     tester,
   ) async {
     var created = 0;
@@ -209,7 +209,7 @@ void main() {
     final workspaceAdd = find.byKey(const Key('workspace-add'));
     expect(
       tester.getRect(workspaceSheet).right - tester.getRect(workspaceAdd).right,
-      greaterThanOrEqualTo(28),
+      greaterThanOrEqualTo(20),
     );
 
     await tester.tap(find.byKey(const Key('workspace-add')));
@@ -230,7 +230,9 @@ void main() {
 
     await tester.tap(find.byKey(const Key('workspace-switch')));
     await tester.pumpAndSettle();
-    await tester.drag(find.text('Beta'), const Offset(-500, 0));
+    await tester.tap(
+      find.byKey(const Key('workspace-delete-pc:workspace:beta')),
+    );
     await tester.pumpAndSettle();
     expect(deleted, 1);
   });
@@ -267,7 +269,7 @@ void main() {
     expect(find.text('2 sessions · 2 folders'), findsOneWidget);
   });
 
-  testWidgets('Inbox cannot be swiped out of the workspace switcher', (
+  testWidgets('Inbox cannot be deleted from the workspace switcher', (
     tester,
   ) async {
     const inbox = 'pc:workspace:inbox';
@@ -292,14 +294,8 @@ void main() {
     await tester.tap(find.byKey(const Key('workspace-switch')));
     await tester.pumpAndSettle();
 
-    final inboxRow = tester.widget<Dismissible>(
-      find.byKey(const ValueKey('workspace-row-$inbox')),
-    );
-    final customRow = tester.widget<Dismissible>(
-      find.byKey(const ValueKey('workspace-row-$custom')),
-    );
-    expect(inboxRow.direction, DismissDirection.none);
-    expect(customRow.direction, DismissDirection.endToStart);
+    expect(find.byKey(const ValueKey('workspace-delete-$inbox')), findsNothing);
+    expect(find.byKey(const ValueKey('workspace-delete-$custom')), findsOne);
   });
 
   testWidgets('empty workspace switcher uses a compact actionable row', (
@@ -332,7 +328,7 @@ void main() {
     expect(
       tester.getRect(sheet).right -
           tester.getRect(find.byKey(const Key('workspace-add'))).right,
-      greaterThanOrEqualTo(28),
+      greaterThanOrEqualTo(20),
     );
     expect(
       find.descendant(of: sheet, matching: find.text('No workspaces yet')),
@@ -347,7 +343,7 @@ void main() {
     );
     expect(tester.getSize(emptyRow).height, lessThan(140));
 
-    await tester.tap(emptyRow);
+    await tester.tap(find.byKey(const Key('workspace-add')));
     await tester.pumpAndSettle();
     expect(created, 1);
     expect(sheet, findsNothing);

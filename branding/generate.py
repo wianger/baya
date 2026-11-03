@@ -1,65 +1,82 @@
-"""Generate Baya's artwork from one geometry: the woven nest.
+"""Generate Baya's artwork from one geometry: a baya weaver in flight.
 
-A baya weaver hangs its nest from a branch: a round chamber, an entrance
-tube below, straw strands wound across it. Run from the repository root:
+A straw-gold silhouette on a graphite tile, the far wing a shade deeper.
+Run from the repository root:
 
     python branding/generate.py
 
-It writes the SVGs in branding/ (mark, adaptive layers, banner) and the
-Android adaptive icon layers (foreground, monochrome for themed icons,
-background) as vector drawables. Only the standard library is needed.
+It writes the SVGs in branding/ (mark, adaptive layers, banner), the Android
+adaptive icon layers (foreground, monochrome for themed icons, background) as
+vector drawables, and the path data the app's AppMarkPainter draws. Only the
+standard library is needed.
 """
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 RES = ROOT.parent / "app/android/app/src/main/res"
+DART = ROOT.parent / "app/lib/ui/core/branding/mark_geometry.g.dart"
 
 GRAPHITE = "#131315"
-BRANCH = "#EDE6D8"
 STRAW_LIGHT = "#F8DE97"
 STRAW_DEEP = "#DC9A3A"
 
-# 108-unit grid (the adaptive icon canvas).
-BRANCH_PATH = "M30 26.5C44 23.6 64 23.6 78 26.5"
-STEM_PATH = "M54 25V31"
-NEST_PATH = (
-    "M54 29C67.5 29 77 40 77 53C77 66 68 75 61.5 80.5V84.5"
-    "A7.5 7.5 0 0 1 46.5 84.5V80.5C40 75 31 66 31 53C31 40 40.5 29 54 29Z"
+# 108-unit grid (the adaptive icon canvas). Absolute M/L/C/Z commands only,
+# so the app can parse them with a few lines.
+BODY = (
+    "M89 41.5L80.5 37.6C79.5 33 76 30.5 71.5 31C67 31.5 64 35 62 39.5"
+    "C57 48 49 55 40 60L26 64.5L33 68L27 73.5L42 69.5"
+    "C55 68.5 66 62.5 72 54C75 50 78 47 80.5 45.5Z"
 )
-STRANDS = ["M29 45C42 52.5 54 63 61.5 77.5", "M33 32C51 40 67 54 77 72"]
-STRAND_WIDTH = 3.4
-HOLE = (54, 85, 3.6, 3.2)
-HOLE_PATH = "M50.4 85a3.6 3.2 0 1 0 7.2 0a3.6 3.2 0 1 0 -7.2 0Z"
-GRADIENT = (36, 28, 70, 90)
+NEAR_WING = (
+    "M66 43C63 33 57 23 46 14C50 22 52.5 27 52.5 32C49 28 44 24 38 22"
+    "C44 30 49 39 53 48Z"
+)
+FAR_WING = (
+    "M60 47.5C55 40.5 48 34.5 37 30.5C42 35.5 45 39.5 46 43.5"
+    "C41 41.5 36 40.5 30 41.5C38 46.5 46 50.5 54 52.5Z"
+)
+EYE = (73.2, 37, 1.9)
+# Centres the bird on the canvas.
+SHIFT = (-3, 9)
+GRADIENT = (34, 22, 76, 86)
 
-# The launcher masks the icon to the central 72 units; keep the nest inside.
+# The launcher masks the icon to the central 72 units; keep the bird inside.
 SAFE_SCALE = 0.86
 
 
-def svg_mark(background: bool, scale: float = 1.0) -> str:
+def eye_path() -> str:
+    cx, cy, r = EYE
+    return (
+        f"M{cx - r} {cy}A{r} {r} 0 1 1 {cx + r} {cy}"
+        f"A{r} {r} 0 1 1 {cx - r} {cy}Z"
+    )
+
+
+def svg_bird(scale: float = 1.0) -> str:
     x1, y1, x2, y2 = GRADIENT
     shift = 54 * (1 - scale)
-    group = f'transform="translate({shift:.2f} {shift:.2f}) scale({scale})"'
-    tile = f'<rect width="108" height="108" rx="24" fill="{GRAPHITE}"/>' if background else ""
-    strands = "".join(f'<path d="{d}"/>' for d in STRANDS)
-    cx, cy, rx, ry = HOLE
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
-  <defs>
+    sx, sy = SHIFT
+    cx, cy, r = EYE
+    return f"""  <defs>
     <linearGradient id="straw" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="{STRAW_LIGHT}"/>
       <stop offset="1" stop-color="{STRAW_DEEP}"/>
     </linearGradient>
   </defs>
-  {tile}
-  <g {group}>
-    <path d="{BRANCH_PATH}" fill="none" stroke="{BRANCH}" stroke-width="3" stroke-linecap="round"/>
-    <path d="{STEM_PATH}" stroke="{STRAW_LIGHT}" stroke-width="4" stroke-linecap="round"/>
-    <path d="{NEST_PATH}" fill="url(#straw)"/>
-    <g fill="none" stroke="{GRAPHITE}" stroke-width="{STRAND_WIDTH}">{strands}</g>
-    <ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="{GRAPHITE}"/>
-  </g>
-</svg>
-"""
+  <g transform="translate({shift:.2f} {shift:.2f}) scale({scale}) translate({sx} {sy})">
+    <path d="{FAR_WING}" fill="{STRAW_DEEP}"/>
+    <path d="{BODY}" fill="url(#straw)"/>
+    <path d="{NEAR_WING}" fill="url(#straw)"/>
+    <circle cx="{cx}" cy="{cy}" r="{r}" fill="{GRAPHITE}"/>
+  </g>"""
+
+
+def svg_mark(background: bool, scale: float = 1.0) -> str:
+    tile = f'  <rect width="108" height="108" rx="24" fill="{GRAPHITE}"/>\n' if background else ""
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">\n'
+        f"{tile}{svg_bird(scale)}\n</svg>\n"
+    )
 
 
 def svg_banner() -> str:
@@ -77,13 +94,14 @@ def svg_banner() -> str:
 
 
 def svg_monochrome() -> str:
-    """One color, the hole cut out: the system tints it for themed icons."""
+    """One color, the eye cut out: the system tints it for themed icons."""
     shift = 54 * (1 - SAFE_SCALE)
+    sx, sy = SHIFT
     return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
-  <g transform="translate({shift:.2f} {shift:.2f}) scale({SAFE_SCALE})" fill="#000">
-    <path d="{BRANCH_PATH}" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-    <path d="{STEM_PATH}" stroke="#000" stroke-width="4" stroke-linecap="round"/>
-    <path fill-rule="evenodd" d="{NEST_PATH}{HOLE_PATH}"/>
+  <g transform="translate({shift:.2f} {shift:.2f}) scale({SAFE_SCALE}) translate({sx} {sy})" fill="#000">
+    <path d="{FAR_WING}"/>
+    <path d="{NEAR_WING}"/>
+    <path fill-rule="evenodd" d="{BODY}{eye_path()}"/>
   </g>
 </svg>
 """
@@ -104,9 +122,12 @@ def vector(body: str) -> str:
 
 def group(body: str) -> str:
     shift = 54 * (1 - SAFE_SCALE)
+    sx, sy = SHIFT
     return (
         f'  <group android:translateX="{shift:.2f}" android:translateY="{shift:.2f}"\n'
-        f'      android:scaleX="{SAFE_SCALE}" android:scaleY="{SAFE_SCALE}">\n{body}  </group>\n'
+        f'      android:scaleX="{SAFE_SCALE}" android:scaleY="{SAFE_SCALE}">\n'
+        f'    <group android:translateX="{sx}" android:translateY="{sy}">\n'
+        f"{body}    </group>\n  </group>\n"
     )
 
 
@@ -114,30 +135,28 @@ def argb(color: str) -> str:
     return "#FF" + color.removeprefix("#").upper()
 
 
-def vector_foreground() -> str:
+def gradient_path(data: str) -> str:
     x1, y1, x2, y2 = GRADIENT
-    strands = "".join(
-        f'    <path android:pathData="{d}" android:strokeColor="{argb(GRAPHITE)}"'
-        f' android:strokeWidth="{STRAND_WIDTH}" android:fillColor="#00000000"/>\n'
-        for d in STRANDS
+    return (
+        f'      <path android:pathData="{data}">\n'
+        '        <aapt:attr name="android:fillColor">\n'
+        f'          <gradient android:type="linear" android:startX="{x1}" android:startY="{y1}"'
+        f' android:endX="{x2}" android:endY="{y2}">\n'
+        f'            <item android:offset="0" android:color="{argb(STRAW_LIGHT)}"/>\n'
+        f'            <item android:offset="1" android:color="{argb(STRAW_DEEP)}"/>\n'
+        "          </gradient>\n"
+        "        </aapt:attr>\n"
+        "      </path>\n"
     )
+
+
+def vector_foreground() -> str:
     return vector(
         group(
-            f'    <path android:pathData="{BRANCH_PATH}" android:strokeColor="{argb(BRANCH)}"'
-            ' android:strokeWidth="3" android:strokeLineCap="round" android:fillColor="#00000000"/>\n'
-            f'    <path android:pathData="{STEM_PATH}" android:strokeColor="{argb(STRAW_LIGHT)}"'
-            ' android:strokeWidth="4" android:strokeLineCap="round"/>\n'
-            f'    <path android:pathData="{NEST_PATH}">\n'
-            '      <aapt:attr name="android:fillColor">\n'
-            f'        <gradient android:type="linear" android:startX="{x1}" android:startY="{y1}"'
-            f' android:endX="{x2}" android:endY="{y2}">\n'
-            f'          <item android:offset="0" android:color="{argb(STRAW_LIGHT)}"/>\n'
-            f'          <item android:offset="1" android:color="{argb(STRAW_DEEP)}"/>\n'
-            "        </gradient>\n"
-            "      </aapt:attr>\n"
-            "    </path>\n"
-            f"{strands}"
-            f'    <path android:pathData="{HOLE_PATH}" android:fillColor="{argb(GRAPHITE)}"/>\n'
+            f'      <path android:pathData="{FAR_WING}" android:fillColor="{argb(STRAW_DEEP)}"/>\n'
+            + gradient_path(BODY)
+            + gradient_path(NEAR_WING)
+            + f'      <path android:pathData="{eye_path()}" android:fillColor="{argb(GRAPHITE)}"/>\n'
         )
     )
 
@@ -145,11 +164,9 @@ def vector_foreground() -> str:
 def vector_monochrome() -> str:
     return vector(
         group(
-            f'    <path android:pathData="{BRANCH_PATH}" android:strokeColor="#FF000000"'
-            ' android:strokeWidth="3" android:strokeLineCap="round" android:fillColor="#00000000"/>\n'
-            f'    <path android:pathData="{STEM_PATH}" android:strokeColor="#FF000000"'
-            ' android:strokeWidth="4" android:strokeLineCap="round"/>\n'
-            f'    <path android:pathData="{NEST_PATH}{HOLE_PATH}" android:fillType="evenOdd"'
+            f'      <path android:pathData="{FAR_WING}" android:fillColor="#FF000000"/>\n'
+            f'      <path android:pathData="{NEAR_WING}" android:fillColor="#FF000000"/>\n'
+            f'      <path android:pathData="{BODY}{eye_path()}" android:fillType="evenOdd"'
             ' android:fillColor="#FF000000"/>\n'
         )
     )
@@ -157,6 +174,22 @@ def vector_monochrome() -> str:
 
 def vector_background() -> str:
     return vector(f'  <path android:pathData="M0 0H108V108H0Z" android:fillColor="{argb(GRAPHITE)}"/>\n')
+
+
+def dart_geometry() -> str:
+    cx, cy, r = EYE
+    sx, sy = SHIFT
+    x1, y1, x2, y2 = GRADIENT
+    return f"""// Generated by branding/generate.py; edit that file instead.
+// The Baya mark on the 108-unit icon grid.
+
+const kMarkBody = '{BODY}';
+const kMarkNearWing = '{NEAR_WING}';
+const kMarkFarWing = '{FAR_WING}';
+const kMarkEye = ({float(cx)}, {float(cy)}, {float(r)});
+const kMarkShift = ({float(sx)}, {float(sy)});
+const kMarkGradient = ({float(x1)}, {float(y1)}, {float(x2)}, {float(y2)});
+"""
 
 
 def main() -> None:
@@ -168,6 +201,7 @@ def main() -> None:
     (drawable / "ic_launcher_foreground.xml").write_text(vector_foreground())
     (drawable / "ic_launcher_monochrome.xml").write_text(vector_monochrome())
     (drawable / "baya_icon_background.xml").write_text(vector_background())
+    DART.write_text(dart_geometry())
 
 
 if __name__ == "__main__":

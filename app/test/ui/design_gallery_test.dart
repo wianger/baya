@@ -94,6 +94,7 @@ void main() {
     Widget page, {
     List<SingleChildWidget> providers = const [],
     Size size = const Size(412, 892),
+    Future<void> Function()? then,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -113,6 +114,12 @@ void main() {
     );
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
+    }
+    if (then != null) {
+      await then();
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
     }
     await tester.runAsync(() async {
       final render =
@@ -190,6 +197,13 @@ void main() {
     );
     await shoot(
       tester,
+      'workspace-sheet',
+      const Scaffold(body: SafeArea(child: SessionSidebar())),
+      providers: common,
+      then: () => tester.tap(find.byKey(const Key('workspace-switch'))),
+    );
+    await shoot(
+      tester,
       'tablet',
       const SessionShell(child: SessionWelcome()),
       providers: common,
@@ -235,7 +249,24 @@ void main() {
       ],
     );
 
+    await shoot(
+      tester,
+      'display',
+      const DisplaySettingsPage(),
+      providers: common,
+    );
     final identity = BackedUpOwnerIdentityStore(InMemoryOwnerIdentityStore());
+    await shoot(
+      tester,
+      'key-backup',
+      const KeyBackupPage(),
+      providers: [
+        ...common,
+        ChangeNotifierProvider<BackedUpOwnerIdentityStore>.value(
+          value: identity,
+        ),
+      ],
+    );
     final bridge = OwnerIdentityBridge(identity, storage);
     await bridge.boot();
     await shoot(

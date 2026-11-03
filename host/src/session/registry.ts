@@ -25,7 +25,7 @@ export interface SessionRecord {
   updatedAt: number;
 }
 
-export function registryPath(): string {
+function registryPath(): string {
   return join(BAYA_HOME, "sessions.json");
 }
 
@@ -33,7 +33,7 @@ export function transcriptPath(id: string): string {
   return join(BAYA_HOME, "sessions", `${id}.json`);
 }
 
-export function normalizeCwd(input: string): string {
+function normalizeCwd(input: string): string {
   try {
     return realpathSync(input);
   } catch {

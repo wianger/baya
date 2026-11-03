@@ -7,7 +7,7 @@ import type { DirectServer } from "../transport/direct_server.ts";
 const run = promisify(execFile);
 
 /** This machine as Tailscale sees it. */
-export interface TailnetSelf {
+interface TailnetSelf {
   /** MagicDNS name without the trailing dot, e.g. `wiang-1.tail1234.ts.net`. */
   dnsName: string;
   /** The short name phones can type, e.g. `wiang-1`. */
@@ -34,14 +34,14 @@ export function hostLabel(): HostLabel {
 }
 
 /** One port per label so a Windows and a WSL host can listen side by side. */
-export function tailnetPairPort(label: HostLabel = hostLabel()): number {
+function tailnetPairPort(label: HostLabel = hostLabel()): number {
   const override = Number(process.env["BAYA_TAILNET_PORT"]);
   if (Number.isInteger(override) && override > 0) return override;
   return label === "windows" ? 7481 : 7480;
 }
 
 /** The `tailscale serve` path for this host's pairing endpoint. */
-export function servePath(label: HostLabel = hostLabel()): string {
+function servePath(label: HostLabel = hostLabel()): string {
   return `/baya-pair/${label}`;
 }
 

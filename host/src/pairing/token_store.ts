@@ -9,7 +9,7 @@ export interface PendingPairToken {
   consumed_at: number | null;
 }
 
-export function pendingPairPath(): string {
+function pendingPairPath(): string {
   return join(BAYA_HOME, "runtime", "pair-request.json");
 }
 

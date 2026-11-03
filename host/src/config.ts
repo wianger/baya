@@ -41,7 +41,7 @@ interface BayaConfig {
 
 export const AGENT_ID = /^[a-z0-9][a-z0-9_-]{0,31}$/u;
 
-export function configPath(): string {
+function configPath(): string {
   return join(BAYA_HOME, "config.json");
 }
 

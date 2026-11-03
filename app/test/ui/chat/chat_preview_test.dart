@@ -113,6 +113,33 @@ FakeHost _computer() =>
             },
           ],
         },
+        {
+          'sessionUpdate': 'tool_call',
+          'toolCallId': 't4',
+          'title': 'Read src/auth/session.ts',
+          'kind': 'read',
+          'status': 'completed',
+          'locations': [
+            {'path': 'src/auth/session.ts'},
+          ],
+        },
+        {
+          'sessionUpdate': 'tool_call',
+          'toolCallId': 't5',
+          'title': 'npm run typecheck',
+          'kind': 'execute',
+          'status': 'completed',
+          'rawInput': {'command': 'npm run typecheck'},
+          'content': [
+            {
+              'type': 'content',
+              'content': {
+                'type': 'text',
+                'text': '> tsc --noEmit\n\nFound 0 errors. Watching for file changes.',
+              },
+            },
+          ],
+        },
         _text(
           'agent_message_chunk',
           'The redirect ran before the session cookie existed. It now **waits for `session.ready()`** first.',
@@ -259,7 +286,20 @@ void main() {
     await _save(tester, boundary, '$output/chat.png');
 
     final context = tester.element(find.byType(ChatPage));
+    showContextUsage(context);
+    // The first frame starts the sheet's animation; the second finishes it.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    // ignore: avoid_print
+    print(
+      'sheet: ${find.byKey(const Key('context-sheet')).evaluate().length} ${tester.takeException()}',
+    );
+    await _save(tester, boundary, '$output/context.png');
+    Navigator.of(context).pop();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     showSessionSettings(context);
+    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     await _save(tester, boundary, '$output/settings.png');
 

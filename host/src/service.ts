@@ -8,7 +8,7 @@ import { dirname, join, win32 } from "node:path";
  * rights: Windows uses the HKCU Run key, Linux a systemd user unit, and macOS
  * a LaunchAgent. systemd and launchd also restart the host if it crashes.
  */
-export interface StartupTarget {
+interface StartupTarget {
   nodePath: string;
   entryPath: string;
   cwd: string;
@@ -19,8 +19,8 @@ export interface StartupTarget {
 
 export const BAYA_RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 export const BAYA_RUN_VALUE = "BayaHost";
-export const SYSTEMD_UNIT = "baya.service";
-export const LAUNCHD_LABEL = "dev.baya.host";
+const SYSTEMD_UNIT = "baya.service";
+const LAUNCHD_LABEL = "dev.baya.host";
 
 export function installStartup(target: StartupTarget): string {
   switch (process.platform) {

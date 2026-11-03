@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 /// A ring showing how full the agent's context is (ACP `usage_update`).
-/// Unknown usage is never shown as zero. Opens the session settings.
+/// Unknown usage is never shown as zero. Opens the context details.
 class ContextUsageButton extends StatelessWidget {
   const ContextUsageButton({super.key, required this.enabled});
 
@@ -24,8 +24,8 @@ class ContextUsageButton extends StatelessWidget {
       value: label,
       child: IconButton(
         key: const Key('context-usage'),
-        tooltip: context.l10n.sessionSettings,
-        onPressed: enabled ? () => showSessionSettings(context) : null,
+        tooltip: context.l10n.contextUsage,
+        onPressed: enabled ? () => showContextUsage(context) : null,
         icon: ExcludeSemantics(
           child: SizedBox.square(
             dimension: 32,

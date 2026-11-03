@@ -63,7 +63,7 @@
   "newWorkspace": "New workspace",
   "switchModel": "Switch model",
   "thinkingLevel": "Thinking level",
-  "compactContext": "Compact context",
+  "compactContext": "Compact the conversation",
   "settings": "Settings",
   "pairComputer": "Pair computer",
   "agentCommandsSkills": "Agent commands & skills",
@@ -304,17 +304,6 @@
       }
     }
   },
-  "andMore": "{first}  ·  +{count} more",
-  "@andMore": {
-    "placeholders": {
-      "first": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "ranCommands": "{count, plural, =1{Ran a command} other{Ran {count} commands}}",
   "@ranCommands": {
     "placeholders": {
@@ -480,9 +469,9 @@
   },
   "pasteCodeHint": "Can't scan the code? Paste the text `baya pair` printed. It starts with baya://pair?…",
   "keyBackup": "Key backup",
-  "keyBackedUp": "Backed up with Google Backup. A new phone keeps your pairings.",
-  "keyNotBackedUp": "Only on this phone. Tap to back up.",
-  "keyBackupHowTo": "Set up a screen lock and turn on Google Backup (Settings › System › Backup), then tap again. Until then Baya works normally, but a new phone has to pair again.",
+  "keyBackedUp": "Backed up with Google Backup",
+  "keyNotBackedUp": "Only on this phone",
+  "keyBackupHowTo": "To back it up, set a screen lock and turn on Google Backup (Settings › System › Backup), then tap Back up now.",
   "compactUnavailable": "Compact unavailable",
   "compactUnavailableHint": "This agent manages its context automatically and does not expose manual compaction.",
   "pairingCodeInvalid": "This pairing code is incomplete. Run `baya pair` again on the computer.",
@@ -535,7 +524,6 @@
       }
     }
   },
-  "sessionSettings": "Session settings",
   "details": "Details",
   "sessionOffline": "The computer is offline. The conversation appears when it reconnects.",
   "yourAgent": "your agent",
@@ -593,5 +581,25 @@
     }
   },
   "signOutBody": "The agent is signed out on this computer, for every session that uses it. You can sign in again from any chat.",
-  "signOutFailed": "Couldn't sign out"
+  "signOutFailed": "Couldn't sign out",
+  "keyBackupExplain": "This phone has its own key that every paired computer trusts. Backed up, a new phone restored from this one keeps your pairings; otherwise each computer has to be paired again.",
+  "keyBackupNow": "Back up now",
+  "keyBackupAgain": "Back up again",
+  "keyBackupFailed": "Couldn't back up. Check that Google Backup is on.",
+  "security": "Security",
+  "language": "Language",
+  "languageHint": "The app's language.",
+  "newItem": "New",
+  "tokensOf": "{used} / {size} tokens",
+  "@tokensOf": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "thinking": "Thinking"
 }

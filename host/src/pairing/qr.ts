@@ -1,6 +1,6 @@
 import { renderUnicodeCompact } from "uqr";
 
-export interface PairingInvite {
+interface PairingInvite {
   token: string;
   publicKey: Uint8Array;
   /** What the app calls this computer until the user renames it. */

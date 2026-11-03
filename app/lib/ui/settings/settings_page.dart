@@ -3,7 +3,6 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:flutter/material.dart';
@@ -77,7 +76,7 @@ class SettingsPage extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 36),
                   children: [
-                    _SettingsSectionLabel(context.l10n.connection),
+                    _SettingsSectionLabel(context.l10n.security),
                     const _KeyBackupEntry(),
                     const SizedBox(height: 22),
                     _SettingsSectionLabel(context.l10n.chatAndAppearance),
@@ -170,6 +169,31 @@ class DisplaySettingsPage extends StatelessWidget {
                   selected: {prefs.themeMode},
                   onSelectionChanged: (selection) =>
                       prefs.setThemeMode(selection.first),
+                ),
+              ),
+            ),
+            Divider(color: colors.border, height: 32),
+            _DetailControl(
+              title: context.l10n.language,
+              description: context.l10n.languageHint,
+              child: SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  key: const Key('language-selector'),
+                  showSelectedIcon: false,
+                  segments: [
+                    ButtonSegment(
+                      value: '',
+                      label: Text(context.l10n.themeSystem),
+                    ),
+                    // Each language is named in itself.
+                    const ButtonSegment(value: 'en', label: Text('English')),
+                    const ButtonSegment(value: 'zh', label: Text('中文')),
+                  ],
+                  selected: {prefs.language ?? ''},
+                  onSelectionChanged: (selection) => prefs.setLanguage(
+                    selection.first.isEmpty ? null : selection.first,
+                  ),
                 ),
               ),
             ),
@@ -422,24 +446,124 @@ class _KeyBackupEntry extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: _SettingsEntryCard(
-        child: _SettingsEntry(
-          key: const Key('settings-key-backup'),
-          icon: store.backedUp
-              ? LucideIcons.cloudCheck
-              : LucideIcons.cloudAlert,
-          title: l10n.keyBackup,
-          subtitle: store.backedUp ? l10n.keyBackedUp : l10n.keyNotBackedUp,
-          onTap: () async {
-            if (await store.retryBackup() || !context.mounted) return;
-            await showBayaNotice(
-              context,
-              title: l10n.keyBackup,
-              message: l10n.keyBackupHowTo,
-            );
-          },
+    return _SettingsEntryCard(
+      child: _SettingsEntry(
+        key: const Key('settings-key-backup'),
+        icon: store.backedUp ? LucideIcons.cloudCheck : LucideIcons.cloudAlert,
+        title: l10n.keyBackup,
+        subtitle: store.backedUp ? l10n.keyBackedUp : l10n.keyNotBackedUp,
+        onTap: () => Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => ChangeNotifierProvider.value(
+              value: store,
+              child: const KeyBackupPage(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Where the phone's owner key lives, and backing it up now.
+class KeyBackupPage extends StatefulWidget {
+  const KeyBackupPage({super.key});
+
+  @override
+  State<KeyBackupPage> createState() => _KeyBackupPageState();
+}
+
+class _KeyBackupPageState extends State<KeyBackupPage> {
+  bool _busy = false;
+  bool? _lastTry;
+
+  Future<void> _backUp(BackedUpOwnerIdentityStore store) async {
+    setState(() => _busy = true);
+    final ok = await store.retryBackup();
+    if (mounted) {
+      setState(() {
+        _busy = false;
+        _lastTry = ok;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.watch<BackedUpOwnerIdentityStore>();
+    final colors = context.colors;
+    final l10n = context.l10n;
+    final backedUp = store.backedUp;
+    return _SettingsDetailScaffold(
+      title: l10n.keyBackup,
+      child: BayaSurface(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  backedUp ? LucideIcons.cloudCheck : LucideIcons.cloudAlert,
+                  size: 22,
+                  color: backedUp ? colors.success : colors.warning,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    backedUp ? l10n.keyBackedUp : l10n.keyNotBackedUp,
+                    key: const Key('key-backup-status'),
+                    style: context.typo.sansBody.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.keyBackupExplain,
+              style: context.typo.sansBody.copyWith(
+                color: colors.muted2,
+                height: 1.45,
+              ),
+            ),
+            if (!backedUp) ...[
+              const SizedBox(height: 12),
+              Text(
+                l10n.keyBackupHowTo,
+                style: context.typo.sansBody.copyWith(
+                  color: colors.muted,
+                  fontSize: 13,
+                  height: 1.45,
+                ),
+              ),
+            ],
+            if (_lastTry == false) ...[
+              const SizedBox(height: 12),
+              Text(
+                l10n.keyBackupFailed,
+                key: const Key('key-backup-failed'),
+                style: context.typo.sansBody.copyWith(
+                  color: colors.error,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              key: const Key('key-backup-now'),
+              onPressed: _busy ? null : () => _backUp(store),
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 1.8),
+                    )
+                  : const Icon(LucideIcons.cloudUpload, size: 18),
+              label: Text(backedUp ? l10n.keyBackupAgain : l10n.keyBackupNow),
+            ),
+          ],
         ),
       ),
     );

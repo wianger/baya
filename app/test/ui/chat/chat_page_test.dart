@@ -205,7 +205,7 @@ void main() {
 
   testWidgets('session settings change the model', (tester) async {
     final chat = await _pump(tester);
-    await tester.tap(find.byKey(const Key('context-usage')));
+    await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
     await tester.pumpAndSettle();
     expect(find.text('Opus'), findsWidgets);
     await tester.tap(find.byKey(const ValueKey('setting-model')));
@@ -353,7 +353,7 @@ void main() {
     };
     computer.handlers['_baya/logout'] = (_) => const <String, dynamic>{};
     final chat = await _pump(tester, computer: computer);
-    await tester.tap(find.byKey(const Key('context-usage')));
+    await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('sign-out')));
     await tester.pumpAndSettle();
@@ -369,9 +369,30 @@ void main() {
 
   testWidgets('no sign-out for agents without logout', (tester) async {
     final chat = await _pump(tester);
-    await tester.tap(find.byKey(const Key('context-usage')));
+    await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('sign-out')), findsNothing);
+    await _finish(tester, chat);
+  });
+
+  testWidgets('the context ring shows only the context', (tester) async {
+    final chat = await _pump(tester);
+    await tester.tap(find.byKey(const Key('context-usage')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('context-sheet')), findsOneWidget);
+    expect(find.text('20.0%'), findsOneWidget);
+    expect(find.byKey(const ValueKey('setting-model')), findsNothing);
+    await _finish(tester, chat);
+  });
+
+  testWidgets('the composer chip names the model and opens its settings', (
+    tester,
+  ) async {
+    final chat = await _pump(tester);
+    expect(find.text('Opus'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('setting-model')), findsOneWidget);
     await _finish(tester, chat);
   });
 }

@@ -10,9 +10,83 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+/// How full the agent's context is, from the header's ring.
+Future<void> showContextUsage(BuildContext context) {
+  final session = context.read<SessionController>();
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: .34),
+    sheetAnimationStyle: AnimationStyle(
+      duration: BayaMotion.standard,
+      curve: BayaMotion.enter,
+    ),
+    builder: (_) => ChangeNotifierProvider<SessionController>.value(
+      value: session,
+      child: const _ContextSheet(),
+    ),
+  );
+}
+
+class _ContextSheet extends StatelessWidget {
+  const _ContextSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final session = context.watch<SessionController>();
+    final usage = session.usage;
+    final colors = context.colors;
+    final canCompact = session.commands.any((c) => c.name == 'compact');
+    return SafeArea(
+      top: false,
+      child: BayaSurface(
+        key: const Key('context-sheet'),
+        role: BayaSurfaceRole.overlay,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              context.l10n.contextUsage,
+              style: context.typo.sansBody.copyWith(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 14),
+            if (usage == null)
+              Text(
+                context.l10n.notReported,
+                style: context.typo.sansBody.copyWith(color: colors.muted),
+              )
+            else
+              _UsageBar(usage: usage),
+            if (canCompact) ...[
+              const SizedBox(height: 18),
+              OutlinedButton.icon(
+                key: const Key('context-compact'),
+                onPressed: session.working
+                    ? null
+                    : () {
+                        Navigator.of(context).pop();
+                        session.prompt('/compact');
+                      },
+                icon: const Icon(LucideIcons.foldVertical, size: 16),
+                label: Text(context.l10n.compactContext),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The session's settings as the agent exposes them over ACP: model,
 /// reasoning effort, mode, and anything else (`configOptions`), plus the
-/// legacy mode list. A row opens its choices; picking one applies it.
+/// mode list. A row opens its choices; picking one applies it.
 Future<void> showSessionSettings(BuildContext context, {String? focus}) {
   final session = context.read<SessionController>();
   return showModalBottomSheet<void>(
@@ -171,7 +245,6 @@ class _Overview extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final modes = session.modes;
-    final usage = session.usage;
     final rows = <Widget>[
       for (final option in session.configOptions)
         if (option.isBoolean)
@@ -246,13 +319,6 @@ class _Overview extends StatelessWidget {
               ),
             ),
           ),
-        if (usage != null) ...[
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
-            child: _UsageBar(usage: usage),
-          ),
-        ],
         _SignOut(session: session),
       ],
     );
@@ -284,17 +350,20 @@ class _UsageBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
             Text(
-              context.l10n.contextUsage,
+              '${(usage.fraction * 100).toStringAsFixed(1)}%',
               style: context.typo.sansBody.copyWith(
-                fontSize: 13,
-                color: colors.muted2,
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -.8,
               ),
             ),
             const Spacer(),
             Text(
-              '${_count(usage.used)} / ${_count(usage.size)}',
+              context.l10n.tokensOf(_count(usage.used), _count(usage.size)),
               style: context.typo.monoSmall.copyWith(
                 fontSize: 12,
                 color: colors.muted,
@@ -302,12 +371,12 @@ class _UsageBar extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: usage.fraction,
-            minHeight: 5,
+            minHeight: 6,
             color: colors.accent,
             backgroundColor: colors.border,
           ),

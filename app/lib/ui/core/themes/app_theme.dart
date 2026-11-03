@@ -85,6 +85,45 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
         ),
       ),
     ),
+    // Choices: the picked segment or chip is ink, like the primary button,
+    // so it never blends into the surface behind it.
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.text
+              : Colors.transparent,
+        ),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? colors.bg : colors.muted2,
+        ),
+        side: WidgetStateProperty.resolveWith(
+          (states) => BorderSide(
+            color: states.contains(WidgetState.selected)
+                ? colors.text
+                : colors.border,
+          ),
+        ),
+        textStyle: WidgetStatePropertyAll(
+          typo.sansBody.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: Colors.transparent,
+      selectedColor: colors.text,
+      checkmarkColor: colors.bg,
+      side: BorderSide(color: colors.border),
+      labelStyle: typo.sansBody.copyWith(fontSize: 14, color: colors.text),
+      secondaryLabelStyle: typo.sansBody.copyWith(
+        fontSize: 14,
+        color: colors.bg,
+        fontWeight: FontWeight.w600,
+      ),
+      shape: const StadiumBorder(),
+    ),
     switchTheme: SwitchThemeData(
       trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       thumbColor: WidgetStateProperty.resolveWith(

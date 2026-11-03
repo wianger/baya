@@ -42,6 +42,7 @@ class Preferences extends ChangeNotifier {
   static const _kOnboardingCompletedKey = 'prefs.onboarding_completed';
   static const _kThemeModeKey = 'prefs.theme_mode';
   static const _kFontScaleKey = 'prefs.font_scale';
+  static const _kLanguageKey = 'prefs.language';
 
   /// True → chat hides `ToolEvent` rows (only user/assistant text remain).
   bool get hideToolCalls => _hideToolCalls;
@@ -58,6 +59,10 @@ class Preferences extends ChangeNotifier {
   /// light/dark setting; `light` / `dark` pin it. Consumed by `MaterialApp`
   /// in `main.dart` and set from the Settings "Display" section.
   ThemeMode get themeMode => _themeMode;
+
+  /// App language code (`en`, `zh`); null follows the device.
+  String? get language => _language;
+  String? _language;
 
   /// Preferred text size. Applied as a `TextScaler` above the
   /// router in `main.dart`, so it scales the whole UI — including the per-widget
@@ -92,6 +97,12 @@ class Preferences extends ChangeNotifier {
     final themeMode = _themeModeFromString(theme);
     if (themeMode != _themeMode) {
       _themeMode = themeMode;
+      changed = true;
+    }
+
+    final language = await _store.read(key: _kLanguageKey);
+    if (language != _language) {
+      _language = language;
       changed = true;
     }
 
@@ -486,6 +497,18 @@ class Preferences extends ChangeNotifier {
     if (_themeMode == value) return;
     _themeMode = value;
     await _store.write(key: _kThemeModeKey, value: value.name);
+    notifyListeners();
+  }
+
+  /// Persist the app language; null follows the device.
+  Future<void> setLanguage(String? value) async {
+    if (_language == value) return;
+    _language = value;
+    if (value == null) {
+      await _store.delete(key: _kLanguageKey);
+    } else {
+      await _store.write(key: _kLanguageKey, value: value);
+    }
     notifyListeners();
   }
 

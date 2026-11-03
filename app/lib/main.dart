@@ -84,8 +84,6 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
         ChangeNotifierProvider<SessionSelection>.value(
           value: services.selection,
         ),
-        // Shell layout state — lets the adaptive shell collapse the split
-        // into a single centered pane on zero-state Home (no computer / empty).
         ChangeNotifierProvider<BackedUpOwnerIdentityStore>.value(
           value: services.identityStore,
         ),
@@ -96,6 +94,9 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
       child: Consumer<Preferences>(
         builder: (context, prefs, _) => MaterialApp.router(
           title: kAppName,
+          locale: appLocale = prefs.language == null
+              ? null
+              : Locale(prefs.language!),
           theme: buildLightTheme(),
           darkTheme: buildDarkTheme(),
           themeMode: prefs.themeMode,

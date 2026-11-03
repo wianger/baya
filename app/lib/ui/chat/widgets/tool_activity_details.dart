@@ -2,7 +2,6 @@ import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/widgets/tool_content.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/copy_button.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -14,12 +13,10 @@ class ToolActivityDetails extends StatelessWidget {
   const ToolActivityDetails({
     super.key,
     required this.tool,
-    this.showHeader = false,
     this.resultMaxHeight,
   });
 
   final ToolEvent tool;
-  final bool showHeader;
   final double? resultMaxHeight;
 
   @override
@@ -45,10 +42,6 @@ class ToolActivityDetails extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showHeader) ...[
-          _Header(content: content),
-          const SizedBox(height: 14),
-        ],
         if (changes != null) ...[
           _Section(
             key: const Key('tool-changes'),
@@ -138,83 +131,6 @@ class ToolActivityDetails extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.content});
-
-  final ToolContent content;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final status = content.tool.status;
-    final statusColor = switch (status) {
-      ToolEventStatus.failed => colors.error,
-      ToolEventStatus.pending ||
-      ToolEventStatus.running when content.awaitingApproval => colors.warning,
-      ToolEventStatus.pending || ToolEventStatus.running => colors.working,
-      ToolEventStatus.completed => colors.success,
-    };
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                content.title,
-                style: context.typo.title.copyWith(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                content.toolName,
-                style: context.typo.monoSmall.copyWith(
-                  fontSize: 11,
-                  color: colors.muted,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-          decoration: BoxDecoration(
-            color: statusColor.withValues(alpha: .10),
-            borderRadius: BorderRadius.circular(99),
-            border: Border.all(color: statusColor.withValues(alpha: .26)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                content.statusLabel,
-                style: context.typo.sansBody.copyWith(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: statusColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 enum _SectionTone { normal, error }
 
 class _Section extends StatelessWidget {
@@ -279,26 +195,25 @@ class _Section extends StatelessWidget {
         const SizedBox(height: 2),
         Container(
           width: double.infinity,
-          color: Colors.transparent,
-          child: BayaSurface(
-            role: BayaSurfaceRole.content,
-            radius: 13,
-            elevated: false,
-            emphasized: tone == _SectionTone.error,
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (maxHeight == null)
-                  text
-                else
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: maxHeight!),
-                    child: SingleChildScrollView(child: text),
-                  ),
-              ],
-            ),
+          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+          decoration: BoxDecoration(
+            color: tone == _SectionTone.error
+                ? colors.error.withValues(alpha: .08)
+                : colors.codeBg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (maxHeight == null)
+                text
+              else
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: maxHeight!),
+                  child: SingleChildScrollView(child: text),
+                ),
+            ],
           ),
         ),
       ],

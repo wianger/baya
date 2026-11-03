@@ -56,5 +56,10 @@
     "uqr": "^0.1.3",
     "ws": "^8.21.0"
   },
-  "packageManager": "pnpm@11.5.3"
+  "packageManager": "pnpm@11.5.3",
+  "knip": {
+    "entry": [
+      "test/make-noise-vector.ts"
+    ]
+  }
 }

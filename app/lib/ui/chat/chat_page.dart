@@ -406,14 +406,16 @@ class ChatPage extends StatelessWidget {
       agentLabel: session.agentName.isEmpty
           ? context.l10n.yourAgent
           : session.agentName,
-      modelLabel:
-          session.configFor('model')?.current?.name ?? context.l10n.settings,
+      // The picker holds model, thinking and mode; its chip names the first
+      // two.
+      modelLabel: [
+        session.configFor('model')?.current?.name,
+        session.configFor('thought_level')?.current?.name,
+      ].nonNulls.join(' · ').ifEmpty(context.l10n.settings),
       disabled: !online,
       streaming: session.working,
       onCancel: session.working ? session.cancel : null,
-      onOpenQuickActions: online
-          ? () => showSessionSettings(context, focus: 'model')
-          : null,
+      onOpenQuickActions: online ? () => showSessionSettings(context) : null,
       onSlashCommand: (id, raw) {
         switch (id) {
           case 'new':
@@ -436,7 +438,7 @@ class ChatPage extends StatelessWidget {
             }
             session.prompt('/compact');
           case 'context':
-            showSessionSettings(context);
+            showContextUsage(context);
           case 'attach':
             _openAttach(context, context.read<AttachmentViewModel>());
           case 'settings':
@@ -743,4 +745,8 @@ class _AttachedFiles extends StatelessWidget {
       ),
     );
   }
+}
+
+extension on String {
+  String ifEmpty(String fallback) => isEmpty ? fallback : this;
 }

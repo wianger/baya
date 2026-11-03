@@ -7,7 +7,6 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/widgets/image_bubble.dart';
 import 'package:app/ui/chat/widgets/message_bubble.dart';
 import 'package:app/ui/chat/widgets/thinking_block.dart';
-import 'package:app/ui/chat/widgets/tool_request_card.dart';
 import 'package:app/ui/chat/widgets/tool_run_group.dart';
 import 'package:app/ui/chat/widgets/working_indicator.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -352,7 +351,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                         text: msg.text,
                         complete: msg.complete,
                       ),
-                      ToolEvent() => ToolRequestCard(tool: msg),
+                      ToolEvent() => ToolRow(tool: msg),
                       CompactionMsg() => CompactionBubble(msg),
                       NoticeMsg() => NoticeBubble(msg),
                       PlanMsg() => PlanCard(msg),

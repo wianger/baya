@@ -14,10 +14,13 @@ extension L10nContext on BuildContext {
   AppLocalizations get l10n => AppLocalizations.of(this) ?? _english;
 }
 
+/// The language picked in Settings; null follows the device.
+Locale? appLocale;
+
 /// Strings for code without a [BuildContext] (view models, static helpers),
-/// resolved from the device locale.
+/// in the language picked in Settings or the device's.
 AppLocalizations get appL10n {
-  final locale = PlatformDispatcher.instance.locale;
+  final locale = appLocale ?? PlatformDispatcher.instance.locale;
   return AppLocalizations.delegate.isSupported(locale)
       ? lookupAppLocalizations(locale)
       : _english;

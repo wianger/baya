@@ -27,7 +27,7 @@ const IDENTITY_FILE = join(BAYA_HOME, "identity.json");
 const PEERS_FILE = join(BAYA_HOME, "peers.json");
 
 /** The keyring is a core OS service but stayed unreadable (usually locked). */
-export class KeyringUnavailableError extends Error {
+class KeyringUnavailableError extends Error {
   override readonly name = "KeyringUnavailableError";
   constructor(cause: unknown) {
     super(
@@ -40,7 +40,7 @@ export class KeyringUnavailableError extends Error {
 }
 
 /** Devices are paired, so a missing identity is an environment problem. */
-export class PairedIdentityMissingError extends Error {
+class PairedIdentityMissingError extends Error {
   override readonly name = "PairedIdentityMissingError";
   constructor(paired: number, cause: unknown) {
     super(

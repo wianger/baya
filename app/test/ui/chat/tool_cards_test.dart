@@ -49,7 +49,6 @@ void main() {
       expect(content.title, 'Run tests');
       expect(content.command, 'npm test');
       expect(content.workingDirectory, '/code');
-      expect(content.preview, 'npm test');
       expect(content.output.text, 'ok');
       expect(content.output.stderr, 'warn');
       expect(content.inputText, isNull);
@@ -87,7 +86,7 @@ void main() {
       );
       expect(content.title, 'Read');
       expect(content.output.text, 'file body');
-      expect(content.preview, 'README.md');
+      expect(content.detailLine, 'README.md');
     });
 
     test('a failed call with nothing to show says it failed', () {
@@ -96,7 +95,20 @@ void main() {
     });
   });
 
-  group('cards', () {
+  test('an edit counts its added and removed lines', () {
+    final stats = ToolContent(
+      tool(
+        't',
+        kind: ToolKind.edit,
+        content: const [
+          ToolCallDiff(path: 'a.dart', oldText: 'a\nb', newText: 'a\nc\nd'),
+        ],
+      ),
+    ).diffStats;
+    expect(stats, (added: 2, removed: 1));
+  });
+
+  group('rows', () {
     testWidgets('a lone tool shows its title and output', (tester) async {
       await tester.pumpWidget(
         app(
@@ -115,6 +127,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('List files'), findsOneWidget);
+      expect(find.textContaining('a.txt'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('tool-details-t')));
+      await tester.pumpAndSettle();
       expect(find.textContaining('a.txt'), findsWidgets);
     });
 
@@ -131,6 +146,11 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('tool-run-group')), findsOneWidget);
+      expect(find.text('ls'), findsNothing);
+      await tester.tap(find.byKey(const Key('tool-run-group')));
+      await tester.pumpAndSettle();
+      expect(find.text('ls'), findsOneWidget);
+      expect(find.text('pwd'), findsOneWidget);
     });
 
     testWidgets('a call waiting on permission says so', (tester) async {

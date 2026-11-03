@@ -13,7 +13,7 @@ import { HostedSession, type PhoneLink } from "./hosted_session.ts";
 import { type Json, RpcError } from "./jsonrpc.ts";
 import type { InitializeResponse } from "./schema.ts";
 
-export interface AgentInfo {
+interface AgentInfo {
   id: string;
   name: string;
   command: string[];

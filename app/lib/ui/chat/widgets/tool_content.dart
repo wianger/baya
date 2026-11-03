@@ -26,7 +26,6 @@ class ToolContent {
 
   bool get isRead => tool.kind == ToolKind.read;
   bool get isSearch => tool.kind == ToolKind.search;
-  bool get isAgentMessage => false;
 
   /// Reasoning and other prose read better in the body font.
   bool get usesProseDetails => tool.kind == ToolKind.think;
@@ -50,13 +49,6 @@ class ToolContent {
     final title = tool.title.trim();
     return title.isEmpty ? toolName : _oneLine(title);
   }
-
-  String get statusLabel => switch (tool.status) {
-    ToolEventStatus.pending || ToolEventStatus.running =>
-      awaitingApproval ? appL10n.approval : appL10n.running,
-    ToolEventStatus.completed => appL10n.done,
-    ToolEventStatus.failed => appL10n.failed,
-  };
 
   /// The command line of a shell call.
   String? get command {
@@ -82,8 +74,6 @@ class ToolContent {
     for (final diff in _diffs) diff.path,
     for (final location in tool.locations) location.path,
   }.toList();
-
-  Map<String, dynamic>? get visibleArguments => arguments;
 
   String get inputLabel => appL10n.input;
 
@@ -157,17 +147,24 @@ class ToolContent {
       ? appL10n.failed
       : null;
 
-  /// One line under the title in a collapsed card.
-  String? get preview {
-    if (isCommand) {
-      final line = command;
-      if (line != null && _oneLine(line) != title) return _oneLine(line);
-    }
+  /// A file the title does not already name, shown beside it.
+  String? get detailLine {
     final file = path;
-    if (file != null) return file;
-    final text = output.text;
-    if (text != null && text.trim().isNotEmpty) return _oneLine(text);
-    return null;
+    if (file == null || isCommand) return null;
+    final name = file.split(RegExp(r'[/\\]')).last;
+    return title.contains(name) ? null : name;
+  }
+
+  /// Lines added and removed across the call's diffs.
+  ({int added, int removed})? get diffStats {
+    if (_diffs.isEmpty) return null;
+    var added = 0;
+    var removed = 0;
+    for (final line in changesText!.split('\n')) {
+      if (line.startsWith('+')) added++;
+      if (line.startsWith('-')) removed++;
+    }
+    return (added: added, removed: removed);
   }
 
   List<ToolCallDiff> get _diffs => [
