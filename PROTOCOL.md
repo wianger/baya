@@ -19,12 +19,12 @@ folders, files, live session list) are `_baya/*` extension methods and
 An agent is any command that speaks ACP over stdio, set up per computer:
 
 ```sh
-baya agents add claude --name "Claude Code" -- npx -y @agentclientprotocol/claude-agent-acp
-baya agents add codex --name Codex -- npx -y @agentclientprotocol/codex-acp
+baya agents add claude --name "Claude Code" -- CLAUDE_CODE_EXECUTABLE=/path/to/claude claude-agent-acp
+baya agents add codex --name Codex -- CODEX_PATH=/path/to/codex codex-acp
 baya agents add deepseek --name DeepSeek -- dsh --profile acp
 ```
 
-The host is their client. It sends `initialize` with no file-system or
+Leading `NAME=value` words are stored as the agent's environment. The host is their client. It sends `initialize` with no file-system or
 terminal capability, so agents use their own tools on the computer. A
 session's agent process starts on first use and stops after twenty idle
 minutes; when it starts again the host reopens the agent's session with
