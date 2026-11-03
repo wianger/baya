@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AgentDefinition } from "../config.ts";
+import { dshDesktop, isDsh } from "../integrations/dsh_desktop.ts";
 import {
   folderName,
   type SessionRecord,
@@ -313,6 +314,7 @@ export class HostedSession {
     const caps = info.agentCapabilities;
     if (previous && (caps?.loadSession || caps?.sessionCapabilities?.resume)) {
       try {
+        this.registerElsewhere(agent, previous);
         if (caps.loadSession) {
           // The agent replays its history. Baya keeps it only for a session
           // it adopted from the agent and has no history of yet.
@@ -353,7 +355,15 @@ export class HostedSession {
       ...this.record,
       agentSessionId: created.sessionId,
     };
+    this.registerElsewhere(agent, created.sessionId);
     return created;
+  }
+
+  /** Makes the session show in the agent's own app where Baya knows how. */
+  private registerElsewhere(agent: AgentProcess, agentSessionId: string): void {
+    if (isDsh(agent.definition)) {
+      dshDesktop.register(agent.definition, agentSessionId, this.record.cwd);
+    }
   }
 
   private onAgentExit(agent: AgentProcess, error: Error): void {

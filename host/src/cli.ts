@@ -43,6 +43,7 @@ import {
 import { controlCall, readControlInfo } from "./control/client.ts";
 import type { HostStatus, SessionStatus } from "./control/protocol.ts";
 import { ControlServer } from "./control/server.ts";
+import { dshDesktop, isDsh } from "./integrations/dsh_desktop.ts";
 import { buildQRUri, displayQR } from "./pairing/qr.ts";
 import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/storage.ts";
 import { issuePendingPairToken, type PendingPairToken } from "./pairing/token_store.ts";
@@ -220,7 +221,12 @@ async function startBackground(): Promise<HostStatus> {
     await new Promise<void>((done, fail) => {
       spawn(
         "powershell.exe",
-        ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-EncodedCommand",
+          Buffer.from(script, "utf16le").toString("base64"),
+        ],
         { env: { ...process.env }, stdio: "ignore", windowsHide: true },
       )
         .on("error", fail)
@@ -283,6 +289,16 @@ function logTo(path: string): void {
 async function runForeground(): Promise<void> {
   if (await hostStatus()) throw new Error("Baya is already running. See `baya status`.");
   const hub = new SessionHub();
+  // Every DeepSeek session shows in DeepSeek's desktop app too; sessions
+  // already recorded there are left alone.
+  const agents = loadConfig().agents;
+  for (const session of listSessions()) {
+    const definition = agents.find((agent) => agent.id === session.agent);
+    if (definition && isDsh(definition) && session.agentSessionId) {
+      dshDesktop.register(definition, session.agentSessionId, session.cwd);
+    }
+  }
+  dshDesktop.flush();
   let control: ControlServer | null = null;
   let stopping = false;
   const shutdown = async (): Promise<void> => {
