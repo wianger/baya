@@ -1,7 +1,7 @@
 name: app
 description: "Baya mobile client for computers running the standalone Baya host."
 publish_to: "none"
-version: 1.4.2+88
+version: 2.0.0+89
 
 environment:
   sdk: ^3.13.0
@@ -30,10 +30,6 @@ dependencies:
   # State: ChangeNotifier view models exposed through provider.
   provider: ^6.1.2
 
-  # Local session cache (per-peer chat history). hive_ce is the maintained
-  # continuation of hive 2 and reads the same on-disk format.
-  hive_ce: ^2.11.0
-  hive_ce_flutter: ^2.3.0
 
   # Owner-key persistence through Android Block Store. Local path dependency.
   baya_identity:

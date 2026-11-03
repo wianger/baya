@@ -1,3 +1,5 @@
+import 'package:app/acp/acp.dart';
+
 import 'dart:async';
 
 import 'package:app/l10n/l10n.dart';
@@ -23,13 +25,8 @@ class UserBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Render the lifecycle stage of
-    // the bubble. `pending` (sent over WS, Pi hasn't echoed yet) gets
-    // reduced opacity + a small spinner; `failed` (no echo in 15s) gets
-    // a red exclamation badge so the user knows to retry.
+    // Pending = sent, not started yet (in transit or queued behind a turn).
     final isPending = message.status == UserMsgStatus.pending;
-    final isFailed = message.status == UserMsgStatus.failed;
-    final isSteering = message.steering;
     // When an image is attached the bubble becomes an ImageBubble
     // (thumbnail + caption); otherwise the existing text card.
     final image = message.image;
@@ -49,11 +46,7 @@ class UserBubble extends StatelessWidget {
                 duration: BayaMotion.fast,
                 curve: BayaMotion.enter,
                 child: image != null
-                    ? ImageBubble(
-                        image: image,
-                        caption: message.text,
-                        isFailed: isFailed,
-                      )
+                    ? ImageBubble(image: image, caption: message.text)
                     : BayaSurface(
                         role: BayaSurfaceRole.user,
                         borderRadius: const BorderRadius.only(
@@ -62,8 +55,6 @@ class UserBubble extends StatelessWidget {
                           bottomLeft: Radius.circular(22),
                           bottomRight: Radius.circular(7),
                         ),
-                        emphasized: isFailed,
-                        emphasisColor: isFailed ? colors.error : null,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -80,44 +71,28 @@ class UserBubble extends StatelessWidget {
                         ),
                       ),
               ),
-              if (isPending || isSteering || isFailed)
+              if (isPending)
                 Padding(
                   padding: const EdgeInsets.only(top: 5, right: 5),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isPending || isSteering) ...[
-                        SizedBox(
-                          width: 11,
-                          height: 11,
-                          child: CircularProgressIndicator(
-                            color: colors.muted,
-                            strokeWidth: 1.2,
-                          ),
+                      SizedBox(
+                        width: 11,
+                        height: 11,
+                        child: CircularProgressIndicator(
+                          color: colors.muted,
+                          strokeWidth: 1.2,
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isSteering ? 'steering…' : 'sending…',
-                          style: typo.sansBody.copyWith(
-                            color: colors.muted,
-                            fontSize: 11,
-                          ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        context.l10n.queued,
+                        style: typo.sansBody.copyWith(
+                          color: colors.muted,
+                          fontSize: 11,
                         ),
-                      ] else ...[
-                        Icon(
-                          LucideIcons.circleAlert,
-                          size: 12,
-                          color: colors.error,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          context.l10n.notDelivered,
-                          style: typo.sansBody.copyWith(
-                            color: colors.error,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
@@ -133,16 +108,13 @@ class UserBubble extends StatelessWidget {
 // CompactionBubble — centered system card
 // ---------------------------------------------------------------------------
 
-/// A system message distinct from user/assistant: shows that the Pi compacted
-/// the context, with the recap summary and the reclaimed token count. Mirrors
-/// the TUI's CompactionSummaryMessageComponent.
+/// A system card: the agent compacted its context, with its summary.
 class CompactionBubble extends StatelessWidget {
   final CompactionMsg message;
   const CompactionBubble(this.message, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    final tokens = message.tokensBefore;
     final summary = message.summary;
     final colors = context.colors;
     return BayaReveal(
@@ -161,11 +133,25 @@ class CompactionBubble extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(LucideIcons.check, size: 14, color: colors.success),
+                    message.done
+                        ? Icon(
+                            LucideIcons.check,
+                            size: 14,
+                            color: colors.success,
+                          )
+                        : SizedBox.square(
+                            dimension: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.4,
+                              color: colors.muted,
+                            ),
+                          ),
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        context.l10n.contextCompacted,
+                        message.done
+                            ? context.l10n.contextCompacted
+                            : context.l10n.compacting,
                         style: context.typo.sansBody.copyWith(
                           fontSize: 13,
                           color: colors.text,
@@ -173,15 +159,6 @@ class CompactionBubble extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (tokens != null)
-                      Text(
-                        context.l10n.tokensApprox('$tokens'),
-                        style: TextStyle(
-                          fontFamily: kMonoFamily,
-                          fontSize: 11,
-                          color: colors.muted,
-                        ),
-                      ),
                   ],
                 ),
                 if (summary.isNotEmpty) ...[
@@ -198,6 +175,131 @@ class CompactionBubble extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// NoticeBubble / PlanCard — what the agent or Baya wants the user to know
+// ---------------------------------------------------------------------------
+
+class NoticeBubble extends StatelessWidget {
+  final NoticeMsg message;
+  const NoticeBubble(this.message, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final (icon, tint) = switch (message.severity) {
+      'error' => (LucideIcons.circleAlert, colors.error),
+      'warning' => (LucideIcons.triangleAlert, colors.warning),
+      _ => (LucideIcons.info, colors.muted2),
+    };
+    return BayaReveal(
+      offset: 5,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(icon, size: 14, color: tint),
+                ),
+                const SizedBox(width: 7),
+                Flexible(
+                  child: SelectableText(
+                    message.text,
+                    style: context.typo.sansBody.copyWith(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: tint,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class PlanCard extends StatelessWidget {
+  final PlanMsg message;
+  const PlanCard(this.message, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return BayaReveal(
+      offset: 5,
+      child: BayaSurface(
+        role: BayaSurfaceRole.content,
+        radius: 18,
+        elevated: false,
+        padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.l10n.plan,
+              style: context.typo.sansBody.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colors.text,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (final entry in message.entries)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Icon(
+                        switch (entry.status) {
+                          PlanStatus.completed => LucideIcons.circleCheck,
+                          PlanStatus.inProgress => LucideIcons.circleDot,
+                          PlanStatus.pending => LucideIcons.circle,
+                        },
+                        size: 14,
+                        color: switch (entry.status) {
+                          PlanStatus.completed => colors.success,
+                          PlanStatus.inProgress => colors.working,
+                          PlanStatus.pending => colors.muted,
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        entry.content,
+                        style: context.typo.sansBody.copyWith(
+                          fontSize: 13.5,
+                          height: 1.4,
+                          color: entry.status == PlanStatus.completed
+                              ? colors.muted
+                              : colors.text,
+                          decoration: entry.status == PlanStatus.completed
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
     );

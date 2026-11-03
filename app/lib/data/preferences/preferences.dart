@@ -17,7 +17,6 @@ import 'package:app/ui/core/themes/app_font_scale.dart';
 class Preferences extends ChangeNotifier {
   final FlutterSecureStorage _store;
   bool _hideToolCalls = false;
-  Set<String> _hiddenSessions = {};
   Map<String, String> _sessionNames = {};
   Map<String, String> _sessionWorkspaces = {};
   Map<String, String> _workspaceNames = {};
@@ -25,7 +24,6 @@ class Preferences extends ChangeNotifier {
   String? _selectedDeviceEpk;
   Map<String, String> _workspacesByDevice = {};
   Future<void> _navigationWrites = Future.value();
-  String? _selectedPeerEpk;
   String? _tailnetDomain;
   bool _onboardingCompleted = false;
   ThemeMode _themeMode = ThemeMode.system;
@@ -34,14 +32,12 @@ class Preferences extends ChangeNotifier {
   Preferences([FlutterSecureStorage? store])
     : _store = store ?? const FlutterSecureStorage();
 
-  static const _kHiddenSessionsKey = 'prefs.hidden_sessions';
   static const _kSessionNamesKey = 'prefs.session_names';
   static const _kSessionWorkspacesKey = 'prefs.session_workspaces';
   static const _kWorkspaceNamesKey = 'prefs.workspace_names';
   static const _kNavigationKey = 'prefs.workspace_navigation';
 
   static const _kHideToolCallsKey = 'prefs.hide_tool_calls';
-  static const _kSelectedPeerEpkKey = 'prefs.selected_peer_epk';
   static const _kTailnetDomainKey = 'prefs.tailnet_domain';
   static const _kOnboardingCompletedKey = 'prefs.onboarding_completed';
   static const _kThemeModeKey = 'prefs.theme_mode';
@@ -49,36 +45,6 @@ class Preferences extends ChangeNotifier {
 
   /// True → chat hides `ToolEvent` rows (only user/assistant text remain).
   bool get hideToolCalls => _hideToolCalls;
-
-  /// Epoch of the peer the user last picked from Home — the one
-  /// `/chat` will connect to when it mounts. Null = no peer selected yet
-  /// (user is still browsing or hasn't paired). Persisted so reopening
-  /// the app right into `/chat` (e.g. via deep-link) knows which peer.
-  ///
-  /// Under the new rooms model the persisted value carries an
-  /// optional `:roomId` suffix (e.g. `Bz02uLi…:main` or
-  /// `Bz02uLi…:room-uuid-xyz`). The getter returns only the EPK; use
-  /// [selectedRoomId] for the room half (null when only a computer is
-  /// selected).
-  String? get selectedPeerEpk {
-    final raw = _selectedPeerEpk;
-    if (raw == null) return null;
-    final ix = raw.indexOf(':');
-    return ix < 0 ? raw : raw.substring(0, ix);
-  }
-
-  /// The room half of the persisted selected target, if any.
-  String? get selectedRoomId {
-    final raw = _selectedPeerEpk;
-    if (raw == null) return null;
-    final ix = raw.indexOf(':');
-    if (ix < 0) return null;
-    final r = raw.substring(ix + 1);
-    return r.isEmpty ? null : r;
-  }
-
-  /// Composite raw value (epk[:room]). Tests can inspect.
-  String? get selectedRoomRaw => _selectedPeerEpk;
 
   /// The owner's Tailscale domain (e.g. `tail1234.ts.net`), learned from the
   /// last pairing; completes the short computer names typed when pairing.
@@ -115,13 +81,6 @@ class Preferences extends ChangeNotifier {
       changed = true;
     }
 
-    final selected = await _store.read(key: _kSelectedPeerEpkKey);
-    final cleaned = (selected != null && selected.isNotEmpty) ? selected : null;
-    if (cleaned != _selectedPeerEpk) {
-      _selectedPeerEpk = cleaned;
-      changed = true;
-    }
-
     final onboarded = await _store.read(key: _kOnboardingCompletedKey);
     final onboardedBool = onboarded == 'true';
     if (onboardedBool != _onboardingCompleted) {
@@ -142,18 +101,6 @@ class Preferences extends ChangeNotifier {
       changed = true;
     }
 
-    final hiddenRaw = await _store.read(key: _kHiddenSessionsKey);
-    Set<String> hidden = {};
-    try {
-      final decoded = hiddenRaw == null ? null : jsonDecode(hiddenRaw);
-      if (decoded is List) hidden = decoded.whereType<String>().toSet();
-    } on FormatException {
-      /* Invalid preference, not a lost conversation. */
-    }
-    if (!setEquals(hidden, _hiddenSessions)) {
-      _hiddenSessions = hidden;
-      changed = true;
-    }
     String? device;
     final remembered = <String, String>{};
     final navigationRaw = await _store.read(key: _kNavigationKey);
@@ -264,9 +211,6 @@ class Preferences extends ChangeNotifier {
   static String _conversationKey(String epk, String room) =>
       '${toStandardB64(epk)}:$room';
 
-  bool isSessionHidden(String epk, String room) =>
-      _hiddenSessions.contains(_conversationKey(epk, room));
-
   String? get selectedWorkspace => _selectedWorkspace;
   String? get selectedDeviceEpk => _selectedDeviceEpk;
   String? workspaceForDevice(String epk) {
@@ -275,21 +219,6 @@ class Preferences extends ChangeNotifier {
     return workspace != null && isWorkspaceKeyForDevice(workspace, device)
         ? workspace
         : null;
-  }
-
-  Future<void> hideSession(String epk, String room) async {
-    final key = _conversationKey(epk, room);
-    if (!_hiddenSessions.add(key)) return;
-    try {
-      await _store.write(
-        key: _kHiddenSessionsKey,
-        value: jsonEncode(_hiddenSessions.toList()),
-      );
-    } catch (_) {
-      _hiddenSessions.remove(key);
-      rethrow;
-    }
-    notifyListeners();
   }
 
   /// Local display-name override for a conversation. Null → use the name the
@@ -486,21 +415,6 @@ class Preferences extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> restoreSession(String epk, String room) async {
-    final key = _conversationKey(epk, room);
-    if (!_hiddenSessions.remove(key)) return;
-    try {
-      await _store.write(
-        key: _kHiddenSessionsKey,
-        value: jsonEncode(_hiddenSessions.toList()),
-      );
-    } catch (_) {
-      _hiddenSessions.add(key);
-      rethrow;
-    }
-    notifyListeners();
-  }
-
   Future<void> setSelectedDevice(String? epk) =>
       _updateNavigation(epk == null ? null : toStandardB64(epk));
 
@@ -553,29 +467,6 @@ class Preferences extends ChangeNotifier {
     _tailnetDomain = value;
     await _store.write(key: _kTailnetDomainKey, value: value);
     notifyListeners();
-  }
-
-  Future<void> setSelectedPeerEpk(String? value) async {
-    final cleaned = (value != null && value.isNotEmpty) ? value : null;
-    if (cleaned == _selectedPeerEpk) return;
-    _selectedPeerEpk = cleaned;
-    if (cleaned == null) {
-      await _store.delete(key: _kSelectedPeerEpkKey);
-    } else {
-      await _store.write(key: _kSelectedPeerEpkKey, value: cleaned);
-    }
-    notifyListeners();
-  }
-
-  /// Persist the composite `epk:roomId` selection. Passing
-  /// [roomId] = null falls back to 'main' implicitly via the getter
-  /// contract. Null [epk] clears the entire selection.
-  Future<void> setSelectedRoom({String? epk, String? roomId}) async {
-    if (epk == null || epk.isEmpty) {
-      return setSelectedPeerEpk(null);
-    }
-    final composite = (roomId == null || roomId.isEmpty) ? epk : '$epk:$roomId';
-    return setSelectedPeerEpk(composite);
   }
 
   Future<void> setOnboardingCompleted(bool value) async {

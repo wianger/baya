@@ -1,6 +1,6 @@
 import 'package:app/pairing/storage.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/protocol/protocol.dart';
+import 'package:app/acp/acp.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_dialog.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -108,7 +108,7 @@ Future<bool> showSessionDeleteDialog(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => BayaDialog(
-      title: Text(context.l10n.deleteFromPhone),
+      title: Text(context.l10n.deleteSessionTitle),
       content: Text(context.l10n.deleteSessionBody(name)),
       actions: [
         TextButton(
@@ -197,19 +197,14 @@ class _NameDialogState extends State<_NameDialog> {
 }
 
 /// Shared by the sidebar action sheet and the chat header menu, so both show
-/// the same room, directory, model and device details.
+/// the same folder, agent and computer details.
 Future<void> showSessionInfoDialog(
   BuildContext context, {
   required PeerRecord peer,
-  required RoomInfo? room,
+  required SessionSummary? session,
   required String name,
 }) {
-  final owner = (peer.nickname?.isNotEmpty ?? false)
-      ? peer.nickname!
-      : peer.sessionName.isNotEmpty
-      ? peer.sessionName
-      : peer.remoteEpk.substring(0, 8);
-  final model = room?.model;
+  final owner = peer.label;
   final paired = peer.pairedAt.contains('T')
       ? peer.pairedAt.split('T').first
       : peer.pairedAt;
@@ -223,11 +218,14 @@ Future<void> showSessionInfoDialog(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _InfoRow(label: context.l10n.name, value: name),
-            _InfoRow(label: context.l10n.path, value: room?.cwd ?? '—'),
+            _InfoRow(label: context.l10n.path, value: session?.cwd ?? '—'),
             _InfoRow(label: context.l10n.owner, value: owner),
-            if (model != null && model.isNotEmpty)
-              _InfoRow(label: context.l10n.model, value: model),
-            _InfoRow(label: context.l10n.room, value: room?.roomId ?? '—'),
+            if (session != null)
+              _InfoRow(label: context.l10n.agent, value: session.agentName),
+            _InfoRow(
+              label: context.l10n.sessionId,
+              value: session?.sessionId ?? '—',
+            ),
             _InfoRow(label: context.l10n.paired, value: paired),
           ],
         ),

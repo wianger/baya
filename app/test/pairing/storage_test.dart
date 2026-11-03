@@ -1,7 +1,6 @@
-// Tests for the PairingStorage surface:
-// PeerRecord (de)serialization, nickname/roomId edges, and the new
-// `wipeAll()` helper that the OwnerIdentityBridge calls on sync-reset.
+// Pairing storage: PeerRecord JSON, cached session lists, wipeAll.
 
+import 'package:app/acp/acp.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -87,122 +86,103 @@ class _FakeSecureStorage implements FlutterSecureStorage {
 }
 
 void main() {
-  group('PeerRecord — minimal post-rollback shape', () {
-    test('serializes and deserializes the 4 retained fields', () {
+  group('PeerRecord', () {
+    test('round-trips through JSON', () {
       const record = PeerRecord(
         remoteEpk: 'pk_ed25519',
-        sessionName: 'test',
-        endpoint: 'ws://localhost',
+        name: 'studio (WSL)',
+        endpoint: 'https://studio.tail.ts.net/baya-pair/wsl/direct',
         pairedAt: '2026-01-01T00:00:00Z',
-        roomId: 'main',
       );
-
       final json = record.toJson();
       expect(json['remote_epk'], 'pk_ed25519');
-      expect(json['session_name'], 'test');
-      expect(json['endpoint'], 'ws://localhost');
-      expect(json['paired_at'], '2026-01-01T00:00:00Z');
+      expect(json['name'], 'studio (WSL)');
       expect(json['nickname'], isNull);
-
-      final restored = PeerRecord.fromJson(json);
-      expect(restored.remoteEpk, 'pk_ed25519');
-      expect(restored.sessionName, 'test');
-      expect(restored.nickname, isNull);
+      expect(PeerRecord.fromJson(json), record);
     });
 
-    test('nickname round-trips through toJson/fromJson', () {
+    test('the nickname wins as label; copyWith(nickname: null) clears it', () {
       const record = PeerRecord(
         remoteEpk: 'pk1',
-        sessionName: 'remote_pi · main',
+        name: 'studio',
         endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
-        nickname: 'Mac de casa',
-        roomId: 'main',
+        nickname: 'Home',
       );
-      final restored = PeerRecord.fromJson(record.toJson());
-      expect(restored.nickname, 'Mac de casa');
-      expect(restored.sessionName, 'remote_pi · main');
-    });
-
-    test('copyWith(nickname: null) clears the nickname', () {
-      const record = PeerRecord(
-        remoteEpk: 'pk1',
-        sessionName: 'n',
-        endpoint: 'ws://x',
-        pairedAt: '2026-01-01T00:00:00Z',
-        nickname: 'old',
-        roomId: 'main',
-      );
+      expect(record.label, 'Home');
+      expect(PeerRecord.fromJson(record.toJson()).nickname, 'Home');
       final cleared = record.copyWith(nickname: null);
       expect(cleared.nickname, isNull);
-
-      final preserved = record.copyWith(sessionName: 'new');
-      expect(preserved.nickname, 'old');
-      expect(preserved.sessionName, 'new');
+      expect(cleared.label, 'studio');
+      expect(record.copyWith(name: 'new').nickname, 'Home');
     });
 
-    test('list/save/load round-trips through fake storage', () async {
+    test('save, load, list and delete through secure storage', () async {
       final storage = PairingStorage(_FakeSecureStorage());
       const r = PeerRecord(
         remoteEpk: 'epk1',
-        sessionName: 'sess',
+        name: 'pc',
         endpoint: 'ws://x',
         pairedAt: '2026-01-01T00:00:00Z',
-        roomId: 'main',
       );
       await storage.savePeer(r);
-
-      final loaded = await storage.loadPeer('epk1');
-      expect(loaded?.sessionName, 'sess');
-
-      final all = await storage.listPeers();
-      expect(all, hasLength(1));
-
+      expect((await storage.loadPeer('epk1'))?.name, 'pc');
+      expect(await storage.listPeers(), hasLength(1));
       await storage.deletePeer('epk1');
       expect(await storage.listPeers(), isEmpty);
     });
   });
 
+  group('session lists', () {
+    test('cache a computer\'s sessions', () async {
+      final storage = PairingStorage(_FakeSecureStorage());
+      const session = SessionSummary(
+        sessionId: 's1',
+        cwd: '/code/app',
+        title: 'Fix the bug',
+        agent: 'claude',
+        agentName: 'Claude Code',
+        working: true,
+      );
+      await storage.saveSessions('epk1', [session]);
+      expect(await storage.loadSessions('epk1'), [session]);
+      await storage.deleteSessions('epk1');
+      expect(await storage.loadSessions('epk1'), isEmpty);
+    });
+  });
+
   group('PairingStorage.wipeAll', () {
-    test('clears every peer + every persisted rooms entry', () async {
-      final fake = _FakeSecureStorage();
-      final storage = PairingStorage(fake);
-      const a = PeerRecord(
-        remoteEpk: 'epk-a',
-        sessionName: 'A',
-        endpoint: 'ws://x',
-        pairedAt: '2026-01-01T00:00:00Z',
-        roomId: 'main',
-      );
-      const b = PeerRecord(
-        remoteEpk: 'epk-b',
-        sessionName: 'B',
-        endpoint: 'ws://x',
-        pairedAt: '2026-01-01T00:00:00Z',
-        roomId: 'main',
-      );
-      await storage.savePeer(a);
-      await storage.savePeer(b);
-      await storage.saveRooms('epk-a', const [
-        PersistedRoom(roomId: 'main', startedAt: 1700000000000),
+    test('clears every peer and every cached session list', () async {
+      final storage = PairingStorage(_FakeSecureStorage());
+      for (final key in ['epk-a', 'epk-b']) {
+        await storage.savePeer(
+          PeerRecord(
+            remoteEpk: key,
+            name: key,
+            endpoint: 'ws://x',
+            pairedAt: '2026-01-01T00:00:00Z',
+          ),
+        );
+      }
+      await storage.saveSessions('epk-a', const [
+        SessionSummary(
+          sessionId: 's',
+          cwd: '/',
+          title: 't',
+          agent: 'a',
+          agentName: 'A',
+        ),
       ]);
-
-      expect(await storage.listPeers(), hasLength(2));
-      expect(await storage.loadRooms('epk-a'), hasLength(1));
-
       await storage.wipeAll();
-
       expect(await storage.listPeers(), isEmpty);
-      expect(await storage.loadRooms('epk-a'), isEmpty);
+      expect(await storage.loadSessions('epk-a'), isEmpty);
     });
 
     test('notifies listeners exactly once', () async {
       final storage = PairingStorage(_FakeSecureStorage());
       var notifications = 0;
       storage.addListener(() => notifications++);
-
       await storage.wipeAll();
-
       expect(notifications, 1);
     });
   });

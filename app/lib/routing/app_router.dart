@@ -1,14 +1,12 @@
 import 'package:app/config/dependencies.dart';
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/connection_manager.dart';
+import 'package:app/data/hosts/hosts.dart';
+import 'package:app/data/hosts/session_controller.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
-import 'package:app/ui/chat/commands/viewmodels/agent_commands_viewmodel.dart';
 import 'package:app/ui/chat/chat_page.dart';
-import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
-import 'package:app/ui/chat/viewmodels/chat_viewmodel.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
@@ -26,7 +24,6 @@ import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/ui/session_files/session_files_page.dart';
 import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
 import 'package:flutter/material.dart';
-import 'package:app/ui/chat/context/viewmodels/context_usage_viewmodel.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -57,7 +54,7 @@ class _BootState extends ChangeNotifier {
 
   Future<void> load(
     PairingStorage storage,
-    ConnectionManager conn,
+    Hosts hosts,
     Preferences prefs,
     OwnerIdentityBridge ownerBridge, {
     void Function()? installWatcherAfterBoot,
@@ -80,23 +77,8 @@ class _BootState extends ChangeNotifier {
     _onboarded = prefs.onboardingCompleted;
     _ready = true;
     notifyListeners();
-    // `Preferences.selectedPeerEpk` is the authoritative
-    // pointer to the peer the user wants connected. On a fresh install
-    // it's null — default to `peers.first` so subsequent boot()s have a
-    // stable target and the user lands on a deterministic chat.
-    if (_hasPeer) {
-      var selected = prefs.selectedPeerEpk;
-      if (selected == null) {
-        selected = peers.first.remoteEpk;
-        await prefs.setSelectedPeerEpk(selected);
-      } else if (!peers.any((p) => p.remoteEpk == selected)) {
-        // Selected peer was revoked / no longer in storage — fall back.
-        selected = peers.first.remoteEpk;
-        await prefs.setSelectedPeerEpk(selected);
-      }
-      // ignore: unawaited_futures
-      conn.boot(preferredEpk: selected);
-    }
+    // Connect to every paired computer.
+    await hosts.start();
   }
 
   /// Invoked by the OwnerIdentityBridge watch listener when
@@ -113,7 +95,7 @@ class _BootState extends ChangeNotifier {
 
 GoRouter buildRouter(
   PairingStorage storage,
-  ConnectionManager conn,
+  Hosts hosts,
   Preferences prefs,
   OwnerIdentityBridge ownerBridge,
 ) {
@@ -136,16 +118,15 @@ GoRouter buildRouter(
     watcherInstalled = true;
     ownerBridge.startWatching(
       onReset: () async {
-        await conn.disconnect();
         boot.onOwnerKeyReplaced();
-        await boot.load(storage, conn, prefs, ownerBridge);
+        await boot.load(storage, hosts, prefs, ownerBridge);
       },
     );
   }
 
   boot.load(
     storage,
-    conn,
+    hosts,
     prefs,
     ownerBridge,
     installWatcherAfterBoot: installWatcher,
@@ -232,50 +213,41 @@ GoRouter buildRouter(
         ),
       ),
 
-      // Chat screen — PHONE full-screen path (root navigator, above the
-      // shell), so it keeps native back/swipe. On tablet the chat lives
-      // in the detail branch instead (see _detailPane). Entered by
-      // tapping a session in /home.
-      // Home passes the already-known peer label
-      // (nickname / sessionName) via `extra` so the AppBar renders
-      // the right title from frame 1 instead of waiting for the
-      // first `room_meta_updated` to arrive. Keeps reactivity to
-      // room metadata changes that come later through the
-      // ChatViewModel.
+      // Chat: the selected session, opened from Home or the sidebar. The
+      // route rebuilds per selection, so each session gets its own
+      // controller (and leaves the previous one with `session/close`).
       GoRoute(
         path: '/chat',
         builder: (ctx, st) {
           final extra = st.extra;
-          String? initialTitle;
-          String? initialDevice;
-          var initialOnline = false;
-          if (extra is Map) {
-            final t = extra['title'];
-            if (t is String && t.isNotEmpty) initialTitle = t;
-            // Device (Mac) label Home already knows, so AppBar
-            // line 2 renders immediately (no async PeerRecord wait).
-            final d = extra['device'];
-            if (d is String && d.isNotEmpty) initialDevice = d;
-            // Live state of the tile → initial status dot (no reconnect flash).
-            initialOnline = extra['online'] == true;
-          }
           final selection = ctx.watch<SessionSelection>().current;
+          final host = hosts.byKey(selection?.hostKey);
+          if (selection == null || host == null) {
+            return ViewmodelProvider<HomeViewModel>(
+              child: const SessionShell(child: SessionWelcome()),
+            );
+          }
           return MultiProvider(
-            key: ValueKey('chat-${selection?.epk}-${selection?.roomId}'),
+            key: ValueKey('chat-${selection.hostKey}-${selection.sessionId}'),
             providers: [
+              ChangeNotifierProvider<SessionController>(
+                create: (_) => SessionController(host, selection.sessionId),
+              ),
               ViewmodelProvider<HomeViewModel>(),
-              ViewmodelProvider<ChatViewModel>(),
-              ViewmodelProvider<QuickActionsViewModel>(),
-              ViewmodelProvider<AgentCommandsViewModel>(),
-              ViewmodelProvider<ContextUsageViewModel>(),
               ViewmodelProvider<VoiceInputViewModel>(),
               ViewmodelProvider<AttachmentViewModel>(),
             ],
             child: SessionShell(
               child: ChatPage(
-                initialTitle: initialTitle,
-                initialDevice: initialDevice,
-                initialOnline: initialOnline,
+                initialTitle: extra is Map
+                    ? extra['title'] as String?
+                    : selection.title,
+                initialDevice: extra is Map
+                    ? extra['device'] as String?
+                    : selection.device,
+                initialOnline: extra is Map
+                    ? extra['online'] == true
+                    : selection.online,
                 showBack: false,
               ),
             ),

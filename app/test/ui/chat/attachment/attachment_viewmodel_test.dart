@@ -1,13 +1,9 @@
-// AttachmentViewModel: pick / remove / take + vision gating,
-// against fake picker + actions repositories.
+// AttachmentViewModel: pick / remove / take + vision gating.
 
-import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:app/data/actions/actions_repository.dart';
 import 'package:app/data/images/image_picker_service.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,48 +30,9 @@ class _FakePicker implements IImagePickerService {
   }
 }
 
-class _FakeActions implements IActionsRepository {
-  ModelsCatalogue catalogue = const ModelsCatalogue(models: [], current: null);
-  ActiveRoomMeta meta = const ActiveRoomMeta();
-  final _metaCtrl = StreamController<ActiveRoomMeta>.broadcast();
-  bool offline = false;
-
-  void pushMeta(ActiveRoomMeta m) {
-    meta = m;
-    _metaCtrl.add(m);
-  }
-
-  @override
-  Future<ModelsCatalogue> listModels({bool forceRefresh = false}) async {
-    if (offline) throw const ActionFailure('offline');
-    return catalogue;
-  }
-
-  @override
-  ActiveRoomMeta get activeRoomMeta => meta;
-
-  @override
-  Stream<ActiveRoomMeta> get activeRoomMetaStream => _metaCtrl.stream;
-
-  @override
-  void dispose() => _metaCtrl.close();
-
-  @override
-  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
-}
-
-WireModel _model({required bool vision, String name = 'M'}) => WireModel(
-  id: 'id-$name',
-  name: name,
-  provider: 'p',
-  reasoning: false,
-  contextWindow: 1,
-  vision: vision,
-);
-
 void main() {
   test('pickFromGallery attaches an image; removeImage clears it', () async {
-    final vm = AttachmentViewModel(_FakePicker(), _FakeActions());
+    final vm = AttachmentViewModel(_FakePicker());
     await vm.pickFromGallery();
     expect(vm.state, isA<AttachmentAttached>());
     expect(vm.hasImage, isTrue);
@@ -92,7 +49,7 @@ void main() {
         bytes: Uint8List.fromList([10, 20, 30]),
         mime: 'image/jpeg',
       );
-    final vm = AttachmentViewModel(picker, _FakeActions());
+    final vm = AttachmentViewModel(picker);
     await vm.pickFromGallery();
 
     final msg = vm.takeImageForSend();
@@ -106,7 +63,7 @@ void main() {
 
   test('denied camera permission emits a hint and stays empty', () async {
     final picker = _FakePicker()..denyCamera = true;
-    final vm = AttachmentViewModel(picker, _FakeActions());
+    final vm = AttachmentViewModel(picker);
     final hints = <AttachHint>[];
     final sub = vm.hints.listen(hints.add);
 
@@ -119,63 +76,17 @@ void main() {
     vm.dispose();
   });
 
-  test('vision=false from catalogue blocks the attach affordance', () async {
-    final actions = _FakeActions()
-      ..catalogue = ModelsCatalogue(
-        models: [_model(vision: false)],
-        current: _model(vision: false),
-      );
-    final vm = AttachmentViewModel(_FakePicker(), actions);
-    await Future<void>.delayed(Duration.zero); // let init resolve vision
-
-    expect(vm.state.visionSupported, isFalse);
-    expect(vm.state.attachBlockedByVision, isTrue);
-    vm.dispose();
-  });
-
-  test('vision=true does not block', () async {
-    final actions = _FakeActions()
-      ..catalogue = ModelsCatalogue(
-        models: [_model(vision: true)],
-        current: _model(vision: true),
-      );
-    final vm = AttachmentViewModel(_FakePicker(), actions);
-    await Future<void>.delayed(Duration.zero);
-
-    expect(vm.state.visionSupported, isTrue);
-    expect(vm.state.attachBlockedByVision, isFalse);
-    vm.dispose();
-  });
-
-  test('offline catalogue leaves vision unknown (does not block)', () async {
-    final actions = _FakeActions()..offline = true;
-    final vm = AttachmentViewModel(_FakePicker(), actions);
-    await Future<void>.delayed(Duration.zero);
-
+  test('vision follows the agent: unknown, no, yes', () async {
+    final vm = AttachmentViewModel(_FakePicker());
     expect(vm.state.visionSupported, isNull);
     expect(vm.state.attachBlockedByVision, isFalse);
-    vm.dispose();
-  });
 
-  test('a model change re-resolves vision', () async {
-    final actions = _FakeActions()
-      ..catalogue = ModelsCatalogue(
-        models: [_model(vision: true)],
-        current: _model(vision: true),
-      );
-    final vm = AttachmentViewModel(_FakePicker(), actions);
-    await Future<void>.delayed(Duration.zero);
+    vm.setVision(false);
+    expect(vm.state.attachBlockedByVision, isTrue);
+
+    vm.setVision(true);
     expect(vm.state.visionSupported, isTrue);
-
-    // Pi switched to a text-only model.
-    actions.catalogue = ModelsCatalogue(
-      models: [_model(vision: false, name: 'TextOnly')],
-      current: _model(vision: false, name: 'TextOnly'),
-    );
-    actions.pushMeta(const ActiveRoomMeta(model: 'TextOnly'));
-    await Future<void>.delayed(Duration.zero);
-
-    expect(vm.state.visionSupported, isFalse);
+    expect(vm.state.attachBlockedByVision, isFalse);
     vm.dispose();
   });
 }

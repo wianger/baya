@@ -148,11 +148,11 @@ class _Header extends StatelessWidget {
     final colors = context.colors;
     final status = content.tool.status;
     final statusColor = switch (status) {
-      ToolEventStatus.failed || ToolEventStatus.denied => colors.error,
-      ToolEventStatus.pending when content.awaitingApproval => colors.warning,
-      ToolEventStatus.pending || ToolEventStatus.allowed => colors.working,
+      ToolEventStatus.failed => colors.error,
+      ToolEventStatus.pending ||
+      ToolEventStatus.running when content.awaitingApproval => colors.warning,
+      ToolEventStatus.pending || ToolEventStatus.running => colors.working,
       ToolEventStatus.completed => colors.success,
-      ToolEventStatus.expired => colors.muted,
     };
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

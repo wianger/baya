@@ -1,6 +1,5 @@
 import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/widgets/baya_activity_card.dart';
 import 'package:app/ui/chat/widgets/tool_activity_details.dart';
 import 'package:app/ui/chat/widgets/tool_content.dart';
@@ -15,10 +14,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// the Claude mobile pattern: one quiet row that opens a list of the actions,
 /// each of which expands into its command and result.
 class ToolRunGroup extends StatelessWidget {
-  const ToolRunGroup({super.key, required this.tools, this.onDecide});
+  const ToolRunGroup({super.key, required this.tools});
 
   final List<ToolEvent> tools;
-  final void Function(String toolCallId, ApproveDecision decision)? onDecide;
 
   bool _isCommand(ToolEvent tool) {
     return ToolContent(tool).isCommand;
@@ -64,11 +62,7 @@ class ToolRunGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (tools.length == 1) {
-      return ToolRequestCard(
-        tool: tools.single,
-        onDecide: onDecide,
-        initiallyExpanded: true,
-      );
+      return ToolRequestCard(tool: tools.single, initiallyExpanded: true);
     }
     final colors = context.colors;
     return BayaActivityCard(

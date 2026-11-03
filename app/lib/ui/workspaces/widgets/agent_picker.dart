@@ -82,9 +82,7 @@ class _AgentPickerSheetState extends State<_AgentPickerSheet> {
     final query = _query.trim().toLowerCase();
     final agents = widget.agents
         .where(
-          (agent) => '${agent.label} ${agent.id} ${agent.description}'
-              .toLowerCase()
-              .contains(query),
+          (agent) => '${agent.label} ${agent.id}'.toLowerCase().contains(query),
         )
         .toList();
     final media = MediaQuery.of(context);
@@ -171,9 +169,8 @@ class _AgentPickerSheetState extends State<_AgentPickerSheet> {
                         final agent = agents[index];
                         final selected = widget.selected?.id == agent.id;
                         final subtitle = agent.available
-                            ? agent.description
-                            : agent.unavailableReason ??
-                                  context.l10n.notAvailableOnComputer;
+                            ? agent.id
+                            : context.l10n.notAvailableOnComputer;
                         return ListTile(
                           key: ValueKey('agent-option-${agent.id}'),
                           enabled: agent.available,

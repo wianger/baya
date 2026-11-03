@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:app/l10n/l10n.dart';
 
 import 'package:app/data/images/image_picker_service.dart';
-import 'package:app/domain/session_state.dart';
 import 'package:app/domain/entities/agent_command.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
@@ -19,7 +18,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 // InputBar — bottom message composer.
 // - Disabled (grayed) when offline.
-// - During streaming, empty composer shows Stop; typed text sends steering.
+// - While the agent works, an empty composer shows Stop; typed text queues a
+//   follow-up the computer sends when the turn ends.
 // - The quiet model/thinking control stays available beside the
 //   attach button while a draft or image is present.
 // - When [voice] is provided, the mic becomes hold-to-talk:
@@ -62,11 +62,6 @@ class InputBar extends StatefulWidget {
   final String agentLabel;
   final String modelLabel;
 
-  /// Pi-side queued follow-ups. Empty means no queued messages.
-  final List<QueuedMsg> queuedMessages;
-  final void Function(String text)? onSetQueued;
-  final void Function(String id)? onClearQueued;
-
   /// Voice-input ViewModel. When null the mic calls [onStartAudio].
   final VoiceInputViewModel? voice;
 
@@ -95,9 +90,6 @@ class InputBar extends StatefulWidget {
     this.onStartAudio,
     this.agentLabel = 'your agent',
     this.modelLabel = 'Session',
-    this.queuedMessages = const [],
-    this.onSetQueued,
-    this.onClearQueued,
     this.voice,
     this.onVoiceHint,
     this.attachment,
@@ -203,14 +195,6 @@ class _InputBarState extends State<InputBar> {
     if (text.isEmpty && !hasImage) return;
     _controller.clear();
     widget.onSend(text);
-  }
-
-  void _editQueued(QueuedMsg item) {
-    if (!item.editable) return;
-    widget.onClearQueued?.call(item.id);
-    _controller.text = item.text;
-    _controller.selection = TextSelection.collapsed(offset: item.text.length);
-    _focusNode.requestFocus();
   }
 
   /// Hardware-keyboard behaviour (iPad keyboard case, etc.): plain Enter
@@ -404,15 +388,6 @@ class _InputBarState extends State<InputBar> {
                       image: attachState.image,
                       onRemove: widget.attachment!.removeImage,
                     ),
-                  for (final item in widget.queuedMessages)
-                    _QueuedMessagePreview(
-                      text: item.text,
-                      editable: item.editable,
-                      onTap: item.editable ? () => _editQueued(item) : null,
-                      onClear: item.editable
-                          ? () => widget.onClearQueued?.call(item.id)
-                          : null,
-                    ),
                   TextField(
                     focusNode: _focusNode,
                     controller: _controller,
@@ -425,7 +400,7 @@ class _InputBarState extends State<InputBar> {
                     cursorColor: colors.accent,
                     decoration: InputDecoration(
                       hintText: widget.streaming
-                          ? context.l10n.steerCurrentResponse
+                          ? context.l10n.queueFollowUp
                           : (widget.voice != null ||
                                 widget.onStartAudio != null)
                           ? context.l10n.replyToAgentOrTalk(widget.agentLabel)
@@ -542,110 +517,7 @@ class _InputBarState extends State<InputBar> {
   }
 }
 
-/// Shows the message committed for auto-send after the current turn ends.
-/// Tapping pulls it back into the composer for edit and cancels the pending
-/// auto-send; X drops it.
-class _QueuedMessagePreview extends StatelessWidget {
-  const _QueuedMessagePreview({
-    required this.text,
-    required this.editable,
-    this.onTap,
-    this.onClear,
-  });
-
-  final String text;
-  final bool editable;
-  final VoidCallback? onTap;
-  final VoidCallback? onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, right: 4, bottom: 10),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: const Key('input-bar-queued-preview'),
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
-            decoration: BoxDecoration(
-              color: colors.accent.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.accent.withValues(alpha: 0.35)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Icon(
-                    LucideIcons.messageCircle,
-                    size: 15,
-                    color: colors.accent,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        editable
-                            ? context.l10n.queuedTapToEdit
-                            : context.l10n.queuedFollowUp,
-                        style: TextStyle(
-                          color: colors.accent,
-                          fontFamily: kMonoFamily,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        text,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: colors.text,
-                          fontFamily: kMonoFamily,
-                          fontSize: 12,
-                          height: 1.25,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (onClear != null) ...[
-                  const SizedBox(width: 6),
-                  SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: IconButton(
-                      key: const Key('input-bar-clear-queued'),
-                      tooltip: context.l10n.clearQueuedMessage,
-                      padding: EdgeInsets.zero,
-                      iconSize: 16,
-                      splashRadius: 16,
-                      onPressed: onClear,
-                      icon: Icon(LucideIcons.x, color: colors.muted2),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Compact Stop affordance shown beside Send while steering text is typed.
+/// Compact Stop affordance shown beside Send while a follow-up is typed.
 class _InlineStopButton extends StatelessWidget {
   const _InlineStopButton({required this.onTap});
 

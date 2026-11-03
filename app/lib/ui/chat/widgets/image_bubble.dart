@@ -11,16 +11,10 @@ import 'package:flutter/material.dart';
 /// the inline base64 ([MessageImage.data]); the bytes are decoded once so
 /// list scrolling doesn't re-decode every frame.
 class ImageBubble extends StatefulWidget {
-  const ImageBubble({
-    super.key,
-    required this.image,
-    this.caption = '',
-    this.isFailed = false,
-  });
+  const ImageBubble({super.key, required this.image, this.caption = ''});
 
   final MessageImage image;
   final String caption;
-  final bool isFailed;
 
   /// Cap the thumbnail height; the width follows the bubble's 300px max.
   static const double maxHeight = 220;
@@ -61,8 +55,6 @@ class _ImageBubbleState extends State<ImageBubble> {
     return BayaSurface(
       role: BayaSurfaceRole.user,
       radius: 12,
-      emphasized: widget.isFailed,
-      emphasisColor: widget.isFailed ? colors.error : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,

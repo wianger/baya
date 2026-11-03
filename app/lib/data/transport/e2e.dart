@@ -1,12 +1,12 @@
 // End-to-end encryption between this phone and a paired Baya host.
 //
 // Mirror of host/src/transport/e2e.ts; both sides are pinned to the shared
-// fixture in .orchestration/contracts/e2e_v1.json.
+// fixture in .orchestration/contracts/e2e_v2.json.
 //
-//   key = HKDF-SHA256(X25519(self, peer), salt = "baya-e2e-v1",
+//   key = HKDF-SHA256(X25519(self, peer), salt = "baya-e2e-v2",
 //                     info = min(edA, edB) || max(edA, edB))
-//   box = 0xBE 0x01 || nonce(12) || ChaCha20-Poly1305(ts_ms(8) || json)
-//   aad = "baya-e2e-v1|" + ("p2h" | "h2p") + "|" + host room id
+//   box = 0xBE 0x02 || nonce(12) || ChaCha20-Poly1305(ts_ms(8) || json)
+//   aad = "baya-e2e-v2|" + ("p2h" | "h2p")
 //
 // Anything in between (`tailscale serve`, a proxy) sees only ciphertext and
 // cannot forge frames: it never holds either private key.
@@ -17,7 +17,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
-const _label = 'baya-e2e-v1';
+const _label = 'baya-e2e-v2';
 const _nonceBytes = 12;
 const _tagBytes = 16;
 const replayWindow = Duration(minutes: 5);
@@ -40,7 +40,7 @@ class Opened {
 }
 
 bool isSealed(List<int> data) =>
-    data.length >= 2 && data[0] == 0xBE && data[1] == 0x01;
+    data.length >= 2 && data[0] == 0xBE && data[1] == 0x02;
 
 /// X25519 private scalar for an Ed25519 seed (RFC 8032 §5.1.5).
 Future<List<int>> x25519PrivateFromEd25519Seed(List<int> seed) async {
@@ -111,7 +111,6 @@ final _aead = Chacha20.poly1305Aead();
 Future<Uint8List> seal(
   SecretKey key,
   E2EDirection direction,
-  String room,
   List<int> plaintext, {
   DateTime? now,
   List<int>? nonce,
@@ -126,11 +125,11 @@ Future<Uint8List> seal(
     body,
     secretKey: key,
     nonce: n,
-    aad: _aad(direction, room),
+    aad: _aad(direction),
   );
   return Uint8List.fromList([
     0xBE,
-    0x01,
+    0x02,
     ...n,
     ...box.cipherText,
     ...box.mac.bytes,
@@ -140,7 +139,6 @@ Future<Uint8List> seal(
 Future<Opened> open(
   SecretKey key,
   E2EDirection direction,
-  String room,
   List<int> data,
 ) async {
   if (!isSealed(data) || data.length < 2 + _nonceBytes + 8 + _tagBytes) {
@@ -154,7 +152,7 @@ Future<Opened> open(
   );
   final List<int> body;
   try {
-    body = await _aead.decrypt(box, secretKey: key, aad: _aad(direction, room));
+    body = await _aead.decrypt(box, secretKey: key, aad: _aad(direction));
   } on SecretBoxAuthenticationError {
     throw const E2EException('Frame failed authentication.');
   }
@@ -183,8 +181,8 @@ class ReplayGuard {
   }
 }
 
-List<int> _aad(E2EDirection direction, String room) => utf8.encode(
-  '$_label|${direction == E2EDirection.phoneToHost ? 'p2h' : 'h2p'}|$room',
+List<int> _aad(E2EDirection direction) => utf8.encode(
+  '$_label|${direction == E2EDirection.phoneToHost ? 'p2h' : 'h2p'}',
 );
 
 int _compare(List<int> a, List<int> b) {

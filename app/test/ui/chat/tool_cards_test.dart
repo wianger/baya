@@ -1,0 +1,169 @@
+import 'package:app/acp/acp.dart';
+import 'package:app/domain/session_state.dart';
+import 'package:app/ui/chat/chat_page.dart';
+import 'package:app/ui/chat/widgets/tool_content.dart';
+import 'package:app/ui/chat/widgets/tool_run_group.dart';
+import 'package:app/ui/core/themes/themes.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+ToolEvent tool(
+  String id, {
+  String title = '',
+  ToolKind kind = ToolKind.other,
+  ToolEventStatus status = ToolEventStatus.completed,
+  List<ToolCallContent> content = const [],
+  List<ToolLocation> locations = const [],
+  Object? rawInput,
+  Object? rawOutput,
+}) => ToolEvent(
+  id: id,
+  toolCallId: id,
+  title: title,
+  kind: kind,
+  status: status,
+  content: content,
+  locations: locations,
+  rawInput: rawInput,
+  rawOutput: rawOutput,
+);
+
+Widget app(Widget child) => MaterialApp(
+  theme: buildLightTheme(),
+  home: Scaffold(body: SingleChildScrollView(child: child)),
+);
+
+void main() {
+  group('ToolContent', () {
+    test('a shell call reads as its command', () {
+      final content = ToolContent(
+        tool(
+          't',
+          title: 'Run tests',
+          kind: ToolKind.execute,
+          rawInput: {'command': 'npm test', 'cwd': '/code'},
+          rawOutput: {'stdout': 'ok', 'stderr': 'warn'},
+        ),
+      );
+      expect(content.isCommand, isTrue);
+      expect(content.title, 'Run tests');
+      expect(content.command, 'npm test');
+      expect(content.workingDirectory, '/code');
+      expect(content.preview, 'npm test');
+      expect(content.output.text, 'ok');
+      expect(content.output.stderr, 'warn');
+      expect(content.inputText, isNull);
+    });
+
+    test('an edit shows its diff and path', () {
+      final content = ToolContent(
+        tool(
+          't',
+          title: 'Edit main.dart',
+          kind: ToolKind.edit,
+          content: const [
+            ToolCallDiff(
+              path: 'lib/main.dart',
+              oldText: 'a\nb',
+              newText: 'a\nc',
+            ),
+          ],
+        ),
+      );
+      expect(content.isFileChange, isTrue);
+      expect(content.path, 'lib/main.dart');
+      expect(content.changesText, contains('-b'));
+      expect(content.changesText, contains('+c'));
+    });
+
+    test('text content is the output; no title falls back to the kind', () {
+      final content = ToolContent(
+        tool(
+          't',
+          kind: ToolKind.read,
+          content: const [ToolCallText(TextContent('file body'))],
+          locations: const [ToolLocation('README.md')],
+        ),
+      );
+      expect(content.title, 'Read');
+      expect(content.output.text, 'file body');
+      expect(content.preview, 'README.md');
+    });
+
+    test('a failed call with nothing to show says it failed', () {
+      final content = ToolContent(tool('t', status: ToolEventStatus.failed));
+      expect(content.error, 'Failed');
+    });
+  });
+
+  group('cards', () {
+    testWidgets('a lone tool shows its title and output', (tester) async {
+      await tester.pumpWidget(
+        app(
+          ToolRunGroup(
+            tools: [
+              tool(
+                't',
+                title: 'List files',
+                kind: ToolKind.execute,
+                rawInput: {'command': 'ls'},
+                content: const [ToolCallText(TextContent('a.txt'))],
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('List files'), findsOneWidget);
+      expect(find.textContaining('a.txt'), findsWidgets);
+    });
+
+    testWidgets('several tools collapse into one row', (tester) async {
+      await tester.pumpWidget(
+        app(
+          ToolRunGroup(
+            tools: [
+              tool('a', title: 'ls', kind: ToolKind.execute),
+              tool('b', title: 'pwd', kind: ToolKind.execute),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('tool-run-group')), findsOneWidget);
+    });
+
+    testWidgets('a call waiting on permission says so', (tester) async {
+      await tester.pumpWidget(
+        app(
+          ToolRunGroup(
+            tools: [
+              const ToolEvent(
+                id: 't',
+                toolCallId: 't',
+                title: 'Delete build/',
+                kind: ToolKind.delete,
+                status: ToolEventStatus.pending,
+                awaitingApproval: true,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Approval'), findsOneWidget);
+    });
+  });
+
+  test('one copy owner per turn, after the last assistant segment', () {
+    final owners = assistantCopyOwnersForTurns(const [
+      UserMsg(id: 'u1', text: 'First'),
+      AssistantMsg(id: 'a1', text: 'Starting'),
+      ToolEvent(id: 't1', toolCallId: 't1'),
+      AssistantMsg(id: 'a2', text: 'Finished'),
+      UserMsg(id: 'u2', text: 'Second'),
+      AssistantMsg(id: 'a3', text: 'Done'),
+    ]);
+    expect(owners.map((m) => m.id), {'a2', 'a3'});
+  });
+}

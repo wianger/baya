@@ -1,13 +1,10 @@
 // InputBar image wiring: attach button gating by vision, preview +
 // remove, send-with-image. Drives a real AttachmentViewModel + fakes.
 
-import 'dart:async';
 import 'dart:convert';
 
-import 'package:app/data/actions/actions_repository.dart';
 import 'package:app/data/images/image_picker_service.dart';
 import 'package:app/domain/session_state.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/widgets/input_bar.dart';
 import 'package:flutter/material.dart';
@@ -27,40 +24,13 @@ class _FakePicker implements IImagePickerService {
   Future<PickedImage?> pickFromGallery() async => next;
 }
 
-class _FakeActions implements IActionsRepository {
-  ModelsCatalogue catalogue = const ModelsCatalogue(models: [], current: null);
-  final _ctrl = StreamController<ActiveRoomMeta>.broadcast();
-  @override
-  Future<ModelsCatalogue> listModels({bool forceRefresh = false}) async =>
-      catalogue;
-  @override
-  ActiveRoomMeta get activeRoomMeta => const ActiveRoomMeta();
-  @override
-  Stream<ActiveRoomMeta> get activeRoomMetaStream => _ctrl.stream;
-  @override
-  void dispose() => _ctrl.close();
-  @override
-  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
-}
-
-WireModel _m(bool vision) => WireModel(
-  id: 'id',
-  name: 'M',
-  provider: 'p',
-  reasoning: false,
-  contextWindow: 1,
-  vision: vision,
-);
-
 void main() {
   late _FakePicker picker;
-  late _FakeActions actions;
   late AttachmentViewModel vm;
 
   setUp(() {
     picker = _FakePicker();
-    actions = _FakeActions();
-    vm = AttachmentViewModel(picker, actions);
+    vm = AttachmentViewModel(picker);
   });
 
   tearDown(() => vm.dispose());
@@ -94,12 +64,7 @@ void main() {
   });
 
   testWidgets('vision=false disables the attach button (#9)', (tester) async {
-    actions.catalogue = ModelsCatalogue(
-      models: [_m(false)],
-      current: _m(false),
-    );
-    // Recreate after the catalogue is set so the VM resolves vision=false.
-    vm = AttachmentViewModel(picker, actions);
+    vm.setVision(false);
     await pumpBar(tester);
     await tester.pump(); // resolve vision
     final btn = tester.widget<IconButton>(

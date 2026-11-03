@@ -53,38 +53,45 @@ class ShellLayout extends ChangeNotifier {
 }
 
 /// The session selected in the UI (the tablet detail pane, highlighted in
-/// the list). Distinct from the connected peer: it starts `null` so no chat
-/// is preselected at launch, and it is not restored between runs.
+/// the list). Starts `null` so no chat is preselected at launch, and is not
+/// restored between runs.
 class SessionSelection extends ChangeNotifier {
-  ({String epk, String roomId, String title, String device, bool online})?
+  ({
+    String hostKey,
+    String sessionId,
+    String title,
+    String device,
+    bool online,
+  })?
   _current;
 
-  ({String epk, String roomId, String title, String device, bool online})?
+  ({
+    String hostKey,
+    String sessionId,
+    String title,
+    String device,
+    bool online,
+  })?
   get current => _current;
 
-  /// Whether `(epk, roomId)` is the current selection.
-  bool matches(String epk, String roomId) {
+  bool matches(String hostKey, String sessionId) {
     final c = _current;
-    return c != null && c.epk == epk && c.roomId == roomId;
+    return c != null && c.hostKey == hostKey && c.sessionId == sessionId;
   }
 
-  /// [device] and [online] are what the list already knows, so the chat app
-  /// bar renders immediately instead of flashing "reconnecting" while the
-  /// peer record loads.
+  /// [device] and [online] are what the list already knows, so the chat
+  /// header renders right away.
   void select(
-    String epk,
-    String roomId,
+    String hostKey,
+    String sessionId,
     String title, [
     String device = '',
     bool online = false,
   ]) {
-    final c = _current;
-    if (c != null && c.epk == epk && c.roomId == roomId) {
-      return; // no-op — avoids rebuilding both panes
-    }
+    if (matches(hostKey, sessionId)) return;
     _current = (
-      epk: epk,
-      roomId: roomId,
+      hostKey: hostKey,
+      sessionId: sessionId,
       title: title,
       device: device,
       online: online,

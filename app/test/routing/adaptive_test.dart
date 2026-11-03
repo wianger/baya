@@ -78,8 +78,8 @@ void main() {
       sel.addListener(() => notifications++);
 
       sel.select('epkA', 'main', 'Title A');
-      expect(sel.current?.epk, 'epkA');
-      expect(sel.current?.roomId, 'main');
+      expect(sel.current?.hostKey, 'epkA');
+      expect(sel.current?.sessionId, 'main');
       expect(sel.current?.title, 'Title A');
       expect(sel.matches('epkA', 'main'), isTrue);
       expect(sel.matches('epkA', 'other'), isFalse);

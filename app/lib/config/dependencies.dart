@@ -1,40 +1,22 @@
-import 'dart:async';
 import 'dart:io' show Platform;
 
-import 'package:app/data/actions/actions_repository.dart';
-import 'package:app/data/commands/agent_commands_repository.dart';
-import 'package:app/data/context/context_usage_repository.dart';
+import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/images/image_picker_service.dart';
-import 'package:app/data/local/boxes.dart';
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/repositories/home_read_repository.dart';
-import 'package:app/data/repositories/session_read_repository.dart';
 import 'package:app/data/session_files/session_files_repository.dart';
-import 'package:app/data/sync/sync_service.dart';
-import 'package:app/data/transport/channel.dart'; // IChannel
-import 'package:app/data/transport/connection_manager.dart';
-import 'package:app/data/transport/peer_channel.dart';
-import 'package:app/data/transport/ws_transport.dart';
+import 'package:app/data/transport/host_socket.dart';
 import 'package:app/data/update/secure_dismissed_update_store.dart';
 import 'package:app/data/update/update_checker_impl.dart';
 import 'package:app/data/update/url_launcher_opener.dart';
 import 'package:app/data/voice/speech_service.dart';
 import 'package:app/data/workspaces/workspace_repository.dart';
-import 'package:app/domain/contracts/agent_commands_repository.dart';
-import 'package:app/domain/contracts/context_usage_repository.dart';
 import 'package:app/domain/session_files/session_files_repository.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
-import 'package:app/pairing/pair_request_flow.dart';
-import 'package:app/pairing/qr_scanner.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
-import 'package:app/ui/chat/commands/viewmodels/agent_commands_viewmodel.dart';
-import 'package:app/ui/chat/context/viewmodels/context_usage_viewmodel.dart';
-import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
-import 'package:app/ui/chat/viewmodels/chat_viewmodel.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
@@ -45,7 +27,6 @@ import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
 import 'package:baya_identity/baya_identity.dart';
-import 'package:cryptography/cryptography.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
@@ -71,8 +52,6 @@ final class AppServices {
 
   // ── Infrastructure ────────────────────────────────────────────────────
   late final storage = PairingStorage();
-  // Boxes are opened and the runtime box wiped in bootstrap before this.
-  late final boxes = LocalBoxes();
 
   /// The owner key: kept on this phone, backed up to Block Store when
   /// Google Backup allows it.
@@ -80,66 +59,40 @@ final class AppServices {
     MethodChannelOwnerIdentityStore(),
   );
   late final ownerBridge = OwnerIdentityBridge(identityStore, storage);
-  late final connection = ConnectionManager(
-    factory: _productionConnectionFactory,
+
+  /// Every paired computer, each kept connected.
+  late final hosts = Hosts(
     storage: storage,
+    connect: WsHostSocket.connect,
+    identity: ownerBridge.requireKeyPair,
   );
   // Owns a broadcast sound-level stream that outlives chat screens.
   late final SpeechService speech = SpeechToTextService();
   late final IImagePickerService imagePicker = ImagePickerService();
-
-  // ── Data ──────────────────────────────────────────────────────────────
-  /// The single writer of the message, index and runtime boxes.
-  late final sync = SyncService(
-    connection,
-    boxes,
-    isSessionHidden: prefs.isSessionHidden,
-  );
-  late final sessionReads = SessionReadRepository(boxes);
-  late final homeReads = HomeReadRepository(boxes);
-  late final IActionsRepository actions = ActionsRepository(connection);
-  late final IAgentCommandsRepository agentCommands = AgentCommandsRepository(
-    connection,
-  );
-  late final IContextUsageRepository contextUsage = ContextUsageRepository(
-    connection,
-  );
-  late final IWorkspaceRepository workspaces = WorkspaceRepository(
-    connection,
-    storage,
-    prefs,
-  );
-  late final ISessionFilesRepository sessionFiles = SessionFilesRepository(
-    connection,
-  );
 
   // ── App-wide UI state ─────────────────────────────────────────────────
   /// The session the tablet detail pane shows; starts empty.
   late final selection = SessionSelection();
   late final shellLayout = ShellLayout();
 
+  // ── Data ──────────────────────────────────────────────────────────────
+  late final IWorkspaceRepository workspaces = WorkspaceRepository(hosts);
+  late final ISessionFilesRepository sessionFiles = SessionFilesRepository(
+    hosts,
+    selection,
+  );
+
   // ── ViewModels: a new instance per screen ─────────────────────────────
   late final Map<Type, ViewModel Function()> _viewModels = {
-    ContextUsageViewModel: () => ContextUsageViewModel(contextUsage),
     NewSessionViewModel: () => NewSessionViewModel(workspaces),
     SessionFilesViewModel: () => SessionFilesViewModel(sessionFiles),
-    ChatViewModel: () =>
-        ChatViewModel(sessionReads, sync, connection, prefs, storage),
-    HomeViewModel: () =>
-        HomeViewModel(storage, prefs, connection, sync, actions),
-    SettingsViewModel: () => SettingsViewModel(storage, prefs, connection),
-    PairingViewModel: () => PairingViewModel(
-      storage,
-      _productionPairingTransportFactory,
-      connection,
-      prefs,
-      ownerBridge,
-    ),
+    HomeViewModel: () => HomeViewModel(hosts, storage, prefs),
+    SettingsViewModel: () => SettingsViewModel(storage, prefs, hosts),
+    PairingViewModel: () =>
+        PairingViewModel(storage, WsHostSocket.connect, prefs, ownerBridge),
     OnboardingViewModel: () => OnboardingViewModel(prefs),
-    QuickActionsViewModel: () => QuickActionsViewModel(actions),
-    AgentCommandsViewModel: () => AgentCommandsViewModel(agentCommands),
     VoiceInputViewModel: () => VoiceInputViewModel(speech),
-    AttachmentViewModel: () => AttachmentViewModel(imagePicker, actions),
+    AttachmentViewModel: () => AttachmentViewModel(imagePicker),
     UpdateBannerViewModel: () => UpdateBannerViewModel(
       UpdateCheckerImpl(),
       SecureDismissedUpdateStore(),
@@ -153,74 +106,9 @@ final class AppServices {
   T viewModel<T extends ViewModel>() => _viewModels[T]!() as T;
 
   void dispose() {
-    sync.dispose();
-    connection.dispose();
+    hosts.dispose();
     speech.dispose();
   }
-}
-
-// ---------------------------------------------------------------------------
-// Production ConnectionFactory — used by ConnectionManager for reconnection.
-// Owner-sk (synced via Block Store) is the
-// challenge-response key. OwnerIdentityBridge.boot() is the router's
-// responsibility; by the time this factory runs, the identity is loaded.
-// ---------------------------------------------------------------------------
-
-Future<IChannel> _productionConnectionFactory(
-  PeerRecord peer,
-  CancelToken cancel,
-) async {
-  final ownerKey = await services.ownerBridge.requireKeyPair();
-  if (cancel.isCancelled) throw _CancelledError();
-
-  // Defensive timeout: without this the
-  // WebSocket connect + Ed25519 challenge round-trip can hang
-  // indefinitely if the computer is unreachable — ChatViewModel would sit
-  // in `ChatConnecting` forever. Throwing here pushes the manager into
-  // its retry/backoff path, which is observable as `StatusRetrying` and
-  // renders a "reconnecting" banner rather than an empty spinner.
-  const wsConnectTimeout = Duration(seconds: 10);
-  final endpoint = peer.endpoint;
-  final transport =
-      await WsTransport.connect(
-        endpoint: endpoint,
-        peerPubkey: peer.remoteEpk,
-        ed25519Key: ownerKey,
-      ).timeout(
-        wsConnectTimeout,
-        onTimeout: () => throw TimeoutException(
-          'WS connect to $endpoint timed out after '
-          '${wsConnectTimeout.inSeconds}s',
-        ),
-      );
-
-  if (cancel.isCancelled) {
-    await transport.close();
-    throw _CancelledError();
-  }
-
-  return PlainPeerChannel(transport: transport);
-}
-
-// ---------------------------------------------------------------------------
-// Production PairingTransportFactory — used by PairingViewModel for first pair.
-// ---------------------------------------------------------------------------
-
-Future<PeerTransport> _productionPairingTransportFactory(
-  QrPairPayload qr,
-  SimpleKeyPair deviceEd25519,
-) async {
-  return WsTransport.connect(
-    endpoint: qr.endpoint,
-    peerPubkey: qr.epk,
-    ed25519Key: deviceEd25519,
-  );
-}
-
-// ---------------------------------------------------------------------------
-
-class _CancelledError implements Exception {
-  const _CancelledError();
 }
 
 void disposeDependencies() => services.dispose();

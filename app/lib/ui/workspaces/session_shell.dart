@@ -1,16 +1,13 @@
 /// Adaptive shell: a persistent sidebar on tablets, a drawer on phones.
 library;
 
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_sidebar.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 export 'package:app/ui/workspaces/session_actions.dart'
     show showCreateWorkspace;
@@ -26,31 +23,8 @@ class SessionShell extends StatefulWidget {
   State<SessionShell> createState() => _SessionShellState();
 }
 
-class _SessionShellState extends State<SessionShell>
-    with WidgetsBindingObserver {
+class _SessionShellState extends State<SessionShell> {
   final _scaffold = GlobalKey<ScaffoldState>();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) return;
-    unawaited(
-      context.read<HomeViewModel>().refreshComputerSessionInventory(
-        force: true,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {

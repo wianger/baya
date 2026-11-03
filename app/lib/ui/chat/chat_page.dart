@@ -1,26 +1,18 @@
+import 'package:app/data/hosts/session_controller.dart';
 import 'package:app/data/preferences/preferences.dart';
+import 'package:app/domain/entities/agent_command.dart';
 import 'package:app/domain/session_state.dart';
-import 'package:app/domain/value_objects/session_room.dart';
-import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/pairing/storage.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/chat_message_list.dart';
-import 'package:app/ui/chat/commands/viewmodels/agent_commands_viewmodel.dart';
-import 'package:app/ui/chat/context/widgets/context_usage_button.dart';
-import 'package:app/ui/chat/context/widgets/context_usage_sheet.dart';
-import 'package:app/ui/chat/quick_actions/viewmodels/quick_actions_viewmodel.dart';
-import 'package:app/ui/chat/quick_actions/widgets/model_picker_sheet.dart';
-import 'package:app/ui/chat/quick_actions/widgets/quick_actions_sheet.dart';
-import 'package:app/ui/chat/states/chat_state.dart';
-import 'package:app/ui/chat/viewmodels/chat_viewmodel.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/chat/widgets/attach_sheet.dart';
-import 'package:app/ui/chat/widgets/extension_ui_sheet.dart';
+import 'package:app/ui/chat/widgets/context_usage_button.dart';
 import 'package:app/ui/chat/widgets/input_bar.dart';
+import 'package:app/ui/chat/widgets/permission_card.dart';
+import 'package:app/ui/chat/widgets/session_settings_sheet.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -40,30 +32,13 @@ import 'package:provider/provider.dart';
 export 'package:app/ui/chat/chat_message_list.dart';
 
 class ChatPage extends StatelessWidget {
-  /// Optional title hint passed via `go_router`
-  /// `extra` from the Home tile. Used as the peer-label fallback in
-  /// the AppBar so the user sees the right name *immediately* on
-  /// navigation, instead of "—" / Baya until the PeerRecord
-  /// is loaded by the ViewModel and the first `room_meta_updated`
-  /// arrives.
+  /// What the list already knew (title, computer, connected), so the header
+  /// renders right away while the session loads.
   final String? initialTitle;
-
-  /// The paired-computer label Home already knows, passed via
-  /// `extra` / [SessionSelection]. Drives the AppBar's line 2 immediately so
-  /// it never flickers empty/room-title while the PeerRecord loads async.
-  /// When the PeerRecord arrives it resolves to the same string, so there's no
-  /// visible change.
   final String? initialDevice;
-
-  /// The live state of the tile Home tapped (its green dot). Seeds
-  /// the AppBar status dot so it doesn't flash "reconnecting" before the VM
-  /// reads the real runtime. Superseded by the live signal once it resolves
-  /// ([ChatViewModel.connectionResolved]).
   final bool initialOnline;
 
-  /// Plan/tablet — `false` when the chat is embedded as the tablet's
-  /// detail pane (no navigation stack to pop back to). Hides the back
-  /// arrow; defaults to `true` for the phone full-screen route.
+  /// `false` when the chat is the tablet's detail pane (nothing to pop to).
   final bool showBack;
 
   const ChatPage({
@@ -76,85 +51,70 @@ class ChatPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<ChatViewModel>();
-    final quickActions = context.watch<QuickActionsViewModel>();
-    final state = vm.state;
-
-    final scaffold = Scaffold(
+    final session = context.watch<SessionController>();
+    // The agent's prompt capabilities decide whether images can be attached.
+    final vision = session.loaded ? session.acceptsImages : null;
+    final attachment = context.read<AttachmentViewModel>();
+    if (attachment.state.visionSupported != vision) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => attachment.setVision(vision),
+      );
+    }
+    return Scaffold(
       backgroundColor: context.colors.bg,
       body: BayaBackdrop(
         child: SafeArea(
           bottom: false,
           child: ChatFrame(
-            topBar: _buildTopBar(context, state),
-            revoked: state is ChatReady && state.pairingRevoked
+            topBar: _buildTopBar(context, session),
+            revoked: session.host.status.name == 'unpaired'
                 ? _RevokedBanner(onRePair: () => context.go('/pair'))
                 : null,
-            body: _buildBody(context, state, vm),
-            composer: _buildInput(context, state, vm, quickActions),
+            body: _buildBody(context, session),
+            composer: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (session.permission case final request?)
+                  PermissionCard(
+                    key: ValueKey('permission-${request.requestId}'),
+                    request: request,
+                    tool: session.messages
+                        .whereType<ToolEvent>()
+                        .where((t) => t.toolCallId == request.toolCall.id)
+                        .lastOrNull,
+                    onAnswer: session.answerPermission,
+                  ),
+                _buildInput(context, session),
+              ],
+            ),
           ),
         ),
       ),
     );
-
-    // An interactive extension_ui_request (ask_user via pi-ask)
-    // renders as a full-screen modal layered ABOVE the Scaffold. Purely
-    // reactive: the overlay leaves the tree when the pending request clears
-    // (completed dismiss) — no route lifecycle to manage. `error` carries a
-    // submit-result rejection so the modal can offer a retry instead of a dead
-    // end.
-    final ready = state is ChatReady ? state : null;
-    final uiRequest = ready?.pendingUiRequest;
-    if (uiRequest == null) return scaffold;
-    return Stack(
-      children: [
-        scaffold,
-        Positioned.fill(
-          // Keyed by request id: a new flow must get a fresh State — question
-          // ids repeat across flows (e.g. "goal"), so reusing the State would
-          // leak old selections/custom text into the new modal.
-          child: ExtensionUiSheet(
-            key: ValueKey(uiRequest.id),
-            request: uiRequest,
-            error: ready?.pendingUiError,
-            onRespond: vm.respondExtensionUi,
-          ),
-        ),
-      ],
-    );
   }
 
-  Widget _buildTopBar(BuildContext context, ChatState state) {
+  Widget _buildTopBar(BuildContext context, SessionController session) {
     final colors = context.colors;
-    final vm = context.watch<ChatViewModel>();
-    final peer = vm.activePeer;
-    final room = vm.activeRoom;
-    final resolved = vm.connectionResolved;
-    final online = resolved ? vm.isRoomLive : initialOnline;
-    final reconnecting = resolved && state is ChatReady && state.isOffline;
-    final working = vm.isWorking;
-    final roomName = _roomDisplayName(room, state, initialTitle);
+    final online = session.online || (!session.loaded && initialOnline);
+    final working = session.working;
     final prefs = context.watch<Preferences>();
-    final localName = peer != null && room != null
-        ? prefs.sessionName(peer.remoteEpk, room.roomId)
-        : null;
-    final displayName = localName ?? roomName;
-    final title = displayName;
-    final device = _peerDisplayName(peer, initialDevice);
+    final localName = prefs.sessionName(session.host.key, session.sessionId);
+    final title =
+        localName ??
+        (session.title.isNotEmpty ? session.title : initialTitle ?? kAppName);
+    final device = session.host.host.label.isNotEmpty
+        ? session.host.host.label
+        : initialDevice ?? '—';
     final statusColor = working
         ? colors.working
-        : reconnecting
-        ? colors.warning
         : online
         ? colors.success
-        : colors.muted;
+        : colors.warning;
     final status = working
         ? context.l10n.statusWorking
-        : reconnecting
-        ? context.l10n.statusReconnecting
         : online
         ? context.l10n.statusReady
-        : context.l10n.statusOffline;
+        : context.l10n.statusReconnecting;
     final menu = SessionShell.menuOf(context);
     final leadingAction =
         menu ??
@@ -210,18 +170,11 @@ class ChatPage extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (working) ...[
-                        const SizedBox(width: 1),
-                        Icon(
-                          LucideIcons.pause,
-                          size: 10.5,
-                          color: colors.working,
-                        ),
-                        const SizedBox(width: 4),
-                      ],
                       Flexible(
                         child: Text(
-                          device,
+                          session.agentName.isEmpty
+                              ? device
+                              : '${session.agentName} · $device',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 10.5, color: colors.muted),
@@ -256,23 +209,15 @@ class ChatPage extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ContextUsageButton(
-                    key: ValueKey('${peer?.remoteEpk}:${peer?.roomId}'),
-                    enabled: online && peer != null,
-                    working: working,
-                    messageCount: state is ChatReady
-                        ? state.messages.length
-                        : 0,
-                  ),
-                  // Both header actions morph into the same anchored popover.
+                  ContextUsageButton(enabled: session.online),
                   _HeaderActionAnchor(
                     builder: (origin) => IconButton(
                       key: const Key('chat-actions'),
                       tooltip: context.l10n.sessionActions,
                       onPressed: () => _openSessionActions(
                         context,
-                        vm,
-                        displayName,
+                        session,
+                        title,
                         origin: origin(),
                       ),
                       icon: Icon(
@@ -293,7 +238,7 @@ class ChatPage extends StatelessWidget {
 
   Future<void> _openSessionActions(
     BuildContext context,
-    ChatViewModel vm,
+    SessionController session,
     String displayName, {
     Rect? origin,
   }) async {
@@ -345,18 +290,16 @@ class ChatPage extends StatelessWidget {
       ),
     );
     if (action == null || !context.mounted) return;
-    await _handleSessionAction(context, vm, action, displayName);
+    await _handleSessionAction(context, session, action, displayName);
   }
 
   Future<void> _handleSessionAction(
     BuildContext context,
-    ChatViewModel vm,
+    SessionController session,
     String value,
     String displayName,
   ) async {
-    final currentPeer = vm.activePeer;
-    if (currentPeer == null) return;
-    final roomId = vm.activeRoom?.roomId ?? 'main';
+    final hostKey = session.host.key;
     if (value == 'files') {
       context.push('/session-files');
       return;
@@ -368,8 +311,8 @@ class ChatPage extends StatelessWidget {
       );
       if (name == null || !context.mounted) return;
       await context.read<Preferences>().setSessionName(
-        currentPeer.remoteEpk,
-        roomId,
+        hostKey,
+        session.sessionId,
         name,
       );
       return;
@@ -377,8 +320,8 @@ class ChatPage extends StatelessWidget {
     if (value == 'info') {
       await showSessionInfoDialog(
         context,
-        peer: currentPeer,
-        room: vm.activeRoom,
+        peer: session.host.host,
+        session: session.summary,
         name: displayName,
       );
       return;
@@ -386,165 +329,74 @@ class ChatPage extends StatelessWidget {
     if (value != 'delete' || !context.mounted) return;
     final confirmed = await showSessionDeleteDialog(context, name: displayName);
     if (!confirmed || !context.mounted) return;
-    final home = context.read<HomeViewModel>();
-    for (final item in home.allItems) {
-      if (item.peer.remoteEpk == currentPeer.remoteEpk &&
-          item.room.roomId == roomId) {
-        await home.deleteSession(item);
-        if (!context.mounted) return;
-        context.read<SessionSelection>().clear();
-        context.go('/home');
-        return;
-      }
+    try {
+      await session.host.call('session/delete', {
+        'sessionId': session.sessionId,
+      });
+    } catch (error) {
+      if (context.mounted) await showBayaError(context, message: '$error');
+      return;
     }
-    await showBayaError(context, message: context.l10n.sessionNotFoundToDelete);
+    if (!context.mounted) return;
+    context.read<SessionSelection>().clear();
+    context.go('/home');
   }
 
-  static String _roomDisplayName(
-    RoomInfo? room,
-    ChatState state,
-    String? initialTitle,
-  ) {
-    if (room != null) {
-      final announced = displayRoomName(room.name);
-      if (announced.isNotEmpty) return announced;
-      final cwd = room.cwd;
-      if (cwd != null && cwd.isNotEmpty) {
-        final segs = cwd.split('/').where((s) => s.isNotEmpty).toList();
-        if (segs.isNotEmpty) return segs.last;
-      }
-    }
-    if (state is ChatReady && state.messages.isNotEmpty) {
-      return _inferSessionName(state.messages);
-    }
-    // Home knows the peer label before /chat
-    // mounts; use it instead of the generic kAppName placeholder
-    // while we wait for the first room_meta_updated to populate
-    // `room.name`.
-    if (initialTitle != null && initialTitle.isNotEmpty) return initialTitle;
-    return kAppName;
-  }
-
-  static String _peerDisplayName(PeerRecord? peer, String? fallback) {
-    if (peer == null) {
-      // While the ViewModel hasn't loaded the PeerRecord yet, fall
-      // back to the device label Home passed (initialDevice) — same value the
-      // PeerRecord resolves to, so no flicker on load.
-      if (fallback != null && fallback.isNotEmpty) return fallback;
-      return '—';
-    }
-    if (peer.nickname != null && peer.nickname!.isNotEmpty) {
-      return peer.nickname!;
-    }
-    if (peer.sessionName.isNotEmpty) return peer.sessionName;
-    return peer.remoteEpk.substring(0, 8);
-  }
-
-  Widget _buildBody(BuildContext context, ChatState state, ChatViewModel vm) {
+  Widget _buildBody(BuildContext context, SessionController session) {
     final hideToolCalls = context.watch<Preferences>().hideToolCalls;
-    return switch (state) {
-      // Edge case: opened /chat without a peer (e.g. peer revoked while
-      // user was here). The chat is not the place to pair — render
-      // a minimal empty state without an action. User navigates back
-      // and uses Home / Settings → pairing.
-      ChatNoPeer() => _EmptyState(
-        icon: LucideIcons.messageCircle,
-        message: context.l10n.noActiveDevice,
-      ),
-      ChatConnecting() => const _EmptyState(
-        icon: LucideIcons.refreshCw,
-        message: 'Connecting…',
-      ),
-      ChatFatalError(:final message) => _EmptyState(
-        icon: LucideIcons.circleAlert,
-        message: message,
-        actionLabel: 'Re-pair',
-        onAction: () => context.go('/pair'),
-      ),
-      ChatReady(:final messages, :final streaming) => () {
-        final working = vm.isWorking;
-        final visible = hideToolCalls
-            ? messages
-                  .where(
-                    (m) =>
-                        m is! ToolEvent ||
-                        (m.status == ToolEventStatus.pending &&
-                            m.args is Map &&
-                            m.args['approval_required'] == true),
-                  )
-                  .toList()
-            : messages;
-        // Empty body → the default placeholder (Pi brand icon + "Nothing
-        // here"), shown whenever there's nothing to render — including while
-        // reconnecting (the reconnect handshake never swaps the body).
-        if (visible.isEmpty && streaming == null && !working) {
-          return _EmptyState(
-            icon: LucideIcons.terminal,
-            message: context.l10n.nothingHere,
-          );
-        }
-        return ChatMessageList(
-          key: const ValueKey('chat-message-list'),
-          messages: visible,
-          streaming: streaming,
-          working: working,
-          onDecide: (id, decision) => vm.approveTool(id, decision),
+    final messages = session.messages;
+    final working = session.working;
+    if (messages.isEmpty && !working) {
+      if (session.loading) {
+        return const Center(
+          child: SizedBox.square(
+            dimension: 22,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
         );
-      }(),
-    };
+      }
+      final error = session.error;
+      if (error != null) {
+        return _EmptyState(
+          icon: LucideIcons.circleAlert,
+          message: error,
+          actionLabel: context.l10n.retry,
+          onAction: session.retry,
+        );
+      }
+      return _EmptyState(
+        icon: LucideIcons.terminal,
+        message: session.online
+            ? context.l10n.nothingHere
+            : context.l10n.sessionOffline,
+      );
+    }
+    final visible = hideToolCalls
+        ? messages.where((m) => m is! ToolEvent || m.awaitingApproval).toList()
+        : messages;
+    return ChatMessageList(
+      key: const ValueKey('chat-message-list'),
+      messages: visible,
+      working: working,
+    );
   }
 
-  Widget _buildInput(
-    BuildContext context,
-    ChatState state,
-    ChatViewModel vm,
-    QuickActionsViewModel quickActions,
-  ) {
-    final isReady = state is ChatReady;
-    final isOffline = isReady && state.isOffline;
-    final isRevoked = isReady && state.pairingRevoked;
-    final isPeerOffline = isReady && state.peerOfflineReason != null;
-    // Reported offline (no `bye`): the computer is just not reachable.
-    final isPresenceOffline = isReady && state.peerPresence is PresenceOffline;
-    // The composer is locked + the send button becomes "stop" for
-    // the WHOLE working turn (send/echo → agent_done), not just the narrow
-    // token-streaming window. Driven by the broad working signal so it matches
-    // the AppBar/Home "working" indicator.
-    final isWorking = isReady && vm.isWorking;
-    final cancelId = vm.cancelTargetId;
-    // Quick actions need an open channel to dispatch — only offer the
-    // entry point when the chat input itself is enabled. Hiding the
-    // ⚙ button on offline avoids a tap that would just throw inside
-    // the sheet.
-    final actionsEnabled =
-        isReady &&
-        !isOffline &&
-        !isRevoked &&
-        !isPeerOffline &&
-        !isPresenceOffline;
-    final commandState = context.watch<AgentCommandsViewModel>().state;
-    final hiddenSlashCommands =
-        commandState.supportedActions?.contains('session_compact') == false
-        ? const {'compact'}
-        : const <String>{};
-
+  Widget _buildInput(BuildContext context, SessionController session) {
+    final online = session.online;
+    final commands = session.commands;
+    bool hasCommand(String name) => commands.any((c) => c.name == name);
     return InputBar(
       key: const ValueKey('chat-floating-composer'),
-      agentLabel: workspaceAgentLabel(vm.activeRoom?.agent),
+      agentLabel: session.agentName.isEmpty
+          ? context.l10n.yourAgent
+          : session.agentName,
       modelLabel:
-          quickActions.currentModelName ??
-          vm.activeRoom?.model ??
-          context.l10n.model,
-      disabled:
-          !isReady ||
-          isOffline ||
-          isRevoked ||
-          isPeerOffline ||
-          isPresenceOffline,
-      streaming: isWorking,
-      onCancel: cancelId != null ? () => vm.cancel(cancelId) : null,
-      onOpenQuickActions: actionsEnabled
-          ? () => showStandaloneModelPicker(context)
+          session.configFor('model')?.current?.name ?? context.l10n.settings,
+      disabled: !online,
+      streaming: session.working,
+      onCancel: session.working ? session.cancel : null,
+      onOpenQuickActions: online
+          ? () => showSessionSettings(context, focus: 'model')
           : null,
       onSlashCommand: (id, raw) {
         switch (id) {
@@ -554,12 +406,11 @@ class ChatPage extends StatelessWidget {
               workspaceKey: context.read<HomeViewModel>().selectedWorkspace,
             );
           case 'model':
-            showStandaloneModelPicker(context);
+            showSessionSettings(context, focus: 'model');
           case 'thinking':
-            showQuickActionsSheet(context);
+            showSessionSettings(context, focus: 'thought_level');
           case 'compact':
-            if (commandState.supportedActions?.contains('session_compact') ==
-                false) {
+            if (!hasCommand('compact')) {
               showBayaNotice(
                 context,
                 title: context.l10n.compactUnavailable,
@@ -567,9 +418,9 @@ class ChatPage extends StatelessWidget {
               );
               return;
             }
-            showQuickActionsSheet(context, compactOnOpen: true);
+            session.prompt('/compact');
           case 'context':
-            showContextUsage(context);
+            showSessionSettings(context);
           case 'attach':
             _openAttach(context, context.read<AttachmentViewModel>());
           case 'settings':
@@ -579,35 +430,31 @@ class ChatPage extends StatelessWidget {
           case 'about':
             context.push('/about');
           case 'agent':
-            vm.sendMessage(raw);
+            session.prompt(raw);
           case 'workspace':
             showCreateWorkspace(context);
         }
       },
-      onSlashOpen: context.read<AgentCommandsViewModel>().refresh,
-      agentCommands: commandState.commands,
-      agentCommandsLoading: commandState.loading,
-      agentCommandsError: commandState.error,
-      hiddenSlashCommandIds: hiddenSlashCommands,
-      queuedMessages: isReady ? state.queuedMessages : const [],
-      onSetQueued: vm.queueMessage,
-      onClearQueued: vm.clearQueuedMessage,
-      // Hold-to-talk voice input. The VM is route-scoped (bound in
-      // app_router alongside ChatViewModel); InputBar listens to it directly,
-      // so a read() is enough here.
+      agentCommands: [
+        for (final command in commands)
+          AgentCommand(
+            name: command.name,
+            source: 'agent',
+            description: command.description,
+          ),
+      ],
+      hiddenSlashCommandIds: hasCommand('compact')
+          ? const {}
+          : const {'compact'},
       voice: context.read<VoiceInputViewModel>(),
       onVoiceHint: (hint) => _handleVoiceHint(context, hint),
-      // Image attachments. takeImageForSend() reads + clears the
-      // attached image so the inline image rides along with the (optionally
-      // empty) caption. Attach-button gating by vision / already-attached is
-      // internal to InputBar; the host only gates by channel availability.
       attachment: context.read<AttachmentViewModel>(),
-      onOpenAttach: actionsEnabled
+      onOpenAttach: online
           ? () => _openAttach(context, context.read<AttachmentViewModel>())
           : null,
       onSend: (text) {
         final image = context.read<AttachmentViewModel>().takeImageForSend();
-        vm.sendMessage(text, image: image);
+        session.prompt(text, image: image);
       },
     );
   }
@@ -670,13 +517,6 @@ class ChatPage extends StatelessWidget {
           onConfirm: AppSettings.openAppSettings,
         );
     }
-  }
-
-  static String _inferSessionName(List<ChatMessage> msgs) {
-    for (final m in msgs) {
-      if (m is UserMsg) return m.text.substring(0, m.text.length.clamp(0, 32));
-    }
-    return kAppName;
   }
 }
 

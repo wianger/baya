@@ -1,11 +1,9 @@
 import 'dart:convert';
 
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/domain/value_objects/workspace.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/pairing/storage.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
@@ -17,49 +15,38 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../support/phone_controls.dart';
+import '../../support/acp_harness.dart';
 
 void main() {
   testWidgets(
     'sidebar scrolls its header instead of overflowing in short windows',
     (tester) async {
       FlutterSecureStorage.setMockInitialValues({});
-      final pc = phoneTestPeer();
+      final pc = testPeer();
       final prefs = Preferences();
       await prefs.load();
       await prefs.setSelectedWorkspace(inboxWorkspaceKey(pc.remoteEpk));
-      final channel = PhoneTestChannel();
-      final storage = PhoneTestStorage([pc]);
-      final conn = ConnectionManager(
-        storage: storage,
-        factory: (_, _) async => channel,
-        emitDebounce: Duration.zero,
+      final storage = MemoryStorage([pc]);
+      final host = FakeHost(
+        sessions: [
+          testSession(
+            id: 'pc-one',
+            cwd: '/code/shared',
+            title: 'Desktop one',
+            updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+          ),
+          testSession(
+            id: 'pc-two',
+            cwd: '/code/shared',
+            title: 'Desktop two',
+            updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+          ),
+        ],
       );
-      conn.adopt(channel, pc);
-      final vm = HomeViewModel(storage, prefs, conn);
+      final hosts = testHosts(storage, host);
+      await hosts.start();
+      final vm = HomeViewModel(hosts, storage, prefs);
       final selection = SessionSelection();
-      channel.control.add(
-        RoomAnnounced(
-          peer: pc.remoteEpk,
-          room: RoomInfo(
-            roomId: 'pc-one',
-            name: 'Desktop one',
-            cwd: '/code/shared',
-            startedAt: 1,
-          ),
-        ),
-      );
-      channel.control.add(
-        RoomAnnounced(
-          peer: pc.remoteEpk,
-          room: RoomInfo(
-            roomId: 'pc-two',
-            name: 'Desktop two',
-            cwd: '/code/shared',
-            startedAt: 1,
-          ),
-        ),
-      );
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -100,10 +87,9 @@ void main() {
       expect(find.byKey(const Key('sidebar-settings')), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
       vm.dispose();
-      conn.dispose();
+      hosts.dispose();
       prefs.dispose();
       selection.dispose();
-      await channel.disposeStreams();
     },
   );
 
@@ -111,55 +97,61 @@ void main() {
     'device then workspace scopes sessions and remembers each device across relaunch',
     (tester) async {
       FlutterSecureStorage.setMockInitialValues({});
-      final pc = phoneTestPeer();
-      PeerRecord peer(int seed, String label) => PeerRecord(
-        remoteEpk: base64Encode(List.filled(32, seed)),
-        sessionName: label,
-        endpoint: 'https://example.invalid',
-        pairedAt: '2026-10-30',
-        roomId: 'main',
-      );
-      final laptop = peer(7, 'Laptop'), empty = peer(8, 'Empty device');
+      final pc = testPeer();
+      final laptop = testPeer(seed: 7, name: 'Laptop');
+      final empty = testPeer(seed: 8, name: 'Empty device');
       final prefs = Preferences();
       await prefs.load();
       final notesWorkspace = workspaceKey(pc.remoteEpk, 'notes');
       await prefs.setWorkspaceName(notesWorkspace, 'notes');
       await prefs.setSessionWorkspace(pc.remoteEpk, 'pc-notes', notesWorkspace);
       await prefs.setSelectedWorkspace(inboxWorkspaceKey(pc.remoteEpk));
-      await prefs.setSelectedRoom(epk: pc.remoteEpk, roomId: 'pc-one');
-      final channel = PhoneTestChannel();
-      final storage = PhoneTestStorage([pc, laptop, empty]);
-      final conn = ConnectionManager(
-        storage: storage,
-        factory: (_, _) async => channel,
-        emitDebounce: Duration.zero,
-      );
-      conn.adopt(channel, pc);
-      final vm = HomeViewModel(storage, prefs, conn);
+      final storage = MemoryStorage([pc, laptop, empty]);
+      final hosts = testHostsFor(storage, {
+        pc.remoteEpk: FakeHost(
+          sessions: [
+            testSession(
+              id: 'pc-one',
+              title: 'Desktop one',
+              cwd: '/code/shared',
+            ),
+            testSession(
+              id: 'pc-two',
+              title: 'Desktop two',
+              cwd: '/code/shared',
+            ),
+            testSession(
+              id: 'pc-notes',
+              title: 'Desktop notes',
+              cwd: '/code/notes',
+            ),
+          ],
+        ),
+        laptop.remoteEpk: FakeHost(
+          sessions: [
+            testSession(
+              id: 'laptop-one',
+              title: 'Laptop task',
+              cwd: '/code/shared',
+            ),
+          ],
+        ),
+        empty.remoteEpk: FakeHost(),
+      });
+      await hosts.start();
+      final vm = HomeViewModel(hosts, storage, prefs);
       final selection = SessionSelection();
       var cleaned = false;
       Future<void> cleanup() async {
         if (cleaned) return;
         cleaned = true;
         vm.dispose();
-        conn.dispose();
+        hosts.dispose();
         prefs.dispose();
         selection.dispose();
-        await channel.disposeStreams();
       }
 
       addTearDown(cleanup);
-      void room(PeerRecord host, String id, String name, String cwd) =>
-          channel.control.add(
-            RoomAnnounced(
-              peer: host.remoteEpk,
-              room: RoomInfo(roomId: id, name: name, cwd: cwd, startedAt: 1),
-            ),
-          );
-      room(pc, 'pc-one', 'Desktop one', '/code/shared');
-      room(pc, 'pc-two', 'Desktop two', '/code/shared');
-      room(pc, 'pc-notes', 'Desktop notes', '/code/notes');
-      room(laptop, 'laptop-one', 'Laptop task', '/code/shared');
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -205,9 +197,6 @@ void main() {
       await choose('device-switch', 'PC');
       expect(find.text('Desktop notes'), findsOneWidget);
       expect(find.text('Desktop one'), findsNothing);
-      // Browsing never redirects the transport or changes the active chat.
-      expect(prefs.selectedPeerEpk, pc.remoteEpk);
-      expect(prefs.selectedRoomId, 'pc-one');
       final restored = Preferences();
       await restored.load();
       expect(restored.selectedDeviceEpk, pc.remoteEpk);
@@ -221,46 +210,37 @@ void main() {
 
   test('a logical workspace groups sessions from unrelated folders', () async {
     FlutterSecureStorage.setMockInitialValues({});
-    final pc = phoneTestPeer();
+    final pc = testPeer();
     final prefs = Preferences();
     await prefs.load();
-    final channel = PhoneTestChannel();
-    final storage = PhoneTestStorage([pc]);
-    final conn = ConnectionManager(
-      storage: storage,
-      factory: (_, _) async => channel,
-      emitDebounce: Duration.zero,
-    );
-    conn.adopt(channel, pc);
-    final vm = HomeViewModel(storage, prefs, conn);
-    channel.control.add(
-      RoomAnnounced(
-        peer: pc.remoteEpk,
-        room: RoomInfo(
-          roomId: 'room-alpha',
-          name: 'API',
-          cwd: '/code/api',
-          startedAt: 1,
-        ),
-      ),
-    );
-    channel.control.add(
-      RoomAnnounced(
-        peer: pc.remoteEpk,
-        room: RoomInfo(
-          roomId: 'room-beta',
-          name: 'Mobile',
-          cwd: '/code/mobile',
-          startedAt: 1,
-        ),
-      ),
-    );
+    final storage = MemoryStorage([pc]);
+    final host = FakeHost();
+    final hosts = testHosts(storage, host);
+    await hosts.start();
+    await settle();
+    final vm = HomeViewModel(hosts, storage, prefs);
+    host.push('_baya/session_changed', {
+      'session': testSession(
+        id: 'room-alpha',
+        cwd: '/code/api',
+        title: 'API',
+        updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+      ).toJson(),
+    });
+    host.push('_baya/session_changed', {
+      'session': testSession(
+        id: 'room-beta',
+        cwd: '/code/mobile',
+        title: 'Mobile',
+        updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+      ).toJson(),
+    });
     await pumpEventQueue();
     final alpha = vm.allItems.firstWhere(
-      (item) => item.room.roomId == 'room-alpha',
+      (item) => item.sessionId == 'room-alpha',
     );
     final beta = vm.allItems.firstWhere(
-      (item) => item.room.roomId == 'room-beta',
+      (item) => item.sessionId == 'room-beta',
     );
 
     final workspace = await vm.createWorkspace(
@@ -273,12 +253,12 @@ void main() {
 
     expect(vm.selectedWorkspace, workspace);
     expect(
-      vm.workspaceItems.map((item) => item.room.roomId),
+      vm.workspaceItems.map((item) => item.sessionId),
       unorderedEquals(['room-alpha', 'room-beta']),
     );
     expect(vm.workspaces[workspace], '2 sessions · 2 folders');
 
-    await vm.openSession(pc.remoteEpk, roomId: 'room-alpha');
+    await vm.openSession(pc.remoteEpk, 'room-alpha');
     expect(
       vm.selectedWorkspace,
       workspace,
@@ -296,7 +276,7 @@ void main() {
     await pumpEventQueue();
     expect(vm.selectedWorkspace, inboxWorkspaceKey(pc.remoteEpk));
     expect(
-      vm.workspaceItems.map((item) => item.room.roomId),
+      vm.workspaceItems.map((item) => item.sessionId),
       unorderedEquals(['room-alpha', 'room-beta']),
       reason: 'Deleting a workspace moves all of its sessions to Inbox',
     );
@@ -314,49 +294,39 @@ void main() {
     );
     restoredAfterDelete.dispose();
     vm.dispose();
-    conn.dispose();
+    hosts.dispose();
     prefs.dispose();
-    await channel.disposeStreams();
   });
 
   test(
     'sessions in one folder can belong to different logical workspaces',
     () async {
       FlutterSecureStorage.setMockInitialValues({});
-      final pc = phoneTestPeer();
+      final pc = testPeer();
       final prefs = Preferences();
       await prefs.load();
-      final channel = PhoneTestChannel();
-      final storage = PhoneTestStorage([pc]);
-      final conn = ConnectionManager(
-        storage: storage,
-        factory: (_, _) async => channel,
-        emitDebounce: Duration.zero,
-      );
-      conn.adopt(channel, pc);
-      final vm = HomeViewModel(storage, prefs, conn);
-      channel.control.add(
-        RoomAnnounced(
-          peer: pc.remoteEpk,
-          room: RoomInfo(
-            roomId: 'room-alpha',
-            name: 'Alpha',
-            cwd: '/code/project',
-            startedAt: 1,
-          ),
-        ),
-      );
-      channel.control.add(
-        RoomAnnounced(
-          peer: pc.remoteEpk,
-          room: RoomInfo(
-            roomId: 'room-beta',
-            name: 'Beta',
-            cwd: '/code/project',
-            startedAt: 1,
-          ),
-        ),
-      );
+      final storage = MemoryStorage([pc]);
+      final host = FakeHost();
+      final hosts = testHosts(storage, host);
+      await hosts.start();
+      await settle();
+      final vm = HomeViewModel(hosts, storage, prefs);
+      host.push('_baya/session_changed', {
+        'session': testSession(
+          id: 'room-alpha',
+          cwd: '/code/project',
+          title: 'Alpha',
+          updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+        ).toJson(),
+      });
+      host.push('_baya/session_changed', {
+        'session': testSession(
+          id: 'room-beta',
+          cwd: '/code/project',
+          title: 'Beta',
+          updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+        ).toJson(),
+      });
       await pumpEventQueue();
 
       final alphaWorkspace = await vm.createWorkspace(
@@ -380,18 +350,17 @@ void main() {
       await pumpEventQueue();
 
       await vm.selectWorkspace(alphaWorkspace);
-      expect(vm.workspaceItems.map((item) => item.room.roomId), ['room-alpha']);
+      expect(vm.workspaceItems.map((item) => item.sessionId), ['room-alpha']);
 
       await vm.selectWorkspace(betaWorkspace);
-      expect(vm.workspaceItems.map((item) => item.room.roomId), ['room-beta']);
+      expect(vm.workspaceItems.map((item) => item.sessionId), ['room-beta']);
 
       await vm.selectWorkspace(inboxWorkspaceKey(pc.remoteEpk));
       expect(vm.workspaceItems, isEmpty);
 
       vm.dispose();
-      conn.dispose();
+      hosts.dispose();
       prefs.dispose();
-      await channel.disposeStreams();
     },
   );
 
@@ -402,50 +371,42 @@ void main() {
     expect(canonicalEpk, isNot(rawEpk));
     final pc = PeerRecord(
       remoteEpk: rawEpk,
-      sessionName: 'PC',
+      name: 'PC',
       endpoint: 'https://example.invalid',
       pairedAt: '2026-10-30',
-      roomId: 'main',
     );
     final prefs = Preferences();
     await prefs.load();
-    final channel = PhoneTestChannel();
-    final storage = PhoneTestStorage([pc]);
-    final conn = ConnectionManager(
-      storage: storage,
-      factory: (_, _) async => channel,
-      emitDebounce: Duration.zero,
-    );
-    conn.adopt(channel, pc);
-    final vm = HomeViewModel(storage, prefs, conn);
-    channel.control.add(
-      RoomAnnounced(
-        peer: rawEpk,
-        room: RoomInfo(
-          roomId: 'room-alpha',
-          name: 'Alpha',
-          cwd: '/code/project',
-          startedAt: 1,
-        ),
-      ),
-    );
+    final storage = MemoryStorage([pc]);
+    final host = FakeHost();
+    final hosts = testHosts(storage, host);
+    await hosts.start();
+    await settle();
+    final vm = HomeViewModel(hosts, storage, prefs);
+    host.push('_baya/session_changed', {
+      'session': testSession(
+        id: 'room-alpha',
+        cwd: '/code/project',
+        title: 'Alpha',
+        updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+      ).toJson(),
+    });
     await pumpEventQueue();
 
     final inbox = inboxWorkspaceKey(canonicalEpk);
     expect(vm.workspaces, hasLength(1));
     expect(vm.workspaces.keys.single, inbox);
-    expect(vm.workspaceItems.map((item) => item.room.roomId), ['room-alpha']);
+    expect(vm.workspaceItems.map((item) => item.sessionId), ['room-alpha']);
 
     vm.dispose();
-    conn.dispose();
+    hosts.dispose();
     prefs.dispose();
-    await channel.disposeStreams();
   });
 
   test(
     'drops folder workspace selections and serializes logical selections',
     () async {
-      final pc = phoneTestPeer().remoteEpk;
+      final pc = testPeer().remoteEpk;
       final laptop = base64Encode(List.filled(32, 7));
       const old = '/code/old';
       final laptopWorkspace = workspaceKey(laptop, 'laptop-work');
@@ -475,18 +436,14 @@ void main() {
     'new session assigns its result to the workspace returned by the picker',
     (tester) async {
       FlutterSecureStorage.setMockInitialValues({});
-      final pc = phoneTestPeer();
+      final pc = testPeer();
       final prefs = Preferences();
       await prefs.load();
-      final channel = PhoneTestChannel();
-      final storage = PhoneTestStorage([pc]);
-      final conn = ConnectionManager(
-        storage: storage,
-        factory: (_, _) async => channel,
-        emitDebounce: Duration.zero,
-      );
-      conn.adopt(channel, pc);
-      final vm = HomeViewModel(storage, prefs, conn);
+      final storage = MemoryStorage([pc]);
+      final host = FakeHost(sessions: []);
+      final hosts = testHosts(storage, host);
+      await hosts.start();
+      final vm = HomeViewModel(hosts, storage, prefs);
       final selection = SessionSelection();
 
       final first = await vm.createWorkspace(
@@ -524,9 +481,12 @@ void main() {
                     hostId: pc.remoteEpk,
                     hostLabel: 'PC',
                     path: '/project',
-                    roomId: 'created-room',
+                    sessionId: 'created-room',
                     name: 'project',
-                    agent: WorkspaceAgent.pi,
+                    agent: const WorkspaceAgent(
+                      id: 'claude',
+                      label: 'Claude Code',
+                    ),
                     workspaceKey: first,
                   ),
                 ),
@@ -546,10 +506,9 @@ void main() {
         cleaned = true;
         router.dispose();
         vm.dispose();
-        conn.dispose();
+        hosts.dispose();
         prefs.dispose();
         selection.dispose();
-        await channel.disposeStreams();
       }
 
       addTearDown(cleanup);
@@ -573,7 +532,7 @@ void main() {
       expect(prefs.workspaceForSession(pc.remoteEpk, 'created-room'), first);
       expect(prefs.selectedDeviceEpk, pc.remoteEpk);
       expect(prefs.workspaceForDevice(pc.remoteEpk), first);
-      expect(selection.current?.roomId, 'created-room');
+      expect(selection.current?.sessionId, 'created-room');
       await tester.pumpWidget(const SizedBox.shrink());
       await cleanup();
       await tester.pump();

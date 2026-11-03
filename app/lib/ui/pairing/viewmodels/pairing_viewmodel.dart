@@ -3,8 +3,7 @@ import 'dart:io' show Platform;
 import 'package:app/l10n/l10n.dart';
 
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/connection_manager.dart';
-import 'package:app/data/transport/peer_channel.dart';
+import 'package:app/data/transport/host_socket.dart';
 import 'package:app/pairing/tailnet_pairing.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/pair_request_flow.dart' as pair_flow;
@@ -12,33 +11,16 @@ import 'package:app/pairing/qr_scanner.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
-import 'package:cryptography/cryptography.dart';
-
-// Factory that produces a connected PeerTransport for the given QR payload.
-// Production: WsTransport.connect(...). Tests: in-memory pipe.
-typedef PairingTransportFactory = Future<pair_flow.PeerTransport> Function(
-  QrPairPayload qr,
-  SimpleKeyPair deviceEd25519,
-);
 
 class PairingViewModel extends ViewModel<PairingState> {
   final PairingStorage _storage;
-  final PairingTransportFactory _transportFactory;
-  // Connection lifecycle (disconnect/adopt) now goes straight to
-  // the ConnectionManager (the removed SessionRepository was a pass-through).
-  final ConnectionManager _conn;
+  final HostSocketFactory _connect;
   final Preferences _prefs;
   final OwnerIdentityBridge _ownerBridge;
-  pair_flow.PeerTransport? _transport;
-  PlainPeerChannel? _liveChannel;
+  HostSocket? _socket;
 
-  PairingViewModel(
-    this._storage,
-    this._transportFactory,
-    this._conn,
-    this._prefs,
-    this._ownerBridge,
-  ) : super(const PairingScanning());
+  PairingViewModel(this._storage, this._connect, this._prefs, this._ownerBridge)
+    : super(const PairingScanning());
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -62,13 +44,9 @@ class PairingViewModel extends ViewModel<PairingState> {
       return;
     }
 
-    emit(PairingConnecting(sessionName: qr.sessionName));
+    emit(PairingConnecting(sessionName: qr.name));
 
     try {
-      // Close the current connection first: the pairing handshake opens
-      // its own, and the host would see the same phone key twice.
-      await _conn.disconnect();
-
       // Remember the tailnet so the next computer can be typed by short name.
       final domain = tailnetSuffixOf(qr.endpoint);
       if (domain != null) await _prefs.setTailnetDomain(domain);
@@ -79,13 +57,17 @@ class PairingViewModel extends ViewModel<PairingState> {
       // requireKeyPair() never throws here.
       final ownerKey = await _ownerBridge.requireKeyPair();
 
-      final transport = await _transportFactory(qr, ownerKey);
-      _transport = transport;
+      final socket = await _connect(
+        endpoint: qr.endpoint,
+        hostKey: qr.epk,
+        identity: ownerKey,
+      );
+      _socket = socket;
 
       final result = await pair_flow
           .performPairing(
             qr: qr,
-            transport: transport,
+            socket: socket,
             storage: _storage,
             deviceName: _deviceName(),
           )
@@ -97,13 +79,8 @@ class PairingViewModel extends ViewModel<PairingState> {
             ),
           );
 
-      final channel = PlainPeerChannel(transport: transport);
-      _liveChannel = channel;
-      _transport = null; // channel now owns the transport
-
-      _conn.adopt(channel, result.peer);
-      _liveChannel = null;
-
+      // The saved pairing makes Hosts open its own connection.
+      await _closeTransient();
       emit(PairingPaired(peer: result.peer, hostnameHint: result.hostnameHint));
     } on pair_flow.PairingError catch (e) {
       await _closeTransient();
@@ -138,10 +115,8 @@ class PairingViewModel extends ViewModel<PairingState> {
   // ---------------------------------------------------------------------------
 
   Future<void> _closeTransient() async {
-    await _liveChannel?.close();
-    _liveChannel = null;
-    await _transport?.close();
-    _transport = null;
+    await _socket?.close();
+    _socket = null;
   }
 
   static String _friendlyError(pair_flow.PairingError e) => switch (e.code) {

@@ -1,0 +1,243 @@
+// One open conversation: loads it from the computer (`session/load` replays
+// the history), keeps it current from `session/update`, and sends prompts,
+// cancels, setting changes and permission answers.
+
+import 'dart:async';
+
+import 'package:app/acp/acp.dart';
+import 'package:app/acp/json_rpc.dart';
+import 'package:app/data/hosts/host_connection.dart';
+import 'package:app/domain/session_state.dart';
+import 'package:app/domain/transcript.dart';
+import 'package:app/protocol/uuid7.dart';
+import 'package:flutter/foundation.dart';
+
+class SessionController extends ChangeNotifier {
+  SessionController(this.host, this.sessionId) {
+    _updates = host.updates.listen(_onUpdate);
+    _permissions = host.permissions.listen((_) => _syncPermissions());
+    _online = host.onOnline.listen((_) => unawaited(_load()));
+    host.addListener(_onHostChanged);
+    _syncPermissions();
+    unawaited(_load());
+  }
+
+  final HostConnection host;
+  final String sessionId;
+
+  final _transcript = Transcript();
+  late final StreamSubscription<SessionEvent> _updates;
+  late final StreamSubscription<PermissionEvent> _permissions;
+  late final StreamSubscription<void> _online;
+
+  bool _loading = false;
+  bool _loaded = false;
+  bool _replaying = false;
+  bool _disposed = false;
+  String? _error;
+  bool _localWorking = false;
+  SessionSetup _setup = const SessionSetup();
+  List<ConfigOption> _config = const [];
+  SessionModes? _modes;
+  List<AgentCommandInfo> _commands = const [];
+  Usage? _usage;
+  List<PermissionRequest> _openPermissions = const [];
+
+  // ── state ───────────────────────────────────────────────────────────────
+
+  List<ChatMessage> get messages => _transcript.messages;
+  SessionSummary? get summary => host.session(sessionId);
+  String get title => summary?.title ?? '';
+  String get agentName =>
+      _setup.agentName.isNotEmpty ? _setup.agentName : summary?.agentName ?? '';
+  bool get online => host.isOnline;
+
+  /// The history arrived from the computer at least once.
+  bool get loaded => _loaded;
+  bool get loading => _loading;
+
+  /// Why the session could not open, when it could not.
+  String? get error => _error;
+
+  /// A turn is running: the computer says so, or this phone just sent one.
+  bool get working => online && (_localWorking || summary?.working == true);
+
+  List<ConfigOption> get configOptions => _config;
+  ConfigOption? configFor(String category) =>
+      _config.where((option) => option.category == category).firstOrNull;
+  SessionModes? get modes => _modes;
+  List<AgentCommandInfo> get commands => _commands;
+  Usage? get usage => _usage;
+  bool get acceptsImages => _setup.acceptsImages;
+
+  /// The oldest open permission question for this session.
+  PermissionRequest? get permission => _openPermissions.firstOrNull;
+
+  // ── commands ────────────────────────────────────────────────────────────
+
+  /// Sends a prompt; the agent queues it behind a running turn.
+  Future<void> prompt(String text, {MessageImage? image}) async {
+    final id = uuid7();
+    _transcript.addPending(
+      UserMsg(id: id, text: text, status: UserMsgStatus.pending, image: image),
+    );
+    _localWorking = true;
+    _changed();
+    try {
+      final result = await host.call('session/prompt', {
+        'sessionId': sessionId,
+        'prompt': [
+          if (text.isNotEmpty) TextContent(text).toJson(),
+          if (image != null)
+            ImageContent(data: image.data, mimeType: image.mime).toJson(),
+        ],
+        '_meta': {
+          'baya': {'messageId': id},
+        },
+      }, Duration.zero);
+      if (result['stopReason'] == 'refusal') {
+        _transcript.apply(const NoticeUpdate('warning', 'The agent refused.'));
+      }
+    } catch (error) {
+      _transcript.dropPending(id);
+      // A turn that failed on the computer already left a notice there.
+      final reported =
+          error is RpcError && error.code != RpcError.invalidParams;
+      if (!reported) _transcript.apply(NoticeUpdate('error', _describe(error)));
+    } finally {
+      _localWorking = false;
+      _transcript.settle();
+      _changed();
+    }
+  }
+
+  void cancel() {
+    host.notify('session/cancel', {'sessionId': sessionId});
+  }
+
+  Future<void> setConfig(String configId, Object value) async {
+    final result = await host.call('session/set_config_option', {
+      'sessionId': sessionId,
+      'configId': configId,
+      if (value is bool) 'type': 'boolean',
+      'value': value,
+    });
+    _config = ConfigOption.listFrom(result['configOptions']);
+    _changed();
+  }
+
+  Future<void> setMode(String modeId) async {
+    await host.call('session/set_mode', {
+      'sessionId': sessionId,
+      'modeId': modeId,
+    });
+    _modes = _modes?.withCurrent(modeId);
+    _changed();
+  }
+
+  void answerPermission(String? optionId) {
+    final open = permission;
+    if (open == null) return;
+    host.answerPermission(open.requestId, optionId);
+    _syncPermissions();
+  }
+
+  /// Reload after an error.
+  Future<void> retry() => _load();
+
+  // ── loading ─────────────────────────────────────────────────────────────
+
+  Future<void> _load() async {
+    if (_disposed || _loading || !host.isOnline) {
+      _changed();
+      return;
+    }
+    _loading = true;
+    _error = null;
+    _changed();
+    // The replay rebuilds the history from scratch.
+    _transcript.clear();
+    _replaying = true;
+    try {
+      final result = await host.call('session/load', {
+        'sessionId': sessionId,
+        'cwd': summary?.cwd ?? '',
+        'mcpServers': const <Object>[],
+      }, const Duration(minutes: 3));
+      _setup = SessionSetup.fromJson(result);
+      _config = _setup.configOptions;
+      _modes = _setup.modes;
+      _loaded = true;
+    } catch (error) {
+      _error = _describe(error);
+    } finally {
+      _replaying = false;
+      _loading = false;
+      if (summary?.working != true) _transcript.settle();
+      _changed();
+    }
+  }
+
+  void _onUpdate(SessionEvent event) {
+    if (event.sessionId != sessionId) return;
+    final update = event.update;
+    switch (update) {
+      case ConfigUpdate(:final options):
+        _config = options;
+      case ModeUpdate(:final modeId):
+        _modes = _modes?.withCurrent(modeId);
+      case CommandsUpdate(:final commands):
+        _commands = commands;
+      case UsageUpdate(:final usage):
+        _usage = usage;
+      default:
+        _transcript.apply(update);
+    }
+    if (!_replaying) _changed();
+  }
+
+  void _onHostChanged() {
+    if (summary?.working == false && !_localWorking) _transcript.settle();
+    _changed();
+  }
+
+  void _syncPermissions() {
+    _openPermissions = [
+      for (final request in host.openPermissions)
+        if (request.sessionId == sessionId) request,
+    ];
+    _transcript.markAwaiting({
+      for (final request in _openPermissions) request.toolCall.id,
+    });
+    _changed();
+  }
+
+  void _changed() {
+    if (!_disposed) notifyListeners();
+  }
+
+  static String _describe(Object error) => switch (error) {
+    RpcError(:final message) => message,
+    RpcClosed(:final reason) => reason,
+    TimeoutException() => 'The computer did not answer in time.',
+    _ => '$error',
+  };
+
+  @override
+  void dispose() {
+    _disposed = true;
+    unawaited(_updates.cancel());
+    unawaited(_permissions.cancel());
+    unawaited(_online.cancel());
+    host.removeListener(_onHostChanged);
+    // Stop receiving this session's updates; harmless if offline.
+    if (host.isOnline) {
+      unawaited(
+        host
+            .call('session/close', {'sessionId': sessionId})
+            .then((_) {}, onError: (_) {}),
+      );
+    }
+    super.dispose();
+  }
+}

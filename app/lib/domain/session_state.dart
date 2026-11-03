@@ -1,34 +1,20 @@
-// Session domain model — chat message variants + streaming buffer.
+// A conversation as the chat renders it, folded from ACP `session/update`s.
 // Lives in domain/ → no Flutter, no network, no storage.
 
-// ---------------------------------------------------------------------------
-// ChatMessage — sealed union of message variants in the conversation history
-// ---------------------------------------------------------------------------
+import 'package:app/acp/acp.dart';
 
 sealed class ChatMessage {
   final String id;
   const ChatMessage({required this.id});
 }
 
-/// Every UserMsg is tagged with the
-/// lifecycle stage of its rebroadcast. `pending` = sent over WS but Pi
-/// hasn't echoed it back yet; `confirmed` = Pi rebroadcast it (or it
-/// came from `session_history` / another device's echo); `failed` =
-/// 15s elapsed without echo, user can retry.
-///
-/// Default is `confirmed`: history and other devices' echoes are already
-/// authoritative.
-enum UserMsgStatus { pending, confirmed, failed }
+/// `pending` = sent, not yet started by the agent (it may be queued behind a
+/// running turn); `confirmed` = the computer recorded it.
+enum UserMsgStatus { pending, confirmed }
 
-/// An image attached to a user message. Carries the JPEG bytes
-/// base64-encoded plus its mime type, mirroring the SDK's `ImageContent`.
-/// Bytes always travel inline (decision #8: history replays the image too),
-/// so the bubble can render straight from [data] with no extra round-trip.
+/// An image attached to a user message, base64 without a data-URI prefix.
 class MessageImage {
-  /// Base64-encoded image bytes (no data-URI prefix).
   final String data;
-
-  /// Mime type, e.g. `image/jpeg`.
   final String mime;
 
   const MessageImage({required this.data, required this.mime});
@@ -41,56 +27,27 @@ class MessageImage {
   int get hashCode => Object.hash(data, mime);
 }
 
-/// Android-owned queued follow-up shown above the composer. Protocol-free
-/// domain value; SyncService maps wire items into this shape.
-class QueuedMsg {
-  final String id;
-  final String text;
-  final bool editable;
-  final DateTime createdAt;
-
-  const QueuedMsg({
-    required this.id,
-    required this.text,
-    required this.editable,
-    required this.createdAt,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      other is QueuedMsg &&
-      other.id == id &&
-      other.text == text &&
-      other.editable == editable &&
-      other.createdAt == createdAt;
-
-  @override
-  int get hashCode => Object.hash(id, text, editable, createdAt);
-}
-
 class UserMsg extends ChatMessage {
   final String text;
   final UserMsgStatus status;
-  final bool steering;
-
-  /// Optional attached image (one max). `null` for text-only
-  /// messages, which is every message before this feature.
   final MessageImage? image;
 
   const UserMsg({
     required super.id,
     required this.text,
     this.status = UserMsgStatus.confirmed,
-    this.steering = false,
     this.image,
   });
 
-  UserMsg copyWith({UserMsgStatus? status, bool? steering}) => UserMsg(
+  UserMsg copyWith({
+    String? text,
+    UserMsgStatus? status,
+    MessageImage? image,
+  }) => UserMsg(
     id: id,
-    text: text,
+    text: text ?? this.text,
     status: status ?? this.status,
-    steering: steering ?? this.steering,
-    image: image,
+    image: image ?? this.image,
   );
 
   @override
@@ -99,11 +56,10 @@ class UserMsg extends ChatMessage {
       other.id == id &&
       other.text == text &&
       other.status == status &&
-      other.steering == steering &&
       other.image == image;
 
   @override
-  int get hashCode => Object.hash(id, text, status, steering, image);
+  int get hashCode => Object.hash(id, text, status, image);
 }
 
 class AssistantMsg extends ChatMessage {
@@ -118,7 +74,7 @@ class AssistantMsg extends ChatMessage {
   int get hashCode => Object.hash(id, text);
 }
 
-/// An explicit thinking summary supplied by the agent, separate from a reply.
+/// The agent's visible reasoning, separate from its reply.
 class ThinkingMsg extends ChatMessage {
   final String text;
   final bool complete;
@@ -135,96 +91,100 @@ class ThinkingMsg extends ChatMessage {
   int get hashCode => Object.hash(id, text, complete);
 }
 
+enum ToolEventStatus { pending, running, completed, failed }
+
+/// One tool call, in its latest state.
 class ToolEvent extends ChatMessage {
   final String toolCallId;
-  final String tool;
-  final dynamic args;
+  final String title;
+  final ToolKind kind;
   final ToolEventStatus status;
-  final dynamic result;
-  final String? error;
+  final List<ToolCallContent> content;
+  final List<ToolLocation> locations;
+  final Object? rawInput;
+  final Object? rawOutput;
+
+  /// A permission question for this call is open.
+  final bool awaitingApproval;
 
   const ToolEvent({
     required super.id,
     required this.toolCallId,
-    required this.tool,
-    required this.args,
+    this.title = '',
+    this.kind = ToolKind.other,
     this.status = ToolEventStatus.pending,
-    this.result,
-    this.error,
+    this.content = const [],
+    this.locations = const [],
+    this.rawInput,
+    this.rawOutput,
+    this.awaitingApproval = false,
   });
 
-  ToolEvent copyWith({
-    ToolEventStatus? status,
-    dynamic result,
-    String? error,
-  }) => ToolEvent(
+  /// Applies an ACP patch: absent fields keep their value.
+  ToolEvent apply(ToolCallPatch patch) => ToolEvent(
     id: id,
     toolCallId: toolCallId,
-    tool: tool,
-    args: args,
-    status: status ?? this.status,
-    result: result ?? this.result,
-    error: error ?? this.error,
+    title: patch.title ?? title,
+    kind: patch.kind ?? kind,
+    status: patch.status == null ? status : statusOf(patch.status!),
+    content: patch.content ?? content,
+    locations: patch.locations ?? locations,
+    rawInput: patch.rawInput ?? rawInput,
+    rawOutput: patch.rawOutput ?? rawOutput,
+    awaitingApproval: awaitingApproval,
   );
 
-  @override
-  bool operator ==(Object other) =>
-      other is ToolEvent &&
-      other.id == id &&
-      other.toolCallId == toolCallId &&
-      other.status == status;
+  ToolEvent withApproval(bool awaiting) => awaitingApproval == awaiting
+      ? this
+      : ToolEvent(
+          id: id,
+          toolCallId: toolCallId,
+          title: title,
+          kind: kind,
+          status: status,
+          content: content,
+          locations: locations,
+          rawInput: rawInput,
+          rawOutput: rawOutput,
+          awaitingApproval: awaiting,
+        );
 
-  @override
-  int get hashCode => Object.hash(id, toolCallId, status);
+  static ToolEventStatus statusOf(ToolStatus status) => switch (status) {
+    ToolStatus.pending => ToolEventStatus.pending,
+    ToolStatus.inProgress => ToolEventStatus.running,
+    ToolStatus.completed => ToolEventStatus.completed,
+    ToolStatus.failed => ToolEventStatus.failed,
+  };
+
+  // Tool events are replaced, never mutated: identity is enough to tell
+  // whether a row changed.
 }
 
-/// `denied` = the user/SDK declined the tool; `failed` = the tool
-/// ran but errored (a distinct, red outcome). `expired` = approval timed out.
-enum ToolEventStatus { pending, allowed, denied, expired, completed, failed }
+/// The agent's current to-do list for this turn.
+class PlanMsg extends ChatMessage {
+  final List<PlanEntry> entries;
+  const PlanMsg({required super.id, required this.entries});
+}
 
-/// A context-compaction marker rendered as a system bubble
-/// (distinct from user/assistant). [summary] is the Pi's recap of the
-/// compacted thread; [tokensBefore] is the token count reclaimed (null when
-/// the Pi didn't report it).
+/// Something the agent or Baya wants the user to know (`notice`).
+class NoticeMsg extends ChatMessage {
+  /// `info`, `warning` or `error`.
+  final String severity;
+  final String text;
+  const NoticeMsg({
+    required super.id,
+    required this.severity,
+    required this.text,
+  });
+}
+
+/// A context compaction, with the agent's summary once it has one.
 class CompactionMsg extends ChatMessage {
   final String summary;
-  final int? tokensBefore;
+  final bool done;
   const CompactionMsg({
     required super.id,
-    required this.summary,
-    this.tokensBefore,
+    this.summary = '',
+    this.done = false,
   });
-
-  @override
-  bool operator ==(Object other) =>
-      other is CompactionMsg &&
-      other.id == id &&
-      other.summary == summary &&
-      other.tokensBefore == tokensBefore;
-
-  @override
-  int get hashCode => Object.hash(id, summary, tokensBefore);
-}
-
-// ---------------------------------------------------------------------------
-// StreamingMessage — accumulated deltas while the assistant is typing
-// ---------------------------------------------------------------------------
-
-class StreamingMessage {
-  final String inReplyTo; // id of the UserMsg being answered
-  final String buffer;
-
-  const StreamingMessage({required this.inReplyTo, this.buffer = ''});
-
-  StreamingMessage appendDelta(String delta) =>
-      StreamingMessage(inReplyTo: inReplyTo, buffer: buffer + delta);
-
-  @override
-  bool operator ==(Object other) =>
-      other is StreamingMessage &&
-      other.inReplyTo == inReplyTo &&
-      other.buffer == buffer;
-
-  @override
-  int get hashCode => Object.hash(inReplyTo, buffer);
 }

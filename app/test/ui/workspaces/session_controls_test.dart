@@ -1,7 +1,5 @@
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/domain/value_objects/workspace.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
@@ -13,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-import '../../support/phone_controls.dart';
+import '../../support/acp_harness.dart';
 
 void main() {
   testWidgets('device and workspace pickers size to their visible rows', (
@@ -355,59 +353,48 @@ void main() {
   });
 
   testWidgets(
-    'workspace control replaces status chips and delete persists across room refresh',
+    'workspace control replaces status chips and delete removes the session on the computer',
     (tester) async {
       FlutterSecureStorage.setMockInitialValues({});
       final prefs = Preferences();
       await prefs.load();
-      final peer = phoneTestPeer(), channel = PhoneTestChannel();
+      final peer = testPeer();
       final betaWorkspace = workspaceKey(peer.remoteEpk, 'beta');
       await prefs.setWorkspaceName(betaWorkspace, 'beta');
       await prefs.setSessionWorkspace(peer.remoteEpk, 'beta', betaWorkspace);
       await prefs.setSelectedWorkspace(inboxWorkspaceKey(peer.remoteEpk));
-      final storage = PhoneTestStorage([peer]);
-      final conn = ConnectionManager(
-        storage: storage,
-        factory: (_, _) async => channel,
-        emitDebounce: Duration.zero,
+      final storage = MemoryStorage([peer]);
+      final host = FakeHost(
+        sessions: [
+          testSession(
+            id: 'alpha',
+            cwd: '/code/alpha',
+            title: 'Alpha task',
+            updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+          ),
+          testSession(
+            id: 'beta',
+            cwd: '/code/beta',
+            title: 'Beta task',
+            updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+          ),
+        ],
       );
+      final hosts = testHosts(storage, host);
+      await hosts.start();
       final selection = SessionSelection();
-      conn.adopt(channel, peer);
-      final vm = HomeViewModel(storage, prefs, conn);
+      final vm = HomeViewModel(hosts, storage, prefs);
       var cleaned = false;
       Future<void> cleanup() async {
         if (cleaned) return;
         cleaned = true;
         vm.dispose();
-        conn.dispose();
+        hosts.dispose();
         prefs.dispose();
         selection.dispose();
-        await channel.disposeStreams();
       }
 
       addTearDown(cleanup);
-      channel.control.add(
-        RoomAnnounced(
-          peer: peer.remoteEpk,
-          room: RoomInfo(
-            roomId: 'alpha',
-            name: 'Alpha task',
-            cwd: '/code/alpha',
-            startedAt: 1,
-          ),
-        ),
-      );
-      channel.control.add(
-        RoomAnnounced(
-          peer: peer.remoteEpk,
-          room: RoomInfo(
-            roomId: 'beta',
-            name: 'Beta task',
-            cwd: '/code/beta',
-            startedAt: 1,
-          ),
-        ),
-      );
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -475,7 +462,7 @@ void main() {
         const Offset(-260, 0),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Delete from phone?'), findsOneWidget);
+      expect(find.text('Delete session?'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
@@ -513,7 +500,7 @@ void main() {
         const Offset(-260, 0),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Delete from phone?'), findsOneWidget);
+      expect(find.text('Delete session?'), findsOneWidget);
       await tester.tap(
         find.descendant(
           of: find.byType(AlertDialog),
@@ -521,23 +508,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      channel.control.add(
-        RoomAnnounced(
-          peer: peer.remoteEpk,
-          room: RoomInfo(
-            roomId: 'beta',
-            name: 'Beta task',
-            cwd: '/code/beta',
-            startedAt: 1,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(vm.allItems.map((item) => item.room.roomId), ['alpha']);
-      final restored = Preferences();
-      await restored.load();
-      expect(restored.isSessionHidden(peer.remoteEpk, 'beta'), isTrue);
-      restored.dispose();
+      // Deleting removes the session on the computer, which tells every phone.
+      expect(host.calls.last.method, 'session/delete');
+      expect(vm.allItems.map((item) => item.sessionId), ['alpha']);
       await tester.pumpWidget(const SizedBox.shrink());
       await cleanup();
       await tester.pump();

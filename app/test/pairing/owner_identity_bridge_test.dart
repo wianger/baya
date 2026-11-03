@@ -203,10 +203,9 @@ void main() {
       await storage.savePeer(
         const PeerRecord(
           remoteEpk: 'epk-precious',
-          sessionName: 'pi',
+          name: 'pi',
           endpoint: 'https://r',
           pairedAt: '2026-05-15T10:30:00Z',
-          roomId: 'main',
         ),
       );
       final bridge = OwnerIdentityBridge(store, storage);
@@ -240,10 +239,9 @@ void main() {
       await storage.savePeer(
         const PeerRecord(
           remoteEpk: 'epk-old',
-          sessionName: 'pi',
+          name: 'pi',
           endpoint: 'https://r',
           pairedAt: '2026-05-15T10:30:00Z',
-          roomId: 'main',
         ),
       );
       final bridge = OwnerIdentityBridge(store, storage);
@@ -283,10 +281,9 @@ void main() {
         await storage.savePeer(
           const PeerRecord(
             remoteEpk: 'epk-stable',
-            sessionName: 'pi',
+            name: 'pi',
             endpoint: 'https://r',
             pairedAt: '2026-05-15T10:30:00Z',
-            roomId: 'main',
           ),
         );
         final bridge = OwnerIdentityBridge(store, storage);

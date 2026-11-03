@@ -1,507 +1,161 @@
-import 'dart:async';
-import 'dart:typed_data';
-
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/channel.dart';
-import 'package:app/data/transport/connection_manager.dart';
-import 'package:app/data/transport/peer_channel.dart';
-import 'package:app/pairing/pair_request_flow.dart';
-import 'package:app/protocol/protocol.dart';
-import 'package:app/pairing/storage.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _FakeStorage extends PairingStorage {
-  List<PeerRecord> peers;
-  _FakeStorage(this.peers);
+import '../../support/acp_harness.dart';
 
-  @override
-  Future<List<PeerRecord>> listPeers() async => List.of(peers);
-
-  @override
-  Future<void> savePeer(PeerRecord r) async {
-    peers = [r, ...peers.where((p) => p.remoteEpk != r.remoteEpk)];
-  }
-
-  @override
-  Future<void> deletePeer(String epk) async {
-    peers = peers.where((p) => p.remoteEpk != epk).toList();
-    notifyListeners();
-  }
-
-  // Rooms persistence is exercised when a RoomAnnounced lands on a real
-  // ConnectionManager (_persistRoomsForPeer). Keep it in-memory so the
-  // test never touches flutter_secure_storage (no binding in unit tests).
-  final Map<String, List<PersistedRoom>> _rooms = {};
-  @override
-  Future<void> saveRooms(String epk, List<PersistedRoom> rooms) async {
-    _rooms[epk] = rooms;
-  }
-
-  @override
-  Future<List<PersistedRoom>> loadRooms(String epk) async =>
-      _rooms[epk] ?? const [];
-
-  @override
-  Future<void> deleteRooms(String epk) async {
-    _rooms.remove(epk);
-  }
-}
-
-class _FakeSecureStorage implements FlutterSecureStorage {
-  final Map<String, String> _store = {};
-  @override
-  Future<String?> read({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async => _store[key];
-  @override
-  Future<void> write({
-    required String key,
-    required String? value,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    if (value == null) {
-      _store.remove(key);
-    } else {
-      _store[key] = value;
-    }
-  }
-
-  @override
-  Future<void> delete({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async => _store.remove(key);
-  @override
-  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
-}
-
-const _peerA = PeerRecord(
-  remoteEpk: 'epk_A',
-  sessionName: 'Pi A',
-  endpoint: 'ws://localhost',
-  pairedAt: '2026-01-01T00:00:00Z',
-  roomId: 'main',
-);
-const _peerB = PeerRecord(
-  remoteEpk: 'epk_B',
-  sessionName: 'Pi B',
-  endpoint: 'ws://localhost',
-  pairedAt: '2026-01-02T00:00:00Z',
-  roomId: 'main',
-);
-
-class _NoopTransport implements PeerTransport {
-  @override
-  Future<void> send(Uint8List data) async {}
-  @override
-  Future<Uint8List> receive() => Completer<Uint8List>().future;
-  @override
-  Future<void> close() async {}
-}
-
-PlainPeerChannel _channel() => PlainPeerChannel(transport: _NoopTransport());
-
-/// Lets a test inject control frames (presence / rooms / working)
-/// into a real ConnectionManager.
-class _ControllableChannel implements IChannel, IControlLink {
-  final _serverCtrl = StreamController<ServerMessage>.broadcast();
-  final _controlCtrl = StreamController<ControlInbound>.broadcast();
-
-  @override
-  Stream<ServerMessage> get serverMessages => _serverCtrl.stream;
-  @override
-  Stream<ControlInbound> get controlFrames => _controlCtrl.stream;
-  @override
-  Future<void> send(ClientMessage msg) async {}
-  @override
-  void sendControl(Map<String, dynamic> json) {}
-  @override
-  Future<void> close() async {
-    await _serverCtrl.close();
-    await _controlCtrl.close();
-  }
-
-  void pushControl(ControlInbound m) => _controlCtrl.add(m);
-}
-
-ConnectionManager _conn({_FakeStorage? storage}) {
-  return ConnectionManager(
-    factory: (_, _) async => _channel(),
-    storage: storage ?? _FakeStorage([]),
-  );
+Future<Preferences> _prefs() async {
+  FlutterSecureStorage.setMockInitialValues({});
+  final prefs = Preferences();
+  await prefs.load();
+  return prefs;
 }
 
 void main() {
   group('HomeViewModel', () {
-    test('isRoomWorking follows the host meta.working broadcast for ANY room — '
-        'including one that is NOT the connected session, and clears when the '
-        'host says the turn ended', () async {
-      // Reproduces the smoke-test bugs in sequence:
-      //  1) the dot only lit for the active chat (working came from the
-      //     connected peer's message channel), and
-      //  2) a session that FINISHED while the app was on another chat
-      //     stayed blue forever (the DB session index never got idled).
-      // Home now reads ONLY ConnectionManager.isRoomWorking — the host's
-      // per-room broadcast — which has no such blind spot.
-      final ch = _ControllableChannel();
-      final storage = _FakeStorage([_peerA]);
-      final conn = ConnectionManager(
-        factory: (_, _) async => ch,
-        storage: storage,
-        emitDebounce: Duration.zero,
-      );
-      final prefs = Preferences(_FakeSecureStorage());
-      final vm = HomeViewModel(storage, prefs, conn);
-      await conn.connectTo(_peerA);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-
-      // Room comes online idle.
-      ch.pushControl(
-        const RoomAnnounced(
-          peer: 'epk_A',
-          room: RoomInfo(roomId: 'r1', startedAt: 1),
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(vm.isRoomWorking('epk_A', 'r1'), isFalse);
-
-      // turn_start → the host pushes working=true.
-      ch.pushControl(
-        const RoomMetaUpdated(peer: 'epk_A', roomId: 'r1', working: true),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(vm.isRoomWorking('epk_A', 'r1'), isTrue);
-
-      // turn_end → meta.working=false → dot goes back off (this is the
-      // case that previously stayed blue forever).
-      ch.pushControl(
-        const RoomMetaUpdated(peer: 'epk_A', roomId: 'r1', working: false),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(vm.isRoomWorking('epk_A', 'r1'), isFalse);
-
-      vm.dispose();
-      await conn.disconnect();
-      conn.dispose();
-    });
-
-    test('initial state is HomeLoading', () {
-      final storage = _FakeStorage([_peerA]);
-      final prefs = Preferences(_FakeSecureStorage());
-      final vm = HomeViewModel(storage, prefs, _conn(storage: storage));
-      expect(vm.state, isA<HomeLoading>());
-      vm.dispose();
-    });
-
-    test('empty storage → HomeNoPeer', () async {
-      final storage = _FakeStorage([]);
-      final prefs = Preferences(_FakeSecureStorage());
-      final vm = HomeViewModel(storage, prefs, _conn(storage: storage));
-      await Future<void>.delayed(Duration.zero);
+    test('no paired computer → HomeNoPeer', () async {
+      final storage = MemoryStorage();
+      final hosts = testHosts(storage, FakeHost());
+      final vm = HomeViewModel(hosts, storage, await _prefs());
+      await hosts.start();
+      await settle();
       expect(vm.state, isA<HomeNoPeer>());
       vm.dispose();
+      hosts.dispose();
     });
 
-    test('two peers → HomeList containing both', () async {
-      final storage = _FakeStorage([_peerA, _peerB]);
-      final prefs = Preferences(_FakeSecureStorage());
-      final vm = HomeViewModel(storage, prefs, _conn(storage: storage));
-      await Future<void>.delayed(Duration.zero);
+    test('lists every computer\'s sessions, live', () async {
+      final a = testPeer(seed: 1, name: 'Desktop');
+      final b = testPeer(seed: 2, name: 'Laptop');
+      final storage = MemoryStorage([a, b]);
+      final hosts = testHostsFor(storage, {
+        a.remoteEpk: FakeHost(
+          sessions: [testSession(id: 'a1', title: 'API')],
+        ),
+        b.remoteEpk: FakeHost(
+          sessions: [testSession(id: 'b1', title: 'App')],
+        ),
+      });
+      final vm = HomeViewModel(hosts, storage, await _prefs());
+      await hosts.start();
+      await settle();
 
-      final s = vm.state as HomeList;
-      expect(s.peers.map((p) => p.remoteEpk), ['epk_A', 'epk_B']);
-
+      final state = vm.state as HomeList;
+      expect(state.peers, hasLength(2));
+      expect(vm.allItems.map((i) => i.displayName), ['API', 'App']);
+      expect(vm.isRoomLive(a.remoteEpk, 'a1'), isTrue);
       vm.dispose();
+      hosts.dispose();
     });
 
-    test(
-      'deleteDevice removes the selected computer and cached rooms',
-      () async {
-        final storage = _FakeStorage([_peerA, _peerB]);
-        final prefs = Preferences(_FakeSecureStorage());
-        final conn = _conn(storage: storage);
-        final vm = HomeViewModel(storage, prefs, conn);
-        await Future<void>.delayed(Duration.zero);
-        final removed = vm.devices.entries.firstWhere(
-          (entry) => entry.value.remoteEpk == _peerA.remoteEpk,
-        );
-        await vm.selectDevice(removed.key);
-        await storage.saveRooms(_peerA.remoteEpk, const [
-          PersistedRoom(roomId: 'room-a', startedAt: 1),
-        ]);
+    test('the working dot follows the computer for any session', () async {
+      final peer = testPeer();
+      final host = FakeHost(sessions: [testSession(id: 'r1')]);
+      final storage = MemoryStorage([peer]);
+      final hosts = testHosts(storage, host);
+      final vm = HomeViewModel(hosts, storage, await _prefs());
+      await hosts.start();
+      await settle();
+      expect(vm.isRoomWorking(peer.remoteEpk, 'r1'), isFalse);
 
-        await vm.deleteDevice(removed.key);
-        await Future<void>.delayed(Duration.zero);
+      host.push('_baya/session_changed', {
+        'session': testSession(id: 'r1', working: true).toJson(),
+      });
+      await settle();
+      expect(vm.isRoomWorking(peer.remoteEpk, 'r1'), isTrue);
 
-        expect(storage.peers.map((peer) => peer.remoteEpk), [_peerB.remoteEpk]);
-        expect(await storage.loadRooms(_peerA.remoteEpk), isEmpty);
-        expect(prefs.selectedDeviceEpk, isNull);
-        expect((vm.state as HomeList).peers.map((peer) => peer.remoteEpk), [
-          _peerB.remoteEpk,
-        ]);
-
-        vm.dispose();
-        conn.dispose();
-        prefs.dispose();
-      },
-    );
-
-    test('openSession writes selectedPeerEpk to Preferences', () async {
-      final storage = _FakeStorage([_peerA, _peerB]);
-      final prefs = Preferences(_FakeSecureStorage());
-      final vm = HomeViewModel(storage, prefs, _conn(storage: storage));
-      await Future<void>.delayed(Duration.zero);
-
-      await vm.openSession('epk_B');
-      expect(prefs.selectedPeerEpk, 'epk_B');
-
+      host.push('_baya/session_changed', {
+        'session': testSession(id: 'r1').toJson(),
+      });
+      await settle();
+      expect(vm.isRoomWorking(peer.remoteEpk, 'r1'), isFalse);
       vm.dispose();
+      hosts.dispose();
     });
 
-    test(
-      'openSession ONLY sets prefs '
-      '(no switchTo from Home — boot races would otherwise happen)',
-      () async {
-        final storage = _FakeStorage([_peerA, _peerB]);
-        final prefs = Preferences(_FakeSecureStorage());
-        final connects = <String>[];
-        final conn = ConnectionManager(
-          factory: (peer, _) async {
-            connects.add(peer.remoteEpk);
-            return _channel();
-          },
-          storage: storage,
-        );
-        final vm = HomeViewModel(storage, prefs, conn);
-        await Future<void>.delayed(Duration.zero);
+    test('deleting a session deletes it on the computer', () async {
+      final peer = testPeer();
+      final host = FakeHost(
+        sessions: [
+          testSession(id: 'r1'),
+          testSession(id: 'r2'),
+        ],
+      );
+      final storage = MemoryStorage([peer]);
+      final hosts = testHosts(storage, host);
+      final vm = HomeViewModel(hosts, storage, await _prefs());
+      await hosts.start();
+      await settle();
 
-        await vm.openSession('epk_B');
-        await Future<void>.delayed(const Duration(milliseconds: 30));
-
-        expect(prefs.selectedPeerEpk, 'epk_B');
-        expect(
-          connects,
-          isEmpty,
-          reason:
-              'Home must NOT call the connection factory — chat owns '
-              'the switchTo decision',
-        );
-        expect(conn.activePeer, isNull);
-
-        vm.dispose();
-        conn.dispose();
-      },
-    );
-
-    test('openSession with unknown epk is a no-op', () async {
-      final storage = _FakeStorage([_peerA]);
-      final prefs = Preferences(_FakeSecureStorage());
-      final vm = HomeViewModel(storage, prefs, _conn(storage: storage));
-      await Future<void>.delayed(Duration.zero);
-
-      await vm.openSession('epk_unknown');
-      expect(prefs.selectedPeerEpk, isNull);
-
+      await vm.deleteSession(
+        vm.allItems.firstWhere((i) => i.sessionId == 'r1'),
+      );
+      await settle();
+      expect(host.calls.last.params, {'sessionId': 'r1'});
+      expect(vm.allItems.map((i) => i.sessionId), ['r2']);
       vm.dispose();
+      hosts.dispose();
     });
 
-    test(
-      'openSession with roomId persists the composite epk:room AND '
-      'awaits before returning — caller can rely on Preferences being '
-      'updated before navigating to /chat (race-condition regression)',
-      () async {
-        final storage = _FakeStorage([_peerA]);
-        final prefs = Preferences(_FakeSecureStorage());
-        final vm = HomeViewModel(storage, prefs, _conn(storage: storage));
-        await Future<void>.delayed(Duration.zero);
+    test('forgetting a computer drops it and its cached sessions', () async {
+      final a = testPeer(seed: 1, name: 'A');
+      final b = testPeer(seed: 2, name: 'B');
+      final storage = MemoryStorage([a, b]);
+      storage.sessions[a.remoteEpk] = [testSession()];
+      final hosts = testHosts(storage, FakeHost());
+      final prefs = await _prefs();
+      final vm = HomeViewModel(hosts, storage, prefs);
+      await hosts.start();
+      await settle();
+      await vm.selectDevice(a.remoteEpk);
 
-        // Seed prefs with a DIFFERENT room (simulating the previous
-        // chat the user was looking at).
-        await prefs.setSelectedRoom(epk: 'epk_A', roomId: 'room-previous');
-        expect(prefs.selectedRoomId, 'room-previous');
-
-        // Now tap a new room → openSession completes, prefs reflect it.
-        await vm.openSession('epk_A', roomId: 'room-target');
-
-        // After awaiting openSession, prefs ARE updated. If
-        // ChatViewModel.bootstrap reads prefs at this point, it sees
-        // the correct room.
-        expect(prefs.selectedPeerEpk, 'epk_A');
-        expect(prefs.selectedRoomId, 'room-target');
-
-        vm.dispose();
-      },
-    );
+      await vm.deleteDevice(a.remoteEpk);
+      await settle();
+      expect(storage.peers, [b]);
+      expect(storage.sessions[a.remoteEpk], isNull);
+      expect(prefs.selectedDeviceEpk, isNull);
+      expect((vm.state as HomeList).peers, [b]);
+      vm.dispose();
+      hosts.dispose();
+    });
   });
 
   group('HomeViewModel — presence filter', () {
-    test('counts / visibleItems split rooms by liveness; setFilter re-derives '
-        'without reloading', () async {
-      final ch = _ControllableChannel();
-      final storage = _FakeStorage([_peerA]);
-      final conn = ConnectionManager(
-        factory: (_, _) async => ch,
-        storage: storage,
-        emitDebounce: Duration.zero,
-      );
-      final prefs = Preferences(_FakeSecureStorage());
-      final vm = HomeViewModel(storage, prefs, conn);
-      await conn.connectTo(_peerA);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-
-      // r1 stays live; r2 is announced then ended → cached but offline
-      // (grey tile — still in _roomsByPeer, dropped from _liveRoomIds).
-      ch.pushControl(
-        const RoomAnnounced(
-          peer: 'epk_A',
-          room: RoomInfo(roomId: 'r1', startedAt: 1),
-        ),
-      );
-      ch.pushControl(
-        const RoomAnnounced(
-          peer: 'epk_A',
-          room: RoomInfo(roomId: 'r2', startedAt: 2),
-        ),
-      );
-      ch.pushControl(const RoomEnded(peer: 'epk_A', roomId: 'r2', sinceTs: 3));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-
-      // Sanity — one live, one cached/offline.
-      expect(vm.isRoomLive('epk_A', 'r1'), isTrue);
-      expect(vm.isRoomLive('epk_A', 'r2'), isFalse);
-
-      // Counts are independent of the selected tab.
-      expect(vm.counts, (all: 2, online: 1, offline: 1));
-
-      // Default tab is Online → only the live room is visible.
-      expect((vm.state as HomeList).filter, HomeFilter.online);
-      expect(vm.visibleItems.map((i) => i.room.roomId).toList(), ['r1']);
-
-      // Offline → only the cached room.
-      vm.setFilter(HomeFilter.offline);
-      expect((vm.state as HomeList).filter, HomeFilter.offline);
-      expect(vm.visibleItems.map((i) => i.room.roomId).toList(), ['r2']);
-
-      // All → both (sorted), and the counts are unchanged.
-      vm.setFilter(HomeFilter.all);
-      expect(vm.visibleItems.map((i) => i.room.roomId).toList(), ['r1', 'r2']);
-      expect(vm.counts, (all: 2, online: 1, offline: 1));
-
-      vm.dispose();
-      await conn.disconnect();
-      conn.dispose();
-    });
-
     test(
-      'setFilter is a no-op when the tab is unchanged, and emits exactly once '
-      'when it changes',
+      'online and offline split by whether the computer is connected',
       () async {
-        final storage = _FakeStorage([_peerA]);
-        final prefs = Preferences(_FakeSecureStorage());
-        final vm = HomeViewModel(storage, prefs, _conn(storage: storage));
-        await Future<void>.delayed(Duration.zero);
+        final up = testPeer(seed: 1, name: 'Up');
+        final down = testPeer(seed: 2, name: 'Down');
+        final storage = MemoryStorage([up, down]);
+        storage.sessions[down.remoteEpk] = [testSession(id: 'cached')];
+        final hosts = testHostsFor(storage, {
+          up.remoteEpk: FakeHost(sessions: [testSession(id: 'live')]),
+        });
+        final vm = HomeViewModel(hosts, storage, await _prefs());
+        await hosts.start();
+        await settle();
 
-        expect((vm.state as HomeList).filter, HomeFilter.online);
-        var notifies = 0;
-        vm.addListener(() => notifies++);
-
-        vm.setFilter(HomeFilter.online); // same tab → no emit
-        expect(notifies, 0);
-
-        vm.setFilter(HomeFilter.offline); // changed → one emit
-        expect(notifies, 1);
-        expect((vm.state as HomeList).filter, HomeFilter.offline);
-
+        expect(vm.counts, (all: 2, online: 1, offline: 1));
+        expect(vm.visibleItems.map((i) => i.sessionId), ['live']);
+        vm.setFilter(HomeFilter.offline);
+        expect(vm.visibleItems.map((i) => i.sessionId), ['cached']);
+        vm.setFilter(HomeFilter.all);
+        expect(vm.visibleItems, hasLength(2));
         vm.dispose();
+        hosts.dispose();
       },
     );
 
-    test('counts / visibleItems are empty-safe outside a HomeList', () {
-      final storage = _FakeStorage([_peerA]);
-      final prefs = Preferences(_FakeSecureStorage());
-      final vm = HomeViewModel(storage, prefs, _conn(storage: storage));
-
-      // Synchronously still HomeLoading — the getters must not throw.
-      expect(vm.state, isA<HomeLoading>());
+    test('counts and visibleItems are empty outside a list', () {
+      final storage = MemoryStorage();
+      final hosts = testHosts(storage, FakeHost());
+      final vm = HomeViewModel(hosts, storage, Preferences());
       expect(vm.counts, (all: 0, online: 0, offline: 0));
       expect(vm.visibleItems, isEmpty);
-
       vm.dispose();
+      hosts.dispose();
     });
-
-    test(
-      'complete inventory prunes only rooms its computer no longer has',
-      () async {
-        final ch = _ControllableChannel();
-        final storage = _FakeStorage([_peerA, _peerB]);
-        final conn = ConnectionManager(
-          factory: (_, _) async => ch,
-          storage: storage,
-          emitDebounce: Duration.zero,
-        );
-        final prefs = Preferences(_FakeSecureStorage());
-        final vm = HomeViewModel(storage, prefs, conn);
-        await conn.connectTo(_peerA);
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-
-        const kept = 'AAAAAAAAAAAA';
-        const deleted = 'BBBBBBBBBBBB';
-        const future = 'CCCCCCCCCCCC';
-        ch.pushControl(
-          const RoomAnnounced(
-            peer: 'epk_A',
-            room: RoomInfo(roomId: kept, startedAt: 100),
-          ),
-        );
-        ch.pushControl(
-          const RoomAnnounced(
-            peer: 'epk_A',
-            room: RoomInfo(roomId: deleted, startedAt: 100),
-          ),
-        );
-        ch.pushControl(
-          const RoomAnnounced(
-            peer: 'epk_A',
-            room: RoomInfo(roomId: future, startedAt: 300),
-          ),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-
-        final removed = await vm.reconcileSessionInventoryForPeer(
-          'epk_A',
-          roomIds: const {kept},
-          scannedAt: 200,
-        );
-
-        expect(removed, 1);
-        expect(prefs.isSessionHidden('epk_A', deleted), isTrue);
-        expect(prefs.isSessionHidden('epk_A', kept), isFalse);
-        expect(prefs.isSessionHidden('epk_A', future), isFalse);
-
-        vm.dispose();
-        await conn.disconnect();
-        conn.dispose();
-        prefs.dispose();
-      },
-    );
   });
 }

@@ -30,7 +30,7 @@ class NewSessionReady extends NewSessionState {
     this.workspaces = const [],
     this.selectedWorkspace,
     this.directory,
-    this.agent = WorkspaceAgent.pi,
+    this.agent = const WorkspaceAgent(id: '', label: ''),
     this.loading = false,
     this.opening = false,
     this.showHidden = false,

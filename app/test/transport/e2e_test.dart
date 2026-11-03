@@ -7,10 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   final fixture = jsonDecode(
-    File('../.orchestration/contracts/e2e_v1.json').readAsStringSync(),
+    File('../.orchestration/contracts/e2e_v2.json').readAsStringSync(),
   ) as Map<String, dynamic>;
   List<int> b64(String key) => base64.decode(fixture[key] as String);
-  final room = fixture['room'] as String;
   final ts = DateTime.fromMillisecondsSinceEpoch(fixture['ts'] as int);
   final p2h = fixture['p2h'] as Map<String, dynamic>;
   final h2p = fixture['h2p'] as Map<String, dynamic>;
@@ -39,7 +38,6 @@ void main() {
     final sealed = await seal(
       key,
       E2EDirection.phoneToHost,
-      room,
       utf8.encode(p2h['plaintext'] as String),
       now: ts,
       nonce: base64.decode(p2h['nonce'] as String),
@@ -49,22 +47,20 @@ void main() {
     final opened = await open(
       key,
       E2EDirection.hostToPhone,
-      room,
       base64.decode(h2p['box'] as String),
     );
     expect(utf8.decode(opened.plaintext), h2p['plaintext']);
     expect(opened.sentAt, ts);
   });
 
-  test('direction, room, and tampering are authenticated', () async {
+  test('direction and tampering are authenticated', () async {
     final key = SecretKey(b64('session_key'));
     final box = base64.decode(h2p['box'] as String);
     final tampered = [...box]..[20] ^= 1;
     for (final attempt in [
-      () => open(key, E2EDirection.phoneToHost, room, box),
-      () => open(key, E2EDirection.hostToPhone, 'other', box),
-      () => open(key, E2EDirection.hostToPhone, room, tampered),
-      () => open(key, E2EDirection.hostToPhone, room, utf8.encode('{}')),
+      () => open(key, E2EDirection.phoneToHost, box),
+      () => open(key, E2EDirection.hostToPhone, tampered),
+      () => open(key, E2EDirection.hostToPhone, utf8.encode('{}')),
     ]) {
       await expectLater(attempt(), throwsA(isA<E2EException>()));
     }
@@ -75,7 +71,6 @@ void main() {
     final opened = await open(
       key,
       E2EDirection.hostToPhone,
-      room,
       base64.decode(h2p['box'] as String),
     );
     final guard = ReplayGuard(const Duration(seconds: 1));

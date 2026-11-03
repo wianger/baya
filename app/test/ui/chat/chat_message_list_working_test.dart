@@ -1,3 +1,4 @@
+import 'package:app/acp/acp.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/ui/chat/chat_page.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -7,21 +8,16 @@ import 'package:flutter_test/flutter_test.dart';
 Future<void> _pumpList(
   WidgetTester tester, {
   required bool working,
-  StreamingMessage? streaming,
+  List<ChatMessage> messages = const [
+    UserMsg(id: 'u1', text: 'Keep working until the task is finished.'),
+    ToolEvent(id: 't1', toolCallId: 't1', title: 'Read pubspec.yaml'),
+  ],
 }) {
   return tester.pumpWidget(
     MaterialApp(
       theme: buildLightTheme(),
       home: Scaffold(
-        body: ChatMessageList(
-          messages: const [
-            UserMsg(id: 'u1', text: 'Keep working until the task is finished.'),
-            AssistantMsg(id: 'a1', text: 'I am checking the project now.'),
-          ],
-          streaming: streaming,
-          working: working,
-          onDecide: (_, _) {},
-        ),
+        body: ChatMessageList(messages: messages, working: working),
       ),
     ),
   );
@@ -42,15 +38,13 @@ void main() {
               ToolEvent(
                 id: 'tool-1',
                 toolCallId: 'tool-1',
-                tool: 'command',
-                args: {'command': 'flutter test'},
+                title: 'flutter test',
+                kind: ToolKind.execute,
                 status: ToolEventStatus.completed,
               ),
               AssistantMsg(id: 'u1', text: 'The fix is complete.'),
             ],
-            streaming: null,
             working: false,
-            onDecide: (_, _) {},
           ),
         ),
       ),
@@ -73,7 +67,7 @@ void main() {
     expect(find.byKey(const Key('streaming-cursor')), findsNothing);
     expect(
       tester.getRect(indicator).top,
-      greaterThan(tester.getRect(find.byKey(const ValueKey('a1'))).bottom),
+      greaterThan(tester.getRect(find.byKey(const ValueKey('u1'))).bottom),
     );
   });
 
@@ -87,21 +81,17 @@ void main() {
     expect(find.byKey(const Key('agent-working-indicator')), findsNothing);
   });
 
-  testWidgets('streaming text uses its cursor without a duplicate loader', (
-    tester,
-  ) async {
+  testWidgets('a reply being written replaces the loader', (tester) async {
     await _pumpList(
       tester,
       working: true,
-      streaming: const StreamingMessage(
-        inReplyTo: 'u1',
-        buffer: 'I found the first part of the answer.',
-      ),
+      messages: const [
+        UserMsg(id: 'u1', text: 'Question'),
+        AssistantMsg(id: 'a1', text: 'I found the first part of the answer.'),
+      ],
     );
     await tester.pump();
-
-    expect(find.byKey(const Key('streaming-cursor')), findsOneWidget);
+    expect(find.text('I found the first part of the answer.'), findsOneWidget);
     expect(find.byKey(const Key('agent-working-indicator')), findsNothing);
-    expect(find.byKey(const Key('agent-working')), findsNothing);
   });
 }

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/config/dependencies.dart';
-import 'package:app/data/local/boxes.dart';
+import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/routing/app_router.dart';
@@ -18,13 +18,7 @@ import 'package:provider/provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   registerAppFontLicenses();
-  // Open the v2 SSOT boxes + WIPE the volatile runtime box BEFORE
-  // anything subscribes (#3 / Risk 2).
-  await LocalBoxes.init();
   await setupDependencies();
-  // Eagerly construct the SSOT writer so it's consuming the channel from boot
-  // (messages can arrive before the chat screen mounts).
-  services.sync;
   runApp(const BayaApp());
 }
 
@@ -35,10 +29,10 @@ class BayaApp extends StatefulWidget {
   State<BayaApp> createState() => _BayaAppState();
 }
 
-class _BayaAppState extends State<BayaApp> {
+class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
   late final _router = buildRouter(
     services.storage,
-    services.connection,
+    services.hosts,
     services.prefs,
     services.ownerBridge,
   );
@@ -48,8 +42,15 @@ class _BayaAppState extends State<BayaApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Includes the link that cold-started the app.
     _links = AppLinks().uriLinkStream.listen(_openLink);
+  }
+
+  /// Back in the foreground: reconnect now instead of waiting out a backoff.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) services.hosts.reconnectAll();
   }
 
   /// `baya://pair?…` opens pairing with the code already filled in. A link
@@ -70,6 +71,7 @@ class _BayaAppState extends State<BayaApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _links?.cancel();
     disposeDependencies();
     super.dispose();
@@ -89,6 +91,7 @@ class _BayaAppState extends State<BayaApp> {
           value: services.identityStore,
         ),
         ChangeNotifierProvider<ShellLayout>.value(value: services.shellLayout),
+        ChangeNotifierProvider<Hosts>.value(value: services.hosts),
       ],
       // Theme is reactive: toggling the mode in Settings notifies
       // [Preferences] → this Consumer rebuilds → MaterialApp swaps theme.

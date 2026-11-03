@@ -25,14 +25,14 @@ Future<void> openSession(
 }) async {
   final vm = context.read<HomeViewModel>();
   try {
-    await vm.openSession(item.peer.remoteEpk, roomId: item.room.roomId);
+    await vm.openSession(item.peer.remoteEpk, item.sessionId);
     if (!context.mounted) return;
-    final device = item.peer.nickname ?? item.peer.sessionName;
-    final online = vm.isRoomLive(item.peer.remoteEpk, item.room.roomId);
+    final device = item.peer.label;
+    final online = vm.isRoomLive(item.peer.remoteEpk, item.sessionId);
     final displayName = vm.displayNameOf(item);
     context.read<SessionSelection>().select(
       item.peer.remoteEpk,
-      item.room.roomId,
+      item.sessionId,
       displayName,
       device,
       online,
@@ -80,7 +80,7 @@ Future<void> showPreviousSessions(
 Future<void> deleteFromPhone(BuildContext context, HomeItem item) async {
   final vm = context.read<HomeViewModel>();
   final selection = context.read<SessionSelection>();
-  final wasSelected = selection.matches(item.peer.remoteEpk, item.room.roomId);
+  final wasSelected = selection.matches(item.peer.remoteEpk, item.sessionId);
   final confirmed = await showSessionDeleteDialog(
     context,
     name: item.displayName,

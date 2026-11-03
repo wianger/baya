@@ -1,50 +1,21 @@
 import 'package:app/domain/contracts/repository.dart';
 
-/// Agent metadata supplied by the selected computer, identified by a stable id.
+/// An agent set up on the selected computer (`baya agents`).
 class WorkspaceAgent {
   const WorkspaceAgent({
     required this.id,
     required this.label,
-    this.description = '',
     this.available = true,
-    this.unavailableReason,
   });
-  // The agents the host knows; the catalog it reports may differ.
-  static const pi = WorkspaceAgent(
-    id: 'pi',
-    label: 'Pi',
-    description: 'Pi coding agent',
-  );
-  static const codex = WorkspaceAgent(
-    id: 'codex',
-    label: 'Codex',
-    description: 'Codex coding agent',
-  );
-  static const deepseek = WorkspaceAgent(
-    id: 'deepseek',
-    label: 'DeepSeek',
-    description: 'DeepSeek Harness',
-  );
   final String id;
   final String label;
-  final String description;
   final bool available;
-  final String? unavailableReason;
 
   @override
   bool operator ==(Object other) => other is WorkspaceAgent && other.id == id;
   @override
   int get hashCode => id.hashCode;
 }
-
-/// Display label of an agent id (`codex` → `Codex`).
-String workspaceAgentLabel(String? agent) => switch (agent) {
-  null || '' => '',
-  'pi' => WorkspaceAgent.pi.label,
-  'codex' => WorkspaceAgent.codex.label,
-  'deepseek' => WorkspaceAgent.deepseek.label,
-  _ => agent[0].toUpperCase() + agent.substring(1),
-};
 
 class WorkspaceHost {
   const WorkspaceHost({
@@ -93,6 +64,8 @@ class WorkspaceDirectory {
   final String? parent;
   final List<String> roots;
   final List<WorkspaceFolder> folders;
+
+  /// The computer's agents (from `initialize`), for the agent picker.
   final List<WorkspaceAgent> agents;
   List<WorkspaceAgent> get availableAgents =>
       agents.where((agent) => agent.available).toList(growable: false);
@@ -104,7 +77,7 @@ class OpenedWorkspace {
     required this.hostId,
     required this.hostLabel,
     required this.path,
-    required this.roomId,
+    required this.sessionId,
     required this.name,
     required this.agent,
     this.workspaceKey,
@@ -112,7 +85,7 @@ class OpenedWorkspace {
   final String hostId;
   final String hostLabel;
   final String path;
-  final String roomId;
+  final String sessionId;
   final String name;
   final WorkspaceAgent agent;
   final String? workspaceKey;
@@ -121,17 +94,11 @@ class OpenedWorkspace {
     hostId: hostId,
     hostLabel: hostLabel,
     path: path,
-    roomId: roomId,
+    sessionId: sessionId,
     name: name,
     agent: agent,
     workspaceKey: key,
   );
-}
-
-class WorkspaceSelection {
-  const WorkspaceSelection(this.hostId, this.roomId);
-  final String hostId;
-  final String roomId;
 }
 
 class WorkspaceFailure implements Exception {
@@ -142,7 +109,6 @@ class WorkspaceFailure implements Exception {
 }
 
 abstract class IWorkspaceRepository extends Repository {
-  WorkspaceSelection? get currentSelection;
   Future<List<WorkspaceHost>> listHosts();
   Future<WorkspaceDirectory> browse(
     String hostId, {
@@ -154,5 +120,4 @@ abstract class IWorkspaceRepository extends Repository {
     String path,
     WorkspaceAgent agent,
   );
-  Future<void> restore(WorkspaceSelection? selection);
 }

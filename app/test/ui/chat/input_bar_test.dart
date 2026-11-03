@@ -2,7 +2,6 @@
 // chat input bar.
 
 import 'package:app/domain/entities/agent_command.dart';
-import 'package:app/domain/session_state.dart';
 import 'package:app/ui/chat/widgets/input_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
@@ -242,7 +241,7 @@ void main() {
     await tester.pumpAndSettle();
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.enabled, isTrue);
-    expect(field.decoration?.hintText, 'Steer current response…');
+    expect(field.decoration?.hintText, 'Queue a follow-up…');
     // The composer action button uses the lighter `300` weight variants
     // (see _ComposerActionButton._icon) — match those, not the plain glyphs.
     expect(find.byIcon(LucideIcons.square300), findsOneWidget); // stop
@@ -250,10 +249,9 @@ void main() {
     expect(find.byIcon(LucideIcons.mic300), findsNothing);
   });
 
-  testWidgets('streaming + text uses existing send button for steer', (
+  testWidgets('streaming + text sends a follow-up with the send button', (
     tester,
   ) async {
-    String? queued;
     String? sent;
     await tester.pumpWidget(
       MaterialApp(
@@ -263,7 +261,6 @@ void main() {
             streaming: true,
             onSend: (text) => sent = text,
             onCancel: () {},
-            onSetQueued: (text) => queued = text,
           ),
         ),
       ),
@@ -276,76 +273,6 @@ void main() {
     await tester.pump();
 
     expect(sent, 'steer me');
-    expect(queued, isNull);
-    expect(
-      tester.widget<TextField>(find.byType(TextField)).controller?.text,
-      '',
-    );
-  });
-
-  testWidgets('queued preview edits and clears by id', (tester) async {
-    String? cleared;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: InputBar(
-            disabled: false,
-            streaming: true,
-            queuedMessages: [
-              QueuedMsg(
-                id: 'q1',
-                text: 'queued text',
-                editable: true,
-                createdAt: DateTime.fromMillisecondsSinceEpoch(1),
-              ),
-            ],
-            onSend: (_) {},
-            onCancel: () {},
-            onClearQueued: (id) => cleared = id,
-          ),
-        ),
-      ),
-    );
-
-    expect(find.text('queued text'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('input-bar-queued-preview')));
-    await tester.pump();
-
-    expect(cleared, 'q1');
-    expect(
-      tester.widget<TextField>(find.byType(TextField)).controller?.text,
-      'queued text',
-    );
-  });
-
-  testWidgets('read-only queued preview has no clear affordance', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: InputBar(
-            disabled: false,
-            streaming: true,
-            queuedMessages: [
-              QueuedMsg(
-                id: 'q1',
-                text: 'queued text',
-                editable: false,
-                createdAt: DateTime.fromMillisecondsSinceEpoch(1),
-              ),
-            ],
-            onSend: (_) {},
-            onCancel: () {},
-            onClearQueued: (_) {},
-          ),
-        ),
-      ),
-    );
-
-    expect(find.byKey(const Key('input-bar-clear-queued')), findsNothing);
-    await tester.tap(find.byKey(const Key('input-bar-queued-preview')));
-    await tester.pump();
     expect(
       tester.widget<TextField>(find.byType(TextField)).controller?.text,
       '',

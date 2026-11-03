@@ -1,192 +1,38 @@
-import 'dart:async';
-
-import 'agent_catalog.dart';
-
-import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/channel.dart';
-import 'package:app/data/transport/connection_manager.dart';
-import 'package:app/data/transport/epk_encoding.dart';
+import 'package:app/acp/acp.dart';
+import 'package:app/data/hosts/host_connection.dart';
+import 'package:app/data/hosts/hosts.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
-import 'package:app/pairing/storage.dart';
-import 'package:app/protocol/protocol.dart';
-import 'package:app/protocol/uuid7.dart';
 
+/// Folders and new sessions on a paired computer (`_baya/browse`,
+/// `session/new`).
 class WorkspaceRepository extends IWorkspaceRepository {
-  WorkspaceRepository(
-    this._connection,
-    this._storage,
-    this._preferences, {
-    this.timeout = const Duration(seconds: 25),
-  });
-  final ConnectionManager _connection;
-  final PairingStorage _storage;
-  final Preferences _preferences;
-  final Duration timeout;
-  int _generation = 0;
-  Future<void> _connectionQueue = Future<void>.value();
+  WorkspaceRepository(this._hosts);
 
-  void _ensureCurrent(int generation) {
-    if (generation != _generation) {
-      throw const WorkspaceFailure('Folder request cancelled.');
-    }
-  }
-
-  // A slow switch must finish before a restore/new switch can take ownership.
-  // Invalidated requests never change the room or send on the newer channel.
-  Future<void> _switchConnection(
-    PeerRecord peer,
-    String roomId,
-    int generation,
-  ) {
-    final operation = _connectionQueue.then((_) async {
-      _ensureCurrent(generation);
-      await _connection.switchTo(peer.copyWith(roomId: roomId));
-      _ensureCurrent(generation);
-      _connection.switchRoom(roomId);
-    });
-    _connectionQueue = operation.then<void>(
-      (_) {},
-      onError: (Object _, StackTrace _) {},
-    );
-    return operation;
-  }
+  final Hosts _hosts;
 
   @override
-  WorkspaceSelection? get currentSelection {
-    final peer = _connection.activePeer;
-    return peer == null
-        ? null
-        : WorkspaceSelection(peer.remoteEpk, _connection.activeRoomId);
-  }
+  Future<List<WorkspaceHost>> listHosts() async => [
+    for (final host in _hosts.all)
+      WorkspaceHost(
+        id: host.key,
+        label: host.host.label,
+        online: host.isOnline,
+      ),
+  ];
 
-  String _label(PeerRecord peer) {
-    if (peer.nickname?.isNotEmpty == true) return peer.nickname!;
-    return peer.sessionName;
-  }
-
-  bool _online(PeerRecord peer) => _connection
-      .roomsFor(peer.remoteEpk)
-      .any((room) => _connection.isRoomLive(peer.remoteEpk, room.roomId));
-
-  @override
-  Future<List<WorkspaceHost>> listHosts() async {
-    final peers = await _storage.listPeers();
-    _connection.subscribeToPeers(peers.map((peer) => peer.remoteEpk).toList());
-    return peers
-        .map(
-          (peer) => WorkspaceHost(
-            id: peer.remoteEpk,
-            label: _label(peer),
-            online: _online(peer),
-          ),
-        )
-        .toList();
-  }
-
-  Future<PeerRecord> _peer(String hostId) async {
-    final peers = await _storage.listPeers();
-    for (final peer in peers) {
-      if (toStandardB64(peer.remoteEpk) == toStandardB64(hostId)) return peer;
-    }
-    throw const WorkspaceFailure(
-      'Pair this computer before opening a session.',
-    );
-  }
-
-  Future<IChannel> _connect(String hostId, int generation) async {
-    final peer = await _peer(hostId);
-    _ensureCurrent(generation);
-    final rooms = _connection
-        .roomsFor(peer.remoteEpk)
-        .where((room) => _connection.isRoomLive(peer.remoteEpk, room.roomId))
-        .toList();
-    if (rooms.isEmpty) {
+  HostConnection _host(String hostId) {
+    final host = _hosts.byKey(hostId);
+    if (host == null) {
       throw const WorkspaceFailure(
-        'This computer is offline. Start Baya on the computer and try again.',
+        'Pair this computer before opening a session.',
       );
     }
-    final current = _connection.activeRoomId;
-    final room = rooms.firstWhere(
-      (entry) => entry.roomId == current,
-      orElse: () => rooms.first,
-    );
-    await _switchConnection(peer, room.roomId, generation);
-    _ensureCurrent(generation);
-    final channel = _connection.channel;
-    if (channel == null) {
-      throw const WorkspaceFailure('Could not connect to this computer.');
+    if (!host.isOnline) {
+      throw WorkspaceFailure(
+        '${host.host.label} is offline. Start Baya on the computer and try again.',
+      );
     }
-    return channel;
-  }
-
-  Future<Map<String, dynamic>> _request(
-    String hostId,
-    ClientMessage Function(String) makeMessage,
-    int generation,
-  ) async {
-    final channel = await _connect(hostId, generation);
-    _ensureCurrent(generation);
-    final id = uuid7();
-    final completer = Completer<Map<String, dynamic>>();
-    late final StreamSubscription<ServerMessage> subscription;
-    subscription = channel.serverMessages.listen(
-      (message) {
-        switch (message) {
-          case WorkspaceListing(:final inReplyTo, :final directory)
-              when inReplyTo == id:
-            if (!completer.isCompleted) completer.complete(directory);
-          case WorkspaceOpened(:final inReplyTo, :final workspace)
-              when inReplyTo == id:
-            if (!completer.isCompleted) completer.complete(workspace);
-          case WorkspaceError(:final inReplyTo, :final error)
-              when inReplyTo == id:
-            if (!completer.isCompleted) {
-              completer.completeError(WorkspaceFailure(error));
-            }
-          case ErrorMessage(:final inReplyTo, :final message)
-              when inReplyTo == id:
-            if (!completer.isCompleted) {
-              completer.completeError(WorkspaceFailure(message));
-            }
-          default:
-            break;
-        }
-      },
-      onDone: () {
-        if (!completer.isCompleted) {
-          completer.completeError(
-            const WorkspaceFailure('The computer disconnected.'),
-          );
-        }
-      },
-      onError: (Object _, StackTrace _) {
-        if (!completer.isCompleted) {
-          completer.completeError(
-            const WorkspaceFailure('The computer disconnected.'),
-          );
-        }
-      },
-    );
-    // Observe reply errors immediately: a synchronous channel can reply while
-    // send() is still completing. Keep those errors on the awaited chain.
-    final reply = completer.future.timeout(
-      timeout,
-      onTimeout: () {
-        throw const WorkspaceFailure(
-          'The computer did not respond. Update Baya on the computer and reconnect.',
-        );
-      },
-    );
-    try {
-      final results = await Future.wait<dynamic>([
-        reply,
-        channel.send(makeMessage(id)),
-      ], eagerError: true);
-      _ensureCurrent(generation);
-      return results.first as Map<String, dynamic>;
-    } finally {
-      await subscription.cancel();
-    }
+    return host;
   }
 
   @override
@@ -195,54 +41,38 @@ class WorkspaceRepository extends IWorkspaceRepository {
     String? path,
     bool showHidden = false,
   }) async {
-    final generation = ++_generation;
+    final host = _host(hostId);
+    final Map<String, dynamic> data;
     try {
-      final data = await _request(
-        hostId,
-        (id) => WorkspaceBrowse(id: id, path: path, showHidden: showHidden),
-        generation,
-      );
-      final directories = (data['directories'] as List)
-          .cast<Map<Object?, Object?>>();
-      return WorkspaceDirectory(
-        path: data['path'] as String,
-        home: data['home'] as String,
-        parent: data['parent'] as String?,
-        roots: (data['roots'] as List).cast<String>(),
-        folders: directories
-            .map(
-              (entry) => WorkspaceFolder(
-                name: entry['name'] as String,
-                path: entry['path'] as String,
-              ),
-            )
-            .toList(),
-        agents: decodeWorkspaceAgents(data['agents']),
-        truncated: data['truncated'] == true,
-      );
-    } on WorkspaceFailure {
-      rethrow;
-    } catch (_) {
-      throw const WorkspaceFailure(
-        'Could not read the folders on this computer.',
-      );
+      data = await host.call('_baya/browse', {
+        'path': ?path,
+        'showHidden': showHidden,
+      });
+    } catch (error) {
+      throw WorkspaceFailure('$error');
     }
-  }
-
-  Future<void> _waitForRoom(
-    String hostId, {
-    required String roomId,
-    required WorkspaceAgent agent,
-    required int generation,
-  }) async {
-    final deadline = DateTime.now().add(timeout);
-    while (DateTime.now().isBefore(deadline)) {
-      _ensureCurrent(generation);
-      if (_connection.isRoomLive(hostId, roomId)) return;
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-    }
-    throw WorkspaceFailure(
-      '${agent.label} did not come online. Check its sign-in and startup on the computer, then try again.',
+    return WorkspaceDirectory(
+      path: data['path'] as String,
+      home: data['home'] as String,
+      parent: data['parent'] as String?,
+      roots: (data['roots'] as List).cast<String>(),
+      folders: [
+        for (final entry
+            in (data['directories'] as List).cast<Map<String, dynamic>>())
+          WorkspaceFolder(
+            name: entry['name'] as String,
+            path: entry['path'] as String,
+          ),
+      ],
+      agents: [
+        for (final agent in host.agents)
+          WorkspaceAgent(
+            id: agent.id,
+            label: agent.name,
+            available: agent.available,
+          ),
+      ],
+      truncated: data['truncated'] == true,
     );
   }
 
@@ -252,43 +82,28 @@ class WorkspaceRepository extends IWorkspaceRepository {
     String path,
     WorkspaceAgent agent,
   ) async {
-    final generation = ++_generation;
-    final peer = await _peer(hostId);
-    _ensureCurrent(generation);
-    // The host starts a new session for every open and answers with its room.
-    final result = await _request(
-      hostId,
-      (id) => WorkspaceOpen(id: id, path: path, agent: agent.id),
-      generation,
-    );
-    final roomId = result['room_id'] as String;
-    final cwd = result['cwd'] as String;
-    final name = result['name'] as String;
-    await _waitForRoom(
-      hostId,
-      roomId: roomId,
-      agent: agent,
-      generation: generation,
-    );
-    _ensureCurrent(generation);
-    await _preferences.restoreSession(peer.remoteEpk, roomId);
-    await _preferences.setSelectedRoom(epk: peer.remoteEpk, roomId: roomId);
-    await _switchConnection(peer, roomId, generation);
+    final host = _host(hostId);
+    final Map<String, dynamic> result;
+    try {
+      // Starting an agent can take a while (npx downloads it the first time).
+      result = await host.call('session/new', {
+        'cwd': path,
+        'mcpServers': const <Object>[],
+        '_meta': {
+          'baya': {'agent': agent.id},
+        },
+      }, const Duration(minutes: 3));
+    } catch (error) {
+      throw WorkspaceFailure('$error');
+    }
+    final sessionId = result['sessionId'] as String;
     return OpenedWorkspace(
-      hostId: peer.remoteEpk,
-      hostLabel: _label(peer),
-      path: cwd,
-      roomId: roomId,
-      name: name,
+      hostId: host.key,
+      hostLabel: host.host.label,
+      path: path,
+      sessionId: sessionId,
+      name: host.session(sessionId)?.title ?? folderName(path),
       agent: agent,
     );
-  }
-
-  @override
-  Future<void> restore(WorkspaceSelection? selection) async {
-    final generation = ++_generation;
-    if (selection == null) return;
-    final peer = await _peer(selection.hostId);
-    await _switchConnection(peer, selection.roomId, generation);
   }
 }

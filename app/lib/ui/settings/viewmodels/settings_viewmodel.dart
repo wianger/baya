@@ -1,23 +1,24 @@
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/connection_manager.dart';
+import 'package:app/data/hosts/hosts.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/settings/states/settings_state.dart';
 
-/// Settings is config-only (nickname + revoke). The peer switcher moved
-/// to Home; the connection itself is shared and owned by
-/// [ConnectionManager] from app boot. Revoke side-effect:
-/// re-subscribe presence so the removed epk is dropped.
+/// Paired computers: rename and forget. [Hosts] follows the storage, so a
+/// forgotten computer's connection closes by itself.
 class SettingsViewModel extends ViewModel<SettingsState> {
   final PairingStorage _storage;
   final Preferences _prefs;
-  final ConnectionManager _conn;
+  final Hosts _hosts;
   bool _disposed = false;
 
-  SettingsViewModel(this._storage, this._prefs, this._conn)
+  SettingsViewModel(this._storage, this._prefs, this._hosts)
     : super(const SettingsLoading()) {
     _load();
   }
+
+  /// Whether the computer at [epk] is connected right now.
+  bool isOnline(String epk) => _hosts.byKey(epk)?.isOnline ?? false;
 
   Future<void> _load() async {
     final peers = await _storage.listPeers();
@@ -48,34 +49,12 @@ class SettingsViewModel extends ViewModel<SettingsState> {
     await _load();
   }
 
-  /// Revoke pairing locally. Drops the peer from the presence
-  /// subscription too so we stop receiving updates about a peer that no
-  /// longer exists on this device. Clears the selected pointer when it
-  /// matches. If this was the LAST peer, also resets
-  /// `onboardingCompleted=false` so the next boot lands on /onboarding
-  /// (matches user expectation of "revoke = start fresh").
+  /// Forget the computer on this phone. If it was the last one, the next
+  /// boot starts with onboarding again.
   Future<void> revoke(String epk) async {
-    final wasActive = _conn.activePeer?.remoteEpk == epk;
-    if (_prefs.selectedPeerEpk == epk) {
-      await _prefs.setSelectedPeerEpk(null);
-    }
+    await _storage.deleteSessions(epk);
     await _storage.deletePeer(epk);
-    final remaining = await _storage.listPeers();
-    _conn.subscribeToPeers(remaining.map((p) => p.remoteEpk).toList());
-    // If the revoked peer was the one currently driving the connection,
-    // tear it down so we don't keep talking to a peer the user just
-    // removed. If others remain, fall back to one of them; otherwise
-    // disconnect cleanly.
-    if (wasActive) {
-      await _conn.disconnect();
-      if (remaining.isNotEmpty) {
-        final fallback = remaining.first;
-        await _prefs.setSelectedPeerEpk(fallback.remoteEpk);
-        // ignore: unawaited_futures
-        _conn.boot(preferredEpk: fallback.remoteEpk);
-      }
-    }
-    if (remaining.isEmpty) {
+    if ((await _storage.listPeers()).isEmpty) {
       await _prefs.setOnboardingCompleted(false);
     }
     await _load();

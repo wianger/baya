@@ -33,11 +33,8 @@ void main() {
         wrap(
           List.generate(
             12,
-            (index) => WorkspaceAgent(
-              id: 'agent-$index',
-              label: 'Agent $index',
-              description: 'Provider $index',
-            ),
+            (index) =>
+                WorkspaceAgent(id: 'agent-$index', label: 'Agent $index'),
           ),
           (agent) => picked = agent,
         ),
@@ -59,24 +56,19 @@ void main() {
     },
   );
 
-  testWidgets('unavailable entries show a reason and cannot be selected', (
+  testWidgets('unavailable entries say so and cannot be selected', (
     tester,
   ) async {
     WorkspaceAgent? picked;
     await tester.pumpWidget(
       wrap(const [
-        WorkspaceAgent.pi,
-        WorkspaceAgent(
-          id: 'other',
-          label: 'Other Agent',
-          available: false,
-          unavailableReason: 'Sign-in required',
-        ),
+        WorkspaceAgent(id: 'claude', label: 'Claude Code'),
+        WorkspaceAgent(id: 'other', label: 'Other Agent', available: false),
       ], (agent) => picked = agent),
     );
     await tester.tap(find.byKey(const ValueKey('workspace-agent-picker')));
     await tester.pumpAndSettle();
-    expect(find.text('Sign-in required'), findsOneWidget);
+    expect(find.text('Not available on this computer'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('agent-option-other')));
     await tester.pumpAndSettle();
     expect(picked, isNull);
@@ -91,12 +83,8 @@ void main() {
 
     await tester.pumpWidget(
       wrap(const [
-        WorkspaceAgent.pi,
-        WorkspaceAgent(
-          id: 'codex',
-          label: 'Codex',
-          description: 'OpenAI coding agent',
-        ),
+        WorkspaceAgent(id: 'claude', label: 'Claude Code'),
+        WorkspaceAgent(id: 'codex', label: 'Codex'),
       ], (_) {}),
     );
     await tester.tap(find.byKey(const ValueKey('workspace-agent-picker')));

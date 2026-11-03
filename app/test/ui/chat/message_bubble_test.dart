@@ -1,6 +1,7 @@
 // Agent output (AssistantBubble) must use the FULL content width, not the old
 // 340px cap (user-reported: markdown reply not filling the horizontal space).
 
+import 'package:app/acp/acp.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/chat/widgets/message_bubble.dart';
@@ -96,41 +97,7 @@ void main() {
     expect(find.text('my message'), findsOneWidget);
   });
 
-  testWidgets('pending steer bubble shows steering label', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: UserBubble(
-            UserMsg(
-              id: 'u1',
-              text: 'busy follow-up',
-              status: UserMsgStatus.pending,
-              steering: true,
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    expect(find.text('steering…'), findsOneWidget);
-    expect(find.text('sending…'), findsNothing);
-  });
-
-  testWidgets('confirmed steer bubble keeps steering label', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: UserBubble(
-            UserMsg(id: 'u1', text: 'accepted follow-up', steering: true),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    expect(find.text('steering…'), findsOneWidget);
-  });
-
-  testWidgets('pending normal bubble keeps sending label', (tester) async {
+  testWidgets('a pending prompt says it is queued', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -145,6 +112,47 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('sending…'), findsOneWidget);
+    expect(find.text('queued…'), findsOneWidget);
+  });
+
+  testWidgets('a confirmed prompt has no status line', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: UserBubble(UserMsg(id: 'u1', text: 'sent')),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('queued…'), findsNothing);
+  });
+
+  testWidgets('notices and plans render', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              NoticeBubble(
+                NoticeMsg(id: 'n', severity: 'error', text: 'Agent crashed'),
+              ),
+              PlanCard(
+                PlanMsg(
+                  id: 'p',
+                  entries: [
+                    PlanEntry('Write tests', PlanStatus.completed),
+                    PlanEntry('Ship it', PlanStatus.inProgress),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Agent crashed'), findsOneWidget);
+    expect(find.text('Write tests'), findsOneWidget);
+    expect(find.text('Ship it'), findsOneWidget);
   });
 }

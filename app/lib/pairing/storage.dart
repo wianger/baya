@@ -1,80 +1,13 @@
 import 'dart:convert';
 
+import 'package:app/acp/acp.dart';
+
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 const _kPeersService = 'dev.wianger.baya.peers';
-const _kRoomsService = 'dev.wianger.baya.rooms';
-
-/// Persisted snapshot of every room we have ever
-/// learned about for a peer (via `room_announced` / `rooms` pushes).
-/// Allows Home to keep showing the same tiles after a cold start before
-/// the host answers, and lets the user
-/// open a chat offline and read history.
-class PersistedRoom {
-  final String roomId;
-  final String? agent;
-  final String? name;
-  final String? cwd;
-  final int startedAt;
-
-  /// Local-only override for [name]. When non-null, takes precedence
-  /// in UI (long-press rename).
-  final String? localName;
-
-  /// Last-known model of the session.
-  /// Persisted so the subtitle survives cold starts.
-  final String? model;
-
-  const PersistedRoom({
-    required this.roomId,
-    required this.startedAt,
-    this.agent,
-    this.name,
-    this.cwd,
-    this.localName,
-    this.model,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'room_id': roomId,
-    'agent': agent,
-    'name': name,
-    'cwd': cwd,
-    'started_at': startedAt,
-    'local_name': localName,
-    'model': model,
-  };
-
-  factory PersistedRoom.fromJson(Map<String, dynamic> j) => PersistedRoom(
-    roomId: j['room_id'] as String,
-    agent: j['agent'] as String?,
-    name: j['name'] as String?,
-    cwd: j['cwd'] as String?,
-    startedAt: (j['started_at'] as num).toInt(),
-    localName: j['local_name'] as String?,
-    model: j['model'] as String?,
-  );
-
-  PersistedRoom copyWith({
-    String? name,
-    String? cwd,
-    int? startedAt,
-    Object? localName = _unset,
-    Object? model = _unset,
-  }) => PersistedRoom(
-    roomId: roomId,
-    agent: agent,
-    name: name ?? this.name,
-    cwd: cwd ?? this.cwd,
-    startedAt: startedAt ?? this.startedAt,
-    localName: identical(localName, _unset)
-        ? this.localName
-        : localName as String?,
-    model: identical(model, _unset) ? this.model : model as String?,
-  );
-}
+const _kSessionsService = 'dev.wianger.baya.sessions';
 
 // ---------------------------------------------------------------------------
 // PeerRecord — persisted per pairing
@@ -84,74 +17,71 @@ class PersistedRoom {
 // "keep current" (omit) from "set to null" (pass `null` explicitly).
 const Object _unset = Object();
 
+/// A paired computer.
 class PeerRecord {
-  // base64 Ed25519 public key of the computer's host — its identity.
+  /// The computer's Ed25519 public key (base64): its identity.
   final String remoteEpk;
-  final String sessionName;
+
+  /// What the computer calls itself, e.g. `studio (WSL)`.
+  final String name;
+
+  /// Where the phone reaches it: the host's `…/direct` address.
   final String endpoint;
   final String pairedAt; // ISO-8601
-  // Local-only display label (Pi does not know about this). Renders in
-  // place of [sessionName] when set; null = use sessionName everywhere.
-  final String? nickname;
 
-  /// Room of the session this pairing addresses (from `pair_ok`, then the
-  /// last opened session).
-  final String roomId;
+  /// The user's own name for it; shown instead of [name] when set.
+  final String? nickname;
 
   const PeerRecord({
     required this.remoteEpk,
-    required this.sessionName,
+    required this.name,
     required this.endpoint,
     required this.pairedAt,
-    required this.roomId,
     this.nickname,
   });
 
+  String get label => nickname?.isNotEmpty == true ? nickname! : name;
+
   Map<String, dynamic> toJson() => {
     'remote_epk': remoteEpk,
-    'session_name': sessionName,
+    'name': name,
     'endpoint': endpoint,
     'paired_at': pairedAt,
     'nickname': nickname,
-    'room_id': roomId,
   };
 
   factory PeerRecord.fromJson(Map<String, dynamic> j) => PeerRecord(
     remoteEpk: j['remote_epk'] as String,
-    sessionName: j['session_name'] as String,
+    name: j['name'] as String,
     endpoint: j['endpoint'] as String,
     pairedAt: j['paired_at'] as String,
     nickname: j['nickname'] as String?,
-    roomId: j['room_id'] as String,
   );
 
   PeerRecord copyWith({
-    String? sessionName,
+    String? name,
     // Sentinel-typed so the caller can pass `nickname: null` to clear.
     Object? nickname = _unset,
-    String? roomId,
   }) => PeerRecord(
     remoteEpk: remoteEpk,
-    sessionName: sessionName ?? this.sessionName,
+    name: name ?? this.name,
     endpoint: endpoint,
     pairedAt: pairedAt,
     nickname: identical(nickname, _unset) ? this.nickname : nickname as String?,
-    roomId: roomId ?? this.roomId,
   );
 
   @override
   bool operator ==(Object other) =>
       other is PeerRecord &&
       other.remoteEpk == remoteEpk &&
-      other.sessionName == sessionName &&
+      other.name == name &&
       other.endpoint == endpoint &&
       other.pairedAt == pairedAt &&
-      other.nickname == nickname &&
-      other.roomId == roomId;
+      other.nickname == nickname;
 
   @override
   int get hashCode =>
-      Object.hash(remoteEpk, sessionName, endpoint, pairedAt, nickname, roomId);
+      Object.hash(remoteEpk, name, endpoint, pairedAt, nickname);
 }
 
 // ---------------------------------------------------------------------------
@@ -160,11 +90,9 @@ class PeerRecord {
 
 /// Pairing storage with change notification.
 ///
-/// Mutations to the peer set (`savePeer`, `deletePeer`) and to the
-/// per-peer rooms cache (`saveRooms`, `deleteRooms`) call
-/// `notifyListeners()` so any UI watching the storage (HomeViewModel,
-/// SettingsViewModel) can refresh without manual plumbing between
-/// screens. Read methods do not notify.
+/// Mutations to the peer set (`savePeer`, `deletePeer`) call
+/// `notifyListeners()` so anything watching (the host connections, Settings)
+/// follows without manual plumbing between screens.
 class PairingStorage extends ChangeNotifier {
   final FlutterSecureStorage _store;
 
@@ -216,14 +144,14 @@ class PairingStorage extends ChangeNotifier {
     return peers;
   }
 
-  /// Wipe every peer + every persisted room map. Used by the
+  /// Wipe every peer and every cached session list. Used by the
   /// Owner-key bridge when Backup sync brings a different
   /// Owner-pk — the previous device's peer list is meaningless for
   /// the newly-synced identity, so we start clean rather than risk
   /// connecting against stale `remote_epk`s.
   Future<void> wipeAll() async {
     final all = await _store.readAll();
-    final prefixes = ['$_kPeersService:', '$_kRoomsService:'];
+    final prefixes = ['$_kPeersService:', '$_kSessionsService:'];
     for (final key in all.keys) {
       if (prefixes.any(key.startsWith)) {
         await _store.delete(key: key);
@@ -232,32 +160,36 @@ class PairingStorage extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ---- Rooms -----------------------------------------
+  // ---- Session lists ------------------------------------------------------
 
-  String _roomsKey(String remoteEpk) => '$_kRoomsService:$remoteEpk';
+  String _sessionsKey(String remoteEpk) =>
+      '$_kSessionsService:${_canonicalEpk(remoteEpk)}';
 
-  /// Persist the full set of known rooms for a peer. Replaces any
-  /// previously stored set. Called on every room-state change in
-  /// ConnectionManager so a cold start can reflect the same view.
-  Future<void> saveRooms(String remoteEpk, List<PersistedRoom> rooms) async {
+  /// The computer's last known sessions, so Home shows them before (or
+  /// without) a connection.
+  Future<void> saveSessions(
+    String remoteEpk,
+    List<SessionSummary> sessions,
+  ) async {
     await _store.write(
-      key: _roomsKey(remoteEpk),
-      value: jsonEncode(rooms.map((r) => r.toJson()).toList()),
+      key: _sessionsKey(remoteEpk),
+      value: jsonEncode([for (final s in sessions) s.toJson()]),
     );
-    notifyListeners();
   }
 
-  Future<List<PersistedRoom>> loadRooms(String remoteEpk) async {
-    final raw = await _store.read(key: _roomsKey(remoteEpk));
-    if (raw == null) return const [];
-    final list = jsonDecode(raw) as List<dynamic>;
-    return list
-        .map((e) => PersistedRoom.fromJson(e as Map<String, dynamic>))
-        .toList();
+  Future<List<SessionSummary>> loadSessions(String remoteEpk) async {
+    try {
+      final raw = await _store.read(key: _sessionsKey(remoteEpk));
+      if (raw == null) return const [];
+      return [
+        for (final item in jsonDecode(raw) as List<dynamic>)
+          SessionSummary.fromJson((item as Map).cast<String, dynamic>()),
+      ];
+    } catch (_) {
+      return const [];
+    }
   }
 
-  Future<void> deleteRooms(String remoteEpk) async {
-    await _store.delete(key: _roomsKey(remoteEpk));
-    notifyListeners();
-  }
+  Future<void> deleteSessions(String remoteEpk) =>
+      _store.delete(key: _sessionsKey(remoteEpk));
 }

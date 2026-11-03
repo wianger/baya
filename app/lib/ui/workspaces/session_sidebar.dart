@@ -4,7 +4,6 @@ library;
 
 import 'dart:async';
 
-import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
@@ -95,10 +94,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
   Future<bool> _renameDevice(HomeViewModel vm, String epk) async {
     final peer = vm.devices[epk];
     if (peer == null) return false;
-    final name = await showDeviceRenameDialog(
-      context,
-      currentName: peer.nickname ?? peer.sessionName,
-    );
+    final name = await showDeviceRenameDialog(context, currentName: peer.label);
     if (!mounted || name == null || name.trim().isEmpty) return false;
     try {
       await vm.renameDevice(epk, name);
@@ -118,10 +114,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
     final peer = vm.devices[epk];
     if (peer == null) return false;
     final wasSelected = vm.selectedDevice == epk;
-    final confirmed = await showDeviceDeleteDialog(
-      context,
-      name: peer.nickname ?? peer.sessionName,
-    );
+    final confirmed = await showDeviceDeleteDialog(context, name: peer.label);
     if (!mounted || !confirmed) return false;
     try {
       await vm.deleteDevice(epk);
@@ -247,8 +240,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                               devices: {
                                 for (final entry in vm.devices.entries)
                                   entry.key:
-                                      entry.value.nickname ??
-                                      entry.value.sessionName,
+                                      entry.value.nickname ?? entry.value.name,
                               },
                               selected: vm.selectedDevice,
                               enabled: !_choosing,
@@ -333,15 +325,15 @@ class _SessionSidebarState extends State<SessionSidebar> {
                                       displayName: vm.displayNameOf(item),
                                       selected: selection.matches(
                                         item.peer.remoteEpk,
-                                        item.room.roomId,
+                                        item.sessionId,
                                       ),
                                       online: vm.isRoomLive(
                                         item.peer.remoteEpk,
-                                        item.room.roomId,
+                                        item.sessionId,
                                       ),
                                       working: vm.isRoomWorking(
                                         item.peer.remoteEpk,
-                                        item.room.roomId,
+                                        item.sessionId,
                                       ),
                                       onTap: _opening
                                           ? null
@@ -506,7 +498,7 @@ class _SessionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final agentLabel = workspaceAgentLabel(item.room.agent);
+    final agentLabel = item.session.agentName;
     final title = displayName;
     final statusColor = working
         ? colors.working
@@ -514,7 +506,7 @@ class _SessionRow extends StatelessWidget {
         ? colors.success
         : colors.muted;
     final listTile = ListTile(
-      key: ValueKey('session-row-${item.peer.remoteEpk}-${item.room.roomId}'),
+      key: ValueKey('session-row-${item.peer.remoteEpk}-${item.sessionId}'),
       selected: selected,
       selectedTileColor: colors.selection,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -571,7 +563,7 @@ class _SessionRow extends StatelessWidget {
                 ),
               ],
             ),
-            if (item.room.cwd case final cwd?)
+            if (item.session.cwd case final cwd when cwd.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 3),
                 child: Text(
@@ -591,7 +583,7 @@ class _SessionRow extends StatelessWidget {
           ? null
           : IconButton(
               key: ValueKey(
-                'session-rename-${item.peer.remoteEpk}-${item.room.roomId}',
+                'session-rename-${item.peer.remoteEpk}-${item.sessionId}',
               ),
               tooltip: context.l10n.renameSession,
               visualDensity: VisualDensity.compact,
@@ -616,7 +608,7 @@ class _SessionRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 child: Dismissible(
                   key: ValueKey(
-                    'session-delete-${item.peer.remoteEpk}-${item.room.roomId}',
+                    'session-delete-${item.peer.remoteEpk}-${item.sessionId}',
                   ),
                   direction: DismissDirection.endToStart,
                   dismissThresholds: const {DismissDirection.endToStart: .34},

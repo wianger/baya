@@ -1,34 +1,22 @@
 import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/widgets/tool_activity_details.dart';
 import 'package:app/ui/chat/widgets/tool_content.dart';
-import 'package:app/ui/chat/widgets/thinking_block.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-// Inline tool execution card that appears in the chat flow.
-//
-// Historically this widget rendered Allow/Deny buttons + a 60s countdown
-// assuming the Pi paused execution until the user decided. With the current
-// agent integrations the host emits `tool_request` AFTER the
-// SDK has already accepted the tool (`tool_execution_start` fires post
-// auto-approval), so the buttons could only blink for a few hundred
-// milliseconds before `tool_result` arrived — confusing UX with no real
-// gating. Pi cards stay informational. Codex explicitly marks requests
-// that are paused for a real decision with `approval_required`.
-
+/// One tool call in the chat. Informational: permission questions are
+/// answered in the permission card above the composer, and a call waiting on
+/// one is marked here.
 class ToolRequestCard extends StatefulWidget {
   final ToolEvent tool;
-  final void Function(String toolCallId, ApproveDecision decision)? onDecide;
   final bool initiallyExpanded;
 
   const ToolRequestCard({
     super.key,
     required this.tool,
-    this.onDecide,
     this.initiallyExpanded = false,
   });
 
@@ -43,22 +31,17 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
   late bool _expanded = widget.initiallyExpanded;
   bool _outputExpanded = false;
   ToolEvent get tool => widget.tool;
-  void Function(String, ApproveDecision)? get onDecide => widget.onDecide;
 
-  bool get _needsApproval =>
-      tool.status == ToolEventStatus.pending &&
-      tool.args is Map &&
-      tool.args['approval_required'] == true;
+  bool get _needsApproval => tool.awaitingApproval;
 
   /// Errors and real approvals retain emphasis; ordinary activity is quiet.
   Color _statusColor(BuildContext context) {
     final colors = context.colors;
     return switch (tool.status) {
       ToolEventStatus.pending ||
-      ToolEventStatus.allowed => _needsApproval ? colors.accent : colors.muted2,
+      ToolEventStatus.running => _needsApproval ? colors.accent : colors.muted2,
       ToolEventStatus.completed => colors.muted2,
       ToolEventStatus.failed => colors.error,
-      ToolEventStatus.denied || ToolEventStatus.expired => colors.muted,
     };
   }
 
@@ -66,20 +49,6 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final color = _statusColor(context);
-    final name = tool.tool.toLowerCase();
-    if (!_needsApproval &&
-        (_running || tool.status == ToolEventStatus.completed) &&
-        const {'think', 'thinking', 'reasoning'}.contains(name)) {
-      final args = tool.args;
-      return ThinkingBlock(
-        text:
-            ToolContent(tool).output.text ??
-            (args is Map
-                ? _stringArg(args, const ['thought', 'thinking', 'text'])
-                : ''),
-        complete: !_running,
-      );
-    }
     final content = ToolContent(tool);
     final outputText = [
       content.output.text,
@@ -91,8 +60,9 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
         (outputText.length > 900 || '\n'.allMatches(outputText).length > 12);
     // Collapsed by default: the row shows what ran, and the command, output and
     // outcome stay one tap away. Real approvals always start open.
-    final expanded = _expanded || _needsApproval;
-    final preview = _needsApproval ? null : content.preview;
+    // The permission card above the composer asks; this card only marks it.
+    final expanded = _expanded;
+    final preview = content.preview;
     return BayaSurface(
       role: BayaSurfaceRole.content,
       radius: 18,
@@ -103,14 +73,12 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Semantics(
-            button: !_needsApproval,
+            button: true,
             expanded: expanded,
             child: InkWell(
               key: ValueKey('tool-details-${tool.toolCallId}'),
               borderRadius: BorderRadius.circular(10),
-              onTap: _needsApproval
-                  ? null
-                  : () => setState(() => _expanded = !_expanded),
+              onTap: () => setState(() => _expanded = !_expanded),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 9),
                 child: Row(
@@ -159,19 +127,17 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
                       padding: const EdgeInsets.only(top: 1),
                       child: _buildStatus(context, color),
                     ),
-                    if (!_needsApproval) ...[
-                      const SizedBox(width: 4),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 1),
-                        child: Icon(
-                          expanded
-                              ? LucideIcons.chevronDown
-                              : LucideIcons.chevronRight,
-                          size: 15,
-                          color: colors.muted,
-                        ),
+                    const SizedBox(width: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Icon(
+                        expanded
+                            ? LucideIcons.chevronDown
+                            : LucideIcons.chevronRight,
+                        size: 15,
+                        color: colors.muted,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -209,36 +175,6 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
                       ),
                     ),
                   const SizedBox(height: 10),
-                  if (_needsApproval) ...[
-                    Text(
-                      context.l10n.agentWaitingApproval,
-                      style: TextStyle(color: colors.text, fontSize: 13),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        OutlinedButton(
-                          onPressed: onDecide == null
-                              ? null
-                              : () => onDecide!(
-                                  tool.toolCallId,
-                                  ApproveDecision.deny,
-                                ),
-                          child: Text(context.l10n.deny),
-                        ),
-                        const SizedBox(width: 10),
-                        BayaButton(
-                          onPressed: onDecide == null
-                              ? null
-                              : () => onDecide!(
-                                  tool.toolCallId,
-                                  ApproveDecision.allow,
-                                ),
-                          label: Text(context.l10n.allowOnce),
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -259,19 +195,12 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
 
   bool get _running =>
       tool.status == ToolEventStatus.pending ||
-      tool.status == ToolEventStatus.allowed;
+      tool.status == ToolEventStatus.running;
 
   /// Compact right-edge state: spinner while running, a label for terminal
   /// states, and a check once an ordinary call finishes.
   Widget _buildStatus(BuildContext context, Color color) {
-    final statusLabel = switch (tool.status) {
-      ToolEventStatus.pending || ToolEventStatus.allowed =>
-        _needsApproval ? context.l10n.approval : context.l10n.running,
-      ToolEventStatus.completed => context.l10n.done,
-      ToolEventStatus.failed => context.l10n.failed,
-      ToolEventStatus.denied => context.l10n.denied,
-      ToolEventStatus.expired => context.l10n.expired,
-    };
+    final statusLabel = ToolContent(tool).statusLabel;
     if (_running && !_needsApproval) {
       return SizedBox(
         width: 13,
@@ -286,13 +215,5 @@ class _ToolRequestCardState extends State<ToolRequestCard> {
       );
     }
     return Icon(LucideIcons.check, size: 14, color: context.colors.muted);
-  }
-
-  static String _stringArg(Map<Object?, Object?> args, List<String> keys) {
-    for (final key in keys) {
-      final value = args[key];
-      if (value is String) return value;
-    }
-    return '';
   }
 }

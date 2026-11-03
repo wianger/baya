@@ -1,10 +1,6 @@
-import 'dart:async';
-
+import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/channel.dart';
-import 'package:app/data/transport/connection_manager.dart';
 import 'package:app/pairing/storage.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/settings/settings_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
@@ -12,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+
+import '../../support/acp_harness.dart';
 
 class _Storage extends PairingStorage {
   @override
@@ -34,31 +32,17 @@ class _SecureStorage implements FlutterSecureStorage {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _Channel implements IChannel {
-  @override
-  Stream<ServerMessage> get serverMessages => const Stream.empty();
-
-  @override
-  Future<void> send(ClientMessage message) async {}
-
-  @override
-  Future<void> close() async {}
-}
-
 class _SettingsFixture {
   _SettingsFixture()
     : storage = _Storage(),
       prefs = Preferences(_SecureStorage()) {
-    conn = ConnectionManager(
-      storage: storage,
-      factory: (_, _) async => _Channel(),
-    );
-    vm = SettingsViewModel(storage, prefs, conn);
+    hosts = testHosts(MemoryStorage(), FakeHost());
+    vm = SettingsViewModel(storage, prefs, hosts);
   }
 
   final _Storage storage;
   final Preferences prefs;
-  late final ConnectionManager conn;
+  late final Hosts hosts;
   late final SettingsViewModel vm;
 
   Widget build() {
@@ -73,7 +57,7 @@ class _SettingsFixture {
 
   void dispose() {
     vm.dispose();
-    conn.dispose();
+    hosts.dispose();
     prefs.dispose();
   }
 }

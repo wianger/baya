@@ -1,97 +1,62 @@
-// HomeList.items() flattens peers × rooms into tile rows.
+// HomeList.items() flattens computers × sessions into rows.
 
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/pairing/storage.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-PeerRecord _peer(String epk, {String name = 'Pi'}) => PeerRecord(
-  remoteEpk: epk,
-  sessionName: name,
-  endpoint: 'ws://x',
-  pairedAt: '2026-01-01T00:00:00Z',
-  roomId: 'main',
-);
+import '../../support/acp_harness.dart';
 
 void main() {
   group('HomeList.items()', () {
-    test('peer without announced rooms produces ZERO items — Home only '
-        'shows what is currently live on the host (no ghost "main" tile)', () {
-      final list = HomeList(peers: [_peer('A')]);
-      final items = list.items();
-      expect(items, isEmpty);
+    test('a computer without sessions produces no rows', () {
+      final list = HomeList(peers: [testPeer()]);
+      expect(list.items(normalizeEpk: toStandardB64), isEmpty);
     });
 
-    test('peer with N rooms produces N items (one row per cwd)', () {
+    test('one row per session, computers sorted by label', () {
+      final a = testPeer(seed: 1, name: 'Beta');
+      final b = testPeer(seed: 2, name: 'Alpha');
       final list = HomeList(
-        peers: [_peer('A')],
-        roomsByPeer: {
-          'A': [
-            const RoomInfo(roomId: 'r1', startedAt: 1, cwd: '/one'),
-            const RoomInfo(roomId: 'r2', startedAt: 2, cwd: '/two'),
-          ],
+        peers: [a, b],
+        sessionsByPeer: {
+          a.remoteEpk: [testSession(id: 'a1')],
+          b.remoteEpk: [testSession(id: 'b1'), testSession(id: 'b2')],
         },
       );
-      final items = list.items();
-      expect(items, hasLength(2));
-      expect(items.map((i) => i.room.roomId).toList(), ['r1', 'r2']);
+      final items = list.items(normalizeEpk: toStandardB64);
+      expect(items.map((i) => i.sessionId), ['b1', 'b2', 'a1']);
     });
 
-    test('equivalent EPK encodings contribute one group of session rows', () {
+    test('equivalent key encodings find the same sessions', () {
       const urlSafe = 'Bz02uLiwrmQZ0S8qiwtFJAt0KzUvrgepYO_oMQ6yyQE';
       const standard = 'Bz02uLiwrmQZ0S8qiwtFJAt0KzUvrgepYO/oMQ6yyQE=';
+      final peer = PeerRecord(
+        remoteEpk: urlSafe,
+        name: 'PC',
+        endpoint: 'ws://x',
+        pairedAt: '2026-01-01T00:00:00Z',
+      );
       final list = HomeList(
-        peers: [_peer(urlSafe), _peer(standard)],
-        roomsByPeer: {
-          standard: [const RoomInfo(roomId: 'r1', startedAt: 1)],
+        peers: [peer],
+        sessionsByPeer: {
+          standard: [testSession(id: 'r1')],
         },
       );
-
-      final items = list.items(normalizeEpk: toStandardB64);
-
-      expect(items, hasLength(1));
-      expect(items.single.room.roomId, 'r1');
+      expect(list.items(normalizeEpk: toStandardB64).single.sessionId, 'r1');
     });
 
-    test('multiple peers each contribute their own group of rows; the '
-        'flat list keeps peer-order from `peers`', () {
+    test('the display name is the session title', () {
       final list = HomeList(
-        peers: [_peer('A'), _peer('B')],
-        roomsByPeer: {
-          'A': [const RoomInfo(roomId: 'a1', startedAt: 1)],
-          'B': [
-            const RoomInfo(roomId: 'b1', startedAt: 1),
-            const RoomInfo(roomId: 'b2', startedAt: 2),
-          ],
+        peers: [testPeer()],
+        sessionsByPeer: {
+          testPeer().remoteEpk: [testSession(title: 'Fix the login bug')],
         },
       );
-      final items = list.items();
-      expect(items.map((i) => i.peer.remoteEpk).toList(), ['A', 'B', 'B']);
-      expect(items.map((i) => i.room.roomId).toList(), ['a1', 'b1', 'b2']);
-    });
-
-    test('HomeItem.displayName prefers room.name → cwd basename', () {
-      final namedRoom = HomeItem(
-        peer: _peer('A'),
-        room: const RoomInfo(
-          roomId: 'r1',
-          startedAt: 1,
-          name: 'project-alpha',
-          cwd: '/whatever',
-        ),
+      expect(
+        list.items(normalizeEpk: toStandardB64).single.displayName,
+        'Fix the login bug',
       );
-      expect(namedRoom.displayName, 'project-alpha');
-
-      final cwdRoom = HomeItem(
-        peer: _peer('A'),
-        room: const RoomInfo(
-          roomId: 'r1',
-          startedAt: 1,
-          cwd: '/Users/jacob/projects/remote_pi/app',
-        ),
-      );
-      expect(cwdRoom.displayName, 'app');
     });
   });
 }

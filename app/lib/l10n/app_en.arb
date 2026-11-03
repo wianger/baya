@@ -252,7 +252,7 @@
   "renameDevice": "Rename device",
   "nameShownInApp": "Name shown in this app",
   "renameWorkspace": "Rename workspace",
-  "deleteFromPhone": "Delete from phone?",
+  "deleteSessionTitle": "Delete session?",
   "sessionInfo": "Session info",
   "name": "Name",
   "path": "Path",
@@ -612,7 +612,7 @@
     }
   },
   "deleteWorkspaceBody": "Sessions and computer history are kept. Sessions will return to their folder groups.",
-  "deleteSessionBody": "Remove \"{name}\" and clear its cached messages on this phone? Computer history and the running agent are kept.",
+  "deleteSessionBody": "Delete \"{name}\" and its history on the computer? Its agent stops.",
   "@deleteSessionBody": {
     "placeholders": {
       "name": {
@@ -691,5 +691,35 @@
       }
     }
   },
-  "chooseBaya": "This computer runs more than one Baya. Which one?"
+  "chooseBaya": "This computer runs more than one Baya. Which one?",
+  "toolRead": "Read",
+  "toolEdit": "Edit",
+  "toolDelete": "Delete",
+  "toolMove": "Move",
+  "toolSearch": "Search",
+  "toolExecute": "Run command",
+  "toolThink": "Think",
+  "toolFetch": "Fetch",
+  "toolSwitchMode": "Switch mode",
+  "toolOther": "Tool",
+  "queued": "queued…",
+  "compacting": "Compacting the context…",
+  "plan": "Plan",
+  "settingChangeFailed": "Couldn't change this setting",
+  "mode": "Mode",
+  "noSessionSettings": "This agent has no settings to change.",
+  "sessionCost": "Cost so far: {amount}",
+  "@sessionCost": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionSettings": "Session settings",
+  "details": "Details",
+  "sessionOffline": "The computer is offline. The conversation appears when it reconnects.",
+  "yourAgent": "your agent",
+  "queueFollowUp": "Queue a follow-up…",
+  "sessionId": "Session"
 }

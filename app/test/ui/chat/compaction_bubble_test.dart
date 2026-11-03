@@ -13,26 +13,22 @@ void main() {
     );
   }
 
-  testWidgets('shows label + summary + token count', (tester) async {
+  testWidgets('shows label and summary once done', (tester) async {
     await pump(
       tester,
       const CompactionMsg(
         id: 'c1',
         summary: 'Recapped the long thread',
-        tokensBefore: 12000,
+        done: true,
       ),
     );
 
     expect(find.text('Context compacted'), findsOneWidget);
     expect(find.text('Recapped the long thread'), findsOneWidget);
-    expect(find.text('~12000 tokens'), findsOneWidget);
   });
 
-  testWidgets('omits the token line when tokensBefore is null', (tester) async {
-    await pump(tester, const CompactionMsg(id: 'c2', summary: 'done'));
-
-    expect(find.text('Context compacted'), findsOneWidget);
-    expect(find.text('done'), findsOneWidget);
-    expect(find.textContaining('tokens'), findsNothing);
+  testWidgets('says it is compacting while in progress', (tester) async {
+    await pump(tester, const CompactionMsg(id: 'c1'));
+    expect(find.text('Compacting the context…'), findsOneWidget);
   });
 }

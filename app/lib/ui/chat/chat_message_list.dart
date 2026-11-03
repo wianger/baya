@@ -4,12 +4,11 @@ library;
 
 import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/ui/chat/widgets/message_bubble.dart';
-import 'package:app/ui/chat/widgets/streaming_bubble.dart';
 import 'package:app/ui/chat/widgets/thinking_block.dart';
 import 'package:app/ui/chat/widgets/tool_request_card.dart';
 import 'package:app/ui/chat/widgets/tool_run_group.dart';
+import 'package:app/ui/chat/widgets/working_indicator.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -26,12 +25,7 @@ List<Object> toolRunItemsForMessages(List<ChatMessage> messages) {
   }
 
   for (final message in messages) {
-    final needsApproval =
-        message is ToolEvent &&
-        message.status == ToolEventStatus.pending &&
-        message.args is Map &&
-        message.args['approval_required'] == true;
-    if (message is ToolEvent && !needsApproval) {
+    if (message is ToolEvent && !message.awaitingApproval) {
       run.add(message);
       continue;
     }
@@ -51,8 +45,7 @@ class ToolRunItem {
 /// Returns the final assistant segment object of each completed user turn.
 ///
 /// Tool and thinking boundaries split one logical answer across several
-/// bubbles. Steering input is part of the active turn rather than a new user
-/// turn. The result uses identity equality so segments are told apart
+/// bubbles. The result uses identity equality so segments are told apart
 /// even when ids repeat.
 Set<AssistantMsg> assistantCopyOwnersForTurns(List<ChatMessage> messages) {
   final owners = Set<AssistantMsg>.identity();
@@ -68,9 +61,7 @@ Set<AssistantMsg> assistantCopyOwnersForTurns(List<ChatMessage> messages) {
       lastAssistant = message;
       continue;
     }
-    if (message is UserMsg && !message.steering) {
-      finishTurn();
-    }
+    if (message is UserMsg) finishTurn();
   }
   finishTurn();
   return owners;
@@ -168,16 +159,12 @@ class _ChatFrameState extends State<ChatFrame> {
 
 class ChatMessageList extends StatefulWidget {
   final List<ChatMessage> messages;
-  final StreamingMessage? streaming;
   final bool working;
-  final void Function(String, ApproveDecision) onDecide;
 
   const ChatMessageList({
     super.key,
     required this.messages,
-    required this.streaming,
     required this.working,
-    required this.onDecide,
   });
 
   @override
@@ -255,12 +242,10 @@ class _ChatMessageListState extends State<ChatMessageList> {
   @override
   Widget build(BuildContext context) {
     final items = _items();
-    final streaming = widget.streaming;
-    // The broad working signal covers tool execution and the pre-first-token
-    // gap. Once text starts streaming, StreamingBubble owns the cursor so the
-    // separate loading row must not be duplicated.
-    final showWorkingIndicator = widget.working && streaming == null;
-    final leadingRows = streaming != null || showWorkingIndicator ? 1 : 0;
+    // While a turn runs and the agent is not mid-reply, a quiet row says so.
+    final showWorkingIndicator =
+        widget.working && widget.messages.lastOrNull is! AssistantMsg;
+    final leadingRows = showWorkingIndicator ? 1 : 0;
     final itemCount = items.length + leadingRows;
     // One copy action per assistant turn: tool calls can split a single reply
     // into several text segments, but only the final segment gets the button.
@@ -320,14 +305,6 @@ class _ChatMessageListState extends State<ChatMessageList> {
                     child: child,
                   ),
                 );
-                if (streaming != null && i == 0) {
-                  return constrain(
-                    KeyedSubtree(
-                      key: const ValueKey('streaming'),
-                      child: StreamingBubble(streaming),
-                    ),
-                  );
-                }
                 if (showWorkingIndicator && i == 0) {
                   return constrain(
                     const KeyedSubtree(
@@ -344,10 +321,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                       offset: 5,
                       child: KeyedSubtree(
                         key: ValueKey('tool-run-${item.tools.first.id}'),
-                        child: ToolRunGroup(
-                          tools: item.tools,
-                          onDecide: widget.onDecide,
-                        ),
+                        child: ToolRunGroup(tools: item.tools),
                       ),
                     ),
                   );
@@ -358,10 +332,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                       offset: 5,
                       child: KeyedSubtree(
                         key: ValueKey('tool-run-${item.toolCallId}'),
-                        child: ToolRunGroup(
-                          tools: [item],
-                          onDecide: widget.onDecide,
-                        ),
+                        child: ToolRunGroup(tools: [item]),
                       ),
                     ),
                   );
@@ -380,11 +351,10 @@ class _ChatMessageListState extends State<ChatMessageList> {
                         text: msg.text,
                         complete: msg.complete,
                       ),
-                      ToolEvent() => ToolRequestCard(
-                        tool: msg,
-                        onDecide: widget.onDecide,
-                      ),
+                      ToolEvent() => ToolRequestCard(tool: msg),
                       CompactionMsg() => CompactionBubble(msg),
+                      NoticeMsg() => NoticeBubble(msg),
+                      PlanMsg() => PlanCard(msg),
                     },
                   ),
                 );

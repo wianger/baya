@@ -1,37 +1,19 @@
-// PairRequest flow.
+// Pairing: trade a one-time code for a lasting pairing.
 //
-// Sequence (over a connected PeerTransport):
-//   1. App sends inner JSON {type:"pair_request", id, token, device_name}
-//   2. Pi validates token, persists peer, replies pair_ok | pair_error
-//   3. App persists PeerRecord on success
-//
-// No cipher, no safety number — the outer envelope's `ct` is base64 of
-// the JSON in plaintext (transparent to PeerTransport implementations).
+// The phone opens the computer's socket with its own key (which the computer
+// does not know yet), calls `_baya/pair` with the code, and saves the
+// computer once it says yes.
 
-import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:async';
 
-import 'package:app/protocol/protocol.dart' show PairOk;
-import 'package:app/protocol/uuid7.dart';
+import 'package:app/acp/json_rpc.dart';
+import 'package:app/data/transport/host_socket.dart';
 
 import 'qr_scanner.dart';
 import 'storage.dart';
 
-// ---------------------------------------------------------------------------
-// PeerTransport — minimal byte-level interface (was NoiseTransport pre-rollback)
-// ---------------------------------------------------------------------------
-
-abstract class PeerTransport {
-  Future<void> send(Uint8List data);
-  Future<Uint8List> receive();
-  Future<void> close();
-}
-
-// ---------------------------------------------------------------------------
-// PairingError
-// ---------------------------------------------------------------------------
-
 class PairingError implements Exception {
+  /// `token_expired`, `token_consumed`, `token_unknown` or `unreachable`.
   final String code;
   final String message;
   const PairingError({required this.code, required this.message});
@@ -40,72 +22,54 @@ class PairingError implements Exception {
   String toString() => 'PairingError($code): $message';
 }
 
-// ---------------------------------------------------------------------------
-// PairingResult — output of [performPairing]
-// ---------------------------------------------------------------------------
-
-/// Wraps the persisted [PeerRecord] plus side hints the post-pair UI
-/// (nickname modal) needs but that don't belong on the PeerRecord
-/// itself. [hostnameHint] (the computer's hostname) pre-fills the
-/// nickname modal.
 class PairingResult {
   final PeerRecord peer;
+
+  /// The computer's hostname, to pre-fill the nickname prompt.
   final String? hostnameHint;
   const PairingResult({required this.peer, this.hostnameHint});
 }
 
-// ---------------------------------------------------------------------------
-// performPairing
-// ---------------------------------------------------------------------------
-
 Future<PairingResult> performPairing({
   required QrPairPayload qr,
-  required PeerTransport transport,
+  required HostSocket socket,
   required PairingStorage storage,
   required String deviceName,
 }) async {
-  // Address the session room that issued the token from the first frame.
+  final peer = JsonRpcPeer(
+    write: socket.send,
+    onRequest: (method, _, _) async =>
+        throw RpcError(RpcError.methodNotFound, method),
+    onNotification: (_, _) {},
+  );
+  final subscription = socket.messages.listen(peer.receive);
+  unawaited(
+    socket.closed.then(
+      (_) => peer.close(const RpcClosed('The computer closed the connection.')),
+    ),
+  );
   try {
-    (transport as dynamic).setActiveRoom(qr.roomId);
-  } catch (_) {
-    // In-memory test transports do not route by room.
-  }
-
-  final id = uuid7();
-  final req = {
-    'type': 'pair_request',
-    'id': id,
-    'token': qr.token,
-    'device_name': deviceName,
-  };
-  await transport.send(Uint8List.fromList(utf8.encode(jsonEncode(req))));
-
-  final raw = await transport.receive();
-  final inner = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
-  final type = inner['type'] as String?;
-
-  if (type == 'pair_ok' && inner['in_reply_to'] == id) {
-    final pairOk = PairOk.fromJson(inner);
-    final peer = PeerRecord(
+    final result = await peer
+        .call('_baya/pair', {'token': qr.token, 'deviceName': deviceName})
+        .timeout(const Duration(seconds: 15));
+    final record = PeerRecord(
       remoteEpk: qr.epk,
-      sessionName: pairOk.sessionName,
+      name: qr.name,
       endpoint: qr.endpoint,
       pairedAt: DateTime.now().toUtc().toIso8601String(),
-      roomId: pairOk.roomId,
     );
-    await storage.savePeer(peer);
-    return PairingResult(peer: peer, hostnameHint: pairOk.hostname);
-  }
-
-  if (type == 'pair_error') {
+    await storage.savePeer(record);
+    return PairingResult(
+      peer: record,
+      hostnameHint: result['hostname'] as String?,
+    );
+  } on RpcError catch (error) {
     throw PairingError(
-      code: inner['code'] as String,
-      message: inner['message'] as String? ?? '',
+      code: error.reason ?? 'internal_error',
+      message: error.message,
     );
+  } finally {
+    await subscription.cancel();
+    peer.close(const RpcClosed('Pairing finished.'));
   }
-
-  throw PairingError(
-    code: 'unexpected_response',
-    message: 'Unknown response type: $type',
-  );
 }

@@ -14,7 +14,6 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
     // the UI does not reject a switch while its real request is still alive.
     this.browseTimeout = const Duration(seconds: 40),
   }) : super(const NewSessionLoading()) {
-    _returnSelection = _repository.currentSelection;
     _workspaces = launch.workspaces;
     if (launch.selectedWorkspace case final selected?) {
       final workspace = _workspaces
@@ -30,10 +29,7 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
   final Duration browseTimeout;
   late final List<WorkspaceGroup> _workspaces;
   final _rememberedWorkspaceByDevice = <String, String>{};
-  WorkspaceSelection? _returnSelection;
   bool _disposed = false;
-  bool _restored = false;
-  bool _opened = false;
   int _generation = 0;
 
   Future<void> load() async {
@@ -47,14 +43,7 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
         return;
       }
       final available = hosts.where((host) => host.online).toList();
-      final selected = hosts
-          .where((host) => host.id == _returnSelection?.hostId && host.online)
-          .toList();
-      final host = selected.isNotEmpty
-          ? selected.first
-          : available.isNotEmpty
-          ? available.first
-          : hosts.first;
+      final host = available.isNotEmpty ? available.first : hosts.first;
       final workspace = _workspaceForHost(host.id);
       emit(
         NewSessionReady(
@@ -212,7 +201,6 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
         current.directory!.path,
         current.agent,
       );
-      _opened = true;
       return _disposed
           ? null
           : result.withWorkspace(current.selectedWorkspace!);
@@ -231,15 +219,9 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
     }
   }
 
+  /// Nothing to undo: browsing does not change any connection.
   Future<void> cancel() async {
-    if (_restored || _opened) return;
-    _restored = true;
     ++_generation;
-    try {
-      await _repository.restore(_returnSelection);
-    } catch (_) {
-      /* A disconnected computer must not trap the user here. */
-    }
   }
 
   @override

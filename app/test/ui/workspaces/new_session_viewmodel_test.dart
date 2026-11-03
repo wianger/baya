@@ -5,6 +5,8 @@ import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+const claude = WorkspaceAgent(id: 'claude', label: 'Claude Code');
+const codex = WorkspaceAgent(id: 'codex', label: 'Codex');
 const host = WorkspaceHost(id: 'computer', label: 'Computer', online: true);
 const secondHost = WorkspaceHost(
   id: 'second-computer',
@@ -36,7 +38,7 @@ const defaultLaunch = NewSessionLaunch(
 );
 WorkspaceDirectory directory(
   String path, {
-  List<WorkspaceAgent> agents = const [WorkspaceAgent.pi, WorkspaceAgent.codex],
+  List<WorkspaceAgent> agents = const [claude, codex],
 }) => WorkspaceDirectory(
   path: path,
   home: '/home',
@@ -50,15 +52,11 @@ class FakeWorkspaces extends IWorkspaceRepository {
   FakeWorkspaces({List<WorkspaceHost>? hosts}) : hosts = hosts ?? const [host];
   final List<WorkspaceHost> hosts;
   @override
-  WorkspaceSelection? get currentSelection =>
-      const WorkspaceSelection('computer', 'original');
-  @override
   Future<List<WorkspaceHost>> listHosts() async => hosts;
   Future<WorkspaceDirectory> Function(String)? onBrowse;
   Future<WorkspaceDirectory> Function(String, String)? onBrowseHost;
   final requestedHosts = <String>[];
   final opened = <WorkspaceAgent>[];
-  final restored = <WorkspaceSelection?>[];
   @override
   Future<WorkspaceDirectory> browse(
     String hostId, {
@@ -86,15 +84,10 @@ class FakeWorkspaces extends IWorkspaceRepository {
       hostId: hostId,
       hostLabel: host.label,
       path: path,
-      roomId: 'new',
+      sessionId: 'new',
       name: 'project',
       agent: agent,
     );
-  }
-
-  @override
-  Future<void> restore(WorkspaceSelection? selection) async {
-    restored.add(selection);
   }
 }
 
@@ -150,7 +143,7 @@ void main() {
       final repo = FakeWorkspaces();
       final vm = NewSessionViewModel(repo, launch: defaultLaunch);
       await tick();
-      vm.setAgent(WorkspaceAgent.codex);
+      vm.setAgent(codex);
       repo.onBrowse = (path) async => directory(
         path,
         agents: const [WorkspaceAgent(id: 'codex', label: 'Computer Codex')],
@@ -249,13 +242,11 @@ void main() {
       await tick();
       expect((vm.state as NewSessionReady).directory!.path, '/home');
       await vm.browse(path: '/project');
-      vm.setAgent(WorkspaceAgent.codex);
+      vm.setAgent(codex);
       final result = await vm.open();
       expect(result!.path, '/project');
       expect(result.workspaceKey, 'computer:workspace:default');
-      expect(repo.opened, [WorkspaceAgent.codex]);
-      await vm.cancel();
-      expect(repo.restored, isEmpty);
+      expect(repo.opened, [codex]);
       vm.dispose();
     },
   );
@@ -275,24 +266,20 @@ void main() {
     vm.dispose();
   });
 
-  test(
-    'cancel invalidates folder response and restores the previous room once',
-    () async {
-      final repo = FakeWorkspaces();
-      final vm = NewSessionViewModel(repo, launch: defaultLaunch);
-      await tick();
-      final response = Completer<WorkspaceDirectory>();
-      repo.onBrowse = (_) => response.future;
-      final browse = vm.browse(path: '/pending');
-      await vm.cancel();
-      await vm.cancel();
-      response.complete(directory('/pending'));
-      await browse;
-      expect(repo.restored.single!.roomId, 'original');
-      expect((vm.state as NewSessionReady).directory!.path, '/home');
-      vm.dispose();
-    },
-  );
+  test('cancel invalidates a pending folder response', () async {
+    final repo = FakeWorkspaces();
+    final vm = NewSessionViewModel(repo, launch: defaultLaunch);
+    await tick();
+    final response = Completer<WorkspaceDirectory>();
+    repo.onBrowse = (_) => response.future;
+    final browse = vm.browse(path: '/pending');
+    await vm.cancel();
+    await vm.cancel();
+    response.complete(directory('/pending'));
+    await browse;
+    expect((vm.state as NewSessionReady).directory!.path, '/home');
+    vm.dispose();
+  });
 
   test('shows startup error and allows retry', () async {
     final repo = FakeWorkspaces();

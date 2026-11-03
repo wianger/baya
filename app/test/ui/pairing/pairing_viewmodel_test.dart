@@ -1,16 +1,11 @@
-// Tests for PairingViewModel: scan → pair_request → paired.
-// Uses in-memory transport so no real WS is needed.
+// Tests for PairingViewModel: scan → `_baya/pair` → paired, against an
+// in-memory computer.
 
-import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
-
+import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/channel.dart';
-import 'package:app/data/transport/connection_manager.dart';
+import 'package:app/data/transport/host_socket.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
-import 'package:app/pairing/pair_request_flow.dart' show PeerTransport;
 import 'package:app/pairing/storage.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
@@ -19,40 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:baya_identity/baya_identity.dart';
 
-// ---------------------------------------------------------------------------
-// Test infrastructure
-// ---------------------------------------------------------------------------
-
-class _Q {
-  final _buf = <Uint8List>[];
-  final _wait = <Completer<Uint8List>>[];
-  void add(Uint8List d) {
-    if (_wait.isNotEmpty) {
-      _wait.removeAt(0).complete(d);
-    } else {
-      _buf.add(d);
-    }
-  }
-
-  Future<Uint8List> next() {
-    if (_buf.isNotEmpty) return Future.value(_buf.removeAt(0));
-    final c = Completer<Uint8List>();
-    _wait.add(c);
-    return c.future;
-  }
-}
-
-class _MemTransport implements PeerTransport {
-  final _Q _s;
-  final _Q _r;
-  _MemTransport({required _Q send, required _Q recv}) : _s = send, _r = recv;
-  @override
-  Future<void> send(Uint8List d) async => _s.add(d);
-  @override
-  Future<Uint8List> receive() => _r.next();
-  @override
-  Future<void> close() async {}
-}
+import '../../support/acp_harness.dart';
 
 /// In-memory fake of FlutterSecureStorage so Preferences can be
 /// constructed in tests without touching the platform channel.
@@ -107,15 +69,7 @@ class _PrefsForTest extends Preferences {
   _PrefsForTest() : super(_FakeSecureStorage());
 }
 
-class _FakeStorage extends PairingStorage {
-  final List<PeerRecord> _saved = [];
-
-  @override
-  Future<List<PeerRecord>> listPeers() async => _saved;
-
-  @override
-  Future<void> savePeer(PeerRecord r) async => _saved.add(r);
-}
+typedef _FakeStorage = MemoryStorage;
 
 /// Helper: build a fully-booted [OwnerIdentityBridge] backed by an
 /// in-memory plugin store, seeded with a freshly-generated identity.
@@ -131,57 +85,22 @@ Future<OwnerIdentityBridge> _bootedBridge(PairingStorage storage) async {
 const _qrUri =
     'baya://pair?t=AAAAAAAAAAAAAAAAAAAAAA&'
     'epk=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&'
-    'rm=room1&e=https%3A%2F%2Fpc.tail1.ts.net%2Fbaya-pair%2Fwsl%2Fdirect&'
-    'n=test+session';
+    'e=https%3A%2F%2Fpc.tail1.ts.net%2Fbaya-pair%2Fwsl%2Fdirect&'
+    'n=studio+%28WSL%29';
 
-/// A pairing transport factory that runs a fake "Pi" responder which replies
-/// with the given inner message to whatever `pair_request` it receives.
-PairingTransportFactory _factoryReplyingWith(Map<String, dynamic> reply) {
-  return (qr, deviceEd25519) async {
-    final q1 = _Q();
-    final q2 = _Q();
-    final iTrans = _MemTransport(send: q1, recv: q2);
-    final rTrans = _MemTransport(send: q2, recv: q1);
-
-    // Responder runs in background — copies in_reply_to from the request.
-    unawaited(() async {
-      final raw = await rTrans.receive();
-      final req = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
-      final resp = Map<String, dynamic>.from(reply);
-      resp['in_reply_to'] = req['id'];
-      await rTrans.send(Uint8List.fromList(utf8.encode(jsonEncode(resp))));
-    }());
-
-    return iTrans;
+/// A computer whose `_baya/pair` answers with [result] or fails with [error].
+HostSocketFactory _computer({Object? result, RpcError? error}) {
+  final host = FakeHost();
+  host.handlers['_baya/pair'] = (_) {
+    if (error != null) throw error;
+    return result ?? {'hostname': 'studio'};
   };
+  return host.connect;
 }
 
-// ---------------------------------------------------------------------------
-// Spy ConnectionManager — records adopt/disconnect (PairingViewModel
-// now drives the ConnectionManager directly). Overrides skip super so no
-// ping/connect timers are started.
-// ---------------------------------------------------------------------------
-
-class _SpyConn extends ConnectionManager {
-  _SpyConn()
-    : super(
-        factory: (_, _) async => throw UnimplementedError(),
-        storage: _FakeStorage(),
-      );
-
-  IChannel? adoptedChannel;
-  PeerRecord? adoptedPeer;
-  int disconnectCalls = 0;
-
-  @override
-  void adopt(IChannel channel, PeerRecord peer) {
-    adoptedChannel = channel;
-    adoptedPeer = peer;
-  }
-
-  @override
-  Future<void> disconnect() async => disconnectCalls++;
-}
+HostSocketFactory _unreachable() =>
+    ({required endpoint, required hostKey, required identity}) async =>
+        throw Exception('socket exception');
 
 // ---------------------------------------------------------------------------
 // Unit tests — PairingViewModel
@@ -194,8 +113,7 @@ void main() {
       final bridge = await _bootedBridge(storage);
       final vm = PairingViewModel(
         storage,
-        (qr, key) async => throw Exception('should not be called'),
-        _SpyConn(),
+        _unreachable(),
         _PrefsForTest(),
         bridge,
       );
@@ -208,8 +126,7 @@ void main() {
       final bridge = await _bootedBridge(storage);
       final vm = PairingViewModel(
         storage,
-        (qr, key) async => throw Exception('should not be called'),
-        _SpyConn(),
+        _unreachable(),
         _PrefsForTest(),
         bridge,
       );
@@ -221,67 +138,45 @@ void main() {
       vm.dispose();
     });
 
-    test('scan → connecting → paired (channel adopted)', () async {
+    test('scan → connecting → paired', () async {
       final storage = _FakeStorage();
-      final fakeRepo = _SpyConn();
       final bridge = await _bootedBridge(storage);
-      final factory = _factoryReplyingWith({
-        'type': 'pair_ok',
-        'room_id': 'main',
-        'session_started_at': 1,
-        'hostname': 'studio',
-        'session_name': 'test session',
-      });
       final prefs = _PrefsForTest();
-      final vm = PairingViewModel(storage, factory, fakeRepo, prefs, bridge);
+      final vm = PairingViewModel(storage, _computer(), prefs, bridge);
 
       final fut = vm.onQrScanned(_qrUri);
       expect(vm.state, isA<PairingConnecting>());
-
       await fut;
-      await Future<void>.delayed(const Duration(milliseconds: 30));
 
       expect(vm.state, isA<PairingPaired>());
-      expect(storage._saved, hasLength(1));
-      expect(storage._saved.first.sessionName, 'test session');
-      expect(fakeRepo.adoptedChannel, isNotNull);
-      expect(fakeRepo.adoptedPeer?.remoteEpk, isNotEmpty);
-      expect(fakeRepo.disconnectCalls, 1);
+      expect((vm.state as PairingPaired).hostnameHint, 'studio');
+      expect(storage.peers.single.name, 'studio (WSL)');
       expect(
         prefs.tailnetDomain,
         'tail1.ts.net',
         reason: 'the tailnet completes short names next time',
       );
-      expect(storage._saved.first.roomId, 'main');
-
       vm.dispose();
     });
 
-    test('pair_error → PairingError(canRetry: true)', () async {
+    test('a refused code → PairingError(canRetry: true)', () async {
       final storage = _FakeStorage();
       final bridge = await _bootedBridge(storage);
-      final factory = _factoryReplyingWith({
-        'type': 'pair_error',
-        'code': 'token_expired',
-        'message': 'Token expired',
-      });
       final vm = PairingViewModel(
         storage,
-        factory,
-        _SpyConn(),
+        _computer(
+          error: const RpcError(-32000, 'expired', {'reason': 'token_expired'}),
+        ),
         _PrefsForTest(),
         bridge,
       );
 
       await vm.onQrScanned(_qrUri);
-      await Future<void>.delayed(const Duration(milliseconds: 30));
 
-      expect(vm.state, isA<PairingError>());
       final err = vm.state as PairingError;
       expect(err.canRetry, isTrue);
       expect(err.message, contains('QR expired'));
-      expect(storage._saved, isEmpty);
-
+      expect(storage.peers, isEmpty);
       vm.dispose();
     });
 
@@ -292,8 +187,7 @@ void main() {
         final bridge = await _bootedBridge(storage);
         final vm = PairingViewModel(
           storage,
-          (qr, key) async => throw Exception('socket exception'),
-          _SpyConn(),
+          _unreachable(),
           _PrefsForTest(),
           bridge,
         );
@@ -315,21 +209,12 @@ void main() {
   // -------------------------------------------------------------------------
 
   group('PairingPage widget', () {
-    testWidgets('navigates via PairingPaired after pair_ok', (tester) async {
+    testWidgets('shows Done after pairing', (tester) async {
       final storage = _FakeStorage();
       final bridge = await _bootedBridge(storage);
-      final factory = _factoryReplyingWith({
-        'type': 'pair_ok',
-        'room_id': 'main',
-        'session_started_at': 1,
-        'hostname': 'studio',
-        'session_name': 'test session',
-      });
-      final conn = _SpyConn();
       final vm = PairingViewModel(
         storage,
-        factory,
-        conn,
+        _computer(),
         _PrefsForTest(),
         bridge,
       );
@@ -342,33 +227,22 @@ void main() {
           ),
         ),
       );
-
-      await tester.runAsync(() async {
-        await vm.onQrScanned(_qrUri);
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-      });
+      await tester.runAsync(() => vm.onQrScanned(_qrUri));
       await tester.pump();
 
       expect(vm.state, isA<PairingPaired>());
       expect(find.text('Done'), findsOneWidget);
-
       vm.dispose();
-      conn.dispose(); // cancel the watchdog before the timer-pending check
     });
 
-    testWidgets('shows error view on pair_error', (tester) async {
-      final factory = _factoryReplyingWith({
-        'type': 'pair_error',
-        'code': 'token_consumed',
-        'message': 'Already used',
-      });
+    testWidgets('shows the error view and retries', (tester) async {
       final storage = _FakeStorage();
       final bridge = await _bootedBridge(storage);
-      final conn = _SpyConn();
       final vm = PairingViewModel(
         storage,
-        factory,
-        conn,
+        _computer(
+          error: const RpcError(-32000, 'used', {'reason': 'token_consumed'}),
+        ),
         _PrefsForTest(),
         bridge,
       );
@@ -381,22 +255,14 @@ void main() {
           ),
         ),
       );
-
-      await tester.runAsync(() async {
-        await vm.onQrScanned(_qrUri);
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-      });
+      await tester.runAsync(() => vm.onQrScanned(_qrUri));
       await tester.pump();
 
       expect(vm.state, isA<PairingError>());
-      expect(find.text('Try again'), findsOneWidget);
-
       await tester.tap(find.text('Try again'));
       await tester.pump();
       expect(vm.state, isA<PairingScanning>());
-
       vm.dispose();
-      conn.dispose(); // cancel the watchdog before the timer-pending check
     });
   });
 }

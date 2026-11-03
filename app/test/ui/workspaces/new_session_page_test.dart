@@ -50,7 +50,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Open Pi here'), findsOneWidget);
+      expect(find.text('Open Claude Code here'), findsOneWidget);
       final openButton = find.byKey(const ValueKey('new-session-open-button'));
       expect(openButton, findsOneWidget);
       expect(

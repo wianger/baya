@@ -26,7 +26,7 @@ Future<OpenedWorkspace?> openNewSession(
   if (selectedWorkspace != null) {
     await home.assignSessionRoomToWorkspace(
       workspace.hostId,
-      workspace.roomId,
+      workspace.sessionId,
       selectedWorkspace,
     );
     await home.selectWorkspace(selectedWorkspace);
@@ -35,7 +35,7 @@ Future<OpenedWorkspace?> openNewSession(
   if (!context.mounted) return workspace;
   context.read<SessionSelection>().select(
     workspace.hostId,
-    workspace.roomId,
+    workspace.sessionId,
     workspace.name,
     workspace.hostLabel,
     true,

@@ -1,6 +1,4 @@
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/connection_manager.dart';
-import 'package:app/protocol/protocol.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
@@ -11,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../support/phone_controls.dart';
+import '../../support/acp_harness.dart';
 
 void main() {
   testWidgets(
@@ -20,38 +18,27 @@ void main() {
       FlutterSecureStorage.setMockInitialValues({});
       final prefs = Preferences();
       await prefs.load();
-      final peer = phoneTestPeer();
-      final channel = PhoneTestChannel();
-      final storage = PhoneTestStorage([peer]);
-      final connection = ConnectionManager(
-        storage: storage,
-        factory: (_, _) async => channel,
-        emitDebounce: Duration.zero,
-      );
-      connection.adopt(channel, peer);
-      final vm = HomeViewModel(storage, prefs, connection);
-      channel.control.add(
-        RoomAnnounced(
-          peer: peer.remoteEpk,
-          room: RoomInfo(
-            roomId: 'alpha',
-            name: 'Alpha task',
+      final peer = testPeer();
+      final storage = MemoryStorage([peer]);
+      final host = FakeHost(
+        sessions: [
+          testSession(
+            id: 'alpha',
             cwd: '/code/project',
-            startedAt: 1,
+            title: 'Alpha task',
+            updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
           ),
-        ),
-      );
-      channel.control.add(
-        RoomAnnounced(
-          peer: peer.remoteEpk,
-          room: RoomInfo(
-            roomId: 'beta',
-            name: 'Beta task',
+          testSession(
+            id: 'beta',
             cwd: '/code/project',
-            startedAt: 2,
+            title: 'Beta task',
+            updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 2),
           ),
-        ),
+        ],
       );
+      final hosts = testHosts(storage, host);
+      await hosts.start();
+      final vm = HomeViewModel(hosts, storage, prefs);
 
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
@@ -87,9 +74,8 @@ void main() {
 
       await tester.pumpWidget(const SizedBox.shrink());
       vm.dispose();
-      connection.dispose();
+      hosts.dispose();
       prefs.dispose();
-      await channel.disposeStreams();
     },
   );
 
@@ -99,16 +85,12 @@ void main() {
       FlutterSecureStorage.setMockInitialValues({});
       final prefs = Preferences();
       await prefs.load();
-      final peer = phoneTestPeer();
-      final channel = PhoneTestChannel();
-      final storage = PhoneTestStorage([peer]);
-      final connection = ConnectionManager(
-        storage: storage,
-        factory: (_, _) async => channel,
-        emitDebounce: Duration.zero,
-      );
-      connection.adopt(channel, peer);
-      final vm = HomeViewModel(storage, prefs, connection);
+      final peer = testPeer();
+      final storage = MemoryStorage([peer]);
+      final host = FakeHost(sessions: []);
+      final hosts = testHosts(storage, host);
+      await hosts.start();
+      final vm = HomeViewModel(hosts, storage, prefs);
 
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
@@ -131,9 +113,8 @@ void main() {
 
       await tester.pumpWidget(const SizedBox.shrink());
       vm.dispose();
-      connection.dispose();
+      hosts.dispose();
       prefs.dispose();
-      await channel.disposeStreams();
     },
   );
 
@@ -143,39 +124,28 @@ void main() {
       FlutterSecureStorage.setMockInitialValues({});
       final prefs = Preferences();
       await prefs.load();
-      final peer = phoneTestPeer();
-      final channel = PhoneTestChannel();
-      final storage = PhoneTestStorage([peer]);
-      final connection = ConnectionManager(
-        storage: storage,
-        factory: (_, _) async => channel,
-        emitDebounce: Duration.zero,
+      final peer = testPeer();
+      final storage = MemoryStorage([peer]);
+      final host = FakeHost(
+        sessions: [
+          testSession(
+            id: 'alpha',
+            cwd: '/code/project',
+            title: 'Previous task',
+            updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+          ),
+          testSession(
+            id: 'beta',
+            cwd: '/code/project',
+            title: 'Latest task',
+            updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 2),
+          ),
+        ],
       );
-      connection.adopt(channel, peer);
-      final vm = HomeViewModel(storage, prefs, connection);
+      final hosts = testHosts(storage, host);
+      await hosts.start();
+      final vm = HomeViewModel(hosts, storage, prefs);
       final selection = SessionSelection();
-      channel.control.add(
-        RoomAnnounced(
-          peer: peer.remoteEpk,
-          room: RoomInfo(
-            roomId: 'alpha',
-            name: 'Previous task',
-            cwd: '/code/project',
-            startedAt: 1,
-          ),
-        ),
-      );
-      channel.control.add(
-        RoomAnnounced(
-          peer: peer.remoteEpk,
-          room: RoomInfo(
-            roomId: 'beta',
-            name: 'Latest task',
-            cwd: '/code/project',
-            startedAt: 2,
-          ),
-        ),
-      );
       final router = GoRouter(
         initialLocation: '/home',
         routes: [
@@ -200,9 +170,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final alpha = vm.allItems.firstWhere(
-        (item) => item.room.roomId == 'alpha',
-      );
+      final alpha = vm.allItems.firstWhere((item) => item.sessionId == 'alpha');
 
       expect(find.text('Latest task'), findsOneWidget);
       await tester.tap(find.byKey(const Key('overview-previous-sessions')));
@@ -225,18 +193,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Opened chat route'), findsOneWidget);
-      expect(
-        selection.matches(alpha.peer.remoteEpk, alpha.room.roomId),
-        isTrue,
-      );
+      expect(selection.matches(alpha.peer.remoteEpk, alpha.sessionId), isTrue);
 
       await tester.pumpWidget(const SizedBox.shrink());
       router.dispose();
       selection.dispose();
       vm.dispose();
-      connection.dispose();
+      hosts.dispose();
       prefs.dispose();
-      await channel.disposeStreams();
     },
   );
 }

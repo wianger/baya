@@ -1,7 +1,6 @@
 /// The workspace overview shown when no chat is open.
 library;
 
-import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -130,18 +129,19 @@ class _WorkspaceOverview extends StatelessWidget {
     final colors = context.colors;
     final workspace = vm.selectedWorkspace;
     final items = [...vm.workspaceItems]
-      ..sort((a, b) => b.room.startedAt.compareTo(a.room.startedAt));
+      ..sort(
+        (a, b) => (b.session.updatedAt ?? DateTime(0)).compareTo(
+          a.session.updatedAt ?? DateTime(0),
+        ),
+      );
     final working = items
-        .where(
-          (item) => vm.isRoomWorking(item.peer.remoteEpk, item.room.roomId),
-        )
+        .where((item) => vm.isRoomWorking(item.peer.remoteEpk, item.sessionId))
         .toList();
     final liveCount = items
-        .where((item) => vm.isRoomLive(item.peer.remoteEpk, item.room.roomId))
+        .where((item) => vm.isRoomLive(item.peer.remoteEpk, item.sessionId))
         .length;
     final folderCount = items
-        .map((item) => item.room.cwd)
-        .whereType<String>()
+        .map((item) => item.session.cwd)
         .where((folder) => folder.isNotEmpty)
         .toSet()
         .length;
@@ -149,21 +149,19 @@ class _WorkspaceOverview extends StatelessWidget {
     final deviceEpk = vm.selectedDevice;
     final device = deviceEpk == null ? null : vm.devices[deviceEpk];
     final deviceName =
-        device?.nickname ??
-        device?.sessionName ??
-        context.l10n.noDeviceSelected;
+        device?.nickname ?? device?.name ?? context.l10n.noDeviceSelected;
     final workspaceName =
         vm.workspaceLabel(workspace) ?? context.l10n.noWorkspace;
     final focusWorking =
         focus != null &&
-        vm.isRoomWorking(focus.peer.remoteEpk, focus.room.roomId);
+        vm.isRoomWorking(focus.peer.remoteEpk, focus.sessionId);
     final previousSessions = focus == null
         ? const <HomeItem>[]
         : items
               .where(
                 (item) =>
                     item.peer.remoteEpk != focus.peer.remoteEpk ||
-                    item.room.roomId != focus.room.roomId,
+                    item.sessionId != focus.sessionId,
               )
               .toList(growable: false);
 
@@ -294,9 +292,9 @@ class _WorkspaceOverview extends StatelessWidget {
               _FocusSessionCard(
                 item: focus,
                 displayName: vm.displayNameOf(focus),
-                agent: workspaceAgentLabel(focus.room.agent),
+                agent: focus.session.agentName,
                 working: focusWorking,
-                online: vm.isRoomLive(focus.peer.remoteEpk, focus.room.roomId),
+                online: vm.isRoomLive(focus.peer.remoteEpk, focus.sessionId),
                 onOpen: () => openSession(context, focus),
               ),
             if (previousSessions.isNotEmpty) ...[
@@ -399,11 +397,11 @@ class PreviousSessionsSheet extends StatelessWidget {
                 final item = items[index];
                 final working = vm.isRoomWorking(
                   item.peer.remoteEpk,
-                  item.room.roomId,
+                  item.sessionId,
                 );
                 final online = vm.isRoomLive(
                   item.peer.remoteEpk,
-                  item.room.roomId,
+                  item.sessionId,
                 );
                 final status = context.l10n.sessionStatus(
                   working: working,
@@ -416,7 +414,7 @@ class PreviousSessionsSheet extends StatelessWidget {
                     : colors.muted;
                 return ListTile(
                   key: ValueKey(
-                    'previous-session-${item.peer.remoteEpk}-${item.room.roomId}',
+                    'previous-session-${item.peer.remoteEpk}-${item.sessionId}',
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14,
@@ -449,8 +447,8 @@ class PreviousSessionsSheet extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(
-                    '${workspaceAgentLabel(item.room.agent)} · $status'
-                    '${item.room.cwd == null ? '' : ' · ${item.room.cwd}'}',
+                    '${item.session.agentName} · $status'
+                    ' · ${item.session.cwd}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.typo.sansBody.copyWith(
@@ -615,7 +613,7 @@ class _FocusSessionCard extends StatelessWidget {
                           const SizedBox(width: 8),
                           Flexible(
                             child: Text(
-                              '$agent · ${item.room.cwd ?? item.room.roomId}',
+                              '$agent · ${item.session.cwd}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
