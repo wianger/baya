@@ -211,15 +211,21 @@ async function startBackground(): Promise<HostStatus> {
   mkdirSync(join(BAYA_HOME, "logs"), { recursive: true, mode: 0o700 });
   const serveArgs = [fileURLToPath(import.meta.url), "serve", "--log", LOG_FILE];
   if (process.platform === "win32") {
-    // A headless console the host and everything it starts share: agents and
-    // their tools then never pop up a console window of their own.
-    const conhost = join(process.env["SystemRoot"] || "C:\\Windows", "System32", "conhost.exe");
-    spawn(conhost, ["--headless", process.execPath, ...serveArgs], {
-      detached: true,
-      env: { ...process.env },
-      stdio: "ignore",
-      windowsHide: true,
-    }).unref();
+    // Start-Process gives the host a console of its own with its window
+    // hidden. Agents and every tool they run share it; a host without a
+    // console would make each of those open a visible console window.
+    const quote = (value: string): string => `'${value.replace(/'/g, "''")}'`;
+    const argumentList = serveArgs.map((arg) => `"${arg}"`).join(" ");
+    const script = `Start-Process -WindowStyle Hidden -FilePath ${quote(process.execPath)} -ArgumentList ${quote(argumentList)}`;
+    await new Promise<void>((done, fail) => {
+      spawn(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
+        { env: { ...process.env }, stdio: "ignore", windowsHide: true },
+      )
+        .on("error", fail)
+        .on("exit", () => done());
+    });
   } else {
     spawn(process.execPath, serveArgs, {
       detached: true,
