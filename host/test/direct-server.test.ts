@@ -272,13 +272,102 @@ describe("ACP over the direct connection", () => {
     await expect(
       a.call("session/prompt", { sessionId, prompt: [{ type: "text", text: "exit" }] }),
     ).rejects.toThrow(/stopped/);
-    // The fake agent resumes only sessions it created, so this one starts over.
+    // The agent reloads its own session; its replay is not shown twice.
     expect(
       await a.call("session/prompt", { sessionId, prompt: [{ type: "text", text: "again" }] }),
     ).toEqual({ stopReason: "end_turn" });
-    expect(a.updates(sessionId)).toContainEqual(
-      expect.objectContaining({ sessionUpdate: "notice", severity: "warning" }),
+    expect(a.updates(sessionId)).not.toContainEqual(
+      expect.objectContaining({ content: { type: "text", text: "remembered" } }),
     );
+  });
+
+  test("files and terminals run on the computer; phones see terminal output", async () => {
+    const { host, port, storage, hub } = await setup();
+    const a = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "P", remote_epk: a.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const { sessionId } = (await a.call("session/new", { cwd: tmpdir(), mcpServers: [] })) as {
+      sessionId: string;
+    };
+    const file = join(mkdtempSync(join(tmpdir(), "baya-fs-")), "nested", "a.txt");
+    await a.call("session/prompt", { sessionId, prompt: [{ type: "text", text: `file ${file}` }] });
+    expect(a.updates(sessionId)).toContainEqual({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "read:two" },
+    });
+
+    await a.call("session/prompt", { sessionId, prompt: [{ type: "text", text: "terminal" }] });
+    expect(a.updates(sessionId)).toContainEqual({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "exit:0 from the terminal" },
+    });
+    const terminal = await a.next(
+      (f) => f["method"] === "_baya/terminal" && f["params"].exitStatus !== null,
+    );
+    expect(terminal["params"]).toMatchObject({ sessionId, exitStatus: { exitCode: 0 } });
+    expect(terminal["params"].output).toContain("from the terminal");
+
+    // A phone loading the session later gets the terminal too.
+    const b = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "Q", remote_epk: b.key, paired_at: "now" });
+    await hub.refreshPeers();
+    await b.call("session/load", { sessionId, cwd: tmpdir(), mcpServers: [] });
+    await b.next(
+      (f) => f["method"] === "_baya/terminal" && f["params"].output.includes("terminal"),
+    );
+  });
+
+  test("elicitation forms go to the phone; sign-in failures name the agent", async () => {
+    const { host, port, storage, hub } = await setup();
+    const a = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "P", remote_epk: a.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const { sessionId } = (await a.call("session/new", { cwd: tmpdir(), mcpServers: [] })) as {
+      sessionId: string;
+    };
+    const turn = a.call("session/prompt", {
+      sessionId,
+      prompt: [{ type: "text", text: "elicit" }],
+    });
+    const ask = await a.next((f) => f["method"] === "elicitation/create");
+    expect(ask["params"]).toMatchObject({ sessionId, mode: "form", message: "Which branch?" });
+    a.send({ id: ask["id"], result: { action: "accept", content: { branch: "main" } } });
+    await turn;
+    expect(a.updates(sessionId)).toContainEqual({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "accept:main" },
+    });
+
+    await expect(
+      a.call("session/prompt", { sessionId, prompt: [{ type: "text", text: "auth" }] }),
+    ).rejects.toMatchObject({ code: -32000, data: { reason: "auth_required", agent: "fake" } });
+    expect(await a.call("_baya/agent_auth", { agent: "fake" })).toEqual({
+      authMethods: [{ id: "browser", name: "Sign in with a browser" }],
+      logout: true,
+    });
+    expect(await a.call("_baya/authenticate", { agent: "fake", methodId: "browser" })).toEqual({});
+  });
+
+  test("the agent's own conversations can be adopted, with their history", async () => {
+    const { host, port, storage, hub } = await setup();
+    const a = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "P", remote_epk: a.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const listed = await a.call("_baya/agent_sessions", { agent: "fake", cwd: tmpdir() });
+    expect(listed["sessions"]).toContainEqual(
+      expect.objectContaining({ sessionId: "old-1", title: "Earlier work" }),
+    );
+    const { sessionId } = (await a.call("session/new", {
+      cwd: tmpdir(),
+      mcpServers: [],
+      _meta: { baya: { agent: "fake", agentSessionId: "old-1" } },
+    })) as { sessionId: string };
+    expect(a.updates(sessionId)).toContainEqual({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "remembered" },
+    });
+    const again = await a.call("_baya/agent_sessions", { agent: "fake", cwd: tmpdir() });
+    expect(again["sessions"].map((s: Frame) => s["sessionId"])).not.toContain("old-1");
   });
 
   test("unpairing cuts the phone off at once", async () => {

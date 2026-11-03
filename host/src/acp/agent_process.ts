@@ -81,7 +81,16 @@ export class AgentProcess {
 
     this.info = await peer.request<InitializeResponse>("initialize", {
       protocolVersion: PROTOCOL_VERSION,
-      clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
+      // Baya answers files and terminals on this computer, shows notices,
+      // compaction and boolean settings, and asks phones elicitation forms
+      // and links. Terminal sign-in needs someone at the computer.
+      clientCapabilities: {
+        fs: { readTextFile: true, writeTextFile: true },
+        terminal: true,
+        session: { compaction: {}, notices: {}, configOptions: { boolean: {} } },
+        elicitation: { form: {}, url: {} },
+        auth: { terminal: false },
+      },
       clientInfo: { name: "baya", title: "Baya", version: packageVersion() },
     });
     if (this.info.protocolVersion !== PROTOCOL_VERSION) {

@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { type AgentDefinition, defaultAgentId, loadConfig } from "../config.ts";
 import { isPairedKey, listPeers, type PeerRecord } from "../pairing/storage.ts";
 import {
@@ -7,7 +8,10 @@ import {
   type SessionRecord,
 } from "../session/registry.ts";
 import { findExecutable } from "../workspace/directories.ts";
+import { AgentProcess } from "./agent_process.ts";
 import { HostedSession, type PhoneLink } from "./hosted_session.ts";
+import { type Json, RpcError } from "./jsonrpc.ts";
+import type { InitializeResponse } from "./schema.ts";
 
 export interface AgentInfo {
   id: string;
@@ -71,11 +75,15 @@ export class SessionHub {
     return this.sessions.get(id);
   }
 
-  create(cwd: string, agent?: string, title?: string): HostedSession {
+  create(
+    cwd: string,
+    agent?: string,
+    options: { title?: string; agentSessionId?: string } = {},
+  ): HostedSession {
     const id = agent ?? defaultAgentId();
     if (!id) throw new Error("No agent is set up on this computer. Add one: baya agents add");
     if (!this.definition(id)) throw new Error(`No agent named "${id}" is set up on this computer.`);
-    const session = this.adopt(addSession({ cwd, agent: id, ...(title ? { title } : {}) }));
+    const session = this.adopt(addSession({ cwd, agent: id, ...options }));
     this.changed(session);
     return session;
   }
@@ -92,6 +100,84 @@ export class SessionHub {
 
   stop(): void {
     for (const session of this.sessions.values()) session.stop();
+  }
+
+  // ── an agent outside any session: sign-in and its own sessions ──────────
+
+  /**
+   * Runs [work] against a short-lived process of agent [id], for what
+   * belongs to the agent rather than one Baya session.
+   */
+  async withAgent<T>(
+    id: unknown,
+    cwd: string | undefined,
+    work: (agent: AgentProcess, info: InitializeResponse) => Promise<T>,
+  ): Promise<T> {
+    const definition = typeof id === "string" ? this.definition(id) : null;
+    if (!definition) throw RpcError.invalidParams(`No agent named "${String(id)}" is set up.`);
+    const agent = new AgentProcess(definition);
+    try {
+      const info = await agent.start(cwd ?? homedir(), {
+        onRequest: (method) => Promise.reject(RpcError.methodNotFound(method)),
+        onNotification: () => {},
+        onExit: () => {},
+      });
+      return await work(agent, info);
+    } finally {
+      agent.stop();
+    }
+  }
+
+  /** How the agent signs in, and whether it can sign out. */
+  agentAuth(id: unknown): Promise<Json> {
+    return this.withAgent(id, undefined, async (_, info) => ({
+      authMethods: info.authMethods ?? [],
+      logout: Boolean(
+        (info.agentCapabilities as Json | undefined)?.["auth"] &&
+          ((info.agentCapabilities as Json)["auth"] as Json)["logout"],
+      ),
+    }));
+  }
+
+  authenticate(id: unknown, methodId: unknown): Promise<Json> {
+    if (typeof methodId !== "string") throw RpcError.invalidParams("methodId is required.");
+    return this.withAgent(id, undefined, async (agent) => {
+      await agent.request("authenticate", { methodId });
+      this.restartAgent(String(id));
+      return {};
+    });
+  }
+
+  logout(id: unknown): Promise<Json> {
+    return this.withAgent(id, undefined, async (agent) => {
+      await agent.request("logout", {});
+      this.restartAgent(String(id));
+      return {};
+    });
+  }
+
+  /** The agent's own conversations in [cwd] that Baya has not adopted. */
+  agentSessions(id: unknown, cwd: string): Promise<Json> {
+    return this.withAgent(id, cwd, async (agent, info) => {
+      if (!info.agentCapabilities?.sessionCapabilities?.list) return { sessions: [] };
+      const adopted = new Set(
+        [...this.sessions.values()].map((session) => session.record.agentSessionId),
+      );
+      const listed = await agent.request<{ sessions?: Json[] }>("session/list", { cwd });
+      return {
+        sessions: (listed.sessions ?? []).filter(
+          (session) =>
+            typeof session["sessionId"] === "string" && !adopted.has(session["sessionId"]),
+        ),
+      };
+    });
+  }
+
+  /** Running sessions of agent [id] pick up new sign-in state on next use. */
+  private restartAgent(id: string): void {
+    for (const session of this.sessions.values()) {
+      if (session.record.agent === id && !session.working) session.stop();
+    }
   }
 
   private adopt(record: SessionRecord): HostedSession {

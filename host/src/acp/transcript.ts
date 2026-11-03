@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import type { TerminalSnapshot } from "./client_services.ts";
 import { isObject } from "./jsonrpc.ts";
 import type { SessionUpdate } from "./schema.ts";
 
@@ -29,6 +30,7 @@ export function isConversationUpdate(update: SessionUpdate): boolean {
  */
 export class Transcript {
   private entries: SessionUpdate[] = [];
+  private readonly terminalOutput = new Map<string, TerminalSnapshot>();
   private timer: NodeJS.Timeout | null = null;
   private readonly path: string | null;
 
@@ -36,7 +38,17 @@ export class Transcript {
     this.path = path;
     if (path && existsSync(path)) {
       try {
-        const document = JSON.parse(readFileSync(path, "utf8")) as { entries?: unknown };
+        const document = JSON.parse(readFileSync(path, "utf8")) as {
+          entries?: unknown;
+          terminals?: unknown;
+        };
+        if (Array.isArray(document.terminals)) {
+          for (const terminal of document.terminals as TerminalSnapshot[]) {
+            if (typeof terminal?.terminalId === "string") {
+              this.terminalOutput.set(terminal.terminalId, terminal);
+            }
+          }
+        }
         if (Array.isArray(document.entries)) {
           this.entries = document.entries.filter(
             (entry): entry is SessionUpdate =>
@@ -51,6 +63,19 @@ export class Transcript {
 
   get updates(): readonly SessionUpdate[] {
     return this.entries;
+  }
+
+  /** The latest output of every terminal the conversation ran. */
+  get terminals(): TerminalSnapshot[] {
+    return [...this.terminalOutput.values()];
+  }
+
+  setTerminal(snapshot: TerminalSnapshot): void {
+    this.terminalOutput.set(snapshot.terminalId, snapshot);
+    if (this.terminalOutput.size > 200) {
+      this.terminalOutput.delete(this.terminalOutput.keys().next().value!);
+    }
+    this.scheduleSave();
   }
 
   append(update: SessionUpdate): void {
@@ -154,9 +179,13 @@ export class Transcript {
     if (!this.path) return;
     mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
     const temporary = `${this.path}.tmp`;
-    writeFileSync(temporary, JSON.stringify({ version: 1, entries: this.entries }), {
-      mode: 0o600,
-    });
+    writeFileSync(
+      temporary,
+      JSON.stringify({ version: 1, entries: this.entries, terminals: this.terminals }),
+      {
+        mode: 0o600,
+      },
+    );
     renameSync(temporary, this.path);
   }
 
@@ -165,6 +194,7 @@ export class Transcript {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     this.entries = [];
+    this.terminalOutput.clear();
     if (this.path) rmSync(this.path, { force: true });
   }
 }

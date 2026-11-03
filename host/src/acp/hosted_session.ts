@@ -7,6 +7,7 @@ import {
   updateSession,
 } from "../session/registry.ts";
 import { AgentProcess } from "./agent_process.ts";
+import { ClientServices, type TerminalSnapshot } from "./client_services.ts";
 import { isObject, type Json, RpcError, type RpcId } from "./jsonrpc.ts";
 import {
   BAYA_META,
@@ -39,7 +40,9 @@ interface QueuedPrompt {
   reject: (error: Error) => void;
 }
 
-interface PendingPermission {
+/** A question the agent asked (question or elicitation), open on phones. */
+interface PendingQuestion {
+  method: string;
   params: Json;
   agentRequestId: RpcId;
   asked: Map<PhoneLink, RpcId>;
@@ -48,7 +51,12 @@ interface PendingPermission {
 
 const START_TIMEOUT_MS = 180_000;
 const IDLE_STOP_MS = 20 * 60_000;
-const CANCELLED = { outcome: { outcome: "cancelled" } };
+/** The answer for a question nobody will answer any more. */
+function cancelled(question: { method: string }): Json {
+  return question.method === "elicitation/create"
+    ? { action: "cancel" }
+    : { outcome: { outcome: "cancelled" } };
+}
 
 /**
  * One Baya session. Phones talk to it in ACP; it talks ACP to its agent
@@ -73,7 +81,11 @@ export class HostedSession {
   private readonly attached = new Set<PhoneLink>();
   private readonly queue: QueuedPrompt[] = [];
   private current: QueuedPrompt | null = null;
-  private readonly permissions = new Set<PendingPermission>();
+  private readonly questions = new Set<PendingQuestion>();
+  private readonly services = new ClientServices({
+    cwd: () => this.record.cwd,
+    onTerminal: (snapshot) => this.onTerminal(snapshot),
+  });
   private idleTimer: NodeJS.Timeout | null = null;
   private lastError: string | null = null;
 
@@ -131,6 +143,9 @@ export class HostedSession {
     await this.ensureAgent();
     if (replay) {
       for (const update of this.transcript.updates) this.send(phone, update);
+      for (const terminal of this.transcript.terminals) {
+        phone.notify("_baya/terminal", { sessionId: this.id, ...terminal });
+      }
     }
     if (this.commands) this.send(phone, this.commands);
     if (this.usage) this.send(phone, this.usage);
@@ -138,14 +153,14 @@ export class HostedSession {
     this.cancelIdleStop();
     // Open questions go out after the load response, as live requests would.
     setImmediate(() => {
-      for (const permission of this.permissions) this.askOne(permission, phone);
+      for (const question of this.questions) this.askOne(question, phone);
     });
     return this.setupResponse();
   }
 
   detach(phone: PhoneLink): void {
     if (!this.attached.delete(phone)) return;
-    for (const permission of this.permissions) permission.asked.delete(phone);
+    for (const question of this.questions) question.asked.delete(phone);
     this.scheduleIdleStop();
   }
 
@@ -175,7 +190,7 @@ export class HostedSession {
   /** `session/cancel`: stops the running turn and drops the queue. */
   cancel(): void {
     for (const queued of this.queue.splice(0)) queued.resolve({ stopReason: "cancelled" });
-    for (const permission of [...this.permissions]) this.settlePermission(permission, CANCELLED);
+    for (const question of [...this.questions]) this.settleQuestion(question, cancelled(question));
     if (this.current && this.process && this.record.agentSessionId) {
       this.process.notify("session/cancel", { sessionId: this.record.agentSessionId });
     }
@@ -218,6 +233,7 @@ export class HostedSession {
     this.cancelIdleStop();
     this.cancel();
     for (const queued of this.queue.splice(0)) queued.reject(new Error("Baya stopped."));
+    this.services.dispose();
     this.process?.stop();
     this.process = null;
     this.starting = null;
@@ -292,18 +308,20 @@ export class HostedSession {
     info: InitializeResponse,
   ): Promise<SessionSetup> {
     const cwd = this.record.cwd;
+    const mcpServers = agent.definition.mcpServers ?? [];
     const previous = this.record.agentSessionId;
     const caps = info.agentCapabilities;
     if (previous && (caps?.loadSession || caps?.sessionCapabilities?.resume)) {
       try {
         if (caps.loadSession) {
-          // The agent replays its history; Baya already has it.
-          this.replaying = true;
+          // The agent replays its history. Baya keeps it only for a session
+          // it adopted from the agent and has no history of yet.
+          this.replaying = this.transcript.updates.length > 0;
           return (
             (await agent.request<SessionSetup>("session/load", {
               sessionId: previous,
               cwd,
-              mcpServers: [],
+              mcpServers,
             })) ?? {}
           );
         }
@@ -311,7 +329,7 @@ export class HostedSession {
           (await agent.request<SessionSetup>("session/resume", {
             sessionId: previous,
             cwd,
-            mcpServers: [],
+            mcpServers,
           })) ?? {}
         );
       } catch (error) {
@@ -320,7 +338,7 @@ export class HostedSession {
         this.replaying = false;
       }
     }
-    const created = await agent.request<NewSessionResponse>("session/new", { cwd, mcpServers: [] });
+    const created = await agent.request<NewSessionResponse>("session/new", { cwd, mcpServers });
     if (typeof created?.sessionId !== "string") {
       throw new Error(`${this.agentName} did not return a session id.`);
     }
@@ -342,7 +360,7 @@ export class HostedSession {
     if (this.process !== agent) return;
     this.process = null;
     process.stderr.write(`[baya] ${this.title}: ${error.message}\n`);
-    for (const permission of [...this.permissions]) this.settlePermission(permission, CANCELLED);
+    for (const question of [...this.questions]) this.settleQuestion(question, cancelled(question));
     this.events.changed(this);
   }
 
@@ -385,8 +403,21 @@ export class HostedSession {
       next.resolve(response);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.publish({ sessionUpdate: "notice", severity: "error", title: message });
-      next.reject(error instanceof Error ? error : new Error(message));
+      // ACP: -32000 from an agent means it needs a sign-in. Say which.
+      const needsAuth = error instanceof RpcError && error.code === -32000;
+      this.publish({
+        sessionUpdate: "notice",
+        severity: "error",
+        title: message,
+        ...(needsAuth ? { _meta: { [BAYA_META]: { authRequired: this.record.agent } } } : {}),
+      });
+      next.reject(
+        needsAuth
+          ? new RpcError(-32000, message, { reason: "auth_required", agent: this.record.agent })
+          : error instanceof Error
+            ? error
+            : new Error(message),
+      );
     } finally {
       this.current = null;
       this.events.changed(this);
@@ -410,10 +441,14 @@ export class HostedSession {
 
   private onAgentNotification(method: string, params: Json): void {
     if (method === "$/cancel_request") {
-      const permission = [...this.permissions].find(
+      const question = [...this.questions].find(
         (entry) => entry.agentRequestId === params["requestId"],
       );
-      if (permission) this.settlePermission(permission, CANCELLED);
+      if (question) this.settleQuestion(question, cancelled(question));
+      return;
+    }
+    if (method === "elicitation/complete") {
+      for (const phone of this.attached) phone.notify(method, params);
       return;
     }
     if (method !== "session/update" || !isObject(params["update"])) return;
@@ -464,44 +499,53 @@ export class HostedSession {
   }
 
   private onAgentRequest(method: string, params: Json, id: RpcId): Promise<unknown> {
-    if (method !== "session/request_permission") {
+    if (ClientServices.handles(method)) return this.services.handle(method, params);
+    if (method !== "session/request_permission" && method !== "elicitation/create") {
       return Promise.reject(RpcError.methodNotFound(method));
     }
     return new Promise((resolve) => {
-      const permission: PendingPermission = {
-        params: { ...params, sessionId: this.id },
+      const question: PendingQuestion = {
+        method,
+        params: { ...params, ...(params["sessionId"] ? { sessionId: this.id } : {}) },
         agentRequestId: id,
         asked: new Map(),
         resolve,
       };
-      this.permissions.add(permission);
-      for (const phone of this.attached) this.askOne(permission, phone);
+      this.questions.add(question);
+      for (const phone of this.attached) this.askOne(question, phone);
     });
   }
 
   /** Asks one phone; the first answer from any phone settles it. */
-  private askOne(permission: PendingPermission, phone: PhoneLink): void {
-    if (!this.permissions.has(permission) || permission.asked.has(phone)) return;
-    const { id, result } = phone.ask("session/request_permission", permission.params);
-    permission.asked.set(phone, id);
+  private askOne(question: PendingQuestion, phone: PhoneLink): void {
+    if (!this.questions.has(question) || question.asked.has(phone)) return;
+    const { id, result } = phone.ask(question.method, question.params);
+    question.asked.set(phone, id);
     result.then(
       (answer) => {
-        if (permission.asked.get(phone) === id) permission.asked.delete(phone);
-        this.settlePermission(permission, answer);
+        if (question.asked.get(phone) === id) question.asked.delete(phone);
+        this.settleQuestion(question, answer);
       },
       () => {
-        if (permission.asked.get(phone) === id) permission.asked.delete(phone);
+        if (question.asked.get(phone) === id) question.asked.delete(phone);
       },
     );
   }
 
-  private settlePermission(permission: PendingPermission, answer: unknown): void {
-    if (!this.permissions.delete(permission)) return;
-    for (const [phone, requestId] of permission.asked) {
+  private settleQuestion(question: PendingQuestion, answer: unknown): void {
+    if (!this.questions.delete(question)) return;
+    for (const [phone, requestId] of question.asked) {
       phone.notify("$/cancel_request", { requestId });
     }
-    permission.asked.clear();
-    permission.resolve(answer);
+    question.asked.clear();
+    question.resolve(answer);
+  }
+
+  private onTerminal(snapshot: TerminalSnapshot): void {
+    this.transcript.setTerminal(snapshot);
+    for (const phone of this.attached) {
+      phone.notify("_baya/terminal", { sessionId: this.id, ...snapshot });
+    }
   }
 
   private setupResponse(): Json {

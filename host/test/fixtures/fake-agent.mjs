@@ -40,11 +40,12 @@ async function handle(method, params) {
         protocolVersion: 1,
         agentInfo: { name: "fake", version: "1.0.0" },
         agentCapabilities: {
-          loadSession: false,
+          loadSession: true,
           promptCapabilities: { image: false },
-          sessionCapabilities: { resume: {} },
+          sessionCapabilities: { resume: {}, list: {} },
+          auth: { logout: {} },
         },
-        authMethods: [],
+        authMethods: [{ id: "browser", name: "Sign in with a browser" }],
       };
     case "session/new": {
       const sessionId = `fake-${sessions.size + 1}`;
@@ -57,6 +58,28 @@ async function handle(method, params) {
       );
       return { sessionId, configOptions: config };
     }
+    case "authenticate":
+      return {};
+    case "logout":
+      return {};
+    case "session/list":
+      return {
+        sessions: [
+          { sessionId: "old-1", cwd: params.cwd ?? "/", title: "Earlier work" },
+          ...[...sessions].map((sessionId) => ({ sessionId, cwd: params.cwd ?? "/" })),
+        ],
+      };
+    case "session/load":
+      sessions.add(params.sessionId);
+      update(params.sessionId, {
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "from the agent's history" },
+      });
+      update(params.sessionId, {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "remembered" },
+      });
+      return { configOptions: config };
     case "session/resume":
       if (!sessions.has(params.sessionId) && !process.env.FAKE_AGENT_RESUMES) {
         throw Object.assign(new Error("unknown session"), { code: -32002 });
@@ -70,6 +93,56 @@ async function handle(method, params) {
       const text = params.prompt.map((block) => block.text ?? "").join("");
       const id = params.sessionId;
       if (text === "exit") process.exit(3);
+      if (text === "auth")
+        throw Object.assign(new Error("Authentication required"), { code: -32000 });
+      if (text.startsWith("file ")) {
+        const path = text.slice(5);
+        await request("fs/write_text_file", { sessionId: id, path, content: "one\ntwo\nthree" });
+        const read = await request("fs/read_text_file", { sessionId: id, path, line: 2, limit: 1 });
+        update(id, {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: `read:${read.content}` },
+        });
+        return { stopReason: "end_turn" };
+      }
+      if (text === "terminal") {
+        const { terminalId } = await request("terminal/create", {
+          sessionId: id,
+          command: process.execPath,
+          args: ["-e", "console.log('from the terminal')"],
+        });
+        update(id, {
+          sessionUpdate: "tool_call",
+          toolCallId: "term",
+          title: "node -e",
+          kind: "execute",
+          content: [{ type: "terminal", terminalId }],
+        });
+        const exit = await request("terminal/wait_for_exit", { sessionId: id, terminalId });
+        const out = await request("terminal/output", { sessionId: id, terminalId });
+        update(id, {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: `exit:${exit.exitCode} ${out.output.trim()}` },
+        });
+        return { stopReason: "end_turn" };
+      }
+      if (text === "elicit") {
+        const answer = await request("elicitation/create", {
+          sessionId: id,
+          mode: "form",
+          message: "Which branch?",
+          requestedSchema: {
+            type: "object",
+            properties: { branch: { type: "string" } },
+            required: ["branch"],
+          },
+        });
+        update(id, {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: `${answer.action}:${answer.content?.branch ?? "-"}` },
+        });
+        return { stopReason: "end_turn" };
+      }
       update(id, {
         sessionUpdate: "agent_thought_chunk",
         content: { type: "text", text: "Thinking" },

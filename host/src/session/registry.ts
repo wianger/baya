@@ -87,14 +87,19 @@ function write(sessions: SessionRecord[]): void {
   renameSync(temporary, registryPath());
 }
 
-export function addSession(input: { cwd: string; agent: string; title?: string }): SessionRecord {
+export function addSession(input: {
+  cwd: string;
+  agent: string;
+  title?: string;
+  agentSessionId?: string;
+}): SessionRecord {
   const now = Date.now();
   const record: SessionRecord = {
     id: randomUUID(),
     cwd: normalizeCwd(input.cwd),
     agent: input.agent,
     title: input.title?.trim() || null,
-    agentSessionId: null,
+    agentSessionId: input.agentSessionId ?? null,
     createdAt: now,
     updatedAt: now,
   };

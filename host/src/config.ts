@@ -12,6 +12,8 @@ export interface AgentDefinition {
   command: string[];
   /** Extra environment, e.g. pointing an adapter at an installed agent. */
   env?: Record<string, string>;
+  /** ACP `McpServer`s given to every session of this agent. */
+  mcpServers?: unknown[];
 }
 
 const ENV_ASSIGNMENT = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/su;
@@ -51,7 +53,7 @@ function parseConfig(value: unknown): BayaConfig {
   const agents = Array.isArray(record["agents"])
     ? record["agents"].flatMap((entry): AgentDefinition[] => {
         if (!entry || typeof entry !== "object") return [];
-        const { id, name, command, env } = entry as Record<string, unknown>;
+        const { id, name, command, env, mcpServers } = entry as Record<string, unknown>;
         if (typeof id !== "string" || !AGENT_ID.test(id)) return [];
         if (!Array.isArray(command) || command.length === 0) return [];
         if (!command.every((part) => typeof part === "string" && part.length > 0)) return [];
@@ -69,6 +71,7 @@ function parseConfig(value: unknown): BayaConfig {
             name: typeof name === "string" && name.trim() ? name.trim() : id,
             command,
             ...(Object.keys(variables).length > 0 ? { env: variables } : {}),
+            ...(Array.isArray(mcpServers) && mcpServers.length > 0 ? { mcpServers } : {}),
           },
         ];
       })
