@@ -6,8 +6,15 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import WebSocket from "ws";
-import { ed25519Sign, generateEd25519Keypair } from "../src/pairing/crypto.ts";
-import { deriveSessionKey, open, seal } from "../src/transport/e2e.ts";
+import { generateEd25519Keypair } from "../src/pairing/crypto.ts";
+import {
+  Initiator,
+  keyPairFromPrivate,
+  MessageReader,
+  sealMessage,
+  x25519FromEd25519Seed,
+  x25519PublicFromEd25519,
+} from "../src/transport/noise.ts";
 
 const FAKE_AGENT = fileURLToPath(new URL("./fixtures/fake-agent.mjs", import.meta.url));
 
@@ -52,35 +59,39 @@ async function setup() {
 // biome-ignore lint/suspicious/noExplicitAny: test frames are read loosely.
 type Frame = Record<string, any>;
 
-/** A phone speaking ACP over the sealed WebSocket. */
+/** A phone speaking ACP over the Noise-encrypted WebSocket. */
 async function phone(port: number, hostPublic: Uint8Array) {
   const identity = generateEd25519Keypair();
-  const key = deriveSessionKey(identity.secretKey, identity.publicKey, hostPublic);
   const socket = new WebSocket(`ws://127.0.0.1:${port}/`);
   cleanup.push(() => socket.terminate());
   await new Promise((resolve) => socket.once("open", resolve));
+  const initiator = new Initiator({
+    prologue: Buffer.from("baya/1"),
+    staticKey: keyPairFromPrivate(x25519FromEd25519Seed(identity.secretKey)),
+    remoteStatic: x25519PublicFromEd25519(hostPublic),
+  });
   socket.send(
-    JSON.stringify({ type: "hello", pubkey: Buffer.from(identity.publicKey).toString("base64") }),
+    initiator.writeMessage(
+      Buffer.from(JSON.stringify({ ed25519: Buffer.from(identity.publicKey).toString("base64") })),
+    ),
   );
-  const challenge = JSON.parse(String(await new Promise((r) => socket.once("message", r))));
-  socket.send(
-    JSON.stringify({
-      type: "auth",
-      sig: Buffer.from(
-        ed25519Sign(identity.secretKey, Buffer.from(challenge.nonce, "base64")),
-      ).toString("base64"),
-    }),
-  );
+  const reply = (await new Promise((r) => socket.once("message", r))) as Buffer;
+  const { session } = initiator.readMessage(reply);
+  const reader = new MessageReader();
   const frames: Frame[] = [];
   const closed = new Promise<{ code: number; reason: string }>((resolve) =>
     socket.once("close", (code, reason) => resolve({ code, reason: String(reason) })),
   );
-  socket.on("message", (data, binary) => {
-    if (binary) frames.push(JSON.parse(open(key, "h2p", data as Buffer).plaintext.toString()));
+  socket.on("message", (data) => {
+    const message = reader.read(session.receive, data as Buffer);
+    if (message) frames.push(JSON.parse(message.toString()));
   });
-  let sequence = 0;
+  const sendRaw = (bytes: Buffer) => {
+    for (const frame of sealMessage(session.send, bytes)) socket.send(frame);
+  };
   const send = (message: object) =>
-    socket.send(seal(key, "p2h", Buffer.from(JSON.stringify({ jsonrpc: "2.0", ...message }))));
+    sendRaw(Buffer.from(JSON.stringify({ jsonrpc: "2.0", ...message })));
+  let sequence = 0;
   const next = (match: (frame: Frame) => boolean, timeout = 10_000) =>
     vi.waitFor(
       () => {
@@ -103,7 +114,6 @@ async function phone(port: number, hostPublic: Uint8Array) {
       .map((f) => f["params"].update as Frame);
   return {
     key: Buffer.from(identity.publicKey).toString("base64"),
-    sessionKey: key,
     socket,
     frames,
     closed,
@@ -282,13 +292,22 @@ describe("ACP over the direct connection", () => {
     expect(await a.closed).toEqual({ code: 4003, reason: "unpaired" });
   });
 
-  test("frames from a phone with a wrong clock close the socket; forgeries are dropped", async () => {
+  test("a forged frame ends the connection", async () => {
     const { host, port } = await setup();
     const p = await phone(port, host.publicKey);
-    p.socket.send(seal(Buffer.alloc(32), "p2h", Buffer.from("{}")));
-    await new Promise((r) => setTimeout(r, 100));
+    p.socket.send(Buffer.alloc(40, 1));
+    expect(await p.closed).toEqual({ code: 4002, reason: "transport" });
     expect(p.frames).toEqual([]);
-    p.socket.send(seal(p.sessionKey, "p2h", Buffer.from("{}"), Date.now() - 3_600_000));
-    expect(await p.closed).toEqual({ code: 4001, reason: "clock_skew:60" });
+  });
+
+  test("a handshake for another computer's key is refused", async () => {
+    const { port } = await setup();
+    const other = generateEd25519Keypair();
+    await expect(
+      Promise.race([
+        phone(port, other.publicKey),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("no reply")), 3000)),
+      ]),
+    ).rejects.toThrow();
   });
 });

@@ -481,7 +481,6 @@
     }
   },
   "pasteCodeHint": "Can't scan the code? Paste the text `baya pair` printed. It starts with baya://pair?…",
-  "errorClockSkew": "This phone's clock is off from the computer. Turn on automatic date & time, then try again.",
   "keyBackup": "Key backup",
   "keyBackedUp": "Backed up with Google Backup. A new phone keeps your pairings.",
   "keyNotBackedUp": "Only on this phone. Tap to back up.",

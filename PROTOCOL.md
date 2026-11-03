@@ -47,47 +47,39 @@ Under that path:
 
 Each computer has one long-lived Ed25519 identity, stored in the operating
 system keyring (or a protected file on headless machines). Each phone has its
-own Ed25519 owner identity.
+own Ed25519 owner identity. For Noise both are used as X25519 keys (the
+private scalar per RFC 8032 §5.1.5, the public key by the birational map).
 
-The WebSocket first proves the phone's key with JSON text frames:
+### Noise
 
-```json
-{"type":"hello","pubkey":"base64-ed25519"}
-{"type":"challenge","nonce":"base64-32-bytes"}
-{"type":"auth","sig":"base64-ed25519-signature"}
-```
-
-After that every frame is binary and sealed, in both directions.
-
-### End-to-end encryption (v2)
-
-Both sides convert their Ed25519 identity to X25519 (RFC 8032 §5.1.5 for the
-private scalar, the birational map for the public key) and derive one key per
-phone/computer pair:
+Every WebSocket frame is binary. The connection opens with a
+[Noise](https://noiseprotocol.org/noise.html) handshake:
 
 ```text
-key   = HKDF-SHA256(ikm  = X25519(self, peer),
-                    salt = "baya-e2e-v2",
-                    info = min(ed_pk_a, ed_pk_b) || max(ed_pk_a, ed_pk_b))
-frame = 0xBE 0x02 || nonce(12) || ChaCha20-Poly1305(ts_ms_be64 || json)
-aad   = "baya-e2e-v2|" + ("p2h" | "h2p")
+Noise_IK_25519_ChaChaPoly_SHA256, prologue "baya/1"
+  <- s                      the phone knows the computer's key from pairing
+  -> e, es, s, ss           payload {"ed25519":"<phone identity, base64>"}
+  <- e, ee, se              payload {}
 ```
 
-`json` is one JSON-RPC 2.0 message. The phone learns the computer key from
-the pairing code and the computer learns the phone key from the handshake, so
-nothing in between, `tailscale serve` included, can read, forge or redirect a
-frame. The direction in the AAD stops reflection; receivers drop frames more
-than five minutes old or whose nonce they have seen. The test vector is
-`.orchestration/contracts/e2e_v2.json`.
+One round trip authenticates both sides, and the ephemeral keys give
+forward secrecy: a stolen identity key cannot decrypt recorded traffic. The
+computer checks that the phone's claimed Ed25519 key maps to the static key
+the handshake proved, and uses it as the phone's identity.
 
-The key is static (no forward secrecy): a leaked identity key exposes recorded
-traffic. Rotating the computer identity and re-pairing replaces it.
+After the handshake every frame is one Noise transport message whose
+plaintext is a flag byte (`1` for the last piece) and a piece of a JSON-RPC
+message, so messages larger than Noise's 64 KiB limit span several frames.
+The nonce counters reject any replayed, reordered, dropped or forged frame;
+the computer then closes the connection (`4002`). Nothing in between,
+`tailscale serve` included, can read or change a byte.
 
-The host closes the socket with:
+Both implementations are pinned to the cacophony IK vector
+(`.orchestration/contracts/noise_ik_vector.json`) and to a Baya handshake
+vector (`noise_baya_vector.json`, from `host/test/make-noise-vector.ts`).
 
-- `4001 clock_skew:<minutes>` for an authentic frame outside the window (the
-  phone's clock is wrong);
-- `4003 unpaired` when the phone's pairing is revoked (`baya unpair`), at once.
+The host closes the socket with `4003 unpaired` when the phone's pairing is
+revoked (`baya unpair`), at once.
 
 ## Pairing
 
@@ -98,7 +90,7 @@ to ten minutes:
 baya://pair?t=<token>&epk=<computer key>&n=<computer name>&e=<…/direct address>
 ```
 
-The phone connects with its own key and calls:
+The phone connects (the handshake proves its key) and calls:
 
 ```json
 {"jsonrpc":"2.0","id":1,"method":"_baya/pair","params":{"token":"…","deviceName":"Pixel"}}

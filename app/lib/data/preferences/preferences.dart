@@ -227,7 +227,11 @@ class Preferences extends ChangeNotifier {
   String? sessionName(String epk, String sessionId) =>
       _sessionNames[_conversationKey(epk, sessionId)];
 
-  Future<void> setSessionName(String epk, String sessionId, String? name) async {
+  Future<void> setSessionName(
+    String epk,
+    String sessionId,
+    String? name,
+  ) async {
     final key = _conversationKey(epk, sessionId);
     final trimmed = name?.trim();
     final next = (trimmed == null || trimmed.isEmpty) ? null : trimmed;

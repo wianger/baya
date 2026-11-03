@@ -295,7 +295,6 @@
   "computerDidNotConnect": "所选电脑未能及时连接，请在电脑上启动 Baya 后重试。",
   "pairedDevicesCount": "{count} 台已配对设备",
   "pasteCodeHint": "扫不了码？粘贴 `baya pair` 打印的文本，它以 baya://pair?… 开头。",
-  "errorClockSkew": "手机时间与电脑相差太多。请开启“自动设置时间”后重试。",
   "keyBackup": "密钥备份",
   "keyBackedUp": "已通过 Google 备份保存，换新手机也能保留配对。",
   "keyNotBackedUp": "仅保存在这部手机上，点按以备份。",

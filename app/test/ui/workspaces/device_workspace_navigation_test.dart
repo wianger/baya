@@ -268,8 +268,14 @@ void main() {
     final restored = Preferences();
     await restored.load();
     expect(restored.workspaceName(workspace), 'Release train');
-    expect(restored.workspaceForSession(pc.remoteEpk, 'session-alpha'), workspace);
-    expect(restored.workspaceForSession(pc.remoteEpk, 'session-beta'), workspace);
+    expect(
+      restored.workspaceForSession(pc.remoteEpk, 'session-alpha'),
+      workspace,
+    );
+    expect(
+      restored.workspaceForSession(pc.remoteEpk, 'session-beta'),
+      workspace,
+    );
     restored.dispose();
 
     await vm.deleteWorkspace(workspace);
@@ -350,7 +356,9 @@ void main() {
       await pumpEventQueue();
 
       await vm.selectWorkspace(alphaWorkspace);
-      expect(vm.workspaceItems.map((item) => item.sessionId), ['session-alpha']);
+      expect(vm.workspaceItems.map((item) => item.sessionId), [
+        'session-alpha',
+      ]);
 
       await vm.selectWorkspace(betaWorkspace);
       expect(vm.workspaceItems.map((item) => item.sessionId), ['session-beta']);

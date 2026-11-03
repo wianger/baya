@@ -71,7 +71,6 @@ class HostConnection extends ChangeNotifier {
 
   HostStatus _status = HostStatus.connecting;
   String? _error;
-  int? _clockSkewMinutes;
   HostIntro? _intro;
   List<SessionSummary> _sessions = const [];
   final _pendingPermissions = <Object, Completer<Json>>{};
@@ -88,7 +87,6 @@ class HostConnection extends ChangeNotifier {
 
   /// Why the last attempt failed, in words for the user.
   String? get error => _error;
-  int? get clockSkewMinutes => _clockSkewMinutes;
   HostIntro? get intro => _intro;
   List<AgentInfo> get agents => _intro?.agents ?? const [];
   List<SessionSummary> get sessions => _sessions;
@@ -230,7 +228,6 @@ class HostConnection extends ChangeNotifier {
       _intro = HostIntro.fromJson(intro);
       _attempt = 0;
       _error = null;
-      _clockSkewMinutes = null;
       _setStatus(HostStatus.online);
       await refreshSessions();
       if (!_online.isClosed) _online.add(null);
@@ -260,10 +257,6 @@ class HostConnection extends ChangeNotifier {
     if (closed.code == HostClose.unpaired) {
       _becomeUnpaired();
       return;
-    }
-    if (closed.clockSkewMinutes != null) {
-      _clockSkewMinutes = closed.clockSkewMinutes;
-      _error = appL10n.errorClockSkew;
     }
     if (_status != HostStatus.unpaired) _scheduleRetry();
   }

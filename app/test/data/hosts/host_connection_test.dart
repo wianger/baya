@@ -78,15 +78,14 @@ void main() {
     conn.dispose();
   });
 
-  test('closing with 4003 means unpaired; a dropped socket retries', () async {
+  test('closing with 4003 means unpaired; any other close retries', () async {
     final host = FakeHost();
     final conn = connection(host);
     await conn.start();
     await settle();
-    host.socket!.drop(HostClose.clockSkew, 'clock_skew:12');
+    host.socket!.drop(HostClose.noise, 'transport');
     await settle();
     expect(conn.status, HostStatus.offline);
-    expect(conn.clockSkewMinutes, 12);
     conn.reconnectNow();
     await settle();
     expect(conn.status, HostStatus.online);

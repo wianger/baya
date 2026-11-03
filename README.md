@@ -119,10 +119,11 @@ updates.
 
 ## Security
 
-Every frame between the phone and the computer is end-to-end encrypted
-(X25519 + ChaCha20-Poly1305, keyed by the paired Ed25519 identities), on top
-of Tailscale's own encryption, so not even `tailscale serve` can read or forge
-it. See [PROTOCOL.md](PROTOCOL.md#end-to-end-encryption-v2).
+Every frame between the phone and the computer is end-to-end encrypted with
+the Noise protocol (`Noise_IK_25519_ChaChaPoly_SHA256`): mutual
+authentication with the paired identities and forward secrecy, on top of
+Tailscale's own encryption, so not even `tailscale serve` can read or forge
+it. See [PROTOCOL.md](PROTOCOL.md#noise).
 
 ## Validation
 

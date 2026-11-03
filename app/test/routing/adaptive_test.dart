@@ -94,7 +94,11 @@ void main() {
       sel.addListener(() => notifications++);
 
       sel.select('epkA', 'main', 'Title A again');
-      expect(notifications, 0, reason: 'same (computer, session) must not notify');
+      expect(
+        notifications,
+        0,
+        reason: 'same (computer, session) must not notify',
+      );
       expect(sel.current?.title, 'Title A', reason: 'unchanged');
     });
 

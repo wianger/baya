@@ -1,0 +1,18 @@
+{
+  "prologue": "baya/1",
+  "phone_ed25519_seed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+  "phone_ed25519_public": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w=",
+  "host_ed25519_seed": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=",
+  "host_ed25519_public": "gTl3Dqh9F19Wo1Rmw0x+zMuNipG07jeiXfYPW4/Js5Q=",
+  "host_x25519_public": "YDRufJEaX2uhVBKRdMr+dbKUrDu9VUljL0jOxiZvhBA=",
+  "phone_ephemeral": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM=",
+  "host_ephemeral": "BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ=",
+  "hello": "{\"ed25519\":\"iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w=\"}",
+  "message1": "Xf7dO2vUf2+ijuFdlp1bsOpTd01Ii9r53xxuASSz7yK4N12SgS75/dNVALSy3fIpzX4sZxH/wRC/bVo3QonKb2RGQwqn2PKVPk1FclSLOYkNo5ESy/JAAi+vUDxqSeyKMF7t6M81HPJsl+jQB7KtxBprKhUgRr2C3sGTHp/+PUxNggkzw4r47kLbqHmhwjSc6zwXvWIPv/UNYg==",
+  "message2": "rAGyIJ6GNU+4UyN7XeD0+rE8f8v0M6YcAZNpYX/s8Qs5m5eY2Yirtgn0EljHzz7tqWs=",
+  "handshake_hash": "eGbK43LiFICvwI0f6TVlkIduCLwhgjJbqpwYa+AYVKw=",
+  "request": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"session/list\",\"params\":{}}",
+  "request_frame": "f5nU3ww1xH0EkXOCaEfaprWguDhKfSTB3sCVV1NiDnz853ol207XbyCC6RWUEoHTYJttftabFwhloAd41AvOlnak1L4FHSp9KewUx4I=",
+  "response": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"sessions\":[]}}",
+  "response_frame": "yybCcJPz+xyc4vAxaAzcrO+Egl3MwPxCPBIdQZngmHZE1Erl5EoSKv3uvUGcIC8CwtfpV1Tq7odGyloRxPQ7OLVM"
+}
