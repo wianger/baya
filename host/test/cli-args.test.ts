@@ -58,3 +58,13 @@ describe("typo suggestions", () => {
     expect(suggest("xyz", commands)).toBeUndefined();
   });
 });
+
+describe("agent environment", () => {
+  test("leading NAME=value words are the agent's environment", async () => {
+    const { splitEnv } = await import("../src/config.ts");
+    expect(splitEnv(["CODEX_PATH=/usr/bin/codex", "A=b=c", "codex-acp", "X=1"])).toEqual({
+      env: { CODEX_PATH: "/usr/bin/codex", A: "b=c" },
+      command: ["codex-acp", "X=1"],
+    });
+  });
+});

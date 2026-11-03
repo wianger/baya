@@ -37,7 +37,7 @@ export class AgentProcess {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
       windowsVerbatimArguments: plan.windowsVerbatimArguments,
-      env: { ...process.env },
+      env: { ...process.env, ...this.definition.env },
     });
     this.child = child;
     const peer = new JsonRpcPeer({

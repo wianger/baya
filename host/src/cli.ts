@@ -32,11 +32,13 @@ import {
 } from "./cli/ui.ts";
 import {
   AGENT_ID,
+  type AgentDefinition,
   BAYA_HOME,
   defaultAgentId,
   ensureBayaHome,
   loadConfig,
   saveConfig,
+  splitEnv,
 } from "./config.ts";
 import { controlCall, readControlInfo } from "./control/client.ts";
 import type { HostStatus, SessionStatus } from "./control/protocol.ts";
@@ -77,7 +79,7 @@ ${bold("Sessions")}
 
 ${bold("Agents")} ${dim("— any command that speaks ACP (agentclientprotocol.com)")}
   baya agents             List agents
-  baya agents add <id> [--name <name>] -- <command> [args…]
+  baya agents add <id> [--name <name>] -- [NAME=value…] <command> [args…]
   baya agents remove <id>
   baya agents default <id>
 
@@ -509,7 +511,7 @@ async function doctor(args: ParsedArgs): Promise<void> {
 }
 
 async function agentStatuses(): Promise<
-  Array<{ id: string; name: string; command: string[]; available: boolean; default: boolean }>
+  Array<AgentDefinition & { available: boolean; default: boolean }>
 > {
   const config = loadConfig();
   const fallback = defaultAgentId(config);
@@ -541,7 +543,12 @@ async function agents(args: ParsedArgs): Promise<void> {
             agent.available ? green("✓") : yellow("–"),
             bold(agent.id),
             agent.name,
-            dim(agent.command.join(" ")),
+            dim(
+              [
+                ...Object.entries(agent.env ?? {}).map(([key, value]) => `${key}=${value}`),
+                ...agent.command,
+              ].join(" "),
+            ),
             agent.default ? cyan("default") : "",
           ]),
         ),
@@ -551,17 +558,16 @@ async function agents(args: ParsedArgs): Promise<void> {
       if (!id || !AGENT_ID.test(id)) {
         throw new Error("Give the agent a short id: lowercase letters, digits, - or _.");
       }
-      if (args.passthrough.length === 0) {
+      const { env, command } = splitEnv(args.passthrough);
+      if (command.length === 0) {
         throw new Error(`Put the command after --, e.g. baya agents add ${id} -- my-agent --acp`);
       }
       const name = stringFlag(args, "name") ?? id;
-      const entry = { id, name, command: args.passthrough };
+      const entry = { id, name, command, ...(Object.keys(env).length > 0 ? { env } : {}) };
       const others = config.agents.filter((agent) => agent.id !== id);
       saveConfig({ ...config, agents: [...others, entry] });
       out(ok(`${others.length < config.agents.length ? "Updated" : "Added"} ${bold(name)}`));
-      if (!(await findExecutable(args.passthrough[0]!))) {
-        out(warn(`${args.passthrough[0]} is not on PATH yet`));
-      }
+      if (!(await findExecutable(command[0]!))) out(warn(`${command[0]} is not on PATH yet`));
       return;
     }
     case "remove": {

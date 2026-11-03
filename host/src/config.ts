@@ -10,6 +10,25 @@ export interface AgentDefinition {
   name: string;
   /** Executable and arguments, never passed through a shell. */
   command: string[];
+  /** Extra environment, e.g. pointing an adapter at an installed agent. */
+  env?: Record<string, string>;
+}
+
+const ENV_ASSIGNMENT = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/su;
+
+/**
+ * Splits `NAME=value … command args…`, the shell's own way of giving one
+ * command extra environment, into the environment and the command.
+ */
+export function splitEnv(words: string[]): { env: Record<string, string>; command: string[] } {
+  const env: Record<string, string> = {};
+  let index = 0;
+  for (; index < words.length; index++) {
+    const match = ENV_ASSIGNMENT.exec(words[index]!);
+    if (!match) break;
+    env[match[1]!] = match[2]!;
+  }
+  return { env, command: words.slice(index) };
 }
 
 interface BayaConfig {
@@ -32,11 +51,26 @@ function parseConfig(value: unknown): BayaConfig {
   const agents = Array.isArray(record["agents"])
     ? record["agents"].flatMap((entry): AgentDefinition[] => {
         if (!entry || typeof entry !== "object") return [];
-        const { id, name, command } = entry as Record<string, unknown>;
+        const { id, name, command, env } = entry as Record<string, unknown>;
         if (typeof id !== "string" || !AGENT_ID.test(id)) return [];
         if (!Array.isArray(command) || command.length === 0) return [];
         if (!command.every((part) => typeof part === "string" && part.length > 0)) return [];
-        return [{ id, name: typeof name === "string" && name.trim() ? name.trim() : id, command }];
+        const variables =
+          env && typeof env === "object" && !Array.isArray(env)
+            ? Object.fromEntries(
+                Object.entries(env).filter(
+                  (pair): pair is [string, string] => typeof pair[1] === "string",
+                ),
+              )
+            : {};
+        return [
+          {
+            id,
+            name: typeof name === "string" && name.trim() ? name.trim() : id,
+            command,
+            ...(Object.keys(variables).length > 0 ? { env: variables } : {}),
+          },
+        ];
       })
     : [];
   const unique = agents.filter(
