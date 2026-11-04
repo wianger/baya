@@ -6,6 +6,7 @@ import 'package:app/ui/chat/widgets/tool_activity_details.dart';
 import 'package:app/ui/chat/widgets/tool_content.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
+import 'package:app/ui/chat/hold_in_place.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -55,7 +56,10 @@ class _ToolRunGroupState extends State<ToolRunGroup> {
         InkWell(
           key: const Key('tool-run-group'),
           borderRadius: BorderRadius.circular(10),
-          onTap: () => setState(() => _open = !_open),
+          onTap: () {
+            HoldInPlace.hold(context);
+            setState(() => _open = !_open);
+          },
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
             child: Row(
@@ -156,7 +160,10 @@ class _ToolRowState extends State<ToolRow> {
           child: InkWell(
             key: ValueKey('tool-details-${tool.toolCallId}'),
             borderRadius: BorderRadius.circular(10),
-            onTap: () => setState(() => _open = !_open),
+            onTap: () {
+              HoldInPlace.hold(context);
+              setState(() => _open = !_open);
+            },
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
               child: Row(

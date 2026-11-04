@@ -4,6 +4,7 @@ import 'package:app/ui/chat/widgets/shimmer_text.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/copy_button.dart';
+import 'package:app/ui/chat/hold_in_place.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -79,7 +80,12 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
         InkWell(
           key: const ValueKey('thinking-disclosure'),
           borderRadius: BorderRadius.circular(10),
-          onTap: text.isEmpty ? null : () => setState(() => _open = !_open),
+          onTap: text.isEmpty
+              ? null
+              : () {
+                  HoldInPlace.hold(context);
+                  setState(() => _open = !_open);
+                },
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
             child: Row(

@@ -4,6 +4,7 @@ library;
 
 import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/chat/hold_in_place.dart';
 import 'package:app/ui/chat/widgets/image_bubble.dart';
 import 'package:app/ui/chat/widgets/message_bubble.dart';
 import 'package:app/ui/chat/widgets/startup_note.dart';
@@ -235,6 +236,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
   static const _latestThreshold = 72.0;
 
   final _controller = ScrollController();
+  final _anchor = ChatScrollAnchor();
   bool _showLatest = false;
   bool _keyboardDismissTriggered = false;
 
@@ -394,189 +396,199 @@ class _ChatMessageListState extends State<ChatMessageList> {
 
     return NotificationListener<ScrollNotification>(
       onNotification: _onScrollNotification,
-      child: Stack(
-        children: [
-          Align(
-            alignment: Alignment.topCenter,
-            child: ListView.separated(
-              key: const ValueKey('chat-message-scroll'),
-              controller: _controller,
-              shrinkWrap: true,
-              reverse: true,
-              padding: EdgeInsets.fromLTRB(16, 94, 16, bottomPad),
-              itemCount: itemCount,
-              findItemIndexCallback: (key) {
-                if (key is! ValueKey<Object>) return null;
-                final value = key.value;
-                if (value is! (String, Object)) return null;
-                final id = value.$2;
-                if (id == _workingRow) return showWorkingIndicator ? 0 : null;
-                final at = _rowIndex[id];
-                return at == null ? null : items.length - 1 - at + leadingRows;
-              },
-              separatorBuilder: (context, idx) {
-                // Tight gap when adjacent to a tool-run card; normal gap
-                // otherwise. Display index 0 is the leading streaming or
-                // working row, followed by messages newest to oldest.
-                bool isTool(int displayIndex) {
-                  if (displayIndex < leadingRows) return false;
-                  final itemIndex =
-                      items.length - 1 - (displayIndex - leadingRows);
-                  if (itemIndex < 0 || itemIndex >= items.length) return false;
-                  final item = items[itemIndex];
-                  return item is ToolRunItem ||
-                      item is StartupNote ||
-                      item is ToolEvent ||
-                      item is ThinkingMsg;
-                }
+      child: ChatScrollAnchorScope(
+        anchor: _anchor,
+        child: Stack(
+          children: [
+            Align(
+              alignment: Alignment.topCenter,
+              child: ListView.separated(
+                key: const ValueKey('chat-message-scroll'),
+                controller: _controller,
+                physics: AnchoredScrollPhysics(_anchor),
+                shrinkWrap: true,
+                reverse: true,
+                padding: EdgeInsets.fromLTRB(16, 94, 16, bottomPad),
+                itemCount: itemCount,
+                findItemIndexCallback: (key) {
+                  if (key is! ValueKey<Object>) return null;
+                  final value = key.value;
+                  if (value is! (String, Object)) return null;
+                  final id = value.$2;
+                  if (id == _workingRow) return showWorkingIndicator ? 0 : null;
+                  final at = _rowIndex[id];
+                  return at == null
+                      ? null
+                      : items.length - 1 - at + leadingRows;
+                },
+                separatorBuilder: (context, idx) {
+                  // Tight gap when adjacent to a tool-run card; normal gap
+                  // otherwise. Display index 0 is the leading streaming or
+                  // working row, followed by messages newest to oldest.
+                  bool isTool(int displayIndex) {
+                    if (displayIndex < leadingRows) return false;
+                    final itemIndex =
+                        items.length - 1 - (displayIndex - leadingRows);
+                    if (itemIndex < 0 || itemIndex >= items.length) {
+                      return false;
+                    }
+                    final item = items[itemIndex];
+                    return item is ToolRunItem ||
+                        item is StartupNote ||
+                        item is ToolEvent ||
+                        item is ThinkingMsg;
+                  }
 
-                final tight = isTool(idx) || isTool(idx + 1);
-                return SizedBox(height: tight ? 7 : 20);
-              },
-              itemBuilder: (_, i) {
-                // `reverse: true` makes index 0 the newest row. Stable keys
-                // keep streaming insertion from rematching unrelated rows.
-                var fresh = false;
-                Object rowId = _workingRow;
-                if (i >= leadingRows) {
-                  final row = items[items.length - 1 - (i - leadingRows)];
-                  rowId = _rowKey(row);
-                  fresh = widget.live && _shown.add(rowId);
-                }
-                // The row's own key, on its outermost widget: a row arriving
-                // above shifts every index, and an index match would hand an
-                // opened thinking block or tool card to another row.
-                Widget constrain(Widget child) => KeyedSubtree(
-                  key: ValueKey<Object>(('row', rowId)),
-                  child: RevealGate(
-                    animate: fresh,
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 760),
-                        child: child,
-                      ),
-                    ),
-                  ),
-                );
-                if (showWorkingIndicator && i == 0) {
-                  return constrain(
-                    const KeyedSubtree(
-                      key: ValueKey('agent-working'),
-                      child: AgentWorkingIndicator(),
-                    ),
-                  );
-                }
-                final itemIdx = items.length - 1 - (i - leadingRows);
-                final item = items[itemIdx];
-                if (item is ToolRunItem) {
-                  return constrain(
-                    BayaReveal(
-                      offset: 5,
-                      child: KeyedSubtree(
-                        key: ValueKey(
-                          'tool-run-${item.tools.first.toolCallId}',
+                  final tight = isTool(idx) || isTool(idx + 1);
+                  return SizedBox(height: tight ? 7 : 20);
+                },
+                itemBuilder: (_, i) {
+                  // `reverse: true` makes index 0 the newest row. Stable keys
+                  // keep streaming insertion from rematching unrelated rows.
+                  var fresh = false;
+                  Object rowId = _workingRow;
+                  if (i >= leadingRows) {
+                    final row = items[items.length - 1 - (i - leadingRows)];
+                    rowId = _rowKey(row);
+                    fresh = widget.live && _shown.add(rowId);
+                  }
+                  // The row's own key, on its outermost widget: a row arriving
+                  // above shifts every index, and an index match would hand an
+                  // opened thinking block or tool card to another row.
+                  Widget constrain(Widget child) => KeyedSubtree(
+                    key: ValueKey<Object>(('row', rowId)),
+                    child: HoldInPlace(
+                      child: RevealGate(
+                        animate: fresh,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 760),
+                            child: child,
+                          ),
                         ),
-                        child: ToolRunGroup(tools: item.tools),
                       ),
                     ),
                   );
-                }
-                if (item is StartupNote) {
+                  if (showWorkingIndicator && i == 0) {
+                    return constrain(
+                      const KeyedSubtree(
+                        key: ValueKey('agent-working'),
+                        child: AgentWorkingIndicator(),
+                      ),
+                    );
+                  }
+                  final itemIdx = items.length - 1 - (i - leadingRows);
+                  final item = items[itemIdx];
+                  if (item is ToolRunItem) {
+                    return constrain(
+                      BayaReveal(
+                        offset: 5,
+                        child: KeyedSubtree(
+                          key: ValueKey(
+                            'tool-run-${item.tools.first.toolCallId}',
+                          ),
+                          child: ToolRunGroup(tools: item.tools),
+                        ),
+                      ),
+                    );
+                  }
+                  if (item is StartupNote) {
+                    return constrain(
+                      KeyedSubtree(
+                        key: ValueKey('startup-${item.message.id}'),
+                        child: StartupNoteRow(text: item.message.text),
+                      ),
+                    );
+                  }
+                  if (item is ToolEvent) {
+                    return constrain(
+                      BayaReveal(
+                        offset: 5,
+                        child: KeyedSubtree(
+                          key: ValueKey('tool-run-${item.toolCallId}'),
+                          child: ToolRunGroup(tools: [item]),
+                        ),
+                      ),
+                    );
+                  }
+                  final msg = item as ChatMessage;
                   return constrain(
                     KeyedSubtree(
-                      key: ValueKey('startup-${item.message.id}'),
-                      child: StartupNoteRow(text: item.message.text),
+                      key: ValueKey(msg.id),
+                      child: switch (msg) {
+                        UserMsg() => _once(
+                          msg,
+                          widget.onEdit != null,
+                          () => UserBubble(
+                            msg,
+                            onEdit: widget.onEdit == null
+                                ? null
+                                : () => widget.onEdit?.call(msg),
+                          ),
+                        ),
+                        AssistantMsg() => _once(
+                          msg,
+                          copyOwners.contains(msg),
+                          () => AssistantBubble(
+                            msg,
+                            showCopy: copyOwners.contains(msg),
+                          ),
+                        ),
+                        ThinkingMsg() => ThinkingBlock(
+                          id: msg.id,
+                          text: msg.text,
+                          complete: msg.complete,
+                        ),
+                        ToolEvent() => ToolRow(tool: msg),
+                        CompactionMsg() => CompactionBubble(msg),
+                        NoticeMsg() => NoticeBubble(msg),
+                        PlanMsg() => PlanCard(msg),
+                        AgentImageMsg() => Align(
+                          alignment: Alignment.centerLeft,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 320),
+                            child: ImageBubble(image: msg.image, caption: ''),
+                          ),
+                        ),
+                      },
                     ),
                   );
-                }
-                if (item is ToolEvent) {
-                  return constrain(
-                    BayaReveal(
-                      offset: 5,
-                      child: KeyedSubtree(
-                        key: ValueKey('tool-run-${item.toolCallId}'),
-                        child: ToolRunGroup(tools: [item]),
-                      ),
-                    ),
-                  );
-                }
-                final msg = item as ChatMessage;
-                return constrain(
-                  KeyedSubtree(
-                    key: ValueKey(msg.id),
-                    child: switch (msg) {
-                      UserMsg() => _once(
-                        msg,
-                        widget.onEdit != null,
-                        () => UserBubble(
-                          msg,
-                          onEdit: widget.onEdit == null
-                              ? null
-                              : () => widget.onEdit?.call(msg),
-                        ),
-                      ),
-                      AssistantMsg() => _once(
-                        msg,
-                        copyOwners.contains(msg),
-                        () => AssistantBubble(
-                          msg,
-                          showCopy: copyOwners.contains(msg),
-                        ),
-                      ),
-                      ThinkingMsg() => ThinkingBlock(
-                        id: msg.id,
-                        text: msg.text,
-                        complete: msg.complete,
-                      ),
-                      ToolEvent() => ToolRow(tool: msg),
-                      CompactionMsg() => CompactionBubble(msg),
-                      NoticeMsg() => NoticeBubble(msg),
-                      PlanMsg() => PlanCard(msg),
-                      AgentImageMsg() => Align(
-                        alignment: Alignment.centerLeft,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 320),
-                          child: ImageBubble(image: msg.image, caption: ''),
-                        ),
-                      ),
-                    },
-                  ),
-                );
-              },
+                },
+              ),
             ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: jumpBottom,
-            child: Center(
-              child: IgnorePointer(
-                ignoring: !_showLatest,
-                child: AnimatedOpacity(
-                  opacity: _showLatest ? 1 : 0,
-                  duration: BayaMotion.standard,
-                  curve: BayaMotion.enter,
-                  child: AnimatedScale(
-                    scale: _showLatest ? 1 : .84,
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: jumpBottom,
+              child: Center(
+                child: IgnorePointer(
+                  ignoring: !_showLatest,
+                  child: AnimatedOpacity(
+                    opacity: _showLatest ? 1 : 0,
                     duration: BayaMotion.standard,
-                    curve: BayaMotion.spring,
-                    child: Material(
-                      color: Colors.black.withValues(alpha: .76),
-                      shape: const CircleBorder(),
-                      elevation: 8,
-                      shadowColor: Colors.black.withValues(alpha: .28),
-                      clipBehavior: Clip.antiAlias,
-                      child: SizedBox.square(
-                        dimension: 42,
-                        child: IconButton(
-                          key: const Key('jump-to-latest'),
-                          tooltip: context.l10n.jumpToLatest,
-                          onPressed: _jumpToLatest,
-                          icon: const Icon(
-                            LucideIcons.arrowDown,
-                            size: 19,
-                            color: Colors.white,
+                    curve: BayaMotion.enter,
+                    child: AnimatedScale(
+                      scale: _showLatest ? 1 : .84,
+                      duration: BayaMotion.standard,
+                      curve: BayaMotion.spring,
+                      child: Material(
+                        color: Colors.black.withValues(alpha: .76),
+                        shape: const CircleBorder(),
+                        elevation: 8,
+                        shadowColor: Colors.black.withValues(alpha: .28),
+                        clipBehavior: Clip.antiAlias,
+                        child: SizedBox.square(
+                          dimension: 42,
+                          child: IconButton(
+                            key: const Key('jump-to-latest'),
+                            tooltip: context.l10n.jumpToLatest,
+                            onPressed: _jumpToLatest,
+                            icon: const Icon(
+                              LucideIcons.arrowDown,
+                              size: 19,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -585,8 +597,8 @@ class _ChatMessageListState extends State<ChatMessageList> {
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

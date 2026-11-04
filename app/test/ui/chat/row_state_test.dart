@@ -77,4 +77,54 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(identical(tester.state(find.byType(ToolRunGroup)), before), isTrue);
   });
+
+  testWidgets('a thought opens and closes under the finger, leaving no gap', (
+    tester,
+  ) async {
+    final messages = <ChatMessage>[
+      for (var i = 0; i < 6; i++) ...[
+        UserMsg(id: 'u$i', text: 'Question $i'),
+        AssistantMsg(id: 'a$i', text: 'Answer $i ' * 20),
+      ],
+      const UserMsg(id: 'u9', text: 'Why?'),
+      ThinkingMsg(
+        id: 't1',
+        text: List.filled(40, 'A long line of thought.').join('\n'),
+      ),
+      const AssistantMsg(id: 'a9', text: 'Because.'),
+    ];
+    await tester.pumpWidget(_list(messages));
+    await tester.pumpAndSettle();
+    final header = find.byKey(const ValueKey('thinking-disclosure'));
+    final top = tester.getRect(header).top;
+
+    // Opening grows downward: the header stays where it was tapped.
+    await tester.tap(header);
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(tester.getRect(header).top, moreOrLessEquals(top, epsilon: 1));
+    }
+    await tester.pumpAndSettle();
+    expect(tester.getRect(header).top, moreOrLessEquals(top, epsilon: 1));
+
+    // Scrolled down into the thought, closing keeps the header in place
+    // and the question above it right where it belongs.
+    await tester.drag(
+      find.byKey(const ValueKey('thinking-detail')),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(header);
+    await tester.pumpAndSettle();
+    final shown = tester.getRect(header).top;
+    await tester.tap(header);
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(tester.getRect(header).top, moreOrLessEquals(shown, epsilon: 1));
+    }
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('thinking-detail')), findsNothing);
+    final question = tester.getRect(find.byKey(const ValueKey('u9')));
+    expect(tester.getRect(header).top - question.bottom, lessThan(30));
+  });
 }
