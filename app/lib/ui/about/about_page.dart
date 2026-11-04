@@ -15,8 +15,8 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-/// Identity and version, updates, then the project: the same grouped rows
-/// as Settings. Settings keeps only configuration.
+/// Identity, version and the update button, then the project as grouped
+/// rows like Settings. Settings keeps only configuration.
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
@@ -146,58 +146,103 @@ class AboutPage extends StatelessWidget {
                         fontSize: 15,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'v${vm.currentVersion} (${vm.currentBuildNumber})',
-                      textAlign: TextAlign.center,
-                      style: context.typo.monoSmall.copyWith(
-                        color: colors.muted,
+                    const SizedBox(height: 12),
+                    Center(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.selection,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 5,
+                          ),
+                          child: Text(
+                            'v${vm.currentVersion} (${vm.currentBuildNumber})',
+                            style: context.typo.monoSmall.copyWith(
+                              color: colors.accent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 22),
-                    BayaGroup(
-                      children: [
-                        BayaRow(
-                          key: const Key('check-github-updates'),
-                          icon: LucideIcons.refreshCw,
-                          label: updateState is UpdateCheckInProgress
+                    const SizedBox(height: 24),
+                    Center(
+                      child: BayaButton(
+                        buttonKey: const Key('check-github-updates'),
+                        onPressed: updateState is UpdateCheckInProgress
+                            ? null
+                            : () => _check(context),
+                        icon: updateState is UpdateCheckInProgress
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(LucideIcons.refreshCw, size: 18),
+                        label: Text(
+                          updateState is UpdateCheckInProgress
                               ? context.l10n.checkingGitHub
                               : context.l10n.checkForUpdates,
-                          trailing: updateState is UpdateCheckInProgress
-                              ? const Padding(
-                                  padding: EdgeInsets.only(right: 10),
-                                  child: SizedBox.square(
-                                    dimension: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                )
-                              : null,
-                          onTap: updateState is UpdateCheckInProgress
-                              ? null
-                              : () => _check(context),
                         ),
-                        if (updateState is UpdateBannerVisible)
-                          BayaRow(
-                            key: const Key('about-download-update'),
-                            icon: LucideIcons.download,
-                            label: context.l10n.versionReady(
-                              updateState.info.version,
-                              '${updateState.info.buildNumber}',
-                            ),
-                            subtitle: context.l10n.updateKeepsDataAndroid,
-                            chevron: true,
-                            onTap: () => _download(context),
-                          ),
-                        BayaRow(
-                          icon: LucideIcons.scrollText,
-                          label: context.l10n.releaseNotes,
-                          chevron: true,
-                          onTap: () => _open(context, _releases),
-                        ),
-                      ],
+                        prominent: false,
+                      ),
                     ),
+                    if (updateState is UpdateBannerVisible) ...[
+                      const SizedBox(height: 16),
+                      BayaSurface(
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                context.l10n.versionReady(
+                                  updateState.info.version,
+                                  '${updateState.info.buildNumber}',
+                                ),
+                                style: context.typo.sansBody.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (updateState.info.notes.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  updateState.info.notes,
+                                  maxLines: 12,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.typo.sansBody.copyWith(
+                                    color: colors.muted,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 12),
+                              BayaButton(
+                                buttonKey: const Key('download-github-apk'),
+                                onPressed: () => _download(context),
+                                icon: const Icon(
+                                  LucideIcons.download,
+                                  size: 18,
+                                ),
+                                label: Text(context.l10n.downloadApk),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                context.l10n.updateKeepsDataAndroid,
+                                style: context.typo.sansBody.copyWith(
+                                  color: colors.muted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                     const _Problems(),
                     BayaSectionLabel(context.l10n.project, top: 24),
                     BayaGroup(
@@ -208,6 +253,12 @@ class AboutPage extends StatelessWidget {
                           subtitle: context.l10n.sourceAndDocs,
                           chevron: true,
                           onTap: () => _open(context, _project),
+                        ),
+                        BayaRow(
+                          icon: LucideIcons.scrollText,
+                          label: context.l10n.releaseNotes,
+                          chevron: true,
+                          onTap: () => _open(context, _releases),
                         ),
                         BayaRow(
                           icon: LucideIcons.messageSquareWarning,

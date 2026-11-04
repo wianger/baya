@@ -39,6 +39,7 @@ import 'package:app/ui/workspaces/session_shell.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
 import 'package:baya_identity/baya_identity.dart';
+import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -74,6 +75,23 @@ class _Updates extends UpdateBannerViewModel {
         currentBuildNumber: 92,
         enabled: false,
       );
+}
+
+/// An update is out, as after a check.
+class _UpdateOut extends _Updates {
+  _UpdateOut() {
+    emit(
+      const UpdateBannerVisible(
+        UpdateInfo(
+          version: '2.12.0',
+          buildNumber: 106,
+          date: '2026-11-04',
+          notes: 'Branch a session from an earlier message.',
+          artifacts: [],
+        ),
+      ),
+    );
+  }
 }
 
 class _NoChecker implements UpdateChecker {
@@ -479,6 +497,17 @@ void main() {
         ...common,
         ChangeNotifierProvider<UpdateBannerViewModel>(
           create: (_) => _Updates(),
+        ),
+      ],
+    );
+    await shoot(
+      tester,
+      'about-update',
+      const AboutPage(),
+      providers: [
+        ...common,
+        ChangeNotifierProvider<UpdateBannerViewModel>(
+          create: (_) => _UpdateOut(),
         ),
       ],
     );
