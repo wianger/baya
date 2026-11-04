@@ -168,12 +168,30 @@ Baya methods:
 | `_baya/git_commit` | `{sessionId, message}` | `{commit}`: commits every change |
 | `_baya/git_push` | `{sessionId}` | `{}`; sets the upstream on the first push |
 | `_baya/pr_create` | `{sessionId, title, body?}` | `{url}`, through the GitHub CLI on the computer |
+| `_baya/worktree_create` | `{cwd, name}` | `{root, path, branch}`: a worktree of `cwd`'s repository on a new branch `baya/<name>-<time>` from `HEAD`, under `~/.baya/worktrees`; `path` is `cwd`'s folder inside it. Error reason `not_git` outside a repository |
+| `_baya/worktree_remove` | `{path}` | `{}`; removes a worktree Baya made, and its branch |
+| `_baya/preview_ports` | `{}` | `{ports:[{port,status,title,html}], path}`: ports from 1024 up listening on loopback or every interface that answer HTTP |
+| `_baya/preview_open` | `{port}` | `{token, header, path}`: lets the phone reach `port` (below) |
+| `_baya/preview_close` | `{port}` | `{}`; the port's token stops working |
 
 Files the phone attaches to a prompt go as ACP `resource_link` blocks with
 `file://` URIs on the computer; the agent reads them itself.
 
 Browsing stays read-only, and `_baya/files` cannot leave the session's
 folder; the `git_*` methods act only inside the session's repository.
+
+### Web preview
+
+The phone shows a site running on the computer without it being exposed
+anywhere. After `_baya/preview_open`, it sends HTTP requests and WebSocket
+upgrades to the host's own `tailscale serve` path with `/preview` in place
+of `/direct` (`https://<name>/baya-pair/<label>/preview/<path>`), with the
+token in the returned `header` (`x-baya-preview`). The host accepts them only
+from the owner's Tailscale login and with a token it issued, and forwards
+them to `localhost:<port>` as a local browser would send them (`Host` and
+`Origin` rewritten; redirects to the site made relative). On the phone, a
+loopback proxy adds the token so the WebView sees the site at the root of
+its own origin.
 
 ## Host → phone
 

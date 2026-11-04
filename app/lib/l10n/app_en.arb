@@ -686,5 +686,113 @@
   "releaseNotes": "Release notes",
   "sourceAndDocs": "Source and documentation",
   "reportProblem": "Report a problem",
-  "openSourceLicenses": "Open-source licenses"
+  "openSourceLicenses": "Open-source licenses",
+  "webPreview": "Web preview",
+  "webPreviewHint": "A site running on this computer",
+  "webPreviewOn": "Sites running on {computer}",
+  "@webPreviewOn": {
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "lookingForWebServers": "Looking for web servers…",
+  "noWebServersFound": "No web server is running on this computer. Start one (or ask the agent to), or type its port below.",
+  "port": "Port",
+  "open": "Open",
+  "lookAgain": "Look again",
+  "copyAddress": "Copy address",
+  "reload": "Reload",
+  "previewDidNotLoad": "Port {port} did not answer",
+  "@previewDidNotLoad": {
+    "placeholders": {
+      "port": {
+        "type": "int"
+      }
+    }
+  },
+  "startingAgents": "Starting {count} agents…",
+  "@startingAgents": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "startAgentsHere": "Start {count} agents here",
+  "@startAgentsHere": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "alsoRunWith": "Also give the task to",
+  "separateWorktrees": "Separate worktrees",
+  "separateWorktreesHint": "Each agent works on its own branch, from the last commit",
+  "parallelRun": "Parallel run",
+  "parallelRuns": "Parallel runs",
+  "forgetRun": "Remove from this list",
+  "forgetRunHint": "The sessions and worktrees stay on the computer",
+  "deleteRunAndWorktrees": "Delete sessions and worktrees",
+  "deleteRunAndWorktreesHint": "Removes each agent's session, worktree and branch",
+  "deleteRunConfirm": "Delete {count} sessions and their worktrees and branches? Changes not merged elsewhere are lost.",
+  "@deleteRunConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "runNotFound": "This run is no longer on this phone.",
+  "runTitle": "{count} agents · {folder}",
+  "@runTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "ownWorktrees": "own worktrees",
+  "sharedFolder": "shared folder",
+  "agentsWorking": "{count} working",
+  "@agentsWorking": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "someAgentsDidNotStart": "Some agents did not start:\n{details}",
+  "@someAgentsDidNotStart": {
+    "placeholders": {
+      "details": {
+        "type": "String"
+      }
+    }
+  },
+  "needsYou": "Needs you",
+  "waitingForTask": "Waiting for a task",
+  "fileCount": "{count, plural, =1{1 file} other{{count} files}}",
+  "@fileCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tellAllAgents": "Tell all {count} agents…",
+  "@tellAllAgents": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "stopAll": "Stop all",
+  "sendToAll": "Send to all"
 }

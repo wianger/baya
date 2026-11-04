@@ -51,6 +51,15 @@ class _NewSessionPageState extends State<NewSessionPage> {
     context.pop(result);
   }
 
+  Future<void> _openRun() async {
+    final run = await context.read<NewSessionViewModel>().openRun();
+    if (!mounted || run == null) return;
+    setState(() => _leaving = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    context.pop(run);
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<NewSessionViewModel>();
@@ -171,6 +180,8 @@ class _NewSessionPageState extends State<NewSessionPage> {
             enabled: !locked && state.host.online,
             onChanged: vm.setAgent,
           ),
+          if ((directory?.availableAgents.length ?? 0) > 1)
+            _AlsoRun(state: state, vm: vm, enabled: !locked),
           const SizedBox(height: 8),
           Text(
             context.l10n.chooseFolderHint,
@@ -353,25 +364,39 @@ class _NewSessionPageState extends State<NewSessionPage> {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: BayaButton(
             key: const ValueKey('new-session-open-button'),
-            onPressed: state.canOpen ? _open : null,
-            icon: const Icon(LucideIcons.plus, size: 18),
+            onPressed: !state.canOpen
+                ? null
+                : state.alsoAgents.isEmpty
+                ? _open
+                : _openRun,
+            icon: Icon(
+              state.alsoAgents.isEmpty
+                  ? LucideIcons.plus
+                  : LucideIcons.columns3,
+              size: 18,
+            ),
             label: Text(
-              state.opening
+              state.alsoAgents.isNotEmpty
+                  ? (state.opening
+                        ? context.l10n.startingAgents(state.runAgents.length)
+                        : context.l10n.startAgentsHere(state.runAgents.length))
+                  : state.opening
                   ? context.l10n.startingAgent(state.agent.label)
                   : context.l10n.openAgentHere(state.agent.label),
             ),
             minimumSize: const Size.fromHeight(52),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: TextButton.icon(
-            key: const ValueKey('new-session-continue'),
-            onPressed: state.canOpen ? _continueEarlier : null,
-            icon: const Icon(LucideIcons.history, size: 16),
-            label: Text(context.l10n.continueEarlier),
+        if (state.alsoAgents.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: TextButton.icon(
+              key: const ValueKey('new-session-continue'),
+              onPressed: state.canOpen ? _continueEarlier : null,
+              icon: const Icon(LucideIcons.history, size: 16),
+              label: Text(context.l10n.continueEarlier),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -501,6 +526,87 @@ class _WorkspacePickerField extends StatelessWidget {
         if (!context.mounted || choice == null) return;
         onChanged(choice);
       },
+    );
+  }
+}
+
+/// More agents for the same task: each starts its own session, side by
+/// side, in its own worktree unless the user turns that off.
+class _AlsoRun extends StatelessWidget {
+  const _AlsoRun({
+    required this.state,
+    required this.vm,
+    required this.enabled,
+  });
+
+  final NewSessionReady state;
+  final NewSessionViewModel vm;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final l10n = context.l10n;
+    final others = state.directory!.availableAgents
+        .where((agent) => agent.id != state.agent.id)
+        .toList(growable: false);
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.alsoRunWith,
+            style: context.typo.sansBody.copyWith(
+              fontSize: 12,
+              color: colors.muted2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final agent in others)
+                FilterChip(
+                  key: ValueKey('also-run-${agent.id}'),
+                  label: Text(agent.label),
+                  selected: state.alsoAgents.any((a) => a.id == agent.id),
+                  onSelected: enabled ? (_) => vm.toggleAlsoAgent(agent) : null,
+                ),
+            ],
+          ),
+          AnimatedSize(
+            duration: BayaMotion.standard,
+            curve: BayaMotion.enter,
+            alignment: Alignment.topCenter,
+            child: state.alsoAgents.isEmpty
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: BayaGroup(
+                      children: [
+                        BayaRow(
+                          key: const Key('separate-worktrees'),
+                          icon: LucideIcons.gitBranch,
+                          label: l10n.separateWorktrees,
+                          subtitle: l10n.separateWorktreesHint,
+                          trailing: Switch(
+                            value: state.separateWorktrees,
+                            onChanged: enabled ? vm.setSeparateWorktrees : null,
+                          ),
+                          onTap: enabled
+                              ? () => vm.setSeparateWorktrees(
+                                  !state.separateWorktrees,
+                                )
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

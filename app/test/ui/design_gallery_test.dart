@@ -2,10 +2,12 @@
 //   BAYA_PREVIEW_DIR=<dir> [BAYA_PREVIEW_THEME=light] flutter test test/ui/design_gallery_test.dart
 // Skipped otherwise.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/domain/contracts/dismissed_update_store.dart';
@@ -21,7 +23,10 @@ import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/onboarding/onboarding_page.dart';
 import 'package:app/ui/onboarding/viewmodels/onboarding_viewmodel.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
+import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/ui/about/about_page.dart';
+import 'package:app/ui/preview/preview_page.dart';
+import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/settings/settings_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
@@ -39,7 +44,7 @@ import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
 import '../support/acp_harness.dart';
-import 'workspaces/new_session_viewmodel_test.dart' show FakeWorkspaces;
+import 'workspaces/new_session_viewmodel_test.dart' show FakeWorkspaces, codex;
 
 Future<void> _fonts(WidgetTester tester) async {
   await tester.runAsync(() async {
@@ -144,35 +149,112 @@ void main() {
     final desktop = testPeer(seed: 1, name: 'studio (WSL)');
     final laptop = testPeer(seed: 2, name: 'studio (Windows)');
     final storage = MemoryStorage([desktop, laptop]);
-    final hosts = testHostsFor(storage, {
-      desktop.remoteEpk: FakeHost(
-        sessions: [
+    final desktopHost = FakeHost(
+      sessions: [
+        testSession(
+          id: 'a',
+          title: 'Fix the login redirect',
+          cwd: '/home/me/web',
+          working: true,
+          updatedAt: DateTime.utc(2026, 11, 3, 9),
+        ),
+        testSession(
+          id: 'b',
+          title: 'Add rate limiting to the API',
+          cwd: '/home/me/api',
+          agent: 'codex',
+          agentName: 'Codex',
+          updatedAt: DateTime.utc(2026, 11, 3, 8),
+        ),
+        testSession(
+          id: 'c',
+          title: 'Write the release notes',
+          cwd: '/home/me/web',
+          agent: 'pi',
+          agentName: 'Pi',
+          updatedAt: DateTime.utc(2026, 11, 2, 18),
+        ),
+        for (final (id, agent, name, working) in [
+          ('r1', 'claude', 'Claude Code', false),
+          ('r2', 'codex', 'Codex', true),
+          ('r3', 'pi', 'Pi', false),
+        ])
           testSession(
-            id: 'a',
-            title: 'Fix the login redirect',
-            cwd: '/home/me/web',
-            working: true,
-            updatedAt: DateTime.utc(2026, 11, 3, 9),
+            id: id,
+            title: 'Add dark mode',
+            cwd: '/home/me/.baya/worktrees/web-1a2b3c4d/$agent/web',
+            agent: agent,
+            agentName: name,
+            working: working,
+            updatedAt: DateTime.utc(2026, 11, 4, 9),
           ),
-          testSession(
-            id: 'b',
-            title: 'Add rate limiting to the API',
-            cwd: '/home/me/api',
-            agent: 'codex',
-            agentName: 'Codex',
-            updatedAt: DateTime.utc(2026, 11, 3, 8),
-          ),
-          testSession(
-            id: 'c',
-            title: 'Write the release notes',
-            cwd: '/home/me/web',
-            agent: 'pi',
-            agentName: 'Pi',
-            updatedAt: DateTime.utc(2026, 11, 2, 18),
-          ),
-        ],
-      ),
-    });
+      ],
+    );
+    Json text(String text) => {
+      'sessionUpdate': 'agent_message_chunk',
+      'content': {'type': 'text', 'text': text},
+    };
+    const ask = {
+      'sessionUpdate': 'user_message_chunk',
+      'content': {'type': 'text', 'text': 'Add a dark mode toggle to settings'},
+    };
+    desktopHost.history
+      ..['r1'] = [
+        ask,
+        text(
+          'Added a **Dark mode** switch to Settings. It follows the system '
+          'theme until changed, and the choice is kept in localStorage. '
+          'Tests pass.',
+        ),
+      ]
+      ..['r2'] = [
+        ask,
+        text('Reading the theme setup first.'),
+        {
+          'sessionUpdate': 'tool_call',
+          'toolCallId': 't1',
+          'title': 'Edit src/settings/Theme.tsx',
+          'kind': 'edit',
+          'status': 'in_progress',
+        },
+      ]
+      ..['r3'] = [
+        ask,
+        text(
+          'Dark mode is in: a toggle in Settings and CSS variables for both '
+          'palettes.',
+        ),
+      ];
+    desktopHost.handlers['_baya/git_status'] = (params) => {
+      'files': [
+        {
+          'path': 'src/settings/Theme.tsx',
+          'status': 'M',
+          'added': 48,
+          'removed': 6,
+        },
+        {
+          'path': 'src/styles/theme.css',
+          'status': 'M',
+          'added': 31,
+          'removed': 2,
+        },
+      ],
+    };
+    desktopHost.handlers['_baya/preview_ports'] = (params) => {
+      'path': '/baya-pair/wsl/preview',
+      'ports': [
+        {
+          'port': 5173,
+          'status': 200,
+          'title': 'Web · Vite + React',
+          'html': true,
+        },
+        {'port': 3000, 'status': 200, 'title': 'API docs', 'html': true},
+        {'port': 8080, 'status': 404, 'title': '', 'html': false},
+      ],
+    };
+    final hosts = testHostsFor(storage, {desktop.remoteEpk: desktopHost});
     await hosts.start();
     await pumpOnline(tester, hosts);
     await prefs.setSelectedDevice(desktop.remoteEpk);
@@ -249,6 +331,68 @@ void main() {
         ...common,
         ChangeNotifierProvider<NewSessionViewModel>.value(value: newSession),
       ],
+    );
+
+    newSession.toggleAlsoAgent(codex);
+    await shoot(
+      tester,
+      'new-session-run',
+      const NewSessionPage(),
+      providers: [
+        ...common,
+        ChangeNotifierProvider<NewSessionViewModel>.value(value: newSession),
+      ],
+    );
+
+    await prefs.addRun(
+      ParallelRun(
+        id: 'run',
+        hostId: desktop.remoteEpk,
+        hostLabel: desktop.label,
+        folder: '/home/me/web',
+        createdAt: DateTime.utc(2026, 11, 4, 9),
+        members: [
+          for (final (id, agent, name) in [
+            ('r1', 'claude', 'Claude Code'),
+            ('r2', 'codex', 'Codex'),
+            ('r3', 'pi', 'Pi'),
+          ])
+            RunMember(
+              sessionId: id,
+              agentId: agent,
+              agentLabel: name,
+              path: '/home/me/.baya/worktrees/web-1a2b3c4d/$agent/web',
+              branch: 'baya/$agent-202611040900',
+            ),
+        ],
+      ),
+    );
+    await shoot(
+      tester,
+      'run-board',
+      const SessionShell(child: RunPage(runId: 'run')),
+      providers: common,
+    );
+    await shoot(
+      tester,
+      'run-board-tablet',
+      const SessionShell(child: RunPage(runId: 'run')),
+      providers: common,
+      size: const Size(1280, 800),
+    );
+    await shoot(
+      tester,
+      'preview-picker',
+      const Scaffold(body: SizedBox.expand()),
+      providers: common,
+      then: () async {
+        unawaited(
+          showPreviewPicker(
+            tester.element(find.byType(Scaffold)),
+            hosts.byKey(desktop.remoteEpk)!,
+          ),
+        );
+      },
     );
 
     await shoot(

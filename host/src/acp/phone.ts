@@ -1,8 +1,11 @@
 import { hostname } from "node:os";
 import { pairPhone } from "../pairing/service.ts";
+import { PREVIEW_TOKEN_HEADER, previewPorts, previews } from "../preview/preview.ts";
 import { packageVersion } from "../runtime/version.ts";
+import { hostLabel, servePath, tailnetPairPort } from "../tailnet/pairing_server.ts";
 import { browseDirectory, resolveDirectory } from "../workspace/directories.ts";
 import {
+  createWorktree,
   gitCommit,
   gitDiff,
   gitPush,
@@ -10,6 +13,7 @@ import {
   gitRevertHunk,
   gitStatus,
   openPullRequest,
+  removeWorktree,
 } from "../workspace/git.ts";
 import { browseSessionFiles, readSessionFile } from "../workspace/session_files.ts";
 import type { HostedSession } from "./hosted_session.ts";
@@ -164,6 +168,32 @@ export class PhoneConnection implements HubPhone {
           stringParam(params, "title"),
           optionalString(params, "body") ?? "",
         );
+      case "_baya/preview_ports":
+        return {
+          ports: await previewPorts([tailnetPairPort(hostLabel())]),
+          path: `${servePath(hostLabel())}/preview`,
+        };
+      case "_baya/preview_open": {
+        const port = params["port"];
+        if (typeof port !== "number") throw RpcError.invalidParams("A preview needs a port.");
+        return {
+          token: previews.open(port),
+          header: PREVIEW_TOKEN_HEADER,
+          path: `${servePath(hostLabel())}/preview`,
+        };
+      }
+      case "_baya/preview_close": {
+        const port = params["port"];
+        if (typeof port === "number") previews.close(port);
+        return {};
+      }
+      case "_baya/worktree_create":
+        return createWorktree(
+          await resolveDirectory(stringParam(params, "cwd")),
+          stringParam(params, "name"),
+        );
+      case "_baya/worktree_remove":
+        return removeWorktree(stringParam(params, "path"));
       default:
         throw RpcError.methodNotFound(method);
     }

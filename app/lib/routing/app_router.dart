@@ -10,6 +10,8 @@ import 'package:app/ui/chat/chat_page.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
+import 'package:app/domain/runs/parallel_run.dart';
+import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
 import 'package:app/ui/workspaces/new_session_page.dart';
 import 'package:app/ui/about/about_page.dart';
@@ -217,6 +219,22 @@ GoRouter buildRouter(
                 child: const SessionFilesPage(),
               ),
             ),
+          ),
+          GoRoute(
+            path: '/run',
+            pageBuilder: (ctx, st) {
+              final id = st.uri.queryParameters['id'] ?? '';
+              final extra = st.extra;
+              return _fadeThrough(
+                ValueKey('run-$id'),
+                RunPage(
+                  runId: id,
+                  started: extra is ParallelRun && extra.id == id
+                      ? extra
+                      : null,
+                ),
+              );
+            },
           ),
           // The selected session. Its page is keyed by the session, so
           // opening another fades through to a page with its own

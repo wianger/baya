@@ -1,12 +1,16 @@
 /// The workspace overview shown when no chat is open.
 library;
 
+import 'package:app/data/preferences/preferences.dart';
+import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
+import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/workspaces/session_actions.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
 import 'package:app/ui/workspaces/workspace_navigation.dart';
@@ -149,6 +153,18 @@ class _WorkspaceOverview extends StatelessWidget {
         .toSet()
         .length;
     final deviceEpk = vm.selectedDevice;
+    final runs = context
+        .watch<Preferences>()
+        .runs
+        .where(
+          (run) =>
+              deviceEpk != null &&
+              toStandardB64(run.hostId) == toStandardB64(deviceEpk) &&
+              (workspace == null ||
+                  run.workspaceKey == null ||
+                  run.workspaceKey == workspace),
+        )
+        .toList(growable: false);
     final device = deviceEpk == null ? null : vm.devices[deviceEpk];
     final online = deviceEpk != null && vm.isRoomLive(deviceEpk, '');
     final deviceName =
@@ -204,10 +220,23 @@ class _WorkspaceOverview extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 22),
-            _StartCard(enabled: online && workspace != null),
+            BayaReveal(child: _StartCard(enabled: online && workspace != null)),
             if (running.isNotEmpty) ...[
               BayaSectionLabel(context.l10n.runningNow, top: 26),
-              _SessionRows(vm: vm, items: running),
+              BayaReveal(
+                delay: BayaReveal.stagger(1),
+                child: _SessionRows(vm: vm, items: running),
+              ),
+            ],
+            if (runs.isNotEmpty) ...[
+              BayaSectionLabel(context.l10n.parallelRuns, top: 26),
+              BayaReveal(
+                delay: BayaReveal.stagger(2),
+                child: RunRows(
+                  runs: runs.take(3).toList(growable: false),
+                  onOpen: (run) => openRun(context, run.id),
+                ),
+              ),
             ],
             BayaSectionLabel(context.l10n.recent, top: 26),
             if (items.isEmpty)

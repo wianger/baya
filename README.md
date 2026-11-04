@@ -8,7 +8,8 @@
 
 **Claude Code, Codex, Pi, DeepSeek Harness — any agent that speaks ACP.**<br>
 Start sessions on your computers, follow them live, answer their questions,
-review and commit their changes.
+review and commit their changes, give one task to several agents side by
+side, and open the site they are building on your phone.
 
 [![App](https://img.shields.io/github/v/release/wianger/baya?filter=app-v*&include_prereleases&label=app&color=111111)](https://github.com/wianger/baya/releases?q=app-v)
 [![Host](https://img.shields.io/github/v/release/wianger/baya?filter=host-v*&label=host&color=111111)](https://github.com/wianger/baya/releases?q=host-v)
@@ -25,6 +26,22 @@ Baya drives coding agents on your computers from your phone. It speaks the
 agent with an ACP command (Claude Code, Codex, Pi, DeepSeek Harness, …)
 runs on the computer, and the phone is an ACP client to it, over Tailscale and
 end-to-end encrypted.
+
+## What it does
+
+- **Sessions on any of your computers**: pick a folder and an agent; follow
+  its thinking, tool calls, diffs and terminals as they stream; answer its
+  permission questions and forms.
+- **Parallel runs**: give the same task to Claude Code, Codex and Pi at
+  once, each in its own git worktree and branch, then compare their replies
+  and changes on one board and send follow-ups to all of them.
+- **Web preview**: a dev server on the computer (`localhost:5173`) opens in
+  the app, hot reload included, without exposing it to the network;
+  `localhost` links the agent writes open there too.
+- **Review**: per-file diffs, revert a hunk, commit, push and open a pull
+  request.
+- **Private**: Noise end-to-end encryption over Tailscale; nothing goes
+  through a server of ours.
 
 ## Components
 

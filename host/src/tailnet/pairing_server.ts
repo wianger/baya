@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
+import { previews } from "../preview/preview.ts";
 import type { DirectServer } from "../transport/direct_server.ts";
 
 const run = promisify(execFile);
@@ -34,14 +35,14 @@ export function hostLabel(): HostLabel {
 }
 
 /** One port per label so a Windows and a WSL host can listen side by side. */
-function tailnetPairPort(label: HostLabel = hostLabel()): number {
+export function tailnetPairPort(label: HostLabel = hostLabel()): number {
   const override = Number(process.env["BAYA_TAILNET_PORT"]);
   if (Number.isInteger(override) && override > 0) return override;
   return label === "windows" ? 7481 : 7480;
 }
 
 /** The `tailscale serve` path for this host's pairing endpoint. */
-function servePath(label: HostLabel = hostLabel()): string {
+export function servePath(label: HostLabel = hostLabel()): string {
   return `/baya-pair/${label}`;
 }
 
@@ -140,7 +141,12 @@ export class TailnetPairingServer {
         response.writeHead(status, { "content-type": "application/json" });
         response.end(JSON.stringify(body));
       };
-      const path = (request.url ?? "").split("?")[0];
+      const url = request.url ?? "";
+      const path = url.split("?")[0];
+      if (url.startsWith(`${base}/preview/`) || path === `${base}/preview`) {
+        if (request.headers["tailscale-user-login"] !== self.login) return reply(403, {});
+        return previews.forward(request, response, url.slice(`${base}/preview`.length));
+      }
       const action =
         request.method !== "GET"
           ? null
@@ -167,7 +173,12 @@ export class TailnetPairingServer {
     };
     const server = createServer(handler);
     server.on("upgrade", (request, socket, head) => {
-      if ((request.url ?? "").split("?")[0] !== `${base}/direct`) return socket.destroy();
+      const url = request.url ?? "";
+      if (url.startsWith(`${base}/preview/`)) {
+        if (request.headers["tailscale-user-login"] !== self.login) return socket.destroy();
+        return previews.upgrade(request, socket, head, url.slice(`${base}/preview`.length));
+      }
+      if (url.split("?")[0] !== `${base}/direct`) return socket.destroy();
       this.direct.handleUpgrade(request, socket, head);
     });
     await new Promise<void>((resolve, reject) => {

@@ -1,4 +1,5 @@
 import 'package:app/acp/acp.dart';
+import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/hosts/host_connection.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/transport/epk_encoding.dart';
@@ -131,5 +132,26 @@ class WorkspaceRepository extends IWorkspaceRepository {
       name: host.session(sessionId)?.title ?? folderName(path),
       agent: agent,
     );
+  }
+
+  @override
+  Future<Worktree?> createWorktree(
+    String hostId,
+    String path,
+    String name,
+  ) async {
+    try {
+      final result = await _host(hostId)
+          .call('_baya/worktree_create', {'cwd': path, 'name': name});
+      return Worktree(
+        path: result['path'] as String,
+        branch: result['branch'] as String,
+      );
+    } on RpcError catch (error) {
+      if (error.reason == 'not_git') return null;
+      throw WorkspaceFailure(error.message);
+    } catch (error) {
+      throw WorkspaceFailure('$error');
+    }
   }
 }

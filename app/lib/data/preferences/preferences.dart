@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:app/data/transport/epk_encoding.dart';
+import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/domain/value_objects/workspace.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
@@ -43,6 +44,7 @@ class Preferences extends ChangeNotifier {
   static const _kThemeModeKey = 'prefs.theme_mode';
   static const _kFontScaleKey = 'prefs.font_scale';
   static const _kLanguageKey = 'prefs.language';
+  static const _kRunsKey = 'prefs.parallel_runs';
 
   /// True → chat hides `ToolEvent` rows (only user/assistant text remain).
   bool get hideToolCalls => _hideToolCalls;
@@ -216,7 +218,43 @@ class Preferences extends ChangeNotifier {
       _workspaceNames = workspaceNames;
       changed = true;
     }
+    final runsRaw = await _store.read(key: _kRunsKey);
+    try {
+      final decoded = runsRaw == null ? null : jsonDecode(runsRaw);
+      if (decoded is List) {
+        _runs = [
+          for (final run in decoded)
+            if (run is Map) ParallelRun.fromJson(run.cast<String, dynamic>()),
+        ];
+        changed = true;
+      }
+    } on Object {
+      /* Invalid preference. */
+    }
     if (changed) notifyListeners();
+  }
+
+  /// Parallel runs started from this phone, newest first.
+  List<ParallelRun> get runs => List.unmodifiable(_runs);
+  List<ParallelRun> _runs = const [];
+  static const _runsKept = 20;
+
+  ParallelRun? run(String id) => _runs.where((run) => run.id == id).firstOrNull;
+
+  Future<void> addRun(ParallelRun run) =>
+      _writeRuns([run, ..._runs.where((r) => r.id != run.id)]);
+
+  Future<void> removeRun(String id) =>
+      _writeRuns(_runs.where((run) => run.id != id).toList());
+
+  Future<void> _writeRuns(List<ParallelRun> runs) async {
+    final kept = runs.take(_runsKept).toList(growable: false);
+    await _store.write(
+      key: _kRunsKey,
+      value: jsonEncode([for (final run in kept) run.toJson()]),
+    );
+    _runs = kept;
+    notifyListeners();
   }
 
   static String _conversationKey(String epk, String sessionId) =>

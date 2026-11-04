@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 const claude = WorkspaceAgent(id: 'claude', label: 'Claude Code');
 const codex = WorkspaceAgent(id: 'codex', label: 'Codex');
+const pi = WorkspaceAgent(id: 'pi', label: 'Pi');
 const host = WorkspaceHost(id: 'computer', label: 'Computer', online: true);
 const secondHost = WorkspaceHost(
   id: 'second-computer',
@@ -83,6 +84,21 @@ class FakeWorkspaces extends IWorkspaceRepository {
     WorkspaceAgent agent,
   ) async => const [AgentSessionInfo('old-1', 'Earlier work')];
 
+  bool git = true;
+  final failing = <String>{};
+  final openedPaths = <String>[];
+
+  @override
+  Future<Worktree?> createWorktree(
+    String hostId,
+    String path,
+    String name,
+  ) async {
+    if (!git) return null;
+    final slug = name.toLowerCase().replaceAll(' ', '-');
+    return Worktree(path: '/wt/$slug$path', branch: 'baya/$slug');
+  }
+
   @override
   Future<OpenedWorkspace> open(
     String hostId,
@@ -90,13 +106,17 @@ class FakeWorkspaces extends IWorkspaceRepository {
     WorkspaceAgent agent, {
     String? agentSessionId,
   }) async {
+    if (failing.contains(agent.id)) {
+      throw const WorkspaceFailure('npx failed');
+    }
     opened.add(agent);
+    openedPaths.add(path);
     continued.add(agentSessionId);
     return OpenedWorkspace(
       hostId: hostId,
       hostLabel: host.label,
       path: path,
-      sessionId: 'new',
+      sessionId: opened.length == 1 ? 'new' : 'new-${agent.id}',
       name: 'project',
       agent: agent,
     );
@@ -328,5 +348,86 @@ void main() {
     final opened = await vm.open(agentSessionId: earlier.single.sessionId);
     expect(opened, isNotNull);
     expect(repo.continued, ['old-1']);
+  });
+
+  group('parallel runs', () {
+    Future<NewSessionViewModel> ready(FakeWorkspaces repo) async {
+      repo.onBrowse = (path) async =>
+          directory(path, agents: const [claude, codex, pi]);
+      final vm = NewSessionViewModel(repo, launch: defaultLaunch);
+      await tick();
+      return vm;
+    }
+
+    test('the chosen agent is never also an extra one', () async {
+      final vm = await ready(FakeWorkspaces());
+      vm.toggleAlsoAgent(claude);
+      expect((vm.state as NewSessionReady).alsoAgents, isEmpty);
+      vm.toggleAlsoAgent(codex);
+      vm.toggleAlsoAgent(pi);
+      expect((vm.state as NewSessionReady).runAgents, [claude, codex, pi]);
+      vm.setAgent(codex);
+      expect((vm.state as NewSessionReady).runAgents, [codex, pi]);
+      vm.toggleAlsoAgent(pi);
+      expect((vm.state as NewSessionReady).alsoAgents, isEmpty);
+      vm.dispose();
+    });
+
+    test('each agent starts in its own worktree', () async {
+      final repo = FakeWorkspaces();
+      final vm = await ready(repo);
+      vm.toggleAlsoAgent(codex);
+      final run = await vm.openRun(now: DateTime(2026, 11, 4));
+      expect(run, isNotNull);
+      expect(run!.folder, '/home');
+      expect(run.workspaceKey, 'computer:workspace:default');
+      expect(run.members.map((m) => m.agentId), ['claude', 'codex']);
+      expect(run.members.map((m) => m.branch), [
+        'baya/claude-code',
+        'baya/codex',
+      ]);
+      expect(repo.openedPaths, ['/wt/claude-code/home', '/wt/codex/home']);
+      expect(run.usesWorktrees, isTrue);
+      vm.dispose();
+    });
+
+    test('outside git, or when asked, the agents share the folder', () async {
+      final repo = FakeWorkspaces()..git = false;
+      final vm = await ready(repo);
+      vm.toggleAlsoAgent(codex);
+      final run = await vm.openRun();
+      expect(run!.members.map((m) => m.path), ['/home', '/home']);
+      expect(run.usesWorktrees, isFalse);
+
+      final repo2 = FakeWorkspaces();
+      final vm2 = await ready(repo2);
+      vm2.toggleAlsoAgent(codex);
+      vm2.setSeparateWorktrees(false);
+      final run2 = await vm2.openRun();
+      expect(repo2.openedPaths, ['/home', '/home']);
+      expect(run2!.usesWorktrees, isFalse);
+      vm.dispose();
+      vm2.dispose();
+    });
+
+    test('agents that fail are left out; none starting is an error', () async {
+      final repo = FakeWorkspaces()..failing.add('codex');
+      final vm = await ready(repo);
+      vm.toggleAlsoAgent(codex);
+      vm.toggleAlsoAgent(pi);
+      final run = await vm.openRun();
+      expect(run!.members.map((m) => m.agentId), ['claude', 'pi']);
+      expect(run.failures.single, contains('Codex'));
+
+      final none = FakeWorkspaces()..failing.addAll(['claude', 'codex']);
+      final vm2 = await ready(none);
+      vm2.toggleAlsoAgent(codex);
+      expect(await vm2.openRun(), isNull);
+      final state = vm2.state as NewSessionReady;
+      expect(state.opening, isFalse);
+      expect(state.error, contains('npx failed'));
+      vm.dispose();
+      vm2.dispose();
+    });
   });
 }

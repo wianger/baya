@@ -116,7 +116,14 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
       selectedColor: colors.text,
       checkmarkColor: colors.bg,
       side: BorderSide(color: colors.border),
-      labelStyle: typo.sansBody.copyWith(fontSize: 14, color: colors.text),
+      // A selected chip is filled with ink, so its label turns to paper.
+      labelStyle: typo.sansBody.copyWith(
+        fontSize: 14,
+        color: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? colors.bg : colors.text,
+        ),
+      ),
       secondaryLabelStyle: typo.sansBody.copyWith(
         fontSize: 14,
         color: colors.bg,

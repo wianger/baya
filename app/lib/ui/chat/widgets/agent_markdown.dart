@@ -1,6 +1,10 @@
 import 'dart:async';
 
+import 'package:app/data/hosts/session_controller.dart';
+import 'package:app/data/preview/preview_proxy.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/preview/preview_page.dart';
+import 'package:provider/provider.dart';
 import 'package:app/ui/core/code/code_view.dart';
 
 import 'package:app/ui/core/themes/themes.dart';
@@ -157,6 +161,21 @@ class AgentMarkdown extends StatelessWidget {
   static Future<void> _openLink(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
+    // A site on the agent's computer opens in the web preview: the phone
+    // has no `localhost` of its own.
+    final port = localPort(uri);
+    final session = port == null
+        ? null
+        : Provider.of<SessionController?>(context, listen: false);
+    if (port != null && session != null) {
+      return openPreview(
+        context,
+        session.host,
+        port,
+        path:
+            '${uri.path.isEmpty ? '/' : uri.path}${uri.hasQuery ? '?${uri.query}' : ''}',
+      );
+    }
     try {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (ok || !context.mounted) return;

@@ -4,8 +4,11 @@
  * committing, pushing and opening a pull request.
  */
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { homedir } from "node:os";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { RpcError } from "../acp/jsonrpc.ts";
 
@@ -224,4 +227,52 @@ export async function openPullRequest(cwd: string, title: string, body: string):
     const stderr = String((error as { stderr?: unknown }).stderr ?? "").trim();
     throw new RpcError(-32000, stderr || (error as Error).message);
   }
+}
+
+/** A name safe for a branch and a folder. */
+function worktreeSlug(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gu, "-")
+      .replace(/^-+|-+$/gu, "")
+      .slice(0, 32) || "agent"
+  );
+}
+
+/**
+ * A new worktree of [cwd]'s repository on its own branch, from HEAD, so
+ * agents working side by side never edit the same files. It lives under
+ * `~/.baya/worktrees`, outside the repository; the result names the folder
+ * matching [cwd] inside it.
+ */
+export async function createWorktree(cwd: string, name: string): Promise<Json> {
+  const repo = await root(cwd);
+  const id = createHash("sha256").update(repo).digest("hex").slice(0, 8);
+  const parent = join(homedir(), ".baya", "worktrees", `${worktreeSlug(basename(repo))}-${id}`);
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/gu, "");
+  let slug = `${worktreeSlug(name)}-${stamp}`;
+  for (let n = 2; existsSync(join(parent, slug)); n++) slug = `${worktreeSlug(name)}-${stamp}-${n}`;
+  const path = join(parent, slug);
+  const branch = `baya/${slug}`;
+  await git(repo, ["worktree", "add", "--quiet", "-b", branch, path, "HEAD"]);
+  return { root: path, path: join(path, relative(repo, resolve(cwd))), branch };
+}
+
+/** Removes a worktree [createWorktree] made, and its branch. */
+export async function removeWorktree(path: string): Promise<Json> {
+  const worktree = await root(path);
+  const rel = relative(join(homedir(), ".baya", "worktrees"), worktree);
+  if (!rel || rel.startsWith("..") || isAbsolute(rel)) {
+    throw RpcError.invalidParams("Baya removes only the worktrees it made.");
+  }
+  const branch = (await git(worktree, ["branch", "--show-current"])).trim();
+  const common = (
+    await git(worktree, ["rev-parse", "--path-format=absolute", "--git-common-dir"])
+  ).trim();
+  await git(worktree, ["worktree", "remove", "--force", worktree]);
+  if (branch.startsWith("baya/")) {
+    await git(resolve(common, ".."), ["branch", "-D", branch]).catch(() => "");
+  }
+  return {};
 }

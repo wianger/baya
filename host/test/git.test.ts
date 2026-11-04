@@ -100,3 +100,40 @@ describe("reviewing changes", () => {
     await expect(gitStatus(dir)).rejects.toThrow("not in a git repository");
   });
 });
+
+describe("worktrees", () => {
+  test("makes one per agent outside the repository, and removes it", async () => {
+    const { createWorktree, removeWorktree } = await import("../src/workspace/git.ts");
+    const home = mkdtempSync(join(tmpdir(), "baya-home-"));
+    dirs.push(home);
+    const previous = process.env["HOME"];
+    process.env["HOME"] = home;
+    process.env["USERPROFILE"] = home;
+    try {
+      const dir = repo();
+      const first = (await createWorktree(dir, "Claude Code")) as { root: string; branch: string };
+      const second = (await createWorktree(dir, "Claude Code")) as { root: string; branch: string };
+      expect(first.root.startsWith(join(home, ".baya", "worktrees"))).toBe(true);
+      expect(first.branch).toMatch(/^baya\/claude-code-\d{12}$/u);
+      expect(second.root).not.toBe(first.root);
+      expect(readFileSync(join(first.root, "a.txt"), "utf8")).toContain("line 30");
+      await removeWorktree(first.root);
+      expect(existsSync(first.root)).toBe(false);
+      const branches = execFileSync(
+        "git",
+        ["branch", "--list", "baya/*", "--format=%(refname:short)"],
+        {
+          cwd: dir,
+        },
+      )
+        .toString()
+        .trim()
+        .split("\n");
+      expect(branches).toEqual([second.branch]);
+      await expect(removeWorktree(dir)).rejects.toThrow(/only the worktrees it made/u);
+    } finally {
+      process.env["HOME"] = previous;
+      process.env["USERPROFILE"] = previous;
+    }
+  });
+});

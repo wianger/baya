@@ -15,6 +15,7 @@ Future<void> showSessionSheet(
   required String? folder,
   VoidCallback? onFiles,
   VoidCallback? onChanges,
+  VoidCallback? onPreview,
   required VoidCallback onRename,
   required Future<void> Function() onDelete,
 }) {
@@ -30,6 +31,7 @@ Future<void> showSessionSheet(
       folder: folder,
       onFiles: onFiles,
       onChanges: onChanges,
+      onPreview: onPreview,
       onRename: onRename,
       onDelete: onDelete,
     ),
@@ -44,6 +46,7 @@ class _SessionSheet extends StatefulWidget {
     required this.folder,
     required this.onFiles,
     required this.onChanges,
+    required this.onPreview,
     required this.onRename,
     required this.onDelete,
   });
@@ -54,6 +57,7 @@ class _SessionSheet extends StatefulWidget {
   final String? folder;
   final VoidCallback? onFiles;
   final VoidCallback? onChanges;
+  final VoidCallback? onPreview;
   final VoidCallback onRename;
   final Future<void> Function() onDelete;
 
@@ -118,6 +122,15 @@ class _SessionSheetState extends State<_SessionSheet> {
                 label: l10n.changes,
                 chevron: true,
                 onTap: () => _then(changes),
+              ),
+            if (widget.onPreview case final preview?)
+              BayaRow(
+                key: const ValueKey('session-action-preview'),
+                icon: LucideIcons.globe,
+                label: l10n.webPreview,
+                subtitle: l10n.webPreviewHint,
+                chevron: true,
+                onTap: () => _then(preview),
               ),
             if (widget.onFiles case final files?)
               BayaRow(

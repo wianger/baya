@@ -41,8 +41,11 @@ void main() {
       final vm = HomeViewModel(hosts, storage, prefs);
 
       await tester.pumpWidget(
-        ChangeNotifierProvider.value(
-          value: vm,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: vm),
+            ChangeNotifierProvider<Preferences>.value(value: prefs),
+          ],
           child: MaterialApp(
             theme: buildLightTheme(),
             home: const SessionWelcome(),
@@ -84,8 +87,11 @@ void main() {
       final vm = HomeViewModel(hosts, storage, prefs);
 
       await tester.pumpWidget(
-        ChangeNotifierProvider.value(
-          value: vm,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: vm),
+            ChangeNotifierProvider<Preferences>.value(value: prefs),
+          ],
           child: MaterialApp(
             theme: buildLightTheme(),
             home: const SessionWelcome(),
@@ -147,6 +153,7 @@ void main() {
         providers: [
           ChangeNotifierProvider.value(value: vm),
           ChangeNotifierProvider.value(value: selection),
+          ChangeNotifierProvider<Preferences>.value(value: prefs),
         ],
         child: MaterialApp.router(
           theme: buildLightTheme(),

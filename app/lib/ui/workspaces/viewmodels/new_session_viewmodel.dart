@@ -1,4 +1,5 @@
 import 'package:app/acp/acp.dart';
+import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
@@ -164,7 +165,43 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
     final choice = current.directory!.availableAgents.firstWhere(
       (entry) => entry.id == agent.id,
     );
-    emit(current.copyWith(agent: choice));
+    emit(
+      current.copyWith(
+        agent: choice,
+        alsoAgents: current.alsoAgents
+            .where((other) => other.id != choice.id)
+            .toList(growable: false),
+      ),
+    );
+  }
+
+  /// Adds [agent] to, or takes it out of, the agents that run alongside.
+  void toggleAlsoAgent(WorkspaceAgent agent) {
+    final current = state;
+    if (current is! NewSessionReady ||
+        current.opening ||
+        agent.id == current.agent.id ||
+        current.directory?.availableAgents.any((a) => a.id == agent.id) !=
+            true) {
+      return;
+    }
+    final present = current.alsoAgents.any((other) => other.id == agent.id);
+    emit(
+      current.copyWith(
+        alsoAgents: present
+            ? current.alsoAgents
+                  .where((other) => other.id != agent.id)
+                  .toList(growable: false)
+            : [...current.alsoAgents, agent],
+      ),
+    );
+  }
+
+  void setSeparateWorktrees(bool value) {
+    final current = state;
+    if (current is NewSessionReady && !current.opening) {
+      emit(current.copyWith(separateWorktrees: value));
+    }
   }
 
   void setWorkspace(String workspaceKey) {
@@ -232,6 +269,71 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
       }
       return null;
     }
+  }
+
+  /// Starts every agent of [NewSessionReady.runAgents] on the same folder,
+  /// each in its own worktree when asked (and the folder is in a git
+  /// repository). Agents that fail to start are left out; the run fails
+  /// only when none starts.
+  Future<ParallelRun?> openRun({DateTime? now}) async {
+    final current = state;
+    if (current is! NewSessionReady ||
+        !current.canOpen ||
+        current.alsoAgents.isEmpty) {
+      return null;
+    }
+    emit(current.copyWith(opening: true, clearError: true));
+    final folder = current.directory!.path;
+    final hostId = current.host.id;
+    final failures = <String>[];
+    Future<RunMember?> start(WorkspaceAgent agent) async {
+      try {
+        final worktree = current.separateWorktrees
+            ? await _repository.createWorktree(hostId, folder, agent.label)
+            : null;
+        final opened = await _repository.open(
+          hostId,
+          worktree?.path ?? folder,
+          agent,
+        );
+        return RunMember(
+          sessionId: opened.sessionId,
+          agentId: agent.id,
+          agentLabel: agent.label,
+          path: opened.path,
+          branch: worktree?.branch,
+        );
+      } catch (error) {
+        failures.add('${agent.label}: $error');
+        return null;
+      }
+    }
+
+    final members = (await Future.wait(current.runAgents.map(start))).nonNulls
+        .toList(growable: false);
+    if (_disposed) return null;
+    if (members.isEmpty) {
+      emit(
+        current.copyWith(
+          opening: false,
+          error: failures.isEmpty
+              ? appL10n.couldNotStartSession
+              : failures.join('\n'),
+        ),
+      );
+      return null;
+    }
+    final started = now ?? DateTime.now();
+    return ParallelRun(
+      id: '${started.microsecondsSinceEpoch}',
+      hostId: hostId,
+      hostLabel: current.host.label,
+      folder: folder,
+      createdAt: started,
+      members: members,
+      workspaceKey: current.selectedWorkspace,
+      failures: failures,
+    );
   }
 
   /// Nothing to undo: browsing does not change any connection.

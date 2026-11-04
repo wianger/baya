@@ -1,4 +1,5 @@
 import 'package:app/domain/workspaces/workspace_repository.dart';
+import 'package:flutter/foundation.dart';
 
 /// Immutable workspace snapshot captured from the sidebar before the route is
 /// pushed. The new-session route owns its selection so browsing another
@@ -36,6 +37,8 @@ class NewSessionReady extends NewSessionState {
     this.showHidden = false,
     this.query = '',
     this.error,
+    this.alsoAgents = const [],
+    this.separateWorktrees = true,
   });
   final List<WorkspaceHost> hosts;
   final WorkspaceHost host;
@@ -48,6 +51,15 @@ class NewSessionReady extends NewSessionState {
   final bool showHidden;
   final String query;
   final String? error;
+
+  /// Agents that take the same task alongside [agent], in a parallel run.
+  final List<WorkspaceAgent> alsoAgents;
+
+  /// In a parallel run, each agent works in its own worktree.
+  final bool separateWorktrees;
+
+  /// Every agent this start opens: [agent] first.
+  List<WorkspaceAgent> get runAgents => [agent, ...alsoAgents];
 
   bool get canOpen =>
       host.online &&
@@ -87,6 +99,8 @@ class NewSessionReady extends NewSessionState {
     bool? showHidden,
     String? query,
     String? error,
+    List<WorkspaceAgent>? alsoAgents,
+    bool? separateWorktrees,
     bool clearDirectory = false,
     bool clearSelectedWorkspace = false,
     bool clearError = false,
@@ -104,6 +118,8 @@ class NewSessionReady extends NewSessionState {
     showHidden: showHidden ?? this.showHidden,
     query: query ?? this.query,
     error: clearError ? null : error ?? this.error,
+    alsoAgents: alsoAgents ?? this.alsoAgents,
+    separateWorktrees: separateWorktrees ?? this.separateWorktrees,
   );
 
   @override
@@ -119,7 +135,9 @@ class NewSessionReady extends NewSessionState {
       opening == other.opening &&
       showHidden == other.showHidden &&
       query == other.query &&
-      error == other.error;
+      error == other.error &&
+      listEquals(alsoAgents, other.alsoAgents) &&
+      separateWorktrees == other.separateWorktrees;
   @override
   int get hashCode => Object.hash(
     hosts,
@@ -133,5 +151,7 @@ class NewSessionReady extends NewSessionState {
     showHidden,
     query,
     error,
+    Object.hashAll(alsoAgents),
+    separateWorktrees,
   );
 }

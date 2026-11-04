@@ -102,6 +102,13 @@ class OpenedWorkspace {
   );
 }
 
+/// A worktree the computer made: [path] matches the folder asked for.
+class Worktree {
+  const Worktree({required this.path, required this.branch});
+  final String path;
+  final String branch;
+}
+
 class WorkspaceFailure implements Exception {
   const WorkspaceFailure(this.message);
   final String message;
@@ -123,6 +130,10 @@ abstract class IWorkspaceRepository extends Repository {
     String? path,
     bool showHidden = false,
   });
+
+  /// A new worktree of [path]'s repository for [name] to work in alone;
+  /// null when [path] is not in a git repository.
+  Future<Worktree?> createWorktree(String hostId, String path, String name);
 
   /// Starts a session, or continues the agent's own [agentSessionId].
   Future<OpenedWorkspace> open(
