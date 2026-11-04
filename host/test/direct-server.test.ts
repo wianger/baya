@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -8,9 +8,11 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import WebSocket from "ws";
 import { generateEd25519Keypair } from "../src/pairing/crypto.ts";
 import {
+  type DataFrame,
   Initiator,
   keyPairFromPrivate,
   MessageReader,
+  sealData,
   sealMessage,
   x25519FromEd25519Seed,
   x25519PublicFromEd25519,
@@ -82,10 +84,14 @@ async function phone(port: number, hostPublic: Uint8Array) {
   const closed = new Promise<{ code: number; reason: string }>((resolve) =>
     socket.once("close", (code, reason) => resolve({ code, reason: String(reason) })),
   );
-  socket.on("message", (data) => {
-    const message = reader.read(session.receive, data as Buffer);
-    if (message) frames.push(JSON.parse(message.toString()));
+  const data: DataFrame[] = [];
+  socket.on("message", (raw) => {
+    const message = reader.read(session.receive, raw as Buffer);
+    if (Buffer.isBuffer(message)) frames.push(JSON.parse(message.toString()));
+    else if (message) data.push(message);
   });
+  const sendData = (stream: number, offset: number, bytes: Buffer) =>
+    socket.send(sealData(session.send, stream, offset, bytes));
   const sendRaw = (bytes: Buffer) => {
     for (const frame of sealMessage(session.send, bytes)) socket.send(frame);
   };
@@ -121,10 +127,57 @@ async function phone(port: number, hostPublic: Uint8Array) {
     next,
     call,
     updates,
+    data,
+    sendData,
   };
 }
 
 describe("ACP over the direct connection", () => {
+  test("files go both ways as data frames on the encrypted socket", async () => {
+    const { host, port, storage, hub } = await setup();
+    const p = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "P", remote_epk: p.key, paired_at: "now" });
+    await hub.refreshPeers();
+    await p.call("initialize", { protocolVersion: 1 });
+    const cwd = mkdtempSync(join(tmpdir(), "baya-files-"));
+    cleanup.push(() => rmSync(cwd, { recursive: true, force: true }));
+    const { sessionId } = (await p.call("session/new", {
+      cwd,
+      mcpServers: [],
+      _meta: { baya: { agent: "fake" } },
+    })) as { sessionId: string };
+
+    // 200 kB up, in data frames, acknowledged as it lands.
+    const content = Buffer.alloc(200_000);
+    for (let i = 0; i < content.length; i++) content[i] = i % 251;
+    const begun = await p.call("_baya/upload_begin", {
+      sessionId,
+      name: "photo.bin",
+      size: content.length,
+      stream: 5,
+    });
+    for (let at = 0; at < content.length; at += 64_000) {
+      p.sendData(5, at, content.subarray(at, at + 64_000));
+    }
+    await p.next(
+      (f) => f["method"] === "_baya/upload_progress" && f["params"].received === content.length,
+    );
+    const done = await p.call("_baya/upload_finish", { uploadId: begun["uploadId"] });
+    expect(readFileSync(done["path"] as string)).toEqual(content);
+
+    // And back down from an offset, then the end.
+    const opened = await p.call("_baya/download_open", {
+      sessionId,
+      path: done["path"],
+      offset: 1000,
+      stream: 6,
+    });
+    expect(opened["size"]).toBe(content.length);
+    await p.next((f) => f["method"] === "_baya/stream_end" && f["params"].stream === 6);
+    const got = Buffer.concat(p.data.filter((d) => d.stream === 6).map((d) => d.bytes));
+    expect(got).toEqual(content.subarray(1000));
+  });
+
   test("an unpaired phone can only pair", async () => {
     const { host, port, tokens, storage } = await setup();
     const p = await phone(port, host.publicKey);

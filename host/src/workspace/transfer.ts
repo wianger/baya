@@ -13,19 +13,26 @@ import { extname, isAbsolute, join, relative, sep } from "node:path";
 
 /** Largest file either way; the phone keeps a download in memory to save it. */
 const MAX_TRANSFER_BYTES = 100 * 1024 * 1024;
-/** Largest piece of one `_baya/upload_chunk` or `_baya/download` (raw bytes). */
-const MAX_CHUNK_BYTES = 1024 * 1024;
 
 class TransferError extends Error {}
 
 interface Upload {
+  /** The phone (its key) that began it; it may resume from another connection. */
   owner: string;
   handle: FileHandle;
   part: string;
   dir: string;
   name: string;
   size: number;
+  /** Bytes on disk. */
   received: number;
+  /** Bytes accepted, written or queued. */
+  next: number;
+  writing: Promise<void>;
+  failed: string | null;
+  /** Where its data frames come in: a connection and the phone's stream id. */
+  stream: { connection: string; id: number } | null;
+  expiry: NodeJS.Timeout | null;
 }
 
 function isInside(root: string, candidate: string): boolean {
@@ -89,10 +96,16 @@ async function freeName(dir: string, name: string): Promise<string> {
   throw new TransferError("Too many files with that name.");
 }
 
+/** How long a half-sent upload waits for its phone to come back. */
+const RESUME_WINDOW_MS = 30 * 60 * 1000;
+/** Progress (and room to send more) is reported every this many bytes. */
+const PROGRESS_EVERY = 512 * 1024;
+
 /**
- * Files sent from the phone, written to a hidden part file beside their
- * destination and renamed into place once every byte arrived. Each belongs
- * to the phone connection that began it.
+ * Files sent from the phone as binary data frames, written to a hidden
+ * part file beside their destination and renamed into place once every
+ * byte arrived. An upload belongs to the phone that began it: when its
+ * connection drops it waits half an hour to be resumed.
  */
 export class Uploads {
   private readonly open = new Map<string, Upload>();
@@ -128,29 +141,80 @@ export class Uploads {
       name: safeFileName(request.name),
       size,
       received: 0,
+      next: 0,
+      writing: Promise.resolve(),
+      failed: null,
+      stream: null,
+      expiry: null,
     });
     return { uploadId, dir };
   }
 
-  async chunk(
+  /**
+   * Data frames of stream [id] on [connection] now feed [uploadId]: at
+   * the start, or again after a drop. Returns the bytes already on disk,
+   * where the phone carries on from.
+   */
+  async attach(
     owner: string,
     uploadId: string,
-    offset: number,
-    data: string,
+    connection: string,
+    id: number,
   ): Promise<{ received: number }> {
     const upload = this.get(owner, uploadId);
-    if (offset !== upload.received) {
-      throw new TransferError(`Expected bytes from ${upload.received}, got ${offset}.`);
+    if (!Number.isInteger(id) || id < 0 || id > 0xffffffff) {
+      throw new TransferError("A stream id is required.");
     }
-    const bytes = Buffer.from(data, "base64");
-    if (bytes.length > MAX_CHUNK_BYTES) throw new TransferError("That piece is too large.");
-    if (upload.received + bytes.length > upload.size) {
-      await this.cancel(owner, uploadId);
-      throw new TransferError("The file is larger than announced.");
-    }
-    await upload.handle.write(bytes, 0, bytes.length, upload.received);
-    upload.received += bytes.length;
+    if (upload.expiry) clearTimeout(upload.expiry);
+    upload.expiry = null;
+    await upload.writing;
+    upload.next = upload.received;
+    upload.stream = { connection, id };
     return { received: upload.received };
+  }
+
+  /**
+   * A data frame: bytes of an upload at [offset]. Frames repeated after a
+   * resume are skipped; [progress] hears how far the file got.
+   */
+  data(
+    connection: string,
+    id: number,
+    offset: number,
+    bytes: Buffer,
+    progress: (uploadId: string, received: number, error?: string) => void,
+  ): void {
+    const found = [...this.open].find(
+      ([, u]) => u.stream?.connection === connection && u.stream.id === id,
+    );
+    if (!found) return;
+    const [uploadId, upload] = found;
+    if (upload.failed || offset !== upload.next) return;
+    if (upload.next + bytes.length > upload.size) {
+      upload.failed = "The file is larger than announced.";
+      progress(uploadId, upload.received, upload.failed);
+      return;
+    }
+    upload.next += bytes.length;
+    upload.writing = upload.writing.then(async () => {
+      if (upload.failed) return;
+      try {
+        await upload.handle.write(bytes, 0, bytes.length, offset);
+      } catch (error) {
+        upload.failed = error instanceof Error ? error.message : String(error);
+        progress(uploadId, upload.received, upload.failed);
+        return;
+      }
+      const before = upload.received;
+      upload.received += bytes.length;
+      const done = upload.received === upload.size;
+      if (
+        done ||
+        Math.floor(before / PROGRESS_EVERY) !== Math.floor(upload.received / PROGRESS_EVERY)
+      ) {
+        progress(uploadId, upload.received);
+      }
+    });
   }
 
   async finish(
@@ -158,10 +222,13 @@ export class Uploads {
     uploadId: string,
   ): Promise<{ name: string; path: string; size: number }> {
     const upload = this.get(owner, uploadId);
+    await upload.writing;
+    if (upload.failed) throw new TransferError(upload.failed);
     if (upload.received !== upload.size) {
       throw new TransferError(`Only ${upload.received} of ${upload.size} bytes arrived.`);
     }
     this.open.delete(uploadId);
+    if (upload.expiry) clearTimeout(upload.expiry);
     await upload.handle.close();
     try {
       const name = await freeName(upload.dir, upload.name);
@@ -178,14 +245,20 @@ export class Uploads {
     const upload = this.open.get(uploadId);
     if (!upload || upload.owner !== owner) return;
     this.open.delete(uploadId);
+    if (upload.expiry) clearTimeout(upload.expiry);
+    await upload.writing.catch(() => {});
     await upload.handle.close().catch(() => {});
     await rm(upload.part, { force: true });
   }
 
-  /** The phone went away: drop what it left half sent. */
-  async drop(owner: string): Promise<void> {
-    const ids = [...this.open].filter(([, upload]) => upload.owner === owner).map(([id]) => id);
-    await Promise.all(ids.map((id) => this.cancel(owner, id)));
+  /** [connection] went away: its uploads wait a while to be resumed. */
+  detach(connection: string, windowMs = RESUME_WINDOW_MS): void {
+    for (const [uploadId, upload] of this.open) {
+      if (upload.stream?.connection !== connection) continue;
+      upload.stream = null;
+      upload.expiry = setTimeout(() => void this.cancel(upload.owner, uploadId), windowMs);
+      upload.expiry.unref?.();
+    }
   }
 
   private get(owner: string, uploadId: string): Upload {
@@ -198,13 +271,25 @@ export class Uploads {
 
 export const uploads = new Uploads();
 
-/** One piece of a session file for the phone to save. */
-export async function downloadChunk(
+/** Bytes of file data in one data frame. */
+const DATA_PIECE = 64_000;
+
+/**
+ * Streams a session file to the phone as data frames from [offset] (where
+ * a resumed download carries on), then says it ended. [closed] stops it.
+ */
+export async function openDownload(
   cwd: string,
   input: string,
   offset: number,
-  length: number,
-): Promise<{ name: string; size: number; offset: number; data: string; eof: boolean }> {
+): Promise<{
+  name: string;
+  size: number;
+  pump: (
+    send: (offset: number, bytes: Buffer) => Promise<void>,
+    closed: () => boolean,
+  ) => Promise<number>;
+}> {
   const root = await realpath(cwd);
   const path = await inside(root, input);
   const info = await stat(path);
@@ -212,21 +297,28 @@ export async function downloadChunk(
   if (info.size > MAX_TRANSFER_BYTES) {
     throw new TransferError(`Files over ${MAX_TRANSFER_BYTES / 1024 / 1024} MB can't be sent.`);
   }
-  if (!Number.isSafeInteger(offset) || offset < 0) throw new TransferError("Bad offset.");
-  const want = Math.max(0, Math.min(length, MAX_CHUNK_BYTES, info.size - offset));
-  const buffer = Buffer.alloc(want);
-  const handle = await open(path, "r");
-  let read = 0;
-  try {
-    if (want > 0) ({ bytesRead: read } = await handle.read(buffer, 0, want, offset));
-  } finally {
-    await handle.close();
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset > info.size) {
+    throw new TransferError("Bad offset.");
   }
+  const size = info.size;
   return {
     name: path.slice(path.lastIndexOf(sep) + 1),
-    size: info.size,
-    offset,
-    data: buffer.subarray(0, read).toString("base64"),
-    eof: offset + read >= info.size,
+    size,
+    pump: async (send, closed) => {
+      const handle = await open(path, "r");
+      let at = offset;
+      try {
+        const buffer = Buffer.alloc(DATA_PIECE);
+        while (at < size && !closed()) {
+          const { bytesRead } = await handle.read(buffer, 0, Math.min(DATA_PIECE, size - at), at);
+          if (bytesRead === 0) break;
+          await send(at, Buffer.from(buffer.subarray(0, bytesRead)));
+          at += bytesRead;
+        }
+      } finally {
+        await handle.close();
+      }
+      return at;
+    },
   };
 }

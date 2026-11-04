@@ -7,13 +7,15 @@ import 'package:app/ui/session_files/file_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_transfer.dart';
+
 // A 1×1 PNG.
 const _png =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
 /// Real file I/O and the fake clock take turns until the preview settles.
 Future<void> settle(WidgetTester tester) async {
-  for (var i = 0; i < 10; i++) {
+  for (var i = 0; i < 25; i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 30)),
     );
@@ -50,19 +52,8 @@ void main() {
         // Windows may still hold the image open; the temp folder can wait.
       }
     });
-    var fail = true;
-    Future<Json> call(String method, Json params) async {
-      expect(method, '_baya/download');
-      if (fail) throw Exception('offline');
-      final bytes = base64Decode(_png);
-      return {
-        'name': 'shot.png',
-        'size': bytes.length,
-        'offset': 0,
-        'data': _png,
-        'eof': true,
-      };
-    }
+    // Not on the computer yet: the first try fails.
+    final computer = FakeComputer();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -71,7 +62,7 @@ void main() {
             path: '/w/shot.png',
             name: 'shot.png',
             kind: PreviewKind.image,
-            transfer: FileTransfer(call),
+            transfer: FileTransfer(computer),
             folder: () async => folder,
           ),
         ),
@@ -80,9 +71,12 @@ void main() {
     await settle(tester);
     expect(find.text("Couldn't show this file"), findsOneWidget);
 
-    fail = false;
+    computer.files['/w/shot.png'] = base64Decode(_png);
     await tester.tap(find.text('Try again'));
     await settle(tester);
+    debugPrint(
+      'SHOWN ${find.byType(Text).evaluate().map((e) => (e.widget as Text).data).toList()} ${tester.takeException()}',
+    );
     expect(find.byKey(const ValueKey('file-preview-image')), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
@@ -135,20 +129,14 @@ void main() {
         ],
       }),
     );
-    Future<Json> call(String method, Json params) async => {
-      'name': 'a.ipynb',
-      'size': notebook.length,
-      'offset': 0,
-      'data': base64Encode(notebook),
-      'eof': true,
-    };
+    final computer = FakeComputer()..files['/w/a.ipynb'] = notebook;
     await tester.pumpWidget(
       host(
         FilePreview(
           path: '/w/a.ipynb',
           name: 'a.ipynb',
           kind: PreviewKind.notebook,
-          transfer: FileTransfer(call),
+          transfer: FileTransfer(computer),
           folder: () async => folder,
         ),
       ),
@@ -190,7 +178,7 @@ void main() {
           path: '/w/app.zip',
           name: 'app.zip',
           kind: PreviewKind.archive,
-          transfer: FileTransfer(call),
+          transfer: FileTransfer(FakeComputer()..other = call),
           onOpenPath: (path, name) => opened = path,
         ),
       ),
@@ -217,7 +205,7 @@ void main() {
           path: '/w/plan.docx',
           name: 'plan.docx',
           kind: PreviewKind.office,
-          transfer: FileTransfer(call),
+          transfer: FileTransfer(FakeComputer()..other = call),
         ),
       ),
     );

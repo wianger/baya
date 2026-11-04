@@ -11,6 +11,7 @@ import {
   MessageReader,
   NoiseError,
   Responder,
+  sealData,
   sealMessage,
   x25519FromEd25519Seed,
   x25519PublicFromEd25519,
@@ -29,6 +30,8 @@ import {
  * message, so nobody in between can read, forge, replay or reorder anything.
  */
 
+/** Bytes a file stream may have waiting in the socket before it pauses. */
+const SEND_BUFFER = 4 * 1024 * 1024;
 export const PROLOGUE = Buffer.from("baya/1", "ascii");
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 const PING_MS = 25_000;
@@ -96,13 +99,23 @@ export class DirectServer {
         }
       },
       close: (code, reason) => socket.close(code, reason),
+      sendData: async (stream, offset, bytes) => {
+        // Let the socket drain rather than buffer a whole file.
+        while (socket.readyState === socket.OPEN && socket.bufferedAmount > SEND_BUFFER) {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        if (socket.readyState !== socket.OPEN) throw new Error("The phone disconnected.");
+        socket.send(sealData(session.send, stream, offset, bytes));
+      },
     });
     const ping = setInterval(() => socket.ping(), PING_MS);
     socket.on("message", (raw, isBinary) => {
       try {
         if (!isBinary) throw new NoiseError("Expected a binary frame.");
         const message = reader.read(session.receive, toBuffer(raw));
-        if (message) phone.receive(JSON.parse(message.toString("utf8")));
+        if (message === null) return;
+        if (Buffer.isBuffer(message)) phone.receive(JSON.parse(message.toString("utf8")));
+        else phone.receiveData(message);
       } catch (error) {
         if (!(error instanceof NoiseError) && !(error instanceof SyntaxError)) throw error;
         // A failed frame leaves the counters out of step: the stream is over.

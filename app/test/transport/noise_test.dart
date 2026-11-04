@@ -94,11 +94,20 @@ void main() {
       utf8.encode(v['request'] as String),
     );
     expect(base64.encode(frames.single), v['request_frame']);
-    final reply = await MessageReader().read(
+    final reader = MessageReader();
+    final reply = await reader.read(
       session.receive,
       base64.decode(v['response_frame'] as String),
     );
-    expect(utf8.decode(reply!), v['response']);
+    expect(utf8.decode(reply! as List<int>), v['response']);
+    // A data frame the host sealed next: the same layout on both sides.
+    final frame = await reader.read(
+      session.receive,
+      base64.decode(v['data_frame'] as String),
+    ) as DataFrame;
+    expect(frame.stream, v['data_stream']);
+    expect(frame.offset, v['data_offset']);
+    expect(frame.bytes, base64.decode(v['data_bytes'] as String));
   });
 
   test('large messages are split into pieces and reassembled', () async {

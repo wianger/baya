@@ -21,6 +21,8 @@ afterEach(() => {
 /** A paired phone talking to a hub with one session in [cwd]. */
 function phone(cwd: string) {
   const replies = new Map<number, Json>();
+  const notes: Json[] = [];
+  const frames: Array<{ stream: number; offset: number; bytes: Buffer }> = [];
   const hub = {
     connect() {},
     disconnect() {},
@@ -32,8 +34,12 @@ function phone(cwd: string) {
     hub,
     send: (message) => {
       if (typeof message["id"] === "number") replies.set(message["id"], message);
+      else notes.push(message);
     },
     close() {},
+    sendData: async (stream, offset, bytes) => {
+      frames.push({ stream, offset, bytes });
+    },
   });
   let id = 0;
   const call = async (method: string, params: Json): Promise<Json> => {
@@ -44,39 +50,76 @@ function phone(cwd: string) {
     if (reply["error"]) throw new Error((reply["error"] as Json)["message"] as string);
     return reply["result"] as Json;
   };
-  return { call, connection };
+  const until = async (check: () => boolean) => {
+    for (let i = 0; i < 200 && !check(); i++) await new Promise((r) => setTimeout(r, 5));
+  };
+  return { call, connection, notes, frames, until };
 }
 
-test("a phone sends a file in and takes one back over its connection", async () => {
+test("a phone sends a file in as data frames and streams one back", async () => {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), "baya-phone-")));
   dirs.push(cwd);
-  const { call, connection } = phone(cwd);
-  const begun = await call("_baya/upload_begin", { sessionId: "s", name: "a.txt", size: 5 });
-  await call("_baya/upload_chunk", {
-    uploadId: begun["uploadId"],
-    offset: 0,
-    data: Buffer.from("hello").toString("base64"),
+  const { call, connection, notes, frames, until } = phone(cwd);
+  const begun = await call("_baya/upload_begin", {
+    sessionId: "s",
+    name: "a.txt",
+    size: 5,
+    stream: 3,
+  });
+  connection.receiveData({ stream: 3, offset: 0, bytes: Buffer.from("hello") });
+  await until(() => notes.some((n) => n["method"] === "_baya/upload_progress"));
+  expect(notes.at(-1)).toMatchObject({
+    method: "_baya/upload_progress",
+    params: { uploadId: begun["uploadId"], received: 5 },
   });
   const done = await call("_baya/upload_finish", { uploadId: begun["uploadId"] });
-  expect(done["path"]).toBe(join(cwd, ".baya", "uploads", "a.txt"));
   expect(readFileSync(done["path"] as string, "utf8")).toBe("hello");
 
-  writeFileSync(join(cwd, "out.txt"), "back");
-  const piece = await call("_baya/download", {
+  writeFileSync(join(cwd, "out.bin"), Buffer.alloc(70_000, 1));
+  const opened = await call("_baya/download_open", {
     sessionId: "s",
-    path: join(cwd, "out.txt"),
-    offset: 0,
-    length: 1024,
+    path: join(cwd, "out.bin"),
+    offset: 1000,
+    stream: 8,
   });
-  expect(Buffer.from(piece["data"] as string, "base64").toString()).toBe("back");
+  expect(opened).toEqual({ name: "out.bin", size: 70_000 });
+  await until(() => notes.some((n) => n["method"] === "_baya/stream_end"));
+  expect(frames.map((f) => [f.stream, f.offset, f.bytes.length])).toEqual([
+    [8, 1000, 64_000],
+    [8, 65_000, 5_000],
+  ]);
+  expect(notes.at(-1)).toMatchObject({
+    method: "_baya/stream_end",
+    params: { stream: 8, size: 70_000, sent: 70_000 },
+  });
   await expect(
-    call("_baya/download", { sessionId: "s", path: "/etc/hostname", offset: 0, length: 1 }),
+    call("_baya/download_open", { sessionId: "s", path: "/etc/hostname", offset: 0, stream: 9 }),
   ).rejects.toThrow(/outside/);
+});
 
-  // A phone that goes away mid-upload leaves no part file behind.
-  await call("_baya/upload_begin", { sessionId: "s", name: "b.txt", size: 9 });
-  expect(readdirSync(join(cwd, ".baya", "uploads"))).toHaveLength(2);
-  connection.closed();
-  await new Promise((r) => setTimeout(r, 50));
-  expect(readdirSync(join(cwd, ".baya", "uploads"))).toEqual(["a.txt"]);
+test("an upload outlives its connection and resumes on the next", async () => {
+  const cwd = realpathSync(mkdtempSync(join(tmpdir(), "baya-phone-")));
+  dirs.push(cwd);
+  const first = phone(cwd);
+  const begun = await first.call("_baya/upload_begin", {
+    sessionId: "s",
+    name: "b.txt",
+    size: 6,
+    stream: 1,
+  });
+  first.connection.receiveData({ stream: 1, offset: 0, bytes: Buffer.from("abc") });
+  await first.until(() => first.notes.length > 0);
+  first.connection.closed();
+  expect(readdirSync(join(cwd, ".baya", "uploads"))).toHaveLength(1);
+
+  const second = phone(cwd);
+  const resumed = await second.call("_baya/upload_resume", {
+    uploadId: begun["uploadId"],
+    stream: 2,
+  });
+  expect(resumed).toEqual({ received: 3 });
+  second.connection.receiveData({ stream: 2, offset: 3, bytes: Buffer.from("def") });
+  await second.until(() => second.notes.length > 0);
+  const done = await second.call("_baya/upload_finish", { uploadId: begun["uploadId"] });
+  expect(readFileSync(done["path"] as string, "utf8")).toBe("abcdef");
 });

@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:app/acp/acp.dart';
 import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/transport/host_socket.dart';
+import 'package:app/data/transport/noise.dart' show DataFrame;
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:cryptography/cryptography.dart';
@@ -87,6 +88,25 @@ class HostConnection extends ChangeNotifier {
   final _questionEvents = StreamController<QuestionEvent>.broadcast();
   final _terminals = StreamController<TerminalEvent>.broadcast();
   final _online = StreamController<void>.broadcast();
+  final _data = StreamController<DataFrame>.broadcast();
+  final _transfers =
+      StreamController<({String method, Json params})>.broadcast();
+
+  /// File bytes the computer streams to this phone.
+  Stream<DataFrame> get data => _data.stream;
+
+  /// `_baya/stream_end` and `_baya/upload_progress`, for file transfers.
+  Stream<({String method, Json params})> get transferEvents =>
+      _transfers.stream;
+
+  /// File bytes for the computer; fails when it is not connected.
+  Future<void> sendData(int stream, int offset, List<int> bytes) {
+    final socket = _socket;
+    if (socket == null || _status != HostStatus.online) {
+      return Future.error(RpcClosed(_offlineMessage));
+    }
+    return socket.sendData(stream, offset, bytes);
+  }
 
   PeerRecord get host => _host;
   String get key => _host.remoteEpk;
@@ -232,9 +252,13 @@ class HostConnection extends ChangeNotifier {
     );
     _peer = peer;
     final subscription = socket.messages.listen(peer.receive);
+    final frames = socket.data.listen((frame) {
+      if (!_data.isClosed) _data.add(frame);
+    });
     unawaited(
       socket.closed.then((closed) async {
         await subscription.cancel();
+        await frames.cancel();
         _closed(socket, closed);
       }),
     );
@@ -335,6 +359,10 @@ class HostConnection extends ChangeNotifier {
 
   void _onNotification(String method, Json params) {
     switch (method) {
+      case '_baya/stream_end' || '_baya/upload_progress':
+        if (!_transfers.isClosed) {
+          _transfers.add((method: method, params: params));
+        }
       case 'session/update':
         final sessionId = params['sessionId'];
         final update = params['update'];
@@ -411,6 +439,8 @@ class HostConnection extends ChangeNotifier {
     unawaited(_questionEvents.close());
     unawaited(_terminals.close());
     unawaited(_online.close());
+    unawaited(_data.close());
+    unawaited(_transfers.close());
     super.dispose();
   }
 }

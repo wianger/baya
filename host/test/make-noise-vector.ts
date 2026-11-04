@@ -7,6 +7,7 @@ import {
   Initiator,
   keyPairFromPrivate,
   Responder,
+  sealData,
   sealMessage,
   x25519FromEd25519Seed,
 } from "../src/transport/noise.ts";
@@ -71,6 +72,11 @@ writeFileSync(
       request_frame: b64(sealMessage(phone.send, Buffer.from(request))[0]!),
       response,
       response_frame: b64(sealMessage(reply.session.send, Buffer.from(response))[0]!),
+      // After the response, on the host's sending side: a download's bytes.
+      data_stream: 7,
+      data_offset: 65_000,
+      data_bytes: b64(Buffer.from("baya data frame")),
+      data_frame: b64(sealData(reply.session.send, 7, 65_000, Buffer.from("baya data frame"))),
     },
     null,
     2,

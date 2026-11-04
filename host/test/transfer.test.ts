@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
-import { downloadChunk, safeFileName, Uploads } from "../src/workspace/transfer.ts";
+import { openDownload, safeFileName, Uploads } from "../src/workspace/transfer.ts";
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -23,21 +23,25 @@ function folder(): string {
   return dir;
 }
 
-const b64 = (text: string) => Buffer.from(text).toString("base64");
+const progress: Array<[string, number, string?]> = [];
+const report = (id: string, received: number, error?: string) => {
+  progress.push(error ? [id, received, error] : [id, received]);
+};
 
 describe("uploads", () => {
-  test("pieces land in the inbox under a free name, ignored by git", async () => {
+  test("data frames land in the inbox under a free name, ignored by git", async () => {
     const root = folder();
     const uploads = new Uploads();
     const send = async (text: string) => {
-      const { uploadId, dir } = await uploads.begin("p", root, {
+      const { uploadId, dir } = await uploads.begin("phone", root, {
         name: "notes.txt",
         size: text.length,
       });
       expect(dir).toBe(join(root, ".baya", "uploads"));
-      await uploads.chunk("p", uploadId, 0, b64(text.slice(0, 3)));
-      await uploads.chunk("p", uploadId, 3, b64(text.slice(3)));
-      return uploads.finish("p", uploadId);
+      await uploads.attach("phone", uploadId, "c1", 7);
+      uploads.data("c1", 7, 0, Buffer.from(text.slice(0, 3)), report);
+      uploads.data("c1", 7, 3, Buffer.from(text.slice(3)), report);
+      return uploads.finish("phone", uploadId);
     };
     const first = await send("hello world");
     const second = await send("again");
@@ -49,10 +53,47 @@ describe("uploads", () => {
     expect(second.name).toBe("notes (2).txt");
     expect(readFileSync(second.path, "utf8")).toBe("again");
     expect(readFileSync(join(root, ".baya", ".gitignore"), "utf8")).toBe("*\n");
-    expect(readdirSync(join(root, ".baya", "uploads")).sort()).toEqual([
-      "notes (2).txt",
-      "notes.txt",
-    ]);
+  });
+
+  test("a dropped upload resumes from where the disk got to", async () => {
+    const root = folder();
+    const uploads = new Uploads();
+    const { uploadId } = await uploads.begin("phone", root, { name: "big.bin", size: 6 });
+    await uploads.attach("phone", uploadId, "c1", 1);
+    uploads.data("c1", 1, 0, Buffer.from("abc"), report);
+    // A frame out of order (lost in between) is ignored.
+    uploads.data("c1", 1, 4, Buffer.from("e"), report);
+    uploads.detach("c1");
+    // Frames from the gone connection no longer count.
+    uploads.data("c1", 1, 3, Buffer.from("def"), report);
+    const { received } = await uploads.attach("phone", uploadId, "c2", 9);
+    expect(received).toBe(3);
+    // A repeat of what already arrived is skipped.
+    uploads.data("c2", 9, 0, Buffer.from("abc"), report);
+    uploads.data("c2", 9, 3, Buffer.from("def"), report);
+    const done = await uploads.finish("phone", uploadId);
+    expect(readFileSync(done.path, "utf8")).toBe("abcdef");
+    expect(progress.at(-1)).toEqual([uploadId, 6]);
+  });
+
+  test("another phone cannot touch it, and an unresumed upload goes", async () => {
+    const root = folder();
+    const uploads = new Uploads();
+    const { uploadId } = await uploads.begin("phone", root, { name: "x", size: 4 });
+    await expect(uploads.attach("other", uploadId, "c9", 1)).rejects.toThrow(/no longer open/);
+    await uploads.attach("phone", uploadId, "c1", 1);
+    uploads.data("c1", 1, 0, Buffer.from("abcdef"), report);
+    await expect(uploads.finish("phone", uploadId)).rejects.toThrow(/larger than announced/);
+    const again = await uploads.begin("phone", root, { name: "y", size: 1 });
+    await uploads.attach("phone", again.uploadId, "c1", 2);
+    uploads.detach("c1", 5);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    await expect(uploads.attach("phone", again.uploadId, "c2", 3)).rejects.toThrow(
+      /no longer open/,
+    );
+    expect(
+      readdirSync(join(root, ".baya", "uploads")).filter((n) => n.startsWith(".baya-upload-y")),
+    ).toEqual([]);
   });
 
   test("a chosen folder must be inside the session", async () => {
@@ -65,28 +106,6 @@ describe("uploads", () => {
     await expect(uploads.begin("p", root, { name: "a", size: 0, dir: other })).rejects.toThrow(
       /outside/,
     );
-    await expect(uploads.begin("p", root, { name: "a", size: 0, dir: "docs" })).rejects.toThrow(
-      /inside/,
-    );
-  });
-
-  test("out-of-order, oversized, foreign and cancelled uploads leave nothing", async () => {
-    const root = folder();
-    const uploads = new Uploads();
-    const { uploadId } = await uploads.begin("p", root, { name: "x.bin", size: 4 });
-    await expect(uploads.chunk("p", uploadId, 2, b64("ab"))).rejects.toThrow(
-      /Expected bytes from 0/,
-    );
-    await expect(uploads.chunk("other", uploadId, 0, b64("ab"))).rejects.toThrow(/no longer open/);
-    await uploads.chunk("p", uploadId, 0, b64("ab"));
-    await expect(uploads.finish("p", uploadId)).rejects.toThrow(/Only 2 of 4/);
-    await expect(uploads.chunk("p", uploadId, 2, b64("abc"))).rejects.toThrow(/larger/);
-    expect(readdirSync(join(root, ".baya", "uploads"))).toEqual([]);
-
-    const again = await uploads.begin("p", root, { name: "y", size: 1 });
-    await uploads.drop("p");
-    await expect(uploads.chunk("p", again.uploadId, 0, b64("a"))).rejects.toThrow(/no longer open/);
-    expect(readdirSync(join(root, ".baya", "uploads"))).toEqual([]);
   });
 
   test("names are made safe everywhere", () => {
@@ -100,20 +119,38 @@ describe("uploads", () => {
 });
 
 describe("downloads", () => {
-  test("a file comes back in pieces, only from inside the session", async () => {
+  test("a file streams from an offset, only from inside the session", async () => {
     const root = folder();
     const file = join(root, "data.bin");
-    writeFileSync(file, "0123456789");
-    const first = await downloadChunk(root, file, 0, 4);
-    expect(first).toMatchObject({ name: "data.bin", size: 10, offset: 0, eof: false });
-    expect(Buffer.from(first.data, "base64").toString()).toBe("0123");
-    const last = await downloadChunk(root, file, 4, 100);
-    expect(Buffer.from(last.data, "base64").toString()).toBe("456789");
-    expect(last.eof).toBe(true);
+    writeFileSync(file, Buffer.alloc(150_000, 7));
+    const download = await openDownload(root, file, 10_000);
+    expect(download.size).toBe(150_000);
+    const got: Array<[number, number]> = [];
+    const end = await download.pump(
+      async (offset, bytes) => {
+        got.push([offset, bytes.length]);
+      },
+      () => false,
+    );
+    expect(end).toBe(150_000);
+    expect(got).toEqual([
+      [10_000, 64_000],
+      [74_000, 64_000],
+      [138_000, 12_000],
+    ]);
+    let calls = 0;
+    await (await openDownload(root, file, 0)).pump(
+      async () => {
+        calls++;
+      },
+      () => calls >= 1,
+    );
+    expect(calls).toBe(1);
 
     const outside = join(folder(), "secret");
     writeFileSync(outside, "x");
-    await expect(downloadChunk(root, outside, 0, 1)).rejects.toThrow(/outside/);
-    await expect(downloadChunk(root, root, 0, 1)).rejects.toThrow(/not a folder/);
+    await expect(openDownload(root, outside, 0)).rejects.toThrow(/outside/);
+    await expect(openDownload(root, root, 0)).rejects.toThrow(/not a folder/);
+    await expect(openDownload(root, file, 200_000)).rejects.toThrow(/Bad offset/);
   });
 });

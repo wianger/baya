@@ -8,6 +8,7 @@ import {
   MessageReader,
   NoiseError,
   Responder,
+  sealData,
   sealMessage,
 } from "../src/transport/noise.ts";
 
@@ -117,6 +118,22 @@ describe("message framing", () => {
     expect(reader.read(host.receive, frames[0]!)).toBeNull();
     expect(reader.read(host.receive, frames[1]!)).toBeNull();
     expect(reader.read(host.receive, frames[2]!)).toEqual(big);
+  });
+
+  test("data frames carry file bytes beside messages", () => {
+    const { phone, host } = pair();
+    const reader = new MessageReader();
+    const bytes = Buffer.from([0, 1, 2, 250]);
+    const frame = sealData(phone.send, 0xfeedbeef, 2 ** 40 + 3, bytes);
+    // [2][stream u32 BE][offset u64 BE][bytes], as the phone writes them.
+    expect(reader.read(host.receive, frame)).toEqual({
+      stream: 0xfeedbeef,
+      offset: 2 ** 40 + 3,
+      bytes,
+    });
+    expect(
+      reader.read(host.receive, sealMessage(phone.send, Buffer.from("{}"))[0]!)?.toString(),
+    ).toBe("{}");
   });
 
   test("a replayed, reordered or tampered frame fails", () => {

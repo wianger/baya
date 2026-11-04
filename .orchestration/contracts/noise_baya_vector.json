@@ -14,5 +14,9 @@
   "request": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"session/list\",\"params\":{}}",
   "request_frame": "f5nU3ww1xH0EkXOCaEfaprWguDhKfSTB3sCVV1NiDnz853ol207XbyCC6RWUEoHTYJttftabFwhloAd41AvOlnak1L4FHSp9KewUx4I=",
   "response": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"sessions\":[]}}",
-  "response_frame": "yybCcJPz+xyc4vAxaAzcrO+Egl3MwPxCPBIdQZngmHZE1Erl5EoSKv3uvUGcIC8CwtfpV1Tq7odGyloRxPQ7OLVM"
+  "response_frame": "yybCcJPz+xyc4vAxaAzcrO+Egl3MwPxCPBIdQZngmHZE1Erl5EoSKv3uvUGcIC8CwtfpV1Tq7odGyloRxPQ7OLVM",
+  "data_stream": 7,
+  "data_offset": 65000,
+  "data_bytes": "YmF5YSBkYXRhIGZyYW1l",
+  "data_frame": "SDMgcVSf7j0eyVcEwmGcfmEjBIh5uNTpG18F1wClxwOvyBDWvmYti7WjRSI="
 }

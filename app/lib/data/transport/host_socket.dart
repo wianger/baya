@@ -37,6 +37,13 @@ abstract class HostSocket {
   Stream<Json> get messages;
   void send(Json message);
 
+  /// File bytes the computer streams (downloads).
+  Stream<DataFrame> get data;
+
+  /// File bytes for the computer (uploads); completes once handed to the
+  /// socket.
+  Future<void> sendData(int stream, int offset, List<int> bytes);
+
   /// Completes when the socket closes, with the host's code and reason.
   Future<SocketClosed> get closed;
   Future<void> close();
@@ -55,6 +62,7 @@ class WsHostSocket implements HostSocket {
   final NoiseSession _session;
   final _reader = MessageReader();
   final _messages = StreamController<Json>.broadcast();
+  final _data = StreamController<DataFrame>.broadcast();
   final _closed = Completer<SocketClosed>();
   // Encryption is async and counters must stay in order: one chain each way.
   Future<void> _inbound = Future.value();
@@ -147,11 +155,31 @@ class WsHostSocket implements HostSocket {
         .catchError((Object error) => debugPrint('[host] send failed: $error'));
   }
 
+  @override
+  Stream<DataFrame> get data => _data.stream;
+
+  @override
+  Future<void> sendData(int stream, int offset, List<int> bytes) {
+    final sent = _outbound.then((_) async {
+      final frame = await sealData(_session.send, stream, offset, bytes);
+      if (_closed.isCompleted) throw StateError('The socket closed.');
+      _ws.sink.add(frame);
+    });
+    // The chain carries on whatever this frame did.
+    _outbound = sent.catchError((Object _) {});
+    return sent;
+  }
+
   void _receive(List<int> frame) {
     _inbound = _inbound
         .then((_) async {
           final message = await _reader.read(_session.receive, frame);
           if (message == null) return;
+          if (message is DataFrame) {
+            if (!_data.isClosed) _data.add(message);
+            return;
+          }
+          message as Uint8List;
           final json = jsonDecode(utf8.decode(message));
           if (json is Map && !_messages.isClosed) {
             _messages.add(json.cast<String, dynamic>());
@@ -167,6 +195,7 @@ class WsHostSocket implements HostSocket {
   void _finish(SocketClosed closed) {
     if (!_closed.isCompleted) _closed.complete(closed);
     unawaited(_messages.close());
+    unawaited(_data.close());
   }
 
   @override

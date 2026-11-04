@@ -260,14 +260,52 @@ Future<List<Uint8List>> sealMessage(
   return frames;
 }
 
-/// Reassembles pieces; returns a whole message once its last piece arrives.
+/// File bytes outside JSON: a stream the phone named, at an offset.
+class DataFrame {
+  const DataFrame(this.stream, this.offset, this.bytes);
+  final int stream;
+  final int offset;
+  final Uint8List bytes;
+}
+
+/// Bytes of file data one frame carries.
+const dataPiece = 64000;
+
+/// Flag 2: a data frame, `[2][stream u32][offset u64][bytes]`, one Noise
+/// message.
+Future<Uint8List> sealData(
+  CipherState cipher,
+  int stream,
+  int offset,
+  List<int> bytes,
+) async {
+  final header = ByteData(13)
+    ..setUint8(0, 2)
+    ..setUint32(1, stream)
+    ..setUint64(5, offset);
+  return Uint8List.fromList(
+    await cipher.encrypt(const [], [...header.buffer.asUint8List(), ...bytes]),
+  );
+}
+
+/// Reassembles pieces; returns a whole message once its last piece arrives,
+/// or a [DataFrame] as it comes (between messages, never inside one).
 class MessageReader {
   final _pieces = BytesBuilder(copy: false);
   final int limit;
   MessageReader([this.limit = 32 * 1024 * 1024]);
 
-  Future<Uint8List?> read(CipherState cipher, List<int> frame) async {
+  Future<Object?> read(CipherState cipher, List<int> frame) async {
     final plaintext = await cipher.decrypt(const [], frame);
+    if (plaintext.length >= 13 && plaintext[0] == 2) {
+      final bytes = Uint8List.fromList(plaintext);
+      final view = ByteData.sublistView(bytes);
+      return DataFrame(
+        view.getUint32(1),
+        view.getUint64(5),
+        Uint8List.sublistView(bytes, 13),
+      );
+    }
     if (plaintext.isEmpty || plaintext[0] > 1) {
       throw const NoiseException('Bad frame.');
     }

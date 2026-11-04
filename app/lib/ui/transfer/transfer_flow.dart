@@ -25,6 +25,19 @@ String formatBytes(int bytes) {
   return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 }
 
+/// [source] without its first [count] bytes, for an upload carrying on.
+Stream<List<int>> skipBytes(Stream<List<int>> source, int count) async* {
+  var left = count;
+  await for (final chunk in source) {
+    if (left >= chunk.length) {
+      left -= chunk.length;
+      continue;
+    }
+    yield left == 0 ? chunk : chunk.sublist(left);
+    left = 0;
+  }
+}
+
 /// Picks files on the phone and sends them to the computer, into [dir] or
 /// the session's inbox. Returns what arrived; empty when nothing was picked,
 /// it was cancelled, or it failed (after saying so).
@@ -49,7 +62,11 @@ Future<List<UploadedFile>> uploadFromPhone(
       return const [];
     }
     files.add(
-      PhoneFile(name: file.name, size: size, read: file.readAsByteStream),
+      PhoneFile(
+        name: file.name,
+        size: size,
+        read: (start) => skipBytes(file.readAsByteStream(), start),
+      ),
     );
   }
   if (!context.mounted) return const [];

@@ -3,12 +3,14 @@
 // questions.
 
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:convert';
 
 import 'package:app/acp/acp.dart';
 import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/transport/host_socket.dart';
+import 'package:app/data/transport/noise.dart' show DataFrame;
 import 'package:app/pairing/storage.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -275,6 +277,19 @@ class FakeHostSocket implements HostSocket {
 
   @override
   Future<SocketClosed> get closed => _closed.future;
+
+  /// File bytes the computer streams; tests add to it.
+  final dataFrames = StreamController<DataFrame>.broadcast();
+
+  /// File bytes the phone sent.
+  final sentData = <DataFrame>[];
+
+  @override
+  Stream<DataFrame> get data => dataFrames.stream;
+
+  @override
+  Future<void> sendData(int stream, int offset, List<int> bytes) async =>
+      sentData.add(DataFrame(stream, offset, Uint8List.fromList(bytes)));
 
   /// The computer closes the socket.
   void drop([int? code, String? reason]) {

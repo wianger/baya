@@ -91,12 +91,7 @@ class _SessionFilesPageState extends State<SessionFilesPage> {
     final selected = context.read<SessionSelection>().current;
     final host = context.read<Hosts>().byKey(selected?.hostKey);
     if (selected == null || host == null) return null;
-    return FileTransfer(
-      (method, params) => host.call(method, {
-        'sessionId': selected.sessionId,
-        ...params,
-      }, const Duration(minutes: 2)),
-    );
+    return FileTransfer(HostTransferLink(host, selected.sessionId));
   }
 
   Future<void> _upload(SessionFilesViewModel vm, String dir) async {

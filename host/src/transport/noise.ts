@@ -313,7 +313,32 @@ export function sealMessage(cipher: CipherState, plaintext: Uint8Array): Buffer[
   return frames;
 }
 
-/** Reassembles pieces; returns a whole message once its last piece arrives. */
+/** File bytes outside JSON: a stream the phone named, at an offset. */
+export interface DataFrame {
+  stream: number;
+  offset: number;
+  bytes: Buffer;
+}
+
+/** Flag 2: a data frame, `[2][stream u32][offset u64][bytes]`, one Noise message. */
+export function sealData(
+  cipher: CipherState,
+  stream: number,
+  offset: number,
+  bytes: Uint8Array,
+): Buffer {
+  const header = Buffer.alloc(13);
+  header[0] = 2;
+  header.writeUInt32BE(stream, 1);
+  header.writeBigUInt64BE(BigInt(offset), 5);
+  return cipher.encrypt(Buffer.alloc(0), Buffer.concat([header, bytes]));
+}
+
+/**
+ * Reassembles pieces; returns a whole message once its last piece arrives,
+ * or a data frame as it comes (it may fall between two messages, never
+ * inside one, since each side sends a message's pieces back to back).
+ */
 export class MessageReader {
   private pieces: Buffer[] = [];
   private size = 0;
@@ -323,8 +348,15 @@ export class MessageReader {
     this.limit = limit;
   }
 
-  read(cipher: CipherState, frame: Uint8Array): Buffer | null {
+  read(cipher: CipherState, frame: Uint8Array): Buffer | DataFrame | null {
     const plaintext = cipher.decrypt(Buffer.alloc(0), frame);
+    if (plaintext.length >= 13 && plaintext[0] === 2) {
+      return {
+        stream: plaintext.readUInt32BE(1),
+        offset: Number(plaintext.readBigUInt64BE(5)),
+        bytes: plaintext.subarray(13),
+      };
+    }
     if (plaintext.length < 1 || plaintext[0]! > 1) throw new NoiseError("Bad frame.");
     this.size += plaintext.length - 1;
     if (this.size > this.limit) throw new NoiseError("Message too large.");

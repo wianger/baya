@@ -5,6 +5,7 @@ import { pairPhone } from "../pairing/service.ts";
 import { PREVIEW_TOKEN_HEADER, previewPorts, previews } from "../preview/preview.ts";
 import { packageVersion } from "../runtime/version.ts";
 import { hostLabel, servePath, tailnetPairPort } from "../tailnet/pairing_server.ts";
+import type { DataFrame } from "../transport/noise.ts";
 import { browseDirectory, resolveDirectory } from "../workspace/directories.ts";
 import { convertToPdf, extractEntry, listArchive } from "../workspace/file_views.ts";
 import {
@@ -19,7 +20,7 @@ import {
   removeWorktree,
 } from "../workspace/git.ts";
 import { browseSessionFiles, readSessionFile } from "../workspace/session_files.ts";
-import { downloadChunk, uploads } from "../workspace/transfer.ts";
+import { openDownload, uploads } from "../workspace/transfer.ts";
 import type { HostedSession } from "./hosted_session.ts";
 import type { HubPhone, SessionHub } from "./hub.ts";
 import { isObject, type Json, JsonRpcPeer, RpcError, type RpcId } from "./jsonrpc.ts";
@@ -38,6 +39,9 @@ export class PhoneConnection implements HubPhone {
   private readonly peer: JsonRpcPeer;
   private readonly closeSocket: (code: number, reason: string) => void;
   private initialized = false;
+  private readonly sendData: (stream: number, offset: number, bytes: Buffer) => Promise<void>;
+  /** Downloads under way, by the phone's stream id. */
+  private readonly downloads = new Set<number>();
   /** Owns this connection's half-sent uploads. */
   private readonly id = randomUUID();
 
@@ -46,7 +50,11 @@ export class PhoneConnection implements HubPhone {
     hub: SessionHub;
     send: (message: Json) => void;
     close: (code: number, reason: string) => void;
+    sendData?: (stream: number, offset: number, bytes: Buffer) => Promise<void>;
   }) {
+    this.sendData =
+      options.sendData ??
+      (() => Promise.reject(new Error("This connection carries no file data.")));
     this.key = options.key;
     this.hub = options.hub;
     this.closeSocket = options.close;
@@ -79,11 +87,42 @@ export class PhoneConnection implements HubPhone {
     this.closeSocket(code, reason);
   }
 
+  /** File bytes for an upload. */
+  receiveData(frame: DataFrame): void {
+    if (!this.hub.isPaired(this.key)) return;
+    uploads.data(this.id, frame.stream, frame.offset, frame.bytes, (uploadId, received, error) =>
+      this.notify("_baya/upload_progress", { uploadId, received, ...(error ? { error } : {}) }),
+    );
+  }
+
+  /** Streams a download, then says how it ended. */
+  private async pump(stream: number, download: Awaited<ReturnType<typeof openDownload>>) {
+    this.downloads.add(stream);
+    let sent = 0;
+    let error: string | undefined;
+    try {
+      sent = await download.pump(
+        (offset, bytes) => this.sendData(stream, offset, bytes),
+        () => !this.downloads.has(stream),
+      );
+    } catch (failure) {
+      error = failure instanceof Error ? failure.message : String(failure);
+    }
+    if (!this.downloads.delete(stream)) return;
+    this.notify("_baya/stream_end", {
+      stream,
+      size: download.size,
+      sent,
+      ...(error ? { error } : {}),
+    });
+  }
+
   /** The socket closed. */
   closed(): void {
     this.peer.close(new Error("The phone disconnected."));
     this.hub.disconnect(this);
-    void uploads.drop(this.id);
+    this.downloads.clear();
+    uploads.detach(this.id);
   }
 
   private async handle(method: string, params: Json): Promise<unknown> {
@@ -175,31 +214,41 @@ export class PhoneConnection implements HubPhone {
         );
       case "_baya/read_file":
         return readSessionFile(this.session(params).record.cwd, stringParam(params, "path"));
-      case "_baya/upload_begin":
-        return uploads.begin(this.id, this.session(params).record.cwd, {
+      case "_baya/upload_begin": {
+        const begun = await uploads.begin(this.key, this.session(params).record.cwd, {
           name: stringParam(params, "name"),
           size: numberParam(params, "size"),
           dir: optionalString(params, "dir"),
         });
-      case "_baya/upload_chunk":
-        return uploads.chunk(
-          this.id,
+        await uploads.attach(this.key, begun.uploadId, this.id, numberParam(params, "stream"));
+        return begun;
+      }
+      case "_baya/upload_resume":
+        return uploads.attach(
+          this.key,
           stringParam(params, "uploadId"),
-          numberParam(params, "offset"),
-          typeof params["data"] === "string" ? params["data"] : "",
+          this.id,
+          numberParam(params, "stream"),
         );
       case "_baya/upload_finish":
-        return uploads.finish(this.id, stringParam(params, "uploadId"));
+        return uploads.finish(this.key, stringParam(params, "uploadId"));
       case "_baya/upload_cancel":
-        await uploads.cancel(this.id, stringParam(params, "uploadId"));
+        await uploads.cancel(this.key, stringParam(params, "uploadId"));
         return {};
-      case "_baya/download":
-        return downloadChunk(
+      case "_baya/download_open": {
+        const stream = numberParam(params, "stream");
+        const download = await openDownload(
           this.session(params).record.cwd,
           stringParam(params, "path"),
-          numberParam(params, "offset"),
-          numberParam(params, "length"),
+          optionalNumber(params, "offset") ?? 0,
         );
+        // After the reply: the phone listens for the stream before asking.
+        setImmediate(() => void this.pump(stream, download));
+        return { name: download.name, size: download.size };
+      }
+      case "_baya/stream_close":
+        this.downloads.delete(numberParam(params, "stream"));
+        return {};
       case "_baya/archive_list":
         return listArchive(this.session(params).record.cwd, stringParam(params, "path"));
       case "_baya/archive_extract":
@@ -319,6 +368,11 @@ function numberParam(params: Json, name: string): number {
   const value = params[name];
   if (typeof value !== "number") throw RpcError.invalidParams(`${name} is required.`);
   return value;
+}
+
+function optionalNumber(params: Json, name: string): number | undefined {
+  const value = params[name];
+  return typeof value === "number" ? value : undefined;
 }
 
 function optionalString(params: Json, name: string): string | undefined {

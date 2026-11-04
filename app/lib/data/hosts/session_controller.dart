@@ -161,12 +161,7 @@ class SessionController extends ChangeNotifier {
   }
 
   /// Files between the phone and this session's folder.
-  FileTransfer get transfer => FileTransfer(
-    (method, params) => host.call(method, {
-      'sessionId': sessionId,
-      ...params,
-    }, const Duration(minutes: 2)),
-  );
+  FileTransfer get transfer => FileTransfer(HostTransferLink(host, sessionId));
 
   /// Lists a folder of the session's computer (for attaching files).
   Future<Map<String, dynamic>> browseFiles([String? path]) =>

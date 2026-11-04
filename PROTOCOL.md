@@ -86,6 +86,10 @@ the handshake proved, and uses it as the phone's identity.
 After the handshake every frame is one Noise transport message whose
 plaintext is a flag byte (`1` for the last piece) and a piece of a JSON-RPC
 message, so messages larger than Noise's 64 KiB limit span several frames.
+Flag `2` is a data frame instead, file bytes outside JSON:
+`[2][stream u32 BE][offset u64 BE][bytes]`, up to 64 000 bytes. Each side
+sends a message's pieces back to back, so a data frame falls between
+messages, never inside one. The phone picks the stream ids.
 The nonce counters reject any replayed, reordered, dropped or forged frame;
 the computer then closes the connection (`4002`). Nothing in between,
 `tailscale serve` included, can read or change a byte.
@@ -159,11 +163,12 @@ Baya methods:
 | `_baya/files` | `{sessionId, path?, showHidden?}` | `{root, path, parent, entries:[{name,path,type,size,modifiedAt}], truncated}` |
 | `_baya/read_file` | `{sessionId, path}` | `{name, path, size, modifiedAt, content, binary, truncated}` (256 KiB at most) |
 | `_baya/fork` | `{sessionId, messageId?, messageFingerprint?, messageOccurrence?}` | `{session}`: a new session (same folder, agent and title) holding the conversation up to the agent message `messageId`, or none of it without one. The fingerprint (`sha256:<hex>` of the message text) and its 1-based occurrence find the message when the agent lost its id. Only when `canFork`: the agent declares `sessionCapabilities.fork` and reads the JetBrains AIR fork point in `session/fork` `_meta` (Claude Code, Codex). The fork runs in a short-lived agent process, so the new session's own process can open it |
-| `_baya/upload_begin` | `{sessionId, name, size, dir?}` | `{uploadId, dir}`: starts sending a phone file (100 MB at most) into `dir`, a folder inside the session, or `.baya/uploads` there (kept out of git) |
-| `_baya/upload_chunk` | `{uploadId, offset, data}` | `{received}`: the next piece, base64, 1 MiB at most, starting where the last ended |
+| `_baya/upload_begin` | `{sessionId, name, size, dir?, stream}` | `{uploadId, dir}`: starts sending a phone file (100 MB at most) into `dir`, a folder inside the session, or `.baya/uploads` there (kept out of git). The phone then sends its bytes as data frames of `stream`, in order |
+| `_baya/upload_resume` | `{uploadId, stream}` | `{received}`: after a dropped connection, the phone's data frames continue on `stream` from `received`. An upload waits 30 minutes for its phone to come back |
 | `_baya/upload_finish` | `{uploadId}` | `{name, path, size}` once every byte arrived; the name is made safe and `name (2).ext`… if taken |
-| `_baya/upload_cancel` | `{uploadId}` | `{}`; drops the partial file. A disconnect drops all of that connection's |
-| `_baya/download` | `{sessionId, path, offset, length}` | `{name, size, offset, data, eof}`: a piece of a session file (100 MB at most), base64, 1 MiB at most |
+| `_baya/upload_cancel` | `{uploadId}` | `{}`; drops the partial file |
+| `_baya/download_open` | `{sessionId, path, offset, stream}` | `{name, size}`: a session file (100 MB at most) streams as data frames of `stream` from `offset` (where a resumed download carries on), then `_baya/stream_end` |
+| `_baya/stream_close` | `{stream}` | `{}`; stops a download |
 | `_baya/archive_list` | `{sessionId, path}` | `{entries:[{name,size,directory}], truncated}`: a zip (also jar, apk, whl, epub…), tar or tar.gz in the session |
 | `_baya/archive_extract` | `{sessionId, path, entry}` | `{path, name, size}`: the entry written below the session's `.baya/extracted`, names made safe |
 | `_baya/convert_pdf` | `{sessionId, path}` | `{path, name}`: an office document (doc/x, xls/x, ppt/x, odt/ods/odp, rtf) as PDF in `.baya/converted`, through LibreOffice. Error reason `no_office` when the computer has none |
@@ -244,6 +249,19 @@ Every paired phone also gets the session list as it changes:
 A session's title is the start of its first prompt until the agent names it
 (`session_info_update`).
 
+File transfers report as they go:
+
+```json
+{"jsonrpc":"2.0","method":"_baya/upload_progress","params":{"uploadId":"…","received":524288}}
+{"jsonrpc":"2.0","method":"_baya/stream_end","params":{"stream":7,"size":70000,"sent":70000}}
+```
+
+`upload_progress` comes every 512 KiB written and at the end (with `error`
+when writing failed); the phone keeps at most 4 MiB unacknowledged. A
+download's `stream_end` follows its last data frame; `sent` short of `size`
+(or an `error`) means it stopped early, and the phone reopens from what it
+has.
+
 ## State
 
 The host keeps `$BAYA_HOME` (default `~/.baya`):
@@ -253,6 +271,8 @@ config.json        agents and the default agent
 peers.json         paired phone keys
 sessions.json      sessions: id, cwd, agent, title, the agent's session id
 sessions/<id>.json each session's transcript and terminals
+phone.json         the phone adb is connected to, when it is
+tools/             mobile-mcp for the phone tools
 runtime/           control socket info, pending pairing token
 logs/host.log
 ```
