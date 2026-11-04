@@ -136,7 +136,7 @@
   "first500Entries": "Only the first 500 entries are shown.",
   "previewTruncated": "Preview truncated",
   "binaryFile": "Binary file",
-  "binaryFileHint": "This file cannot be shown as text. Its size and modification date are available above.",
+  "binaryFileHint": "This file can't be shown here. Open it with another app on the phone, or save it.",
   "emptyFile": "Empty file",
   "noTextContent": "There is no text content to display.",
   "preview": "Preview",
@@ -835,5 +835,8 @@
   "branchFromHereHint": "A new session with the conversation before this message",
   "editHere": "Edit and send again",
   "editHereHint": "In this session; the agent still remembers the original",
-  "couldNotBranch": "Couldn't branch the session"
+  "couldNotBranch": "Couldn't branch the session",
+  "openWithApp": "Open with another app",
+  "loadingPreview": "Loading preview…",
+  "previewFailed": "Couldn't show this file"
 }

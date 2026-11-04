@@ -136,7 +136,7 @@
   "first500Entries": "仅显示前 500 项。",
   "previewTruncated": "预览已截断",
   "binaryFile": "二进制文件",
-  "binaryFileHint": "此文件无法以文本显示，大小和修改时间见上方。",
+  "binaryFileHint": "这个文件没法在这里显示。可以用手机上的其他应用打开，或者保存到手机。",
   "emptyFile": "空文件",
   "noTextContent": "没有可显示的文本内容。",
   "preview": "预览",
@@ -429,5 +429,8 @@
   "branchFromHereHint": "新开一个会话，只带上这条消息之前的对话",
   "editHere": "编辑后重发",
   "editHereHint": "在当前会话里重发，智能体仍记得原来那句",
-  "couldNotBranch": "没能分叉会话"
+  "couldNotBranch": "没能分叉会话",
+  "openWithApp": "用其他应用打开",
+  "loadingPreview": "正在加载预览…",
+  "previewFailed": "无法显示这个文件"
 }

@@ -11,6 +11,7 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/session_files/states/session_files_state.dart';
+import 'package:app/ui/session_files/file_preview.dart';
 import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
 import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:flutter/material.dart';
@@ -145,7 +146,11 @@ class _SessionFilesPageState extends State<SessionFilesPage> {
       );
     }
     if (state is SessionFilesFile) {
-      return _FileView(file: state.file);
+      return _FileView(
+        file: state.file,
+        transfer: previewKindFor(state.file.name) == null ? null : _transfer(),
+        onOpenElsewhere: () => _save(state.file),
+      );
     }
     final error = state as SessionFilesError;
     return _ErrorView(
@@ -528,8 +533,14 @@ class _FileRow extends StatelessWidget {
 }
 
 class _FileView extends StatefulWidget {
-  const _FileView({required this.file});
+  const _FileView({
+    required this.file,
+    required this.transfer,
+    required this.onOpenElsewhere,
+  });
   final SessionFileContent file;
+  final FileTransfer? transfer;
+  final VoidCallback onOpenElsewhere;
 
   @override
   State<_FileView> createState() => _FileViewState();
@@ -548,6 +559,26 @@ class _FileViewState extends State<_FileView> {
     final text = !file.binary && content != null && content.isNotEmpty
         ? content
         : null;
+    final kind = previewKindFor(file.name);
+    final transfer = widget.transfer;
+    if (kind != null && transfer != null) {
+      return Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+            child: _FileHeader(file: file),
+          ),
+          Expanded(
+            child: FilePreview(
+              path: file.path,
+              name: file.name,
+              kind: kind,
+              transfer: transfer,
+            ),
+          ),
+        ],
+      );
+    }
     return CustomScrollView(
       slivers: [
         SliverPadding(
@@ -558,10 +589,23 @@ class _FileViewState extends State<_FileView> {
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             sliver: SliverToBoxAdapter(
-              child: _FileNotice(
-                icon: LucideIcons.fileArchive,
-                title: context.l10n.binaryFile,
-                message: context.l10n.binaryFileHint,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _FileNotice(
+                    icon: LucideIcons.fileArchive,
+                    title: context.l10n.binaryFile,
+                    message: context.l10n.binaryFileHint,
+                  ),
+                  const SizedBox(height: 12),
+                  BayaButton(
+                    buttonKey: const Key('session-file-open-elsewhere'),
+                    onPressed: widget.onOpenElsewhere,
+                    icon: const Icon(LucideIcons.externalLink, size: 18),
+                    label: Text(context.l10n.openWithApp),
+                    prominent: false,
+                  ),
+                ],
               ),
             ),
           )
