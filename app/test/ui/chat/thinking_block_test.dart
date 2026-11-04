@@ -19,7 +19,8 @@ void main() {
       ),
     );
     expect(find.text('Thinking'), findsOneWidget);
-    // The latest thought shows under the label while it streams.
+    // The thought streams through a short scrolling window.
+    expect(find.byKey(const ValueKey('thinking-window')), findsOneWidget);
     expect(find.text('Inspect the chosen folder.'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('thinking-disclosure')));
     await tester.pump(const Duration(milliseconds: 400));
@@ -37,6 +38,31 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('thinking-disclosure')));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byKey(const ValueKey('thinking-detail-text')), findsNothing);
+  });
+
+  testWidgets('a long thought keeps its newest line in view', (tester) async {
+    final lines = [for (var i = 1; i <= 40; i++) 'Step $i of the plan.'];
+    await tester.pumpWidget(
+      wrap(ThinkingBlock(text: lines.take(5).join('\n'), complete: false)),
+    );
+    await tester.pumpWidget(
+      wrap(ThinkingBlock(text: lines.join('\n'), complete: false)),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final window = tester.getRect(
+      find.byKey(const ValueKey('thinking-window')),
+    );
+    expect(window.height, lessThan(140));
+    final scroll = tester.widget<SingleChildScrollView>(
+      find.descendant(
+        of: find.byKey(const ValueKey('thinking-window')),
+        matching: find.byType(SingleChildScrollView),
+      ),
+    );
+    final position = scroll.controller!.position;
+    expect(position.pixels, position.maxScrollExtent);
+    expect(position.maxScrollExtent, greaterThan(0));
   });
 
   testWidgets('absent thinking content has nothing to open', (tester) async {

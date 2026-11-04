@@ -7,10 +7,11 @@ import 'package:app/ui/core/widgets/copy_button.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// The agent's reasoning as one quiet line. While it streams, the latest
-/// thought shows under it; once done it says how long it took (when this
-/// phone watched it happen) and opens in place as Markdown. It shows only
-/// what the agent sent.
+/// The agent's reasoning. While it streams, it runs through a short window
+/// that keeps scrolling to the newest line, the oldest fading out at the top;
+/// once done it folds to one line saying how long it took (when this phone
+/// watched it happen) and opens in place as Markdown. It shows only what the
+/// agent sent.
 class ThinkingBlock extends StatefulWidget {
   const ThinkingBlock({
     super.key,
@@ -72,11 +73,6 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
         : took != null && took.inSeconds >= 1
         ? context.l10n.thoughtFor(took.inSeconds)
         : context.l10n.thoughtProcess;
-    final latest = widget.complete || _open
-        ? null
-        : text
-              .split('\n')
-              .lastWhere((line) => line.trim().isNotEmpty, orElse: () => '');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -112,24 +108,8 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
             ),
           ),
         ),
-        if (latest != null && latest.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(25, 0, 8, 4),
-            child: AnimatedSwitcher(
-              duration: BayaMotion.standard,
-              child: Text(
-                latest.replaceAll(RegExp(r'[*_`#>]'), '').trim(),
-                key: ValueKey(latest),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: context.typo.sansBody.copyWith(
-                  fontSize: 13,
-                  height: 1.45,
-                  color: colors.muted,
-                ),
-              ),
-            ),
-          ),
+        if (!widget.complete && !_open && text.isNotEmpty)
+          _ThoughtWindow(text: text),
         AnimatedSize(
           duration: BayaMotion.standard,
           curve: BayaMotion.enter,
@@ -171,6 +151,98 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                 ),
         ),
       ],
+    );
+  }
+}
+
+/// A few lines tall: streamed thought scrolls up through it smoothly, the
+/// newest line at the bottom and the oldest fading out at the top.
+class _ThoughtWindow extends StatefulWidget {
+  const _ThoughtWindow({required this.text});
+
+  final String text;
+
+  @override
+  State<_ThoughtWindow> createState() => _ThoughtWindowState();
+}
+
+class _ThoughtWindowState extends State<_ThoughtWindow> {
+  static const _lines = 6;
+  final _scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Opens on the newest line, not the oldest.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(_ThoughtWindow old) {
+    super.didUpdateWidget(old);
+    if (old.text != widget.text) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _follow());
+    }
+  }
+
+  void _follow() {
+    if (!mounted || !_scroll.hasClients) return;
+    final end = _scroll.position.maxScrollExtent;
+    if (end <= _scroll.offset) return;
+    if (MediaQuery.of(context).disableAnimations) {
+      _scroll.jumpTo(end);
+    } else {
+      _scroll.animateTo(
+        end,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final style = context.typo.sansBody.copyWith(
+      fontSize: 13.5,
+      height: 1.55,
+      color: colors.muted2,
+    );
+    final lineHeight = style.fontSize! * style.height!;
+    return Container(
+      key: const ValueKey('thinking-window'),
+      margin: const EdgeInsets.only(left: 9, top: 2, bottom: 6),
+      padding: const EdgeInsets.only(left: 14),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: colors.border, width: 1.5)),
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: lineHeight * _lines),
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) => const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.black, Colors.black],
+            stops: [0, .35, 1],
+          ).createShader(bounds),
+          child: SingleChildScrollView(
+            controller: _scroll,
+            physics: const NeverScrollableScrollPhysics(),
+            child: Text(widget.text, style: style),
+          ),
+        ),
+      ),
     );
   }
 }
