@@ -23,22 +23,39 @@ jobs:
     env:
       CERTIFICATE_SHA256: bdaba7b38a226cf6bcf2673d24a8f56453ffdce66f3b3402e48e0bca7b884eaa
     steps:
+      - name: Not released yet
+        id: fresh
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The Windows release script publishes on its own; nothing to do then.
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Already released."; echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v5
+        if: steps.fresh.outputs.go == 'true'
       - name: Version matches the tag
+        if: steps.fresh.outputs.go == 'true'
         run: |
           expected="${GITHUB_REF_NAME#app-v}"
           actual="$(sed -n 's/^version: *//p' pubspec.yaml)"
           test "$expected" = "$actual" || { echo "Tag $expected, pubspec $actual"; exit 1; }
       - uses: subosito/flutter-action@v2
+        if: steps.fresh.outputs.go == 'true'
         with:
           flutter-version: 3.47.0
           channel: stable
           cache: true
       - uses: actions/setup-java@v5
+        if: steps.fresh.outputs.go == 'true'
         with:
           distribution: temurin
           java-version: "17"
       - name: Release key
+        if: steps.fresh.outputs.go == 'true'
         env:
           ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -53,9 +70,12 @@ jobs:
           keyAlias=$ANDROID_KEY_ALIAS
           keyPassword=$ANDROID_KEY_PASSWORD
           PROPS
-      - run: flutter pub get
-      - run: flutter build apk --release --target-platform android-arm64
+      - if: steps.fresh.outputs.go == 'true'
+        run: flutter pub get
+      - if: steps.fresh.outputs.go == 'true'
+        run: flutter build apk --release --target-platform android-arm64
       - name: Check the signature and version
+        if: steps.fresh.outputs.go == 'true'
         run: |
           apk=build/app/outputs/flutter-apk/app-release.apk
           tools="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
@@ -68,9 +88,11 @@ jobs:
           cp "$apk" "$RUNNER_TEMP/out/Baya-Android.apk"
           (cd "$RUNNER_TEMP/out" && sha256sum Baya-Android.apk > SHA256SUMS.txt)
       - uses: actions/attest-build-provenance@v2
+        if: steps.fresh.outputs.go == 'true'
         with:
           subject-path: ${{ runner.temp }}/out/Baya-Android.apk
       - name: Publish
+        if: steps.fresh.outputs.go == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
