@@ -76,7 +76,6 @@
   "thoughtProcess": "Thought process",
   "changes": "Changes",
   "command": "Command",
-  "result": "Result",
   "errorOutput": "Error output",
   "error": "Error",
   "completedWithoutOutput": "Completed without output.",

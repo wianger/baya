@@ -76,7 +76,6 @@
   "thoughtProcess": "思考过程",
   "changes": "改动",
   "command": "命令",
-  "result": "结果",
   "errorOutput": "错误输出",
   "error": "错误",
   "completedWithoutOutput": "已完成，无输出。",
