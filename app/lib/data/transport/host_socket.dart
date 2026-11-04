@@ -70,6 +70,10 @@ class WsHostSocket implements HostSocket {
       pingInterval: const Duration(seconds: 20),
     );
     final reply = Completer<List<int>>();
+    // When the connection fails before the handshake, `ws.ready` reports it
+    // and [reply] is never awaited: keep its copy of the error from being
+    // reported as unhandled (it surfaced as a crash).
+    reply.future.ignore();
     WsHostSocket? socket;
     final pending = <List<int>>[];
     ws.stream.listen(

@@ -420,6 +420,11 @@ void main() {
       expect(tester.getSize(settings), const Size(48, 48));
       expect(find.byKey(const Key('sidebar-new-session')), findsOneWidget);
       expect(find.text('New session'), findsOneWidget);
+      // The pill keeps to the bottom-right corner, 16 from the edge.
+      expect(
+        tester.getRect(find.byKey(const Key('sidebar-new-session'))).right,
+        330 - 16,
+      );
       // Search lives behind the header circle, not in an always-open field.
       expect(find.byKey(const Key('sidebar-search-field')), findsNothing);
       await tester.tap(find.byKey(const Key('sidebar-search')));

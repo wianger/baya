@@ -366,21 +366,24 @@ class _SessionSidebarState extends State<SessionSidebar> {
                       },
                     ),
                     const SizedBox(width: 12),
-                    const Spacer(),
-                    // Shrinks rather than overflows with large text or a
-                    // long translation.
-                    Flexible(
-                      flex: 6,
-                      child: BayaButton(
-                        buttonKey: const Key('sidebar-new-session'),
-                        onPressed: vm.selectedWorkspace == null
-                            ? null
-                            : () => startSession(context, close: widget.close),
-                        icon: const Icon(LucideIcons.plus, size: 18),
-                        label: Text(
-                          context.l10n.newSession,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    // Takes the rest of the row and keeps the pill at its
+                    // right end; the pill shrinks rather than overflows with
+                    // large text or a long translation.
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: BayaButton(
+                          buttonKey: const Key('sidebar-new-session'),
+                          onPressed: vm.selectedWorkspace == null
+                              ? null
+                              : () =>
+                                    startSession(context, close: widget.close),
+                          icon: const Icon(LucideIcons.plus, size: 18),
+                          label: Text(
+                            context.l10n.newSession,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ),
