@@ -323,8 +323,24 @@ class _ChatMessageListState extends State<ChatMessageList> {
   final _shown = <Object>{};
   bool _wasLive = false;
 
+  static const _workingRow = 'agent-working';
+
+  /// Where each row is in [_items], by [_rowKey].
+  Map<Object, int> get _rowIndex {
+    final items = _items;
+    if (!identical(items, _indexed)) {
+      _indexed = items;
+      _index = {for (var i = 0; i < items.length; i++) _rowKey(items[i]): i};
+    }
+    return _index;
+  }
+
+  List<Object>? _indexed;
+  Map<Object, int> _index = const {};
+
   static Object _rowKey(Object item) => switch (item) {
-    ToolRunItem(:final tools) => tools.first.id,
+    // The same key as its first tool alone, so it keeps state as runs grow.
+    ToolRunItem(:final tools) => tools.first.toolCallId,
     StartupNote(:final message) => message.id,
     ToolEvent(:final toolCallId) => toolCallId,
     ChatMessage(:final id) => id,
@@ -389,6 +405,15 @@ class _ChatMessageListState extends State<ChatMessageList> {
               reverse: true,
               padding: EdgeInsets.fromLTRB(16, 94, 16, bottomPad),
               itemCount: itemCount,
+              findItemIndexCallback: (key) {
+                if (key is! ValueKey<Object>) return null;
+                final value = key.value;
+                if (value is! (String, Object)) return null;
+                final id = value.$2;
+                if (id == _workingRow) return showWorkingIndicator ? 0 : null;
+                final at = _rowIndex[id];
+                return at == null ? null : items.length - 1 - at + leadingRows;
+              },
               separatorBuilder: (context, idx) {
                 // Tight gap when adjacent to a tool-run card; normal gap
                 // otherwise. Display index 0 is the leading streaming or
@@ -412,17 +437,25 @@ class _ChatMessageListState extends State<ChatMessageList> {
                 // `reverse: true` makes index 0 the newest row. Stable keys
                 // keep streaming insertion from rematching unrelated rows.
                 var fresh = false;
+                Object rowId = _workingRow;
                 if (i >= leadingRows) {
                   final row = items[items.length - 1 - (i - leadingRows)];
-                  fresh = widget.live && _shown.add(_rowKey(row));
+                  rowId = _rowKey(row);
+                  fresh = widget.live && _shown.add(rowId);
                 }
-                Widget constrain(Widget child) => RevealGate(
-                  animate: fresh,
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 760),
-                      child: child,
+                // The row's own key, on its outermost widget: a row arriving
+                // above shifts every index, and an index match would hand an
+                // opened thinking block or tool card to another row.
+                Widget constrain(Widget child) => KeyedSubtree(
+                  key: ValueKey<Object>(('row', rowId)),
+                  child: RevealGate(
+                    animate: fresh,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 760),
+                        child: child,
+                      ),
                     ),
                   ),
                 );
@@ -441,7 +474,9 @@ class _ChatMessageListState extends State<ChatMessageList> {
                     BayaReveal(
                       offset: 5,
                       child: KeyedSubtree(
-                        key: ValueKey('tool-run-${item.tools.first.id}'),
+                        key: ValueKey(
+                          'tool-run-${item.tools.first.toolCallId}',
+                        ),
                         child: ToolRunGroup(tools: item.tools),
                       ),
                     ),
