@@ -375,5 +375,10 @@
   "revertFile": "撤销文件改动",
   "fromLine": "自第 {line} 行",
   "revert": "撤销",
-  "confirmRevert": "再点一次撤销"
+  "confirmRevert": "再点一次撤销",
+  "problems": "{count, plural, other{这部手机上有 {count} 个问题}}",
+  "copyReport": "复制报告",
+  "reportOnGitHub": "在 GitHub 上报告",
+  "reportOnGitHubHint": "打开一个带报告的 issue，提交前可先检查",
+  "clearProblems": "清除"
 }

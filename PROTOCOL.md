@@ -162,12 +162,18 @@ Baya methods:
 | `_baya/authenticate` | `{agent, methodId}` | `{}`; the agent restarts signed in |
 | `_baya/logout` | `{agent}` | `{}` |
 | `_baya/agent_sessions` | `{agent, cwd}` | `{sessions}`: the agent's `session/list` in that folder, without those Baya already has |
+| `_baya/git_status` | `{sessionId}` | `{root, branch, upstream, ahead, behind, files:[{path,status,added,removed}]}` for the session's repository |
+| `_baya/git_diff` | `{sessionId, path}` | `{path, untracked, hunks:[{header,oldStart,newStart,lines:[{kind,text}]}]}`, against `HEAD` |
+| `_baya/git_revert` | `{sessionId, path, hunk?}` | Undoes one hunk in the working tree, or the whole file (a new file is deleted) |
+| `_baya/git_commit` | `{sessionId, message}` | `{commit}`: commits every change |
+| `_baya/git_push` | `{sessionId}` | `{}`; sets the upstream on the first push |
+| `_baya/pr_create` | `{sessionId, title, body?}` | `{url}`, through the GitHub CLI on the computer |
 
 Files the phone attaches to a prompt go as ACP `resource_link` blocks with
 `file://` URIs on the computer; the agent reads them itself.
 
-Folder access stays read-only, and `_baya/files` cannot leave the session's
-folder.
+Browsing stays read-only, and `_baya/files` cannot leave the session's
+folder; the `git_*` methods act only inside the session's repository.
 
 ## Host → phone
 

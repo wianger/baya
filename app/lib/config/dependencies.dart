@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:app/data/diagnostics/crash_log.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/images/image_picker_service.dart';
 import 'package:app/data/preferences/preferences.dart';
@@ -41,6 +42,9 @@ Future<void> setupDependencies() async {
   final prefs = Preferences();
   await prefs.load();
   final packageInfo = await PackageInfo.fromPlatform();
+  await CrashLog.instance.start(
+    version: '${packageInfo.version} (${packageInfo.buildNumber})',
+  );
   services = AppServices._(prefs, packageInfo);
 }
 

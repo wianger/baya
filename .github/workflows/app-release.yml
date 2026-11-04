@@ -1,0 +1,80 @@
+name: App release
+
+# Tag app-v<version>+<build> (matching app/pubspec.yaml) to build the signed
+# APK and publish it. Needs the release key as repository secrets:
+# ANDROID_KEYSTORE (the .jks, base64), ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
+on:
+  push:
+    tags:
+      - "app-v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    env:
+      CERTIFICATE_SHA256: bdaba7b38a226cf6bcf2673d24a8f56453ffdce66f3b3402e48e0bca7b884eaa
+    steps:
+      - uses: actions/checkout@v5
+      - name: Version matches the tag
+        run: |
+          expected="${GITHUB_REF_NAME#app-v}"
+          actual="$(sed -n 's/^version: *//p' pubspec.yaml)"
+          test "$expected" = "$actual" || { echo "Tag $expected, pubspec $actual"; exit 1; }
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.0
+          channel: stable
+          cache: true
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Release key
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE" || { echo "The release key secrets are missing."; exit 1; }
+          echo "$ANDROID_KEYSTORE" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          cat > android/key.properties <<PROPS
+          storeFile=$RUNNER_TEMP/release.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          PROPS
+      - run: flutter pub get
+      - run: flutter build apk --release --target-platform android-arm64
+      - name: Check the signature and version
+        run: |
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          tools="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          "$tools/apksigner" verify --print-certs "$apk" | grep -qi "SHA-256 digest: $CERTIFICATE_SHA256" \
+            || { echo "Not signed with the release key."; exit 1; }
+          version="${GITHUB_REF_NAME#app-v}"
+          "$tools/aapt2" dump badging "$apk" | grep -q "versionCode='${version#*+}' versionName='${version%+*}'" \
+            || { echo "APK version differs from $version."; exit 1; }
+          mkdir -p "$RUNNER_TEMP/out"
+          cp "$apk" "$RUNNER_TEMP/out/Baya-Android.apk"
+          (cd "$RUNNER_TEMP/out" && sha256sum Baya-Android.apk > SHA256SUMS.txt)
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ runner.temp }}/out/Baya-Android.apk
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#app-v}"
+          gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP/out/Baya-Android.apk" "$RUNNER_TEMP/out/SHA256SUMS.txt" \
+            --repo "$GITHUB_REPOSITORY" --prerelease --verify-tag \
+            --title "Baya Android ${version%+*} (${version#*+})" --generate-notes

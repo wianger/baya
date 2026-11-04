@@ -50,11 +50,16 @@ dependencies:
   gpt_markdown: ^1.1.7
   url_launcher: ^6.3.3
 
+  # Where the crash log is kept.
+  path_provider: ^2.1.5
+
   # Read the installed version for the Android update channel.
   package_info_plus: ^10.2.2
   re_highlight: ^0.0.3
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
   fake_async: ^1.3.1

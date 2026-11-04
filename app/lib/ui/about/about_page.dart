@@ -1,3 +1,7 @@
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
+import 'package:app/ui/core/widgets/baya_group.dart';
+import 'package:app/data/diagnostics/crash_log.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -189,6 +193,7 @@ class AboutPage extends StatelessWidget {
                         prominent: false,
                       ),
                     ),
+                    const _Problems(),
                     if (updateState is UpdateBannerVisible) ...[
                       const SizedBox(height: 16),
                       BayaSurface(
@@ -360,6 +365,69 @@ class _LinkTile extends StatelessWidget {
       ),
       trailing: Icon(LucideIcons.arrowUpRight, size: 17, color: colors.muted),
       onTap: onTap,
+    );
+  }
+}
+
+/// Crashes kept on this phone, with ways to pass one on. Shown only when
+/// there are any.
+class _Problems extends StatelessWidget {
+  const _Problems();
+
+  @override
+  Widget build(BuildContext context) {
+    final log = CrashLog.instance;
+    return ListenableBuilder(
+      listenable: log,
+      builder: (context, _) {
+        final latest = log.reports.firstOrNull;
+        if (latest == null) return const SizedBox.shrink();
+        final l10n = context.l10n;
+        return Padding(
+          key: const Key('about-problems'),
+          padding: const EdgeInsets.only(top: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              BayaSectionLabel(l10n.problems(log.reports.length)),
+              BayaGroup(
+                children: [
+                  BayaRow(
+                    icon: LucideIcons.bug,
+                    label: latest.error.split('\n').first,
+                    subtitle: latest.time.toLocal().toString().substring(0, 16),
+                  ),
+                  BayaRow(
+                    key: const Key('problem-copy'),
+                    icon: LucideIcons.copy,
+                    label: l10n.copyReport,
+                    onTap: () =>
+                        Clipboard.setData(ClipboardData(text: latest.text)),
+                  ),
+                  BayaRow(
+                    key: const Key('problem-report'),
+                    icon: LucideIcons.externalLink,
+                    label: l10n.reportOnGitHub,
+                    subtitle: l10n.reportOnGitHubHint,
+                    chevron: true,
+                    onTap: () => launchUrl(
+                      crashIssueUrl(latest),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+                  BayaRow(
+                    key: const Key('problem-clear'),
+                    icon: LucideIcons.trash2,
+                    label: l10n.clearProblems,
+                    destructive: true,
+                    onTap: log.clear,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

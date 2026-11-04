@@ -687,5 +687,17 @@
     }
   },
   "revert": "Revert",
-  "confirmRevert": "Tap again to revert"
+  "confirmRevert": "Tap again to revert",
+  "problems": "{count, plural, =1{1 problem on this phone} other{{count} problems on this phone}}",
+  "copyReport": "Copy the report",
+  "reportOnGitHub": "Report on GitHub",
+  "reportOnGitHubHint": "Opens an issue with the report for you to check first",
+  "clearProblems": "Clear",
+  "@problems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

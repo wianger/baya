@@ -43,20 +43,25 @@ App releases are marked as pre-releases. The app's update check reads only
 ### Releasing the app
 
 1. Raise `version` in `app/pubspec.yaml` (the build number by one).
-2. Commit, push `main`, keep the checkout clean.
-3. Build: `.\scripts\build-app-windows.ps1`.
-4. Release:
+2. Commit and push `main`.
+3. Tag and push: `git tag 'app-v<x.y.z>+<build>' && git push origin 'app-v<x.y.z>+<build>'`.
 
-   ```powershell
-   .\scripts\release-app-windows.ps1 `
-     -Apk "$env:USERPROFILE\Downloads\Baya-Android.apk" `
-     -NotesFile notes.md -Publish
-   ```
+The `App release` workflow checks that the tag matches `pubspec.yaml`,
+builds the ARM64 APK, checks that it is signed with the release key and
+carries that version, attaches build provenance and publishes it with its
+checksum. It needs the release key as repository secrets, set once:
 
-   The script checks that the APK's version matches `pubspec.yaml`, that it
-   is signed with the release key, and that its build number is new. It then
-   uploads the APK with its checksum to a draft, verifies the upload and
-   publishes it.
+```sh
+base64 -w0 release.jks | gh secret set ANDROID_KEYSTORE
+gh secret set ANDROID_KEYSTORE_PASSWORD
+gh secret set ANDROID_KEY_ALIAS
+gh secret set ANDROID_KEY_PASSWORD
+```
+
+Without them, release from Windows instead:
+`.\scripts\build-app-windows.ps1`, then
+`.\scripts\release-app-windows.ps1 -Apk "$env:USERPROFILE\Downloads\Baya-Android.apk" -NotesFile notes.md -Publish`,
+which runs the same checks before it publishes.
 
 ### Releasing the host
 
@@ -64,5 +69,18 @@ App releases are marked as pre-releases. The app's update check reads only
 2. Tag and push: `git tag host-v<x.y.z> && git push origin host-v<x.y.z>`.
 
 The `Host binaries` workflow builds the single-file `baya` for Linux (x64,
-arm64), Windows (x64) and macOS (arm64, x64), checks that each one runs, and
-publishes them with their checksums.
+arm64), Windows (x64) and macOS (arm64, x64), checks that each one runs,
+attaches build provenance and publishes them with their checksums. Installed
+binaries update themselves with `baya update`.
+
+The binaries are signed once these secrets exist (until then macOS gets an
+ad-hoc signature and Windows none):
+
+- macOS, Developer ID and notarisation: `APPLE_CERTIFICATE` (the .p12,
+  base64), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_IDENTITY`, `APPLE_ID`,
+  `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`;
+- Windows, Authenticode: `WINDOWS_CERTIFICATE` (the .pfx, base64),
+  `WINDOWS_CERTIFICATE_PASSWORD`.
+
+Anyone can check that a download was built here:
+`gh attestation verify <file> --repo wianger/baya`.

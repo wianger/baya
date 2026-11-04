@@ -28,7 +28,8 @@ Download `baya` for your computer from the latest `host-v…`
 [release](https://github.com/wianger/baya/releases) (one file, Node
 included: `baya-linux-x64`, `baya-linux-arm64`, `baya-darwin-arm64`,
 `baya-darwin-x64` or `baya-win32-x64.exe`), put it on your PATH as `baya`
-(`chmod +x` it on Linux and macOS), and check the setup:
+(`chmod +x` it on Linux and macOS), and check the setup. `baya update`
+keeps it current later.
 
 ```powershell
 baya doctor
