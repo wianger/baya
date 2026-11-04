@@ -174,11 +174,86 @@ class DiffView extends StatelessWidget {
     final hunks = lineDiff(oldText, newText);
     final stats = diffStats(hunks);
     final language = CodeHighlighter.languageForPath(path);
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: colors.codeBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.border.withValues(alpha: .7)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 4, 2),
+            child: Row(
+              children: [
+                Icon(LucideIcons.fileCode, size: 14, color: colors.muted),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    path,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.typo.monoSmall.copyWith(
+                      fontSize: 11.5,
+                      color: colors.muted2,
+                    ),
+                  ),
+                ),
+                Text(
+                  '+${stats.added} ',
+                  style: context.typo.monoSmall.copyWith(
+                    fontSize: 11.5,
+                    color: colors.success,
+                  ),
+                ),
+                Text(
+                  '−${stats.removed}',
+                  style: context.typo.monoSmall.copyWith(
+                    fontSize: 11.5,
+                    color: colors.error,
+                  ),
+                ),
+                BayaCopyButton(text: newText),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: HunkLines(hunks: hunks, language: language),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Diff hunks as numbered lines, added and removed ones tinted, highlighted
+/// in [language]; separate hunks are divided by a gap. Scrolls sideways.
+class HunkLines extends StatelessWidget {
+  const HunkLines({super.key, required this.hunks, required this.language});
+
+  final List<DiffHunk> hunks;
+  final String? language;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
     final style = codeTextStyle(context, size: 12).copyWith(color: colors.text);
     final numberStyle = style.copyWith(
       color: colors.muted.withValues(alpha: .75),
     );
-    final width = '${_maxNumber(hunks)}'.length * 7.6 + 4;
+    var widest = 1;
+    for (final hunk in hunks) {
+      for (final line in hunk) {
+        final n = line.newNumber ?? line.oldNumber ?? 0;
+        if (n > widest) widest = n;
+      }
+    }
+    final width = '$widest'.length * 7.6 + 4;
     final rows = <Widget>[];
     for (var h = 0; h < hunks.length; h++) {
       if (h > 0) {
@@ -231,82 +306,20 @@ class DiffView extends StatelessWidget {
         );
       }
     }
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: colors.codeBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.border.withValues(alpha: .7)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 4, 2),
-            child: Row(
-              children: [
-                Icon(LucideIcons.fileCode, size: 14, color: colors.muted),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    path,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.typo.monoSmall.copyWith(
-                      fontSize: 11.5,
-                      color: colors.muted2,
-                    ),
-                  ),
-                ),
-                Text(
-                  '+${stats.added} ',
-                  style: context.typo.monoSmall.copyWith(
-                    fontSize: 11.5,
-                    color: colors.success,
-                  ),
-                ),
-                Text(
-                  '−${stats.removed}',
-                  style: context.typo.monoSmall.copyWith(
-                    fontSize: 11.5,
-                    color: colors.error,
-                  ),
-                ),
-                BayaCopyButton(text: newText),
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: IntrinsicWidth(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: rows,
             ),
           ),
-          LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(bottom: 8),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                child: IntrinsicWidth(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: rows,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
-  }
-
-  static int _maxNumber(List<DiffHunk> hunks) {
-    var max = 1;
-    for (final hunk in hunks) {
-      for (final line in hunk) {
-        final n = line.newNumber ?? line.oldNumber ?? 0;
-        if (n > max) max = n;
-      }
-    }
-    return max;
   }
 }
 

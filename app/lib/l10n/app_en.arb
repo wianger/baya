@@ -626,5 +626,66 @@
     }
   },
   "startOneAbove": "Start one above.",
-  "allSessions": "All sessions"
+  "allSessions": "All sessions",
+  "committed": "Committed {sha}",
+  "@committed": {
+    "placeholders": {
+      "sha": {
+        "type": "String"
+      }
+    }
+  },
+  "pushed": "Pushed",
+  "openPullRequest": "Open a pull request",
+  "commitsAhead": "{count, plural, =1{1 commit to push} other{{count} commits to push}}",
+  "@commitsAhead": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "changedFiles": "{count, plural, =0{Changed files} =1{1 changed file} other{{count} changed files}}",
+  "@changedFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noChanges": "No changes",
+  "commitMessageHint": "Commit message",
+  "commitAll": "{count, plural, =1{Commit 1 file} other{Commit {count} files}}",
+  "@commitAll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "push": "Push",
+  "pullRequest": "Pull request",
+  "newFile": "new",
+  "pullRequestTitle": "Title",
+  "pullRequestBody": "What changed and why (optional)",
+  "revertFileTitle": "Revert this file?",
+  "revertFileBody": "{path} goes back to how it was at the last commit; a new file is deleted.",
+  "@revertFileBody": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "revertFile": "Revert file",
+  "fromLine": "from line {line}",
+  "@fromLine": {
+    "placeholders": {
+      "line": {
+        "type": "int"
+      }
+    }
+  },
+  "revert": "Revert",
+  "confirmRevert": "Tap again to revert"
 }

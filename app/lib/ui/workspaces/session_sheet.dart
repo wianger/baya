@@ -14,6 +14,7 @@ Future<void> showSessionSheet(
   required String computer,
   required String? folder,
   VoidCallback? onFiles,
+  VoidCallback? onChanges,
   required VoidCallback onRename,
   required Future<void> Function() onDelete,
 }) {
@@ -28,6 +29,7 @@ Future<void> showSessionSheet(
       computer: computer,
       folder: folder,
       onFiles: onFiles,
+      onChanges: onChanges,
       onRename: onRename,
       onDelete: onDelete,
     ),
@@ -41,6 +43,7 @@ class _SessionSheet extends StatefulWidget {
     required this.computer,
     required this.folder,
     required this.onFiles,
+    required this.onChanges,
     required this.onRename,
     required this.onDelete,
   });
@@ -50,6 +53,7 @@ class _SessionSheet extends StatefulWidget {
   final String computer;
   final String? folder;
   final VoidCallback? onFiles;
+  final VoidCallback? onChanges;
   final VoidCallback onRename;
   final Future<void> Function() onDelete;
 
@@ -107,6 +111,14 @@ class _SessionSheetState extends State<_SessionSheet> {
           ),
         BayaGroup(
           children: [
+            if (widget.onChanges case final changes?)
+              BayaRow(
+                key: const ValueKey('session-action-changes'),
+                icon: LucideIcons.gitCompareArrows,
+                label: l10n.changes,
+                chevron: true,
+                onTap: () => _then(changes),
+              ),
             if (widget.onFiles case final files?)
               BayaRow(
                 key: const ValueKey('session-action-files'),

@@ -4,6 +4,7 @@ import 'package:app/domain/entities/agent_command.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
+import 'package:app/ui/changes/changes_page.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/chat_message_list.dart';
@@ -260,6 +261,7 @@ class ChatPage extends StatelessWidget {
       computer: session.host.host.label,
       folder: session.summary?.cwd,
       onFiles: () => context.push('/session-files'),
+      onChanges: () => openChanges(context, session),
       onRename: () async {
         final name = await showSessionRenameDialog(
           context,

@@ -96,9 +96,9 @@ class _SignInCardState extends State<SignInCard> {
                           ),
                         ),
                         TextButton(
-                          onPressed: () => setState(
-                            () => _methods = widget.session.authMethods(),
-                          ),
+                          onPressed: () => setState(() {
+                            _methods = widget.session.authMethods();
+                          }),
                           child: Text(context.l10n.retry),
                         ),
                       ],

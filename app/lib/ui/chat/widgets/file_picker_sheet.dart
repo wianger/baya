@@ -30,8 +30,9 @@ class _FilePickerState extends State<_FilePicker> {
   late Future<Map<String, dynamic>> _listing = widget.session.browseFiles();
   final _picked = <String>{};
 
-  void _open(String? path) =>
-      setState(() => _listing = widget.session.browseFiles(path));
+  void _open(String? path) => setState(() {
+    _listing = widget.session.browseFiles(path);
+  });
 
   @override
   Widget build(BuildContext context) {

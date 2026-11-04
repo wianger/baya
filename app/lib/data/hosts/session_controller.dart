@@ -218,6 +218,37 @@ class SessionController extends ChangeNotifier {
     _changed();
   }
 
+  // Reviewing the agent's work in the session's git repository.
+
+  Future<Map<String, dynamic>> gitStatus() =>
+      host.call('_baya/git_status', {'sessionId': sessionId});
+
+  Future<Map<String, dynamic>> gitDiff(String path) =>
+      host.call('_baya/git_diff', {'sessionId': sessionId, 'path': path});
+
+  /// Undoes one hunk of [path], or the whole file when [hunk] is null.
+  Future<Map<String, dynamic>> gitRevert(String path, {int? hunk}) => host.call(
+    '_baya/git_revert',
+    {'sessionId': sessionId, 'path': path, 'hunk': ?hunk},
+  );
+
+  Future<Map<String, dynamic>> gitCommit(String message) => host.call(
+    '_baya/git_commit',
+    {'sessionId': sessionId, 'message': message},
+    const Duration(minutes: 1),
+  );
+
+  Future<Map<String, dynamic>> gitPush() => host.call('_baya/git_push', {
+    'sessionId': sessionId,
+  }, const Duration(minutes: 2));
+
+  Future<Map<String, dynamic>> openPullRequest(String title, String body) =>
+      host.call('_baya/pr_create', {
+        'sessionId': sessionId,
+        'title': title,
+        'body': body,
+      }, const Duration(minutes: 2));
+
   /// Signs the agent out on the computer; every session with it needs a
   /// new sign-in, which the sign-in card offers.
   Future<void> logout() async {
