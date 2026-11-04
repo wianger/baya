@@ -116,10 +116,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
         ),
         if (!widget.complete && !_open && text.isNotEmpty)
           _ThoughtWindow(text: text),
-        AnimatedSize(
-          duration: BayaMotion.standard,
-          curve: BayaMotion.enter,
-          alignment: Alignment.topLeft,
+        DisclosureBody(
           child: !_open || text.isEmpty
               ? const SizedBox(width: double.infinity)
               : Container(

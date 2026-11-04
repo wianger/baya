@@ -89,10 +89,7 @@ class _ToolRunGroupState extends State<ToolRunGroup> {
             ),
           ),
         ),
-        AnimatedSize(
-          duration: BayaMotion.standard,
-          curve: BayaMotion.enter,
-          alignment: Alignment.topLeft,
+        DisclosureBody(
           child: !_open
               ? const SizedBox(width: double.infinity)
               : Container(
@@ -249,10 +246,7 @@ class _ToolRowState extends State<ToolRow> {
             ),
           ),
         ),
-        AnimatedSize(
-          duration: BayaMotion.standard,
-          curve: BayaMotion.enter,
-          alignment: Alignment.topLeft,
+        DisclosureBody(
           child: !_open
               ? const SizedBox(width: double.infinity)
               : Padding(

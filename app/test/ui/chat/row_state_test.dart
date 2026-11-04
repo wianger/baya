@@ -127,4 +127,30 @@ void main() {
     final question = tester.getRect(find.byKey(const ValueKey('u9')));
     expect(tester.getRect(header).top - question.bottom, lessThan(30));
   });
+
+  testWidgets('a closed thought gives its height back in the same frame', (
+    tester,
+  ) async {
+    const messages = <ChatMessage>[
+      UserMsg(id: 'u1', text: 'Why?'),
+      ThinkingMsg(id: 't1', text: 'One.\nTwo.\nThree.\nFour.\nFive.'),
+      AssistantMsg(id: 'a1', text: 'Because.'),
+    ];
+    await tester.pumpWidget(_list(messages));
+    await tester.pumpAndSettle();
+    final header = find.byKey(const ValueKey('thinking-disclosure'));
+    final reply = find.byKey(const ValueKey('a1'));
+    final gap = tester.getRect(reply).top - tester.getRect(header).bottom;
+    await tester.tap(header);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('thinking-detail')), findsOneWidget);
+    await tester.tap(header);
+    // One frame, no animation left to finish (or to stall).
+    await tester.pump();
+    expect(find.byKey(const ValueKey('thinking-detail')), findsNothing);
+    expect(
+      tester.getRect(reply).top - tester.getRect(header).bottom,
+      moreOrLessEquals(gap, epsilon: 1),
+    );
+  });
 }

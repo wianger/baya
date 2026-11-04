@@ -150,3 +150,19 @@ class _RenderHold extends RenderProxyBox {
     if (delta != 0) anchor?.add(delta);
   }
 }
+
+/// What a disclosure in a chat row shows when open, in place at once.
+///
+/// Not an AnimatedSize: the chat list moves and re-attaches rows while it
+/// updates, and an AnimatedSize detached mid-animation stops its controller
+/// and, back in its stable state, never resumes, keeping the height it had
+/// (a closed thought leaving its open height blank). The row changes height
+/// in one frame instead, and [HoldInPlace] keeps the header where it was.
+class DisclosureBody extends StatelessWidget {
+  const DisclosureBody({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+}

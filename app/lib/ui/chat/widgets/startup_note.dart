@@ -61,10 +61,7 @@ class _StartupNoteRowState extends State<StartupNoteRow> {
             ),
           ),
         ),
-        AnimatedSize(
-          duration: BayaMotion.standard,
-          curve: BayaMotion.enter,
-          alignment: Alignment.topLeft,
+        DisclosureBody(
           child: !_open
               ? const SizedBox(width: double.infinity)
               : Container(
