@@ -158,6 +158,11 @@ Baya methods:
 | `_baya/browse` | `{path?, showHidden?}` | `{path, parent, home, roots, directories:[{name,path}], truncated}` |
 | `_baya/files` | `{sessionId, path?, showHidden?}` | `{root, path, parent, entries:[{name,path,type,size,modifiedAt}], truncated}` |
 | `_baya/read_file` | `{sessionId, path}` | `{name, path, size, modifiedAt, content, binary, truncated}` (256 KiB at most) |
+| `_baya/upload_begin` | `{sessionId, name, size, dir?}` | `{uploadId, dir}`: starts sending a phone file (100 MB at most) into `dir`, a folder inside the session, or `.baya/uploads` there (kept out of git) |
+| `_baya/upload_chunk` | `{uploadId, offset, data}` | `{received}`: the next piece, base64, 1 MiB at most, starting where the last ended |
+| `_baya/upload_finish` | `{uploadId}` | `{name, path, size}` once every byte arrived; the name is made safe and `name (2).ext`… if taken |
+| `_baya/upload_cancel` | `{uploadId}` | `{}`; drops the partial file. A disconnect drops all of that connection's |
+| `_baya/download` | `{sessionId, path, offset, length}` | `{name, size, offset, data, eof}`: a piece of a session file (100 MB at most), base64, 1 MiB at most |
 | `_baya/agent_auth` | `{agent}` | `{authMethods, logout}`: the agent's ACP auth methods; `logout` when it supports signing out |
 | `_baya/authenticate` | `{agent, methodId}` | `{}`; the agent restarts signed in |
 | `_baya/logout` | `{agent}` | `{}` |
@@ -177,8 +182,10 @@ Baya methods:
 Files the phone attaches to a prompt go as ACP `resource_link` blocks with
 `file://` URIs on the computer; the agent reads them itself.
 
-Browsing stays read-only, and `_baya/files` cannot leave the session's
-folder; the `git_*` methods act only inside the session's repository.
+Browsing stays read-only, and `_baya/files`, uploads and downloads cannot
+leave the session's folder. An upload is written to a hidden
+`.baya-upload-<id>.part` beside its destination and renamed into place when
+complete, so an agent never sees half a file; the `git_*` methods act only inside the session's repository.
 
 ### Web preview
 

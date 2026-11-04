@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// What to attach to the next prompt.
-enum AttachSource { camera, gallery, file }
+enum AttachSource { camera, gallery, phone, file }
 
-/// Camera, photos (when the agent takes images) or a file from the session's
-/// folder. Closes if the tablet switches to another session meanwhile.
+/// Camera, photos (when the agent takes images), a file sent from the phone
+/// or one from the session's folder. Closes if the tablet switches to another session meanwhile.
 Future<AttachSource?> showAttachSheet(
   BuildContext context, {
   bool images = true,
@@ -34,6 +34,12 @@ Future<AttachSource?> showAttachSheet(
               onTap: () => pick(AttachSource.gallery),
             ),
           ],
+          BayaRow(
+            key: const Key('attach-phone'),
+            icon: LucideIcons.smartphone,
+            label: context.l10n.fileFromPhone,
+            onTap: () => pick(AttachSource.phone),
+          ),
           BayaRow(
             key: const Key('attach-file'),
             icon: LucideIcons.fileCode,

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { pairPhone } from "../pairing/service.ts";
 import { PREVIEW_TOKEN_HEADER, previewPorts, previews } from "../preview/preview.ts";
@@ -16,6 +17,7 @@ import {
   removeWorktree,
 } from "../workspace/git.ts";
 import { browseSessionFiles, readSessionFile } from "../workspace/session_files.ts";
+import { downloadChunk, uploads } from "../workspace/transfer.ts";
 import type { HostedSession } from "./hosted_session.ts";
 import type { HubPhone, SessionHub } from "./hub.ts";
 import { isObject, type Json, JsonRpcPeer, RpcError, type RpcId } from "./jsonrpc.ts";
@@ -34,6 +36,8 @@ export class PhoneConnection implements HubPhone {
   private readonly peer: JsonRpcPeer;
   private readonly closeSocket: (code: number, reason: string) => void;
   private initialized = false;
+  /** Owns this connection's half-sent uploads. */
+  private readonly id = randomUUID();
 
   constructor(options: {
     key: string;
@@ -77,6 +81,7 @@ export class PhoneConnection implements HubPhone {
   closed(): void {
     this.peer.close(new Error("The phone disconnected."));
     this.hub.disconnect(this);
+    void uploads.drop(this.id);
   }
 
   private async handle(method: string, params: Json): Promise<unknown> {
@@ -148,6 +153,31 @@ export class PhoneConnection implements HubPhone {
         );
       case "_baya/read_file":
         return readSessionFile(this.session(params).record.cwd, stringParam(params, "path"));
+      case "_baya/upload_begin":
+        return uploads.begin(this.id, this.session(params).record.cwd, {
+          name: stringParam(params, "name"),
+          size: numberParam(params, "size"),
+          dir: optionalString(params, "dir"),
+        });
+      case "_baya/upload_chunk":
+        return uploads.chunk(
+          this.id,
+          stringParam(params, "uploadId"),
+          numberParam(params, "offset"),
+          typeof params["data"] === "string" ? params["data"] : "",
+        );
+      case "_baya/upload_finish":
+        return uploads.finish(this.id, stringParam(params, "uploadId"));
+      case "_baya/upload_cancel":
+        await uploads.cancel(this.id, stringParam(params, "uploadId"));
+        return {};
+      case "_baya/download":
+        return downloadChunk(
+          this.session(params).record.cwd,
+          stringParam(params, "path"),
+          numberParam(params, "offset"),
+          numberParam(params, "length"),
+        );
       case "_baya/git_status":
         return gitStatus(this.session(params).record.cwd);
       case "_baya/git_diff":
@@ -242,6 +272,12 @@ export class PhoneConnection implements HubPhone {
 function stringParam(params: Json, name: string): string {
   const value = params[name];
   if (typeof value !== "string" || !value) throw RpcError.invalidParams(`${name} is required.`);
+  return value;
+}
+
+function numberParam(params: Json, name: string): number {
+  const value = params[name];
+  if (typeof value !== "number") throw RpcError.invalidParams(`${name} is required.`);
   return value;
 }
 

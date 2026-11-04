@@ -14,6 +14,7 @@ import 'package:app/ui/chat/widgets/attach_sheet.dart';
 import 'package:app/ui/chat/widgets/context_usage_button.dart';
 import 'package:app/ui/chat/widgets/elicitation_card.dart';
 import 'package:app/ui/chat/widgets/file_picker_sheet.dart';
+import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:app/ui/chat/widgets/input_bar.dart';
 import 'package:app/ui/chat/widgets/permission_card.dart';
 import 'package:app/ui/chat/widgets/session_settings_sheet.dart';
@@ -418,6 +419,20 @@ class ChatPage extends StatelessWidget {
       images: !vm.state.attachBlockedByVision,
     );
     if (source == null) return;
+    if (!context.mounted) return;
+    switch (source) {
+      case AttachSource.phone:
+        final session = context.read<SessionController>();
+        final sent = await uploadFromPhone(context, session.transfer);
+        for (final file in sent) {
+          session.attachFile(file.path, file.name);
+        }
+        return;
+      case AttachSource.file:
+        return showFilePickerSheet(context, context.read<SessionController>());
+      case AttachSource.camera || AttachSource.gallery:
+        break;
+    }
     AttachHint? hint;
     final sub = vm.hints.listen((h) => hint = h);
     switch (source) {
@@ -425,9 +440,8 @@ class ChatPage extends StatelessWidget {
         await vm.pickFromCamera();
       case AttachSource.gallery:
         await vm.pickFromGallery();
-      case AttachSource.file:
-        if (!context.mounted) return;
-        return showFilePickerSheet(context, context.read<SessionController>());
+      case AttachSource.phone || AttachSource.file:
+        break;
     }
     await Future<void>.delayed(Duration.zero); // flush the hint microtask
     await sub.cancel();

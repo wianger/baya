@@ -26,6 +26,8 @@ import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
 import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/ui/about/about_page.dart';
 import 'package:app/ui/preview/preview_page.dart';
+import 'package:app/ui/chat/widgets/attach_sheet.dart';
+import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/settings/settings_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
@@ -390,6 +392,34 @@ void main() {
           showPreviewPicker(
             tester.element(find.byType(Scaffold)),
             hosts.byKey(desktop.remoteEpk)!,
+          ),
+        );
+      },
+    );
+    await shoot(
+      tester,
+      'attach-sheet',
+      const Scaffold(body: SizedBox.expand()),
+      providers: common,
+      then: () async {
+        unawaited(showAttachSheet(tester.element(find.byType(Scaffold))));
+      },
+    );
+    await shoot(
+      tester,
+      'transfer-progress',
+      const Scaffold(body: SizedBox.expand()),
+      providers: common,
+      then: () async {
+        unawaited(
+          runTransfer<void>(
+            tester.element(find.byType(Scaffold)),
+            title: 'Sending to the computer',
+            task: (progress, label, control) async {
+              label('quarterly-report.pdf  ·  2 of 3');
+              progress(7 * 1024 * 1024, 18 * 1024 * 1024);
+              await Completer<void>().future;
+            },
           ),
         );
       },

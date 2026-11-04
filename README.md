@@ -38,6 +38,10 @@ end-to-end encrypted.
 - **Web preview**: a dev server on the computer (`localhost:5173`) opens in
   the app, hot reload included, without exposing it to the network;
   `localhost` links the agent writes open there too.
+- **Files both ways**: send a PDF, log or archive from the phone into the
+  session's folder (or attach it to a prompt for any agent), and save or
+  share any file of the session on the phone. Up to 100 MB, over the same
+  encrypted connection.
 - **Review**: per-file diffs, revert a hunk, commit, push and open a pull
   request.
 - **Private**: Noise end-to-end encryption over Tailscale; nothing goes

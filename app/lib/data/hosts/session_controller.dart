@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:app/acp/acp.dart';
 import 'package:app/acp/json_rpc.dart';
+import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/data/hosts/host_connection.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/domain/transcript.dart';
@@ -101,6 +102,14 @@ class SessionController extends ChangeNotifier {
     _files = _files.where((f) => f.uri != file.uri).toList();
     _changed();
   }
+
+  /// Files between the phone and this session's folder.
+  FileTransfer get transfer => FileTransfer(
+    (method, params) => host.call(method, {
+      'sessionId': sessionId,
+      ...params,
+    }, const Duration(minutes: 2)),
+  );
 
   /// Lists a folder of the session's computer (for attaching files).
   Future<Map<String, dynamic>> browseFiles([String? path]) =>

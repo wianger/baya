@@ -66,6 +66,9 @@ void main() {
     expect(find.text('lib'), findsOneWidget);
     expect(find.text('README.md'), findsOneWidget);
     expect(find.byTooltip('Show hidden files'), findsOneWidget);
+    // A folder takes files from the phone; a file goes back to it.
+    expect(find.byTooltip('Upload from the phone'), findsOneWidget);
+    expect(find.byTooltip('Save to the phone'), findsNothing);
 
     await tester.tap(
       find.byKey(const ValueKey('session-file-/project/README.md')),
@@ -80,6 +83,8 @@ void main() {
     expect(find.byKey(const ValueKey('session-file-content')), findsOneWidget);
     expect(find.byKey(const Key('code-copy')), findsOneWidget);
     expect(find.byTooltip('Back to directory'), findsOneWidget);
+    expect(find.byTooltip('Save to the phone'), findsOneWidget);
+    expect(find.byTooltip('Upload from the phone'), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
     vm.dispose();

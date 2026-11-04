@@ -1,4 +1,7 @@
+import 'package:app/data/hosts/hosts.dart';
+import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/domain/session_files/session_files_repository.dart';
+import 'package:app/routing/adaptive.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/core/code/code_view.dart';
@@ -9,6 +12,7 @@ import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/session_files/states/session_files_state.dart';
 import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
+import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -58,6 +62,12 @@ class _SessionFilesPageState extends State<SessionFilesPage> {
                   },
                   onRefresh: vm.refresh,
                   onToggleHidden: showingFile ? null : vm.toggleHidden,
+                  onUpload: state is SessionFilesDirectory
+                      ? () => _upload(vm, state.directory.path)
+                      : null,
+                  onSave: state is SessionFilesFile
+                      ? () => _save(state.file)
+                      : null,
                 ),
                 if (state is SessionFilesLoading && state.previous != null)
                   const LinearProgressIndicator(minHeight: 2),
@@ -73,6 +83,36 @@ class _SessionFilesPageState extends State<SessionFilesPage> {
         ),
       ),
     );
+  }
+
+  /// Files between the phone and this session's folder, or null offline.
+  FileTransfer? _transfer() {
+    final selected = context.read<SessionSelection>().current;
+    final host = context.read<Hosts>().byKey(selected?.hostKey);
+    if (selected == null || host == null) return null;
+    return FileTransfer(
+      (method, params) => host.call(method, {
+        'sessionId': selected.sessionId,
+        ...params,
+      }, const Duration(minutes: 2)),
+    );
+  }
+
+  Future<void> _upload(SessionFilesViewModel vm, String dir) async {
+    final transfer = _transfer();
+    if (transfer == null) return;
+    final sent = await uploadFromPhone(context, transfer, dir: dir);
+    if (sent.isEmpty || !mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(content: Text(context.l10n.uploadedHere(sent.length))),
+    );
+    await vm.refresh();
+  }
+
+  Future<void> _save(SessionFileContent file) async {
+    final transfer = _transfer();
+    if (transfer == null) return;
+    await saveToPhone(context, transfer, path: file.path, name: file.name);
   }
 
   Widget _buildBody(
@@ -124,9 +164,13 @@ class _FilesHeader extends StatelessWidget {
     required this.onBack,
     required this.onRefresh,
     required this.onToggleHidden,
+    this.onUpload,
+    this.onSave,
   });
 
   final SessionFilesState state;
+  final VoidCallback? onUpload;
+  final VoidCallback? onSave;
   final bool showHidden;
   final VoidCallback onBack;
   final Future<void> Function() onRefresh;
@@ -138,7 +182,7 @@ class _FilesHeader extends StatelessWidget {
       SessionFilesDirectory(:final directory) => (
         _baseName(directory.root),
         directory.path == directory.root
-            ? context.l10n.sessionWorkspaceReadOnly
+            ? context.l10n.sessionWorkspace
             : _relativePath(directory.root, directory.path),
       ),
       SessionFilesFile(:final file) => (
@@ -148,13 +192,13 @@ class _FilesHeader extends StatelessWidget {
       SessionFilesError(:final previous) => (
         previous == null ? context.l10n.sessionFiles : _baseName(previous.root),
         previous == null
-            ? context.l10n.readOnlyBrowser
+            ? context.l10n.sessionFolder
             : _relativePath(previous.root, previous.path),
       ),
       SessionFilesLoading(:final previous) => (
         previous == null ? context.l10n.sessionFiles : _baseName(previous.root),
         previous == null
-            ? context.l10n.readOnlyBrowser
+            ? context.l10n.sessionFolder
             : _relativePath(previous.root, previous.path),
       ),
     };
@@ -208,6 +252,20 @@ class _FilesHeader extends StatelessWidget {
               ],
             ),
           ),
+          if (onUpload != null)
+            IconButton(
+              key: const ValueKey('session-files-upload'),
+              tooltip: context.l10n.uploadFromPhone,
+              onPressed: state is SessionFilesLoading ? null : onUpload,
+              icon: const Icon(LucideIcons.upload, size: 19),
+            ),
+          if (onSave != null)
+            IconButton(
+              key: const ValueKey('session-files-save'),
+              tooltip: context.l10n.saveToPhone,
+              onPressed: onSave,
+              icon: const Icon(LucideIcons.download, size: 19),
+            ),
           if (onToggleHidden != null)
             IconButton(
               tooltip: showHidden
@@ -621,7 +679,7 @@ class _FileHeader extends StatelessWidget {
             spacing: 7,
             runSpacing: 7,
             children: [
-              _MetadataChip(label: _formatBytes(file.size)),
+              _MetadataChip(label: formatBytes(file.size)),
               if (file.modifiedAt case final modified?)
                 _MetadataChip(label: _formatDate(modified)),
               if (file.truncated)
@@ -860,17 +918,9 @@ IconData _fileIcon(String name) {
 
 String _entryMetadata(SessionFileEntry entry) {
   final pieces = <String>[];
-  if (entry.size case final size?) pieces.add(_formatBytes(size));
+  if (entry.size case final size?) pieces.add(formatBytes(size));
   if (entry.modifiedAt case final modified?) pieces.add(_formatDate(modified));
   return pieces.isEmpty ? appL10n.file : pieces.join('  ·  ');
-}
-
-String _formatBytes(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  if (bytes < 1024 * 1024) {
-    return '${(bytes / 1024).toStringAsFixed(bytes < 10 * 1024 ? 1 : 0)} KB';
-  }
-  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 }
 
 String _formatDate(DateTime value) {

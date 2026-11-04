@@ -120,10 +120,10 @@
   "pastePairingCode": "Paste pairing code",
   "pasteFromClipboard": "Paste from clipboard",
   "pair": "Pair",
-  "sessionWorkspaceReadOnly": "Session workspace · read-only",
+  "sessionWorkspace": "Session workspace",
   "readOnlyFilePreview": "Read-only file preview",
   "sessionFiles": "Session files",
-  "readOnlyBrowser": "Read-only browser",
+  "sessionFolder": "This session's folder",
   "backToDirectory": "Back to directory",
   "backToSession": "Back to session",
   "hideHiddenFiles": "Hide hidden files",
@@ -794,5 +794,40 @@
     }
   },
   "stopAll": "Stop all",
-  "sendToAll": "Send to all"
+  "sendToAll": "Send to all",
+  "fileFromPhone": "File from the phone",
+  "uploadFromPhone": "Upload from the phone",
+  "saveToPhone": "Save to the phone",
+  "shareFile": "Share or open with…",
+  "sendingToComputer": "Sending to the computer",
+  "receivingFromComputer": "Receiving from the computer",
+  "savedToPhone": "Saved to the phone",
+  "transferFailed": "The file didn't get through",
+  "uploadedHere": "Sent {count, plural, =1{1 file} other{{count} files}} to the computer",
+  "@uploadedHere": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fileTooLarge": "{name} is over 100 MB, too large to send.",
+  "@fileTooLarge": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fileNofM": "{n} of {count}",
+  "@fileNofM": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }
