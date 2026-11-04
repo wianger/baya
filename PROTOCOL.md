@@ -164,6 +164,9 @@ Baya methods:
 | `_baya/upload_finish` | `{uploadId}` | `{name, path, size}` once every byte arrived; the name is made safe and `name (2).ext`… if taken |
 | `_baya/upload_cancel` | `{uploadId}` | `{}`; drops the partial file. A disconnect drops all of that connection's |
 | `_baya/download` | `{sessionId, path, offset, length}` | `{name, size, offset, data, eof}`: a piece of a session file (100 MB at most), base64, 1 MiB at most |
+| `_baya/archive_list` | `{sessionId, path}` | `{entries:[{name,size,directory}], truncated}`: a zip (also jar, apk, whl, epub…), tar or tar.gz in the session |
+| `_baya/archive_extract` | `{sessionId, path, entry}` | `{path, name, size}`: the entry written below the session's `.baya/extracted`, names made safe |
+| `_baya/convert_pdf` | `{sessionId, path}` | `{path, name}`: an office document (doc/x, xls/x, ppt/x, odt/ods/odp, rtf) as PDF in `.baya/converted`, through LibreOffice. Error reason `no_office` when the computer has none |
 | `_baya/agent_auth` | `{agent}` | `{authMethods, logout}`: the agent's ACP auth methods; `logout` when it supports signing out |
 | `_baya/authenticate` | `{agent, methodId}` | `{}`; the agent restarts signed in |
 | `_baya/logout` | `{agent}` | `{}` |

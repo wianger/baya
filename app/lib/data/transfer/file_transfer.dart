@@ -54,6 +54,9 @@ class FileTransfer {
 
   final SessionCall _call;
 
+  /// The session's other requests (archives, conversions).
+  SessionCall get call => _call;
+
   static const piece = 512 * 1024;
   static const maxBytes = 100 * 1024 * 1024;
 

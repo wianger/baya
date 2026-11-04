@@ -5,6 +5,7 @@ import { PREVIEW_TOKEN_HEADER, previewPorts, previews } from "../preview/preview
 import { packageVersion } from "../runtime/version.ts";
 import { hostLabel, servePath, tailnetPairPort } from "../tailnet/pairing_server.ts";
 import { browseDirectory, resolveDirectory } from "../workspace/directories.ts";
+import { convertToPdf, extractEntry, listArchive } from "../workspace/file_views.ts";
 import {
   createWorktree,
   gitCommit,
@@ -198,6 +199,16 @@ export class PhoneConnection implements HubPhone {
           numberParam(params, "offset"),
           numberParam(params, "length"),
         );
+      case "_baya/archive_list":
+        return listArchive(this.session(params).record.cwd, stringParam(params, "path"));
+      case "_baya/archive_extract":
+        return extractEntry(
+          this.session(params).record.cwd,
+          stringParam(params, "path"),
+          stringParam(params, "entry"),
+        );
+      case "_baya/convert_pdf":
+        return convertToPdf(this.session(params).record.cwd, stringParam(params, "path"));
       case "_baya/git_status":
         return gitStatus(this.session(params).record.cwd);
       case "_baya/git_diff":

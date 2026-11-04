@@ -150,6 +150,9 @@ class _SessionFilesPageState extends State<SessionFilesPage> {
         file: state.file,
         transfer: previewKindFor(state.file.name) == null ? null : _transfer(),
         onOpenElsewhere: () => _save(state.file),
+        onOpenPath: (path, name) => vm.openFile(
+          SessionFileEntry(name: name, path: path, kind: SessionFileKind.file),
+        ),
       );
     }
     final error = state as SessionFilesError;
@@ -537,20 +540,25 @@ class _FileView extends StatefulWidget {
     required this.file,
     required this.transfer,
     required this.onOpenElsewhere,
+    required this.onOpenPath,
   });
   final SessionFileContent file;
   final FileTransfer? transfer;
   final VoidCallback onOpenElsewhere;
+  final void Function(String path, String name) onOpenPath;
 
   @override
   State<_FileView> createState() => _FileViewState();
 }
 
 class _FileViewState extends State<_FileView> {
-  late bool _rendered = _isMarkdown;
+  late bool _rendered = _isMarkdown || _delimiter != null;
 
   bool get _isMarkdown =>
       CodeHighlighter.languageForPath(widget.file.name) == 'markdown';
+
+  /// CSV and TSV show as a table, their source a tap away.
+  String? get _delimiter => delimiterFor(widget.file.name);
 
   @override
   Widget build(BuildContext context) {
@@ -570,10 +578,12 @@ class _FileViewState extends State<_FileView> {
           ),
           Expanded(
             child: FilePreview(
+              key: ValueKey(file.path),
               path: file.path,
               name: file.name,
               kind: kind,
               transfer: transfer,
+              onOpenPath: widget.onOpenPath,
             ),
           ),
         ],
@@ -626,14 +636,18 @@ class _FileViewState extends State<_FileView> {
             sliver: SliverToBoxAdapter(
               child: Row(
                 children: [
-                  if (_isMarkdown)
+                  if (_isMarkdown || _delimiter != null)
                     SegmentedButton<bool>(
                       key: const ValueKey('session-file-view'),
                       showSelectedIcon: false,
                       segments: [
                         ButtonSegment(
                           value: true,
-                          label: Text(context.l10n.preview),
+                          label: Text(
+                            _delimiter != null
+                                ? context.l10n.table
+                                : context.l10n.preview,
+                          ),
                         ),
                         ButtonSegment(
                           value: false,
@@ -650,7 +664,18 @@ class _FileViewState extends State<_FileView> {
               ),
             ),
           ),
-          if (_isMarkdown && _rendered)
+          if (_delimiter != null && _rendered)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              sliver: SliverToBoxAdapter(
+                child: DelimitedTable(
+                  key: const ValueKey('session-file-table'),
+                  text: text,
+                  delimiter: _delimiter!,
+                ),
+              ),
+            )
+          else if (_isMarkdown && _rendered)
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               sliver: SliverToBoxAdapter(

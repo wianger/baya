@@ -15,8 +15,6 @@ import { extname, isAbsolute, join, relative, sep } from "node:path";
 const MAX_TRANSFER_BYTES = 100 * 1024 * 1024;
 /** Largest piece of one `_baya/upload_chunk` or `_baya/download` (raw bytes). */
 const MAX_CHUNK_BYTES = 1024 * 1024;
-/** Where phone files land when no folder is chosen, below the session folder. */
-const INBOX = join(".baya", "uploads");
 
 class TransferError extends Error {}
 
@@ -36,7 +34,7 @@ function isInside(root: string, candidate: string): boolean {
 }
 
 /** The real path of [input] (or of [root]), refused outside [root]. */
-async function inside(root: string, input: string | undefined): Promise<string> {
+export async function inside(root: string, input: string | undefined): Promise<string> {
   if (input !== undefined && (!isAbsolute(input) || input.includes("\0"))) {
     throw new TransferError("Use a path inside this session directory.");
   }
@@ -45,6 +43,17 @@ async function inside(root: string, input: string | undefined): Promise<string> 
     throw new TransferError("That path is outside this session directory.");
   }
   return candidate;
+}
+
+/**
+ * `<root>/.baya/<parts>`, created, for what Baya keeps in a session's folder
+ * (uploads, extracted and converted files); `.baya` stays out of git.
+ */
+export async function bayaFolder(root: string, ...parts: string[]): Promise<string> {
+  const dir = join(root, ".baya", ...parts);
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(root, ".baya", ".gitignore"), "*\n", { flag: "wx" }).catch(() => {});
+  return dir;
 }
 
 const RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/i;
@@ -102,11 +111,7 @@ export class Uploads {
     const root = await realpath(cwd);
     let dir: string;
     if (request.dir === undefined) {
-      const inbox = join(root, INBOX);
-      await mkdir(inbox, { recursive: true });
-      // Phone files are not the project's: keep them out of git.
-      await writeFile(join(root, ".baya", ".gitignore"), "*\n", { flag: "wx" }).catch(() => {});
-      dir = await inside(root, inbox);
+      dir = await inside(root, await bayaFolder(root, "uploads"));
     } else {
       dir = await inside(root, request.dir);
     }

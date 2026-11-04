@@ -45,6 +45,9 @@ end-to-end encrypted.
   session's folder (or attach it to a prompt for any agent), and save or
   share any file of the session on the phone. Up to 100 MB, over the same
   encrypted connection.
+- **See files**: images, PDFs, video and audio, SVG, CSV tables and
+  Jupyter notebooks open on the phone; archives list their files, and office
+  documents show as PDF when the computer has LibreOffice.
 - **Review**: per-file diffs, revert a hunk, commit, push and open a pull
   request.
 - **Private**: Noise end-to-end encryption over Tailscale; nothing goes

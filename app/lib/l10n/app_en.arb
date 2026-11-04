@@ -838,5 +838,24 @@
   "couldNotBranch": "Couldn't branch the session",
   "openWithApp": "Open with another app",
   "loadingPreview": "Loading preview…",
-  "previewFailed": "Couldn't show this file"
+  "previewFailed": "Couldn't show this file",
+  "installLibreOffice": "Install LibreOffice on the computer to preview office documents here.",
+  "convertingToPdf": "Turning it into a PDF on the computer…",
+  "table": "Table",
+  "archiveEntries": "{count, plural, =1{1 file} other{{count} files}} · tap one to open it",
+  "@archiveEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "firstRows": "Showing the first {count} rows",
+  "@firstRows": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

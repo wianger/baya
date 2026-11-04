@@ -432,5 +432,10 @@
   "couldNotBranch": "没能分叉会话",
   "openWithApp": "用其他应用打开",
   "loadingPreview": "正在加载预览…",
-  "previewFailed": "无法显示这个文件"
+  "previewFailed": "无法显示这个文件",
+  "installLibreOffice": "在电脑上安装 LibreOffice 后，就能在这里预览 Office 文档。",
+  "convertingToPdf": "正在电脑上转换成 PDF…",
+  "table": "表格",
+  "archiveEntries": "{count} 个文件 · 点一个打开",
+  "firstRows": "只显示前 {count} 行"
 }
