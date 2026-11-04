@@ -213,6 +213,15 @@ them to `localhost:<port>` as a local browser would send them (`Host` and
 loopback proxy adds the token so the WebView sees the site at the root of
 its own origin.
 
+### A terminal on the computer
+
+`baya attach` sends `{"token", "id", "command":"attach"}` on the host's
+control socket (127.0.0.1, its token in `runtime/control.json`, readable by
+the user alone). After `{"ok":true}` the socket carries this same JSON-RPC,
+one message per line and without Noise: the terminal is a client like a
+phone, trusted as the computer's own user, and joins sessions with
+`session/load` like one. It is not counted as a phone.
+
 ## Host → phone
 
 `session/update` notifications reach every phone attached to the session,

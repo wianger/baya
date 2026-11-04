@@ -33,6 +33,13 @@ const CLOSE_UNPAIRED = 4003;
  * Every session on this computer and every connected phone. Sessions load
  * from the registry at start; their agents start only when used.
  */
+/**
+ * The key of a terminal on this computer (`baya attach`), which reaches the
+ * host through the control socket. Phone keys are base64 public keys, so
+ * none can be this.
+ */
+export const LOCAL_CLIENT = "local";
+
 export class SessionHub {
   private readonly sessions = new Map<string, HostedSession>();
   private readonly phones = new Set<HubPhone>();
@@ -238,11 +245,14 @@ export class SessionHub {
   }
 
   get connectedPhones(): number {
-    return [...this.phones].filter((phone) => this.isPaired(phone.key)).length;
+    return [...this.phones].filter(
+      (phone) => phone.key !== LOCAL_CLIENT && this.isPaired(phone.key),
+    ).length;
   }
 
+  /** A paired phone, or `baya attach` on this computer (the control socket). */
   isPaired(key: string): boolean {
-    return isPairedKey(key, this.peers);
+    return key === LOCAL_CLIENT || isPairedKey(key, this.peers);
   }
 
   /** Re-reads pairings after one was added or revoked; revoked phones are cut off. */

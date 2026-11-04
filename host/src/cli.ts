@@ -13,6 +13,7 @@ import { hostname } from "node:os";
 import { join, resolve } from "node:path";
 import { SessionHub } from "./acp/hub.ts";
 import { booleanFlag, type ParsedArgs, parseArgs, stringFlag } from "./cli/args.ts";
+import { attach } from "./cli/attach.ts";
 import {
   bold,
   cyan,
@@ -82,6 +83,7 @@ ${bold("Get started")}
 ${bold("Sessions")}
   baya status             Host, phones and sessions at a glance
   baya open [folder]      Add a session in a folder  ${dim("--agent <id>")}
+  baya attach [session]   Join a session in this terminal, live with the phone  ${dim("(id prefix or title; the latest by default)")}
   baya close <session>    Remove a session and its history  ${dim("(id prefix or title)")}
 
 ${bold("Agents")} ${dim("— any command that speaks ACP (agentclientprotocol.com)")}
@@ -112,6 +114,7 @@ const COMMANDS = [
   "restart",
   "status",
   "open",
+  "attach",
   "close",
   "pair",
   "devices",
@@ -714,6 +717,8 @@ async function main(): Promise<void> {
       return status(args);
     case "open":
       return open(args);
+    case "attach":
+      return attach(args.positionals[0]);
     case "close":
       return close(args);
     case "pair":

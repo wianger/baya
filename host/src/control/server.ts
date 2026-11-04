@@ -3,7 +3,8 @@ import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { dirname, join } from "node:path";
 import type { HostedSession } from "../acp/hosted_session.ts";
-import type { SessionHub } from "../acp/hub.ts";
+import { LOCAL_CLIENT, type SessionHub } from "../acp/hub.ts";
+import { PhoneConnection } from "../acp/phone.ts";
 import { BAYA_HOME } from "../config.ts";
 import { removePeers } from "../pairing/storage.ts";
 import { issuePendingPairToken } from "../pairing/token_store.ts";
@@ -94,18 +95,62 @@ export class ControlServer {
   private accept(socket: Socket): void {
     socket.setEncoding("utf8");
     let buffer = "";
+    // After `attach`, every line is a JSON-RPC message of that client.
+    let attached: PhoneConnection | null = null;
     socket.on("data", (chunk: string) => {
       buffer += chunk;
-      if (buffer.length > 1024 * 1024) {
+      if (buffer.length > 32 * 1024 * 1024) {
         socket.destroy();
         return;
       }
-      const newline = buffer.indexOf("\n");
-      if (newline < 0) return;
-      const line = buffer.slice(0, newline);
-      buffer = "";
-      void this.handleLine(socket, line);
+      for (let newline = buffer.indexOf("\n"); newline >= 0; newline = buffer.indexOf("\n")) {
+        const line = buffer.slice(0, newline);
+        buffer = buffer.slice(newline + 1);
+        if (attached) {
+          try {
+            attached.receive(JSON.parse(line));
+          } catch {
+            socket.destroy();
+          }
+          continue;
+        }
+        if (this.attachRequest(socket, line, (client) => (attached = client))) continue;
+        buffer = "";
+        void this.handleLine(socket, line);
+        return;
+      }
     });
+  }
+
+  /**
+   * `attach`: this socket becomes a client like a phone, trusted as the
+   * computer's own user, for `baya attach` in a terminal.
+   */
+  private attachRequest(
+    socket: Socket,
+    line: string,
+    attach: (client: PhoneConnection) => void,
+  ): boolean {
+    let request: ControlRequest;
+    try {
+      request = JSON.parse(line) as ControlRequest;
+    } catch {
+      return false;
+    }
+    if (request.command !== "attach" || request.token !== this.token) return false;
+    const client = new PhoneConnection({
+      key: LOCAL_CLIENT,
+      hub: this.hub,
+      send: (json) => {
+        if (!socket.destroyed) socket.write(`${JSON.stringify(json)}\n`);
+      },
+      close: () => socket.end(),
+    });
+    socket.on("close", () => client.closed());
+    socket.on("error", () => socket.destroy());
+    attach(client);
+    socket.write(`${JSON.stringify({ id: request.id, ok: true, data: { attached: true } })}\n`);
+    return true;
   }
 
   private async handleLine(socket: Socket, line: string): Promise<void> {
@@ -174,6 +219,8 @@ export class ControlServer {
       }
       case "stop":
         return { stopping: true };
+      case "attach":
+        throw new Error("attach keeps the connection open.");
     }
   }
 }
