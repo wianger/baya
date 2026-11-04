@@ -21,7 +21,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class UserBubble extends StatelessWidget {
   final UserMsg message;
-  const UserBubble(this.message, {super.key});
+
+  /// Puts this message back in the composer; null hides the actions.
+  final VoidCallback? onEdit;
+  const UserBubble(this.message, {super.key, this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +74,8 @@ class UserBubble extends StatelessWidget {
                         ),
                       ),
               ),
+              if (!isPending && onEdit != null)
+                _UserActions(text: message.text, onEdit: onEdit!),
               if (isPending)
                 Padding(
                   padding: const EdgeInsets.only(top: 5, right: 5),
@@ -100,6 +105,76 @@ class UserBubble extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Copy and edit under a sent message, as quiet as the assistant's row.
+class _UserActions extends StatefulWidget {
+  const _UserActions({required this.text, required this.onEdit});
+
+  final String text;
+  final VoidCallback onEdit;
+
+  @override
+  State<_UserActions> createState() => _UserActionsState();
+}
+
+class _UserActionsState extends State<_UserActions> {
+  bool _copied = false;
+  Timer? _reset;
+
+  @override
+  void dispose() {
+    _reset?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.text));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    _reset?.cancel();
+    _reset = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    Widget button({
+      required Key key,
+      required String tooltip,
+      required IconData icon,
+      required VoidCallback onPressed,
+      Color? tint,
+    }) => IconButton(
+      key: key,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      padding: EdgeInsets.zero,
+      icon: Icon(icon, size: 15, color: tint ?? colors.muted2),
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.text.isNotEmpty)
+          button(
+            key: const Key('user-copy'),
+            tooltip: _copied ? context.l10n.copied : context.l10n.copy,
+            icon: _copied ? LucideIcons.check : LucideIcons.copy,
+            tint: _copied ? colors.accent : null,
+            onPressed: _copy,
+          ),
+        button(
+          key: const Key('user-edit'),
+          tooltip: context.l10n.editAndResend,
+          icon: LucideIcons.pencil,
+          onPressed: widget.onEdit,
+        ),
+      ],
     );
   }
 }

@@ -48,6 +48,16 @@ class AttachmentViewModel extends ViewModel<AttachmentState> {
     }
   }
 
+  /// Attach an image sent before, to send it again.
+  void restore(MessageImage image) {
+    emit(
+      AttachmentAttached(
+        image: PickedImage(bytes: base64Decode(image.data), mime: image.mime),
+        visionSupported: state.visionSupported,
+      ),
+    );
+  }
+
   /// Discard the attached image (the "X" on the preview, #4).
   void removeImage() {
     if (state is! AttachmentAttached) return;

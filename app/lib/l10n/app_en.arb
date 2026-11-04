@@ -829,5 +829,6 @@
         "type": "int"
       }
     }
-  }
+  },
+  "editAndResend": "Edit and send again"
 }

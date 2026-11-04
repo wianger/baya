@@ -423,5 +423,6 @@
   "transferFailed": "文件没有传过去",
   "uploadedHere": "已发送 {count} 个文件到电脑",
   "fileTooLarge": "{name} 超过 100 MB，无法传送。",
-  "fileNofM": "第 {n} 个，共 {count} 个"
+  "fileNofM": "第 {n} 个，共 {count} 个",
+  "editAndResend": "编辑后重发"
 }

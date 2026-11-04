@@ -27,6 +27,8 @@ import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/ui/about/about_page.dart';
 import 'package:app/ui/preview/preview_page.dart';
 import 'package:app/ui/chat/widgets/attach_sheet.dart';
+import 'package:app/ui/chat/chat_message_list.dart';
+import 'package:app/domain/session_state.dart';
 import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/settings/settings_page.dart';
@@ -395,6 +397,29 @@ void main() {
           ),
         );
       },
+    );
+    await shoot(
+      tester,
+      'chat-edit',
+      Scaffold(
+        body: SafeArea(
+          child: ChatMessageList(
+            messages: const [
+              UserMsg(id: 'u1', text: 'Add a dark mode toggle to settings'),
+              AssistantMsg(
+                id: 'a1',
+                text:
+                    'Added a **Dark mode** switch under Settings → Display. '
+                    'It follows the system until you change it.',
+              ),
+              UserMsg(id: 'u2', text: 'Also remember the choice per device'),
+            ],
+            working: false,
+            onEdit: (_) {},
+          ),
+        ),
+      ),
+      providers: common,
     );
     await shoot(
       tester,

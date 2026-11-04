@@ -1,7 +1,7 @@
 name: app
 description: "Baya mobile client for computers running the standalone Baya host."
 publish_to: "none"
-version: 2.10.0+104
+version: 2.11.0+105
 
 environment:
   sdk: ^3.13.0

@@ -103,6 +103,15 @@ class SessionController extends ChangeNotifier {
     _changed();
   }
 
+  final _drafts = StreamController<String>.broadcast();
+
+  /// Text to put back in the composer: a sent message to edit and send again.
+  Stream<String> get drafts => _drafts.stream;
+
+  void editAgain(String text) {
+    if (!_drafts.isClosed) _drafts.add(text);
+  }
+
   /// Files between the phone and this session's folder.
   FileTransfer get transfer => FileTransfer(
     (method, params) => host.call(method, {
@@ -383,6 +392,7 @@ class SessionController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _throttle?.cancel();
+    unawaited(_drafts.close());
     unawaited(_updates.cancel());
     unawaited(_questions.cancel());
     unawaited(_terminals.cancel());

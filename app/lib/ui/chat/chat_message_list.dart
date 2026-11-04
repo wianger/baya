@@ -213,11 +213,15 @@ class ChatMessageList extends StatefulWidget {
   /// animate in, once each.
   final bool live;
 
+  /// Puts a sent message back in the composer; null hides the edit button.
+  final ValueChanged<UserMsg>? onEdit;
+
   const ChatMessageList({
     super.key,
     required this.messages,
     required this.working,
     this.live = true,
+    this.onEdit,
   });
 
   @override
@@ -467,7 +471,16 @@ class _ChatMessageListState extends State<ChatMessageList> {
                   KeyedSubtree(
                     key: ValueKey(msg.id),
                     child: switch (msg) {
-                      UserMsg() => _once(msg, false, () => UserBubble(msg)),
+                      UserMsg() => _once(
+                        msg,
+                        widget.onEdit != null,
+                        () => UserBubble(
+                          msg,
+                          onEdit: widget.onEdit == null
+                              ? null
+                              : () => widget.onEdit?.call(msg),
+                        ),
+                      ),
                       AssistantMsg() => _once(
                         msg,
                         copyOwners.contains(msg),

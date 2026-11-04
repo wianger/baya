@@ -325,6 +325,13 @@ class ChatPage extends StatelessWidget {
       messages: visible,
       working: working,
       live: session.loaded && !session.loading,
+      onEdit: (message) {
+        final image = message.image;
+        if (image != null) {
+          context.read<AttachmentViewModel>().restore(image);
+        }
+        session.editAgain(message.text);
+      },
     );
   }
 
@@ -401,6 +408,7 @@ class ChatPage extends StatelessWidget {
       onOpenAttach: online
           ? () => _openAttach(context, context.read<AttachmentViewModel>())
           : null,
+      drafts: session.drafts,
       onSend: (text) {
         final image = context.read<AttachmentViewModel>().takeImageForSend();
         session.prompt(text, image: image);

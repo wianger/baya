@@ -76,6 +76,9 @@ class InputBar extends StatefulWidget {
   /// button (offline/streaming); vision/has-image gating is internal.
   final VoidCallback? onOpenAttach;
 
+  /// Texts that replace the draft, such as a sent message to edit again.
+  final Stream<String>? drafts;
+
   const InputBar({
     super.key,
     required this.onSend,
@@ -94,6 +97,7 @@ class InputBar extends StatefulWidget {
     this.onVoiceHint,
     this.attachment,
     this.onOpenAttach,
+    this.drafts,
     this.disabled = false,
     this.streaming = false,
   });
@@ -121,6 +125,7 @@ class _InputBarState extends State<InputBar> {
   // (the permission prompt ended the hold), the recording is discarded.
   bool _holding = false;
   StreamSubscription<String>? _transcriptSub;
+  StreamSubscription<String>? _draftSub;
   final _voiceTooltipKey = GlobalKey<TooltipState>();
   Timer? _voiceTooltipTimer;
 
@@ -130,6 +135,16 @@ class _InputBarState extends State<InputBar> {
     _controller.addListener(_onTextChange);
     _focusNode.addListener(_onFocusChange);
     _subscribeTranscripts();
+    _draftSub = widget.drafts?.listen(_onDraft);
+  }
+
+  void _onDraft(String text) {
+    if (!mounted) return;
+    _controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    _focusNode.requestFocus();
   }
 
   void _onFocusChange() {
@@ -143,6 +158,10 @@ class _InputBarState extends State<InputBar> {
     if (!identical(old.voice, widget.voice)) {
       _transcriptSub?.cancel();
       _subscribeTranscripts();
+    }
+    if (!identical(old.drafts, widget.drafts)) {
+      _draftSub?.cancel();
+      _draftSub = widget.drafts?.listen(_onDraft);
     }
   }
 
@@ -179,6 +198,7 @@ class _InputBarState extends State<InputBar> {
   @override
   void dispose() {
     _transcriptSub?.cancel();
+    _draftSub?.cancel();
     _voiceTooltipTimer?.cancel();
     _controller.removeListener(_onTextChange);
     _focusNode.removeListener(_onFocusChange);
