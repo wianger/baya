@@ -54,27 +54,27 @@ class AppColors extends ThemeExtension<AppColors> {
     inputFill: Color(0xFF1B1B1E),
   );
 
-  /// Paper.
+  /// Paper. Text colours meet WCAG AA (4.5:1) on every light surface.
   static const light = AppColors(
     bg: Color(0xFFFAF9F6),
     surface: Color(0xFFF3F1EC),
     border: Color(0xFFE3E0D8),
     text: Color(0xFF17171A),
-    muted: Color(0xFF6E6C66),
+    muted: Color(0xFF63615B),
     muted2: Color(0xFF45433E),
-    accent: Color(0xFFA9711A),
+    accent: Color(0xFF935F0F),
     onAccent: Color(0xFFFFFFFF),
     highlight: Color(0xFF8E5A10),
-    success: Color(0xFF1B8A55),
-    error: Color(0xFFC93A32),
-    warning: Color(0xFF9C6205),
-    working: Color(0xFFA9711A),
+    success: Color(0xFF157A4B),
+    error: Color(0xFFB03229),
+    warning: Color(0xFF8A5A10),
+    working: Color(0xFF935F0F),
     codeBg: Color(0xFFF1EEE7),
     userBubble: Color(0xFFECE9E2),
     onUserBubble: Color(0xFF17171A),
     modelBadgeBg: Color(0xFFEDEAE3),
     modelBadgeBorder: Color(0xFFDDD9CF),
-    denyBorder: Color(0x66C93A32),
+    denyBorder: Color(0x66B03229),
     inputFill: Color(0xFFF0EDE6),
   );
 

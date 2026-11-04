@@ -59,7 +59,8 @@ class _BayaCopyButtonState extends State<BayaCopyButton> {
         minimumSize: const Size(0, 28),
         padding: const EdgeInsets.symmetric(horizontal: 6),
         visualDensity: VisualDensity.compact,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        // Small to look at, a full 48 × 48 to tap.
+        tapTargetSize: MaterialTapTargetSize.padded,
         textStyle: context.typo.sansBody.copyWith(
           fontSize: 11.5,
           fontWeight: FontWeight.w500,

@@ -389,8 +389,7 @@ class _CopyRowState extends State<_CopyRow> {
             key: const Key('assistant-copy'),
             tooltip: _copied ? context.l10n.copied : context.l10n.copy,
             onPressed: _copy,
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
             padding: EdgeInsets.zero,
             icon: AnimatedSwitcher(
               duration: BayaMotion.fast,
@@ -459,8 +458,7 @@ class _ReadAloudButtonState extends State<_ReadAloudButton> {
                 ? context.l10n.stopReading
                 : context.l10n.readAloud,
             onPressed: _toggle,
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
             padding: EdgeInsets.zero,
             icon: AnimatedSwitcher(
               duration: BayaMotion.fast,

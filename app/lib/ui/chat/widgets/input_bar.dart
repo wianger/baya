@@ -552,28 +552,26 @@ class _AttachButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Material(
-      color: enabled
-          ? colors.selection
-          : colors.surface.withValues(alpha: 0.44),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: 34,
-        height: 34,
-        child: IconButton(
-          key: const Key('input-bar-attach'),
-          padding: EdgeInsets.zero,
-          iconSize: 18,
-          tooltip: context.l10n.attachImage,
-          icon: Icon(
-            LucideIcons.plus,
-            color: enabled
-                ? colors.accent
-                : colors.muted.withValues(alpha: 0.35),
-          ),
-          onPressed: enabled ? onTap : null,
-        ),
+    final fill = enabled
+        ? colors.selection
+        : colors.surface.withValues(alpha: 0.44);
+    // A 34 px circle with a 48 × 48 touch area.
+    return IconButton(
+      key: const Key('input-bar-attach'),
+      tooltip: context.l10n.attachImage,
+      onPressed: enabled ? onTap : null,
+      style: IconButton.styleFrom(
+        backgroundColor: fill,
+        disabledBackgroundColor: fill,
+        fixedSize: const Size(34, 34),
+        minimumSize: const Size(34, 34),
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.padded,
+      ),
+      iconSize: 18,
+      icon: Icon(
+        LucideIcons.plus,
+        color: enabled ? colors.accent : colors.muted.withValues(alpha: 0.35),
       ),
     );
   }
@@ -742,37 +740,40 @@ class _QuickActionsButtonState extends State<_QuickActionsButton>
           constraints: const BoxConstraints(maxWidth: 190),
           // A filled pill with a chip icon and a caret makes it read as the
           // model switcher rather than a stray label next to `+`.
-          child: BayaSurface(
-            role: BayaSurfaceRole.card,
-            radius: 20,
-            elevated: false,
-            child: Material(
-              color: Colors.transparent,
-              shape: const StadiumBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                key: const Key('input-bar-quick-actions'),
-                onTap: widget.onPressed,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 7, 9, 7),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          widget.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12),
+          // The chip looks compact; its touch area is a full 48 tall.
+          child: InkWell(
+            key: const Key('input-bar-quick-actions'),
+            onTap: widget.onPressed,
+            customBorder: const StadiumBorder(),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Center(
+                widthFactor: 1,
+                child: BayaSurface(
+                  role: BayaSurfaceRole.card,
+                  radius: 20,
+                  elevated: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 7, 9, 7),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 3),
-                      Icon(
-                        LucideIcons.chevronDown,
-                        size: 14,
-                        color: context.colors.muted2,
-                      ),
-                    ],
+                        const SizedBox(width: 3),
+                        Icon(
+                          LucideIcons.chevronDown,
+                          size: 14,
+                          color: context.colors.muted2,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -916,8 +917,9 @@ class _ComposerActionButton extends StatelessWidget {
     return AnimatedContainer(
       duration: reduceMotion ? Duration.zero : BayaMotion.standard,
       curve: BayaMotion.enter,
-      width: 42,
-      height: 42,
+      // 48 × 48 to touch around the 38 px circle.
+      width: 48,
+      height: 48,
       child: Center(
         child: AnimatedContainer(
           duration: reduceMotion ? Duration.zero : BayaMotion.standard,

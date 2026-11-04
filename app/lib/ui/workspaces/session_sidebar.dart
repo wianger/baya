@@ -365,14 +365,24 @@ class _SessionSidebarState extends State<SessionSidebar> {
                         context.push('/settings');
                       },
                     ),
+                    const SizedBox(width: 12),
                     const Spacer(),
-                    BayaButton(
-                      buttonKey: const Key('sidebar-new-session'),
-                      onPressed: vm.selectedWorkspace == null
-                          ? null
-                          : () => startSession(context, close: widget.close),
-                      icon: const Icon(LucideIcons.plus, size: 18),
-                      label: Text(context.l10n.newSession),
+                    // Shrinks rather than overflows with large text or a
+                    // long translation.
+                    Flexible(
+                      flex: 6,
+                      child: BayaButton(
+                        buttonKey: const Key('sidebar-new-session'),
+                        onPressed: vm.selectedWorkspace == null
+                            ? null
+                            : () => startSession(context, close: widget.close),
+                        icon: const Icon(LucideIcons.plus, size: 18),
+                        label: Text(
+                          context.l10n.newSession,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
                   ],
                 ),
