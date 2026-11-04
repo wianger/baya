@@ -63,7 +63,12 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           test -n "$ANDROID_KEYSTORE" || { echo "The release key secrets are missing."; exit 1; }
-          echo "$ANDROID_KEYSTORE" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          # Secrets set from a Windows pipe may end in CR/LF.
+          clean() { printf %s "$1" | tr -d '\r\n'; }
+          ANDROID_KEYSTORE_PASSWORD="$(clean "$ANDROID_KEYSTORE_PASSWORD")"
+          ANDROID_KEY_ALIAS="$(clean "$ANDROID_KEY_ALIAS")"
+          ANDROID_KEY_PASSWORD="$(clean "$ANDROID_KEY_PASSWORD")"
+          clean "$ANDROID_KEYSTORE" | tr -d ' ' | base64 --decode > "$RUNNER_TEMP/release.jks"
           cat > android/key.properties <<PROPS
           storeFile=$RUNNER_TEMP/release.jks
           storePassword=$ANDROID_KEYSTORE_PASSWORD

@@ -18,7 +18,6 @@
   "more": "More",
   "project": "Project",
   "builtBy": "Built by",
-  "gitHubAvatar": "GitHub avatar for wianger",
   "statusWorking": "Working",
   "statusReconnecting": "Reconnecting",
   "statusReady": "Ready",
@@ -42,7 +41,6 @@
   "notReported": "Not reported",
   "contextUsage": "Context usage",
   "usage": "Usage",
-  "reasoning": "Reasoning",
   "tryAgain": "Try again",
   "retry": "Retry",
   "session": "Session",
@@ -145,7 +143,6 @@
   "first256Kb": "Showing the first 256 KB of this file.",
   "couldNotReadSessionDirectory": "Could not read the session directory.",
   "couldNotReadFile": "Could not read file.",
-  "connection": "Connection",
   "chatAndAppearance": "Chat & appearance",
   "displayAndConversation": "Display and conversation",
   "information": "Information",
@@ -185,8 +182,6 @@
   "renameWorkspace": "Rename workspace",
   "name": "Name",
   "path": "Path",
-  "owner": "Owner",
-  "paired": "Paired",
   "couldNotOpenSession": "Could not open this session. Try again.",
   "couldNotRenameSession": "Could not rename this session.",
   "noDeviceSelected": "No device selected",
@@ -222,7 +217,6 @@
   "chooseAgent": "Choose an agent",
   "searchAgents": "Search agents",
   "notAvailableOnComputer": "Not available on this computer",
-  "unavailable": "Unavailable",
   "device": "Device",
   "chooseDeviceTitle": "Choose Device",
   "onePairedDevice": "1 paired device",
@@ -249,18 +243,7 @@
       }
     }
   },
-  "versionAvailable": "Version {version} ({build}) is available.",
-  "@versionAvailable": {
-    "placeholders": {
-      "version": {
-        "type": "String"
-      },
-      "build": {
-        "type": "String"
-      }
-    }
-  },
-  "aboutTagline": "A focused remote client for coding-agent sessions on your own computers.",
+  "aboutTagline": "Your coding agents, from your phone.",
   "updateKeepsDataAndroid": "Your pairings and settings are kept when Android installs the update.",
   "replyToAgentOrTalk": "Reply to {agent} or hold to talk…",
   "@replyToAgentOrTalk": {
@@ -699,5 +682,9 @@
         "type": "int"
       }
     }
-  }
+  },
+  "releaseNotes": "Release notes",
+  "sourceAndDocs": "Source and documentation",
+  "reportProblem": "Report a problem",
+  "openSourceLicenses": "Open-source licenses"
 }

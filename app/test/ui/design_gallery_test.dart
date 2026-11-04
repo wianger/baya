@@ -21,6 +21,7 @@ import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/onboarding/onboarding_page.dart';
 import 'package:app/ui/onboarding/viewmodels/onboarding_viewmodel.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
+import 'package:app/ui/about/about_page.dart';
 import 'package:app/ui/settings/settings_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
@@ -270,6 +271,17 @@ void main() {
       'display',
       const DisplaySettingsPage(),
       providers: common,
+    );
+    await shoot(
+      tester,
+      'about',
+      const AboutPage(),
+      providers: [
+        ...common,
+        ChangeNotifierProvider<UpdateBannerViewModel>(
+          create: (_) => _Updates(),
+        ),
+      ],
     );
     final identity = BackedUpOwnerIdentityStore(InMemoryOwnerIdentityStore());
     await shoot(

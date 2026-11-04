@@ -1,4 +1,24 @@
+<div align="center">
+
+<img src="branding/baya-mark.svg" width="112" alt="Baya">
+
 # Baya
+
+### Your coding agents, from your phone.
+
+**Claude Code, Codex, Pi, DeepSeek Harness — any agent that speaks ACP.**<br>
+Start sessions on your computers, follow them live, answer their questions,
+review and commit their changes.
+
+[![App](https://img.shields.io/github/v/release/wianger/baya?filter=app-v*&include_prereleases&label=app&color=111111)](https://github.com/wianger/baya/releases?q=app-v)
+[![Host](https://img.shields.io/github/v/release/wianger/baya?filter=host-v*&label=host&color=111111)](https://github.com/wianger/baya/releases?q=host-v)
+[![License](https://img.shields.io/badge/license-MIT-111111)](LICENSE)<br>
+![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white)
+![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)
+
+</div>
 
 Baya drives coding agents on your computers from your phone. It speaks the
 [Agent Client Protocol](https://agentclientprotocol.com) (ACP) end to end: any

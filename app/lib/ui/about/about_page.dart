@@ -15,8 +15,8 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-/// About follows the same hierarchy as FlClash: identity, version, update
-/// action, then project resources. Settings keeps only configuration.
+/// Identity and version, updates, then the project: the same grouped rows
+/// as Settings. Settings keeps only configuration.
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
@@ -25,8 +25,8 @@ class AboutPage extends StatelessWidget {
     'https://github.com/wianger/baya/releases',
   );
   static final _homepage = Uri.parse('https://github.com/wianger');
-  static final _avatarUrl = Uri.parse(
-    'https://github.com/wianger.png?size=160',
+  static final _issues = Uri.parse(
+    'https://github.com/wianger/baya/issues/new',
   );
 
   Future<void> _open(BuildContext context, Uri uri) async {
@@ -127,166 +127,118 @@ class AboutPage extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
                   children: [
-                    const Center(child: AppMark(size: 104, tile: true)),
-                    const SizedBox(height: 18),
+                    const Center(child: AppMark(size: 96, tile: true)),
+                    const SizedBox(height: 14),
                     Text(
                       kAppName,
                       textAlign: TextAlign.center,
-                      style: context.typo.title.copyWith(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.6,
+                      style: brandDisplayTextStyle(
+                        fontSize: 44,
+                        color: colors.text,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: colors.selection,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 5,
-                          ),
-                          child: Text(
-                            'v${vm.currentVersion} (${vm.currentBuildNumber})',
-                            style: context.typo.monoSmall.copyWith(
-                              color: colors.accent,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 6),
                     Text(
                       context.l10n.aboutTagline,
                       textAlign: TextAlign.center,
                       style: context.typo.sansBody.copyWith(
-                        color: colors.muted,
-                        height: 1.55,
+                        color: colors.muted2,
+                        fontSize: 15,
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    Center(
-                      child: BayaButton(
-                        buttonKey: const Key('check-github-updates'),
-                        onPressed: updateState is UpdateCheckInProgress
-                            ? null
-                            : () => _check(context),
-                        icon: updateState is UpdateCheckInProgress
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(LucideIcons.refreshCw, size: 18),
-                        label: Text(
-                          updateState is UpdateCheckInProgress
+                    const SizedBox(height: 10),
+                    Text(
+                      'v${vm.currentVersion} (${vm.currentBuildNumber})',
+                      textAlign: TextAlign.center,
+                      style: context.typo.monoSmall.copyWith(
+                        color: colors.muted,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    BayaGroup(
+                      children: [
+                        BayaRow(
+                          key: const Key('check-github-updates'),
+                          icon: LucideIcons.refreshCw,
+                          label: updateState is UpdateCheckInProgress
                               ? context.l10n.checkingGitHub
                               : context.l10n.checkForUpdates,
+                          trailing: updateState is UpdateCheckInProgress
+                              ? const Padding(
+                                  padding: EdgeInsets.only(right: 10),
+                                  child: SizedBox.square(
+                                    dimension: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                          onTap: updateState is UpdateCheckInProgress
+                              ? null
+                              : () => _check(context),
                         ),
-                        prominent: false,
-                      ),
+                        if (updateState is UpdateBannerVisible)
+                          BayaRow(
+                            key: const Key('about-download-update'),
+                            icon: LucideIcons.download,
+                            label: context.l10n.versionReady(
+                              updateState.info.version,
+                              '${updateState.info.buildNumber}',
+                            ),
+                            subtitle: context.l10n.updateKeepsDataAndroid,
+                            chevron: true,
+                            onTap: () => _download(context),
+                          ),
+                        BayaRow(
+                          icon: LucideIcons.scrollText,
+                          label: context.l10n.releaseNotes,
+                          chevron: true,
+                          onTap: () => _open(context, _releases),
+                        ),
+                      ],
                     ),
                     const _Problems(),
-                    if (updateState is UpdateBannerVisible) ...[
-                      const SizedBox(height: 16),
-                      BayaSurface(
-                        child: Padding(
-                          padding: const EdgeInsets.all(18),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                context.l10n.versionAvailable(
-                                  updateState.info.version,
-                                  '${updateState.info.buildNumber}',
-                                ),
-                                style: context.typo.sansBody.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              if (updateState.info.notes.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Text(
-                                  updateState.info.notes,
-                                  maxLines: 12,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: context.typo.sansBody.copyWith(
-                                    color: colors.muted,
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 12),
-                              BayaButton(
-                                buttonKey: const Key('download-github-apk'),
-                                onPressed: () => _download(context),
-                                icon: const Icon(
-                                  LucideIcons.download,
-                                  size: 18,
-                                ),
-                                label: Text(context.l10n.downloadApk),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                context.l10n.updateKeepsDataAndroid,
-                                style: context.typo.sansBody.copyWith(
-                                  color: colors.muted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
+                    BayaSectionLabel(context.l10n.project, top: 24),
+                    BayaGroup(
+                      children: [
+                        BayaRow(
+                          icon: LucideIcons.code,
+                          label: 'github.com/wianger/baya',
+                          subtitle: context.l10n.sourceAndDocs,
+                          chevron: true,
+                          onTap: () => _open(context, _project),
+                        ),
+                        BayaRow(
+                          icon: LucideIcons.messageSquareWarning,
+                          label: context.l10n.reportProblem,
+                          chevron: true,
+                          onTap: () => _open(context, _issues),
+                        ),
+                        BayaRow(
+                          key: const Key('about-licenses'),
+                          icon: LucideIcons.scale,
+                          label: context.l10n.openSourceLicenses,
+                          chevron: true,
+                          onTap: () => showLicensePage(
+                            context: context,
+                            applicationName: kAppName,
+                            applicationVersion: vm.currentVersion,
                           ),
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: 28),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8, bottom: 8),
-                      child: Text(
-                        context.l10n.more,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
+                      ],
+                    ),
+                    BayaSectionLabel(context.l10n.builtBy, top: 24),
+                    BayaGroup(
+                      children: [
+                        BayaRow(
+                          icon: LucideIcons.user,
+                          label: 'wianger',
+                          subtitle: 'github.com/wianger',
+                          chevron: true,
+                          onTap: () => _open(context, _homepage),
                         ),
-                      ),
-                    ),
-                    BayaSurface(
-                      child: Column(
-                        children: [
-                          _LinkTile(
-                            icon: LucideIcons.code,
-                            title: context.l10n.project,
-                            subtitle: 'github.com/wianger/baya',
-                            onTap: () => _open(context, _project),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8, bottom: 8),
-                      child: Text(
-                        context.l10n.builtBy,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    BayaSurface(
-                      child: _LinkTile(
-                        icon: LucideIcons.user,
-                        imageUrl: _avatarUrl.toString(),
-                        title: 'wianger',
-                        subtitle: 'github.com/wianger',
-                        onTap: () => _open(context, _homepage),
-                      ),
+                      ],
                     ),
                   ],
                 ),
@@ -299,78 +251,6 @@ class AboutPage extends StatelessWidget {
   }
 }
 
-class _LinkTile extends StatelessWidget {
-  const _LinkTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.imageUrl,
-  });
-
-  final IconData icon;
-  final String? imageUrl;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return ListTile(
-      leading: imageUrl == null
-          ? Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: colors.selection,
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(icon, size: 19, color: colors.text),
-            )
-          : Container(
-              width: 40,
-              height: 40,
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: colors.border),
-              ),
-              child: ClipOval(
-                child: Image.network(
-                  imageUrl!,
-                  key: const Key('built-by-github-avatar'),
-                  semanticLabel: context.l10n.gitHubAvatar,
-                  fit: BoxFit.cover,
-                  filterQuality: FilterQuality.high,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return Icon(
-                      LucideIcons.user,
-                      size: 18,
-                      color: colors.muted,
-                    );
-                  },
-                  errorBuilder: (_, _, _) =>
-                      Icon(LucideIcons.user, size: 18, color: colors.muted),
-                ),
-              ),
-            ),
-      title: Text(title),
-      subtitle: Text(
-        subtitle,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: context.typo.monoSmall.copyWith(color: colors.muted),
-      ),
-      trailing: Icon(LucideIcons.arrowUpRight, size: 17, color: colors.muted),
-      onTap: onTap,
-    );
-  }
-}
-
-/// Crashes kept on this phone, with ways to pass one on. Shown only when
-/// there are any.
 class _Problems extends StatelessWidget {
   const _Problems();
 

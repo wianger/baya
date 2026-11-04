@@ -62,7 +62,14 @@
   "packageManager": "pnpm@11.5.3",
   "knip": {
     "entry": [
-      "test/make-noise-vector.ts"
+      "test/make-noise-vector.ts",
+      "scripts/keyring-sea.cjs"
+    ],
+    "ignoreBinaries": [
+      "tasklist",
+      "pgrep",
+      "where",
+      "reg.exe"
     ]
   }
 }

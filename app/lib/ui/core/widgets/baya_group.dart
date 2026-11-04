@@ -76,6 +76,7 @@ class BayaRow extends StatelessWidget {
     this.destructive = false,
     this.chevron = false,
     this.monospaceSubtitle = false,
+    this.spinning = false,
     this.onTap,
   });
 
@@ -93,6 +94,9 @@ class BayaRow extends StatelessWidget {
   final bool destructive;
   final bool chevron;
   final bool monospaceSubtitle;
+
+  /// The icon turns: work is under way (a loader glyph).
+  final bool spinning;
   final VoidCallback? onTap;
 
   @override
@@ -108,14 +112,19 @@ class BayaRow extends StatelessWidget {
           child: Row(
             children: [
               if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: 18,
-                  color: destructive
-                      ? tint
-                      : selected
-                      ? colors.accent
-                      : colors.muted2,
+                _Spin(
+                  spinning: spinning,
+                  child: Icon(
+                    icon,
+                    size: 18,
+                    color: destructive
+                        ? tint
+                        : spinning
+                        ? colors.working
+                        : selected
+                        ? colors.accent
+                        : colors.muted2,
+                  ),
                 ),
                 const SizedBox(width: 16),
               ],
@@ -193,4 +202,55 @@ class BayaRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Turns [child] once a second while [spinning]; still when the system asks
+/// for less motion.
+class _Spin extends StatefulWidget {
+  const _Spin({required this.spinning, required this.child});
+
+  final bool spinning;
+  final Widget child;
+
+  @override
+  State<_Spin> createState() => _SpinState();
+}
+
+class _SpinState extends State<_Spin> with SingleTickerProviderStateMixin {
+  late final AnimationController _turns = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1000),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_Spin oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _sync();
+  }
+
+  void _sync() {
+    if (widget.spinning && !MediaQuery.disableAnimationsOf(context)) {
+      if (!_turns.isAnimating) _turns.repeat();
+    } else {
+      _turns
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _turns.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      RotationTransition(turns: _turns, child: widget.child);
 }

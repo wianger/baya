@@ -18,7 +18,7 @@ interface PromptCapabilities {
   embeddedContext?: boolean;
 }
 
-export interface AgentCapabilities {
+interface AgentCapabilities {
   loadSession?: boolean;
   promptCapabilities?: PromptCapabilities;
   sessionCapabilities?: {
@@ -45,7 +45,7 @@ export interface NewSessionResponse extends SessionSetup {
   sessionId: string;
 }
 
-export type StopReason = "end_turn" | "max_tokens" | "max_turn_requests" | "refusal" | "cancelled";
+type StopReason = "end_turn" | "max_tokens" | "max_turn_requests" | "refusal" | "cancelled";
 
 export interface PromptResponse {
   stopReason: StopReason;

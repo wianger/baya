@@ -37,6 +37,7 @@ class SessionRow extends StatelessWidget {
     final when = item.session.updatedAt;
     return BayaRow(
       icon: working ? LucideIcons.loaderCircle : LucideIcons.messageSquare,
+      spinning: working,
       label: vm.displayNameOf(item),
       subtitle: [
         item.session.agentName,
