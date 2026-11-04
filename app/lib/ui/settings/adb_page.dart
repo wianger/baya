@@ -385,6 +385,18 @@ class _StatusCard extends StatelessWidget {
                 colors.success,
                 context.l10n.adbConnectedTo(computer, serial),
               ),
+              const SizedBox(height: 8),
+              Text(
+                data['tools'] == true
+                    ? context.l10n.phoneToolsReady
+                    : context.l10n.phoneToolsInstalling,
+                key: const Key('adb-tools'),
+                style: context.typo.sansBody.copyWith(
+                  color: colors.muted2,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
               const SizedBox(height: 10),
               Row(
                 children: [

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { AgentDefinition } from "../config.ts";
 import { dshDesktop, isDsh } from "../integrations/dsh_desktop.ts";
+import { phoneMcpServers } from "../integrations/phone_tools.ts";
 import {
   folderName,
   type SessionRecord,
@@ -312,7 +313,7 @@ export class HostedSession {
     info: InitializeResponse,
   ): Promise<SessionSetup> {
     const cwd = this.record.cwd;
-    const mcpServers = agent.definition.mcpServers ?? [];
+    const mcpServers = [...(agent.definition.mcpServers ?? []), ...(await phoneMcpServers())];
     const previous = this.record.agentSessionId;
     const caps = info.agentCapabilities;
     if (previous && (caps?.loadSession || caps?.sessionCapabilities?.resume)) {

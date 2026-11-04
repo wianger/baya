@@ -10,6 +10,12 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { RpcError } from "../acp/jsonrpc.ts";
 import { findExecutable } from "../workspace/directories.ts";
+import {
+  connectedPhone,
+  installPhoneTools,
+  phoneToolsReady,
+  rememberPhone,
+} from "./phone_tools.ts";
 
 const run = promisify(execFile);
 const ADDRESS = /^[0-9A-Za-z.:[\]-]+:\d{1,5}$/u;
@@ -84,9 +90,13 @@ export interface AdbDevice {
 }
 
 /** `adb devices`: what the computer's adb sees, and whether there is one. */
-export async function adbStatus(): Promise<{ adb: string | null; devices: AdbDevice[] }> {
+export async function adbStatus(): Promise<{
+  adb: string | null;
+  devices: AdbDevice[];
+  tools: boolean;
+}> {
   const path = await findAdb();
-  if (!path) return { adb: null, devices: [] };
+  if (!path) return { adb: null, devices: [], tools: phoneToolsReady() };
   const listed = await adb("devices");
   const devices = listed
     .split(/\r?\n/u)
@@ -94,7 +104,7 @@ export async function adbStatus(): Promise<{ adb: string | null; devices: AdbDev
     .map((line) => line.trim().split(/\s+/u))
     .filter((parts) => parts.length >= 2 && parts[0])
     .map(([serial, state]) => ({ serial: serial!, state: state! }));
-  return { adb: path, devices };
+  return { adb: path, devices, tools: phoneToolsReady() };
 }
 
 /** `adb pair <address> <code>`, the six digits Wireless debugging shows. */
@@ -123,9 +133,15 @@ export async function adbConnect(target: unknown): Promise<{ serial: string; out
         : `The phone is ${state ?? "not listed"}.`,
     );
   }
+  // Sessions started from now on get the phone as MCP tools.
+  rememberPhone(serial);
+  void installPhoneTools();
   return { serial, output };
 }
 
 export async function adbDisconnect(target: unknown): Promise<{ output: string }> {
-  return { output: await adb("disconnect", address(target)) };
+  const serial = address(target);
+  const output = await adb("disconnect", serial);
+  if (connectedPhone() === serial) rememberPhone(null);
+  return { output };
 }

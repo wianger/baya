@@ -19,6 +19,7 @@ void main() {
     final asked = <String, Object?>{};
     host.handlers['_baya/adb_status'] = (_) => {
       'adb': 'C:/sdk/adb.exe',
+      'tools': connected,
       'devices': [
         if (connected) {'serial': '100.80.1.2:41234', 'state': 'device'},
       ],
@@ -67,6 +68,7 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.textContaining('mobile-mcp'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     hosts.dispose();
   });
