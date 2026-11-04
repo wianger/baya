@@ -32,6 +32,9 @@ end-to-end encrypted.
 - **Sessions on any of your computers**: pick a folder and an agent; follow
   its thinking, tool calls, diffs and terminals as they stream; answer its
   permission questions and forms.
+- **Edit and branch**: put a sent message back in the composer to change
+  and resend; with Claude Code and Codex, branch from it instead, into a new
+  session that holds only the conversation before it.
 - **Parallel runs**: give the same task to Claude Code, Codex and Pi at
   once, each in its own git worktree and branch, then compare their replies
   and changes on one board and send follow-ups to all of them.

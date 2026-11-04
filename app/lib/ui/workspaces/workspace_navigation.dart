@@ -59,6 +59,34 @@ Future<OpenedWorkspace?> openNewSession(
   return workspace;
 }
 
+/// Opens [sessionId], a branch of [fromSessionId] on the same computer, in
+/// the same workspace.
+Future<void> openBranch(
+  BuildContext context,
+  String hostId,
+  String fromSessionId,
+  String sessionId,
+) async {
+  final home = context.read<HomeViewModel>();
+  final selection = context.read<SessionSelection>();
+  final current = selection.current;
+  final workspace = context.read<Preferences>().workspaceForSession(
+    hostId,
+    fromSessionId,
+  );
+  if (workspace != null) {
+    await home.assignSessionIdToWorkspace(hostId, sessionId, workspace);
+  }
+  if (!context.mounted) return;
+  final title = current?.title ?? '';
+  final device = current?.device ?? '';
+  selection.select(hostId, sessionId, title, device, true);
+  context.go(
+    '/chat',
+    extra: {'title': title, 'device': device, 'online': true},
+  );
+}
+
 /// Files a run's sessions under its workspace, keeps the run and shows it.
 Future<void> _startRun(
   BuildContext context,

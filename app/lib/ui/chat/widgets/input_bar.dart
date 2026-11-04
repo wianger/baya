@@ -12,6 +12,7 @@ import 'package:app/ui/chat/voice/widgets/recording_strip.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
+import 'package:app/domain/session_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -76,8 +77,8 @@ class InputBar extends StatefulWidget {
   /// button (offline/streaming); vision/has-image gating is internal.
   final VoidCallback? onOpenAttach;
 
-  /// Texts that replace the draft, such as a sent message to edit again.
-  final Stream<String>? drafts;
+  /// Sent messages that replace the draft, to edit and send again.
+  final Stream<UserMsg>? drafts;
 
   const InputBar({
     super.key,
@@ -125,7 +126,7 @@ class _InputBarState extends State<InputBar> {
   // (the permission prompt ended the hold), the recording is discarded.
   bool _holding = false;
   StreamSubscription<String>? _transcriptSub;
-  StreamSubscription<String>? _draftSub;
+  StreamSubscription<UserMsg>? _draftSub;
   final _voiceTooltipKey = GlobalKey<TooltipState>();
   Timer? _voiceTooltipTimer;
 
@@ -138,8 +139,11 @@ class _InputBarState extends State<InputBar> {
     _draftSub = widget.drafts?.listen(_onDraft);
   }
 
-  void _onDraft(String text) {
+  void _onDraft(UserMsg message) {
     if (!mounted) return;
+    final text = message.text;
+    final image = message.image;
+    if (image != null) widget.attachment?.restore(image);
     _controller.value = TextEditingValue(
       text: text,
       selection: TextSelection.collapsed(offset: text.length),

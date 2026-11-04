@@ -129,6 +129,26 @@ export class PhoneConnection implements HubPhone {
       case "session/close":
         this.session(params).detach(this);
         return {};
+      case "_baya/fork": {
+        // A new session holding [sessionId]'s conversation up to the agent
+        // message [messageId], or none of it without one.
+        const source = this.session(params);
+        const messageId = optionalString(params, "messageId");
+        const fingerprint = optionalString(params, "messageFingerprint");
+        const occurrence = params["messageOccurrence"];
+        const agentSessionId = messageId
+          ? await this.hub.fork(source, {
+              messageId,
+              ...(fingerprint ? { messageFingerprint: fingerprint } : {}),
+              ...(typeof occurrence === "number" ? { messageOccurrence: occurrence } : {}),
+            })
+          : undefined;
+        const session = this.hub.create(source.record.cwd, source.record.agent, {
+          title: source.title,
+          ...(agentSessionId ? { agentSessionId } : {}),
+        });
+        return { session: session.info() };
+      }
       case "session/delete":
         this.hub.delete(this.session(params).id);
         return {};

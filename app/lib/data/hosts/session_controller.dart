@@ -3,8 +3,10 @@
 // cancels, setting changes and permission answers.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:app/acp/acp.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/data/hosts/host_connection.dart';
@@ -103,13 +105,59 @@ class SessionController extends ChangeNotifier {
     _changed();
   }
 
-  final _drafts = StreamController<String>.broadcast();
+  final _drafts = StreamController<UserMsg>.broadcast();
 
-  /// Text to put back in the composer: a sent message to edit and send again.
-  Stream<String> get drafts => _drafts.stream;
+  /// Sent messages to put back in the composer, to edit and send again.
+  Stream<UserMsg> get drafts => _drafts.stream;
 
-  void editAgain(String text) {
-    if (!_drafts.isClosed) _drafts.add(text);
+  void editAgain(UserMsg message) {
+    if (!_drafts.isClosed) _drafts.add(message);
+  }
+
+  /// Messages waiting for the composer of a branch that is opening.
+  static final _handoff = <String, UserMsg>{};
+
+  bool get canFork => _setup.canFork;
+
+  /// A new session on this computer with this conversation up to the reply
+  /// before [message], which waits in its composer. Returns its id.
+  Future<String> branchBefore(UserMsg message) async {
+    final result = await host.call('_baya/fork', {
+      'sessionId': sessionId,
+      ...?forkPoint(messages, message),
+    }, const Duration(minutes: 2));
+    final id = (result['session'] as Map)['sessionId'] as String;
+    _handoff['${host.key}/$id'] = message;
+    return id;
+  }
+
+  /// Where a branch before [message] ends: the agent's last reply before
+  /// it, by id and, for agents that lost the id, by its text's SHA-256 and
+  /// which match of that text it is. Null before the first reply.
+  static Json? forkPoint(List<ChatMessage> messages, UserMsg message) {
+    final at = messages.indexWhere((m) => m.id == message.id);
+    final replies = messages
+        .take(at < 0 ? 0 : at)
+        .whereType<AssistantMsg>()
+        .where((m) => !m.startup)
+        .toList();
+    if (replies.isEmpty) return null;
+    String fingerprint(String text) {
+      final digest = Sha256().toSync().hashSync(utf8.encode(text)).bytes;
+      return 'sha256:${digest.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
+    }
+
+    final last = replies.last;
+    final target = fingerprint(last.text);
+    var occurrence = 0;
+    for (final reply in replies) {
+      if (fingerprint(reply.text) == target) occurrence++;
+    }
+    return {
+      'messageId': last.id,
+      'messageFingerprint': target,
+      'messageOccurrence': occurrence,
+    };
   }
 
   /// Files between the phone and this session's folder.
@@ -311,6 +359,8 @@ class SessionController extends ChangeNotifier {
       _config = _setup.configOptions;
       _modes = _setup.modes;
       _loaded = true;
+      final waiting = _handoff.remove('${host.key}/$sessionId');
+      if (waiting != null) scheduleMicrotask(() => editAgain(waiting));
     } catch (error) {
       _error = _describe(error);
     } finally {
@@ -391,6 +441,7 @@ class SessionController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _handoff.remove('${host.key}/$sessionId');
     _throttle?.cancel();
     unawaited(_drafts.close());
     unawaited(_updates.cancel());

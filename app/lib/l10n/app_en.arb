@@ -830,5 +830,10 @@
       }
     }
   },
-  "editAndResend": "Edit and send again"
+  "editAndResend": "Edit and send again",
+  "branchFromHere": "Branch from here",
+  "branchFromHereHint": "A new session with the conversation before this message",
+  "editHere": "Edit and send again",
+  "editHereHint": "In this session; the agent still remembers the original",
+  "couldNotBranch": "Couldn't branch the session"
 }

@@ -11,7 +11,7 @@ void main() {
   testWidgets('a sent message goes back to the composer to edit', (
     tester,
   ) async {
-    final drafts = StreamController<String>.broadcast();
+    final drafts = StreamController<UserMsg>.broadcast();
     addTearDown(drafts.close);
     UserMsg? edited;
     final sent = <String>[];
@@ -33,7 +33,7 @@ void main() {
                   working: false,
                   onEdit: (message) {
                     edited = message;
-                    drafts.add(message.text);
+                    drafts.add(message);
                   },
                 ),
               ),

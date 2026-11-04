@@ -424,5 +424,10 @@
   "uploadedHere": "已发送 {count} 个文件到电脑",
   "fileTooLarge": "{name} 超过 100 MB，无法传送。",
   "fileNofM": "第 {n} 个，共 {count} 个",
-  "editAndResend": "编辑后重发"
+  "editAndResend": "编辑后重发",
+  "branchFromHere": "从这里分叉",
+  "branchFromHereHint": "新开一个会话，只带上这条消息之前的对话",
+  "editHere": "编辑后重发",
+  "editHereHint": "在当前会话里重发，智能体仍记得原来那句",
+  "couldNotBranch": "没能分叉会话"
 }

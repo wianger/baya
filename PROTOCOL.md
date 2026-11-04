@@ -143,7 +143,7 @@ Standard ACP methods, with Baya's meaning:
 |---|---|
 | `session/list` | Every session on the computer, newest first. `SessionInfo._meta.baya` carries `agent`, `agentName`, `working`, `running` and, when the agent could not start, `error`. |
 | `session/new` | `{cwd, mcpServers, _meta.baya.agent}`; the configured default agent when omitted. With `_meta.baya.agentSessionId` it adopts one of the agent's own conversations (see `_baya/agent_sessions`) and loads its history. |
-| `session/load` | Replays the transcript as `session/update` notifications, then answers with `configOptions`, `modes` and `_meta.baya` (`agentName`, `title`, `working`, `promptCapabilities`). The phone is attached until `session/close`. |
+| `session/load` | Replays the transcript as `session/update` notifications, then answers with `configOptions`, `modes` and `_meta.baya` (`agentName`, `title`, `working`, `promptCapabilities`, `canFork`). The phone is attached until `session/close`. |
 | `session/resume` | Attaches without the replay. |
 | `session/prompt` | Queued behind a running turn. `_meta.baya.messageId` names the echoed `user_message_chunk`s. |
 | `session/cancel` | Ends the turn and drops queued prompts. |
@@ -158,6 +158,7 @@ Baya methods:
 | `_baya/browse` | `{path?, showHidden?}` | `{path, parent, home, roots, directories:[{name,path}], truncated}` |
 | `_baya/files` | `{sessionId, path?, showHidden?}` | `{root, path, parent, entries:[{name,path,type,size,modifiedAt}], truncated}` |
 | `_baya/read_file` | `{sessionId, path}` | `{name, path, size, modifiedAt, content, binary, truncated}` (256 KiB at most) |
+| `_baya/fork` | `{sessionId, messageId?, messageFingerprint?, messageOccurrence?}` | `{session}`: a new session (same folder, agent and title) holding the conversation up to the agent message `messageId`, or none of it without one. The fingerprint (`sha256:<hex>` of the message text) and its 1-based occurrence find the message when the agent lost its id. Only when `canFork`: the agent declares `sessionCapabilities.fork` and reads the JetBrains AIR fork point in `session/fork` `_meta` (Claude Code, Codex). The fork runs in a short-lived agent process, so the new session's own process can open it |
 | `_baya/upload_begin` | `{sessionId, name, size, dir?}` | `{uploadId, dir}`: starts sending a phone file (100 MB at most) into `dir`, a folder inside the session, or `.baya/uploads` there (kept out of git) |
 | `_baya/upload_chunk` | `{uploadId, offset, data}` | `{received}`: the next piece, base64, 1 MiB at most, starting where the last ended |
 | `_baya/upload_finish` | `{uploadId}` | `{name, path, size}` once every byte arrived; the name is made safe and `name (2).ext`… if taken |

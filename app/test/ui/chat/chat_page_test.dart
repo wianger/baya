@@ -150,6 +150,49 @@ void main() {
     await _finish(tester, chat);
   });
 
+  testWidgets('editing a sent message offers a branch when the agent can', (
+    tester,
+  ) async {
+    final computer = _computer()
+      ..setup = {
+        '_meta': {
+          'baya': {'agentName': 'Claude Code', 'canFork': true},
+        },
+      };
+    final chat = await _pump(tester, computer: computer);
+    await tester.tap(find.byKey(const Key('user-edit')));
+    await tester.pumpAndSettle();
+    expect(find.text('Branch from here'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('edit-here')));
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextField>(
+      find.descendant(
+        of: find.byKey(const ValueKey('chat-floating-composer')),
+        matching: find.byType(TextField),
+      ),
+    );
+    expect(field.controller!.text, 'Why does login fail?');
+    expect(chat.host.calls.any((c) => c.method == '_baya/fork'), isFalse);
+    await _finish(tester, chat);
+  });
+
+  testWidgets('without branching, edit goes straight to the composer', (
+    tester,
+  ) async {
+    final chat = await _pump(tester);
+    await tester.tap(find.byKey(const Key('user-edit')));
+    await tester.pumpAndSettle();
+    expect(find.text('Branch from here'), findsNothing);
+    final field = tester.widget<TextField>(
+      find.descendant(
+        of: find.byKey(const ValueKey('chat-floating-composer')),
+        matching: find.byType(TextField),
+      ),
+    );
+    expect(field.controller!.text, 'Why does login fail?');
+    await _finish(tester, chat);
+  });
+
   testWidgets('sending a prompt shows the reply', (tester) async {
     final chat = await _pump(tester);
     chat.host.reply = [

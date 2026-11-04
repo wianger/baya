@@ -589,6 +589,11 @@ export class HostedSession {
           title: this.title,
           working: this.working,
           promptCapabilities: this.process?.info?.agentCapabilities?.promptCapabilities ?? {},
+          canFork: Boolean(
+            (this.process?.info?.agentCapabilities?.sessionCapabilities as Json | undefined)?.[
+              "fork"
+            ],
+          ),
         },
       },
     };

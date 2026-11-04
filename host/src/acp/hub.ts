@@ -173,6 +173,36 @@ export class SessionHub {
     });
   }
 
+  /**
+   * The agent's copy of [source]'s conversation up to [point], an agent
+   * message (ACP's `session/fork` with the JetBrains AIR fork point Claude
+   * Code and Codex read). It runs in a process of its own that exits after,
+   * so nothing holds the branch open when its session loads it: Codex lets
+   * one process write a conversation at a time.
+   */
+  fork(
+    source: HostedSession,
+    point: { messageId: string; messageFingerprint?: string; messageOccurrence?: number },
+  ): Promise<string> {
+    const { agent: id, cwd, agentSessionId } = source.record;
+    return this.withAgent(id, cwd, async (agent, info) => {
+      const caps = info.agentCapabilities?.sessionCapabilities as Json | undefined;
+      if (!caps?.["fork"] || !agentSessionId) {
+        throw RpcError.invalidParams(`${agent.definition.name} cannot branch this conversation.`);
+      }
+      const forked = await agent.request<{ sessionId?: unknown }>("session/fork", {
+        sessionId: agentSessionId,
+        cwd,
+        mcpServers: agent.definition.mcpServers ?? [],
+        _meta: { jetbrains: { air: { fork: { version: 1, ...point } } } },
+      });
+      if (typeof forked?.sessionId !== "string") {
+        throw new Error(`${agent.definition.name} did not branch.`);
+      }
+      return forked.sessionId;
+    });
+  }
+
   /** Running sessions of agent [id] pick up new sign-in state on next use. */
   private restartAgent(id: string): void {
     for (const session of this.sessions.values()) {

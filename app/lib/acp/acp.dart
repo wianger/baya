@@ -792,12 +792,16 @@ class SessionSetup {
   final bool acceptsImages;
   final bool working;
 
+  /// The agent can branch the conversation from an earlier reply.
+  final bool canFork;
+
   const SessionSetup({
     this.configOptions = const [],
     this.modes,
     this.agentName = '',
     this.acceptsImages = false,
     this.working = false,
+    this.canFork = false,
   });
 
   factory SessionSetup.fromJson(Json json) {
@@ -808,6 +812,7 @@ class SessionSetup {
       agentName: _string(baya['agentName']) ?? '',
       acceptsImages: _map(baya['promptCapabilities'])['image'] == true,
       working: baya['working'] == true,
+      canFork: baya['canFork'] == true,
     );
   }
 }

@@ -24,6 +24,7 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
+import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
 import 'package:app/ui/workspaces/session_sheet.dart';
@@ -325,14 +326,60 @@ class ChatPage extends StatelessWidget {
       messages: visible,
       working: working,
       live: session.loaded && !session.loading,
-      onEdit: (message) {
-        final image = message.image;
-        if (image != null) {
-          context.read<AttachmentViewModel>().restore(image);
-        }
-        session.editAgain(message.text);
-      },
+      onEdit: (message) => _edit(context, session, message),
     );
+  }
+
+  /// Edit a sent message: here, or (when the agent can) in a branch that
+  /// holds the conversation before it.
+  static Future<void> _edit(
+    BuildContext context,
+    SessionController session,
+    UserMsg message,
+  ) async {
+    if (!session.canFork || !session.online) {
+      session.editAgain(message);
+      return;
+    }
+    final branch = await showBayaSheet<bool>(
+      context,
+      title: context.l10n.editAndResend,
+      builder: (sheetContext) => BayaGroup(
+        children: [
+          BayaRow(
+            key: const Key('edit-here'),
+            icon: LucideIcons.pencil,
+            label: context.l10n.editHere,
+            subtitle: context.l10n.editHereHint,
+            onTap: () => Navigator.of(sheetContext).pop(false),
+          ),
+          BayaRow(
+            key: const Key('edit-branch'),
+            icon: LucideIcons.gitBranch,
+            label: context.l10n.branchFromHere,
+            subtitle: context.l10n.branchFromHereHint,
+            onTap: () => Navigator.of(sheetContext).pop(true),
+          ),
+        ],
+      ),
+    );
+    if (branch == null || !context.mounted) return;
+    if (!branch) {
+      session.editAgain(message);
+      return;
+    }
+    try {
+      final id = await session.branchBefore(message);
+      if (!context.mounted) return;
+      await openBranch(context, session.host.key, session.sessionId, id);
+    } catch (error) {
+      if (!context.mounted) return;
+      await showBayaNotice(
+        context,
+        title: context.l10n.couldNotBranch,
+        message: '$error',
+      );
+    }
   }
 
   Widget _buildInput(BuildContext context, SessionController session) {
