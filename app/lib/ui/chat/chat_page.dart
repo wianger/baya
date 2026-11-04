@@ -321,6 +321,7 @@ class ChatPage extends StatelessWidget {
       key: const ValueKey('chat-message-list'),
       messages: visible,
       working: working,
+      live: session.loaded && !session.loading,
     );
   }
 

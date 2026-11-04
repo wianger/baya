@@ -81,17 +81,27 @@ void main() {
     expect(find.byKey(const Key('agent-working-indicator')), findsNothing);
   });
 
-  testWidgets('a reply being written replaces the loader', (tester) async {
-    await _pumpList(
-      tester,
-      working: true,
-      messages: const [
-        UserMsg(id: 'u1', text: 'Question'),
-        AssistantMsg(id: 'a1', text: 'I found the first part of the answer.'),
-      ],
-    );
+  testWidgets('a reply being written keeps the loader and has no actions', (
+    tester,
+  ) async {
+    const messages = [
+      UserMsg(id: 'u0', text: 'Earlier'),
+      AssistantMsg(id: 'a0', text: 'Earlier answer.'),
+      UserMsg(id: 'u1', text: 'Question'),
+      AssistantMsg(id: 'a1', text: 'I found the first part of the answer.'),
+    ];
+    await _pumpList(tester, working: true, messages: messages);
     await tester.pump();
     expect(find.text('I found the first part of the answer.'), findsOneWidget);
+    expect(find.byKey(const Key('agent-working-indicator')), findsOneWidget);
+    // Only the finished turn offers copy and read-aloud.
+    expect(find.byTooltip('Copy'), findsOneWidget);
+    expect(find.byKey(const Key('assistant-speak')), findsOneWidget);
+
+    await _pumpList(tester, working: false, messages: messages);
+    await tester.pump();
     expect(find.byKey(const Key('agent-working-indicator')), findsNothing);
+    expect(find.byTooltip('Copy'), findsNWidgets(2));
+    expect(find.byKey(const Key('assistant-speak')), findsNWidgets(2));
   });
 }

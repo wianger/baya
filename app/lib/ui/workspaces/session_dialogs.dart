@@ -2,6 +2,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_dialog.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 
 /// Phone-local conversation rename. Empty input clears the override so the
@@ -40,7 +41,7 @@ Future<bool> showDeviceDeleteDialog(
   BuildContext context, {
   required String name,
 }) async {
-  final confirmed = await showDialog<bool>(
+  final confirmed = await showBayaDialog<bool>(
     context: context,
     builder: (dialogContext) {
       final colors = dialogContext.colors;
@@ -73,7 +74,7 @@ Future<bool> showWorkspaceDeleteDialog(
   BuildContext context, {
   required String name,
 }) async {
-  final confirmed = await showDialog<bool>(
+  final confirmed = await showBayaDialog<bool>(
     context: context,
     builder: (dialogContext) => BayaDialog(
       title: Text(context.l10n.deleteWorkspaceNamed(name)),
@@ -104,7 +105,7 @@ Future<String?> showNameDialog(
   required String title,
   required String currentValue,
   required String hintText,
-}) => showDialog<String?>(
+}) => showBayaDialog<String?>(
   context: context,
   builder: (_) =>
       _NameDialog(title: title, currentValue: currentValue, hintText: hintText),

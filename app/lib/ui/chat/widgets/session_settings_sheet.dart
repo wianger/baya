@@ -487,7 +487,7 @@ class _SignOutState extends State<_SignOut> {
 
   Future<void> _signOut(String agent) async {
     final colors = context.colors;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showBayaDialog<bool>(
       context: context,
       builder: (dialogContext) => BayaDialog(
         title: Text(context.l10n.signOutOf(agent)),

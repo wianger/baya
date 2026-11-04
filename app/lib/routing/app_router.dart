@@ -9,6 +9,7 @@ import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/chat_page.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
 import 'package:app/ui/workspaces/new_session_page.dart';
 import 'package:app/ui/about/about_page.dart';
@@ -157,12 +158,6 @@ GoRouter buildRouter(
       GoRoute(path: '/boot', builder: (ctx, st) => const _BootSplash()),
 
       GoRoute(
-        path: '/home',
-        builder: (ctx, st) => ViewmodelProvider<HomeViewModel>(
-          child: const SessionShell(child: SessionWelcome()),
-        ),
-      ),
-      GoRoute(
         path: '/new-session',
         builder: (ctx, st) {
           final extra = st.extra;
@@ -177,17 +172,6 @@ GoRouter buildRouter(
           );
         },
       ),
-      GoRoute(
-        path: '/session-files',
-        builder: (ctx, st) => MultiProvider(
-          providers: [
-            ViewmodelProvider<HomeViewModel>(),
-            ViewmodelProvider<SessionFilesViewModel>(),
-          ],
-          child: const SessionShell(child: SessionFilesPage()),
-        ),
-      ),
-
       // QR pairing flow
       GoRoute(
         path: '/pair',
@@ -213,46 +197,70 @@ GoRouter buildRouter(
         ),
       ),
 
-      // Chat: the selected session, opened from Home or the sidebar. The
-      // route rebuilds per selection, so each session gets its own
-      // controller (and leaves the previous one with `session/close`).
-      GoRoute(
-        path: '/chat',
-        builder: (ctx, st) {
-          final extra = st.extra;
-          final selection = ctx.watch<SessionSelection>().current;
-          final host = hosts.byKey(selection?.hostKey);
-          if (selection == null || host == null) {
-            return ViewmodelProvider<HomeViewModel>(
-              child: const SessionShell(child: SessionWelcome()),
-            );
-          }
-          return MultiProvider(
-            key: ValueKey('chat-${selection.hostKey}-${selection.sessionId}'),
-            providers: [
-              ChangeNotifierProvider<SessionController>(
-                create: (_) => SessionController(host, selection.sessionId),
-              ),
-              ViewmodelProvider<HomeViewModel>(),
-              ViewmodelProvider<VoiceInputViewModel>(),
-              ViewmodelProvider<AttachmentViewModel>(),
-            ],
-            child: SessionShell(
-              child: ChatPage(
-                initialTitle: extra is Map
-                    ? extra['title'] as String?
-                    : selection.title,
-                initialDevice: extra is Map
-                    ? extra['device'] as String?
-                    : selection.device,
-                initialOnline: extra is Map
-                    ? extra['online'] == true
-                    : selection.online,
-                showBack: false,
+      // Home, a chat and its files share one shell: the sidebar (tablets)
+      // or drawer (phones) stays put while the pane beside it fades through
+      // from one to the next.
+      ShellRoute(
+        builder: (ctx, st, child) =>
+            ViewmodelProvider<HomeViewModel>(child: SessionShell(child: child)),
+        routes: [
+          GoRoute(
+            path: '/home',
+            pageBuilder: (ctx, st) =>
+                _fadeThrough(st.pageKey, const SessionWelcome()),
+          ),
+          GoRoute(
+            path: '/session-files',
+            pageBuilder: (ctx, st) => _fadeThrough(
+              st.pageKey,
+              ViewmodelProvider<SessionFilesViewModel>(
+                child: const SessionFilesPage(),
               ),
             ),
-          );
-        },
+          ),
+          // The selected session. Its page is keyed by the session, so
+          // opening another fades through to a page with its own
+          // controller, and the one left behind closes with `session/close`.
+          GoRoute(
+            path: '/chat',
+            pageBuilder: (ctx, st) {
+              final extra = st.extra;
+              final selection = ctx.watch<SessionSelection>().current;
+              final host = hosts.byKey(selection?.hostKey);
+              if (selection == null || host == null) {
+                return _fadeThrough(
+                  const ValueKey('chat-none'),
+                  const SessionWelcome(),
+                );
+              }
+              return _fadeThrough(
+                ValueKey('chat-${selection.hostKey}-${selection.sessionId}'),
+                MultiProvider(
+                  providers: [
+                    ChangeNotifierProvider<SessionController>(
+                      create: (_) =>
+                          SessionController(host, selection.sessionId),
+                    ),
+                    ViewmodelProvider<VoiceInputViewModel>(),
+                    ViewmodelProvider<AttachmentViewModel>(),
+                  ],
+                  child: ChatPage(
+                    initialTitle: extra is Map
+                        ? extra['title'] as String?
+                        : selection.title,
+                    initialDevice: extra is Map
+                        ? extra['device'] as String?
+                        : selection.device,
+                    initialOnline: extra is Map
+                        ? extra['online'] == true
+                        : selection.online,
+                    showBack: false,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
 
       // Settings (entered from /home menu)
@@ -276,6 +284,14 @@ GoRouter buildRouter(
     ],
   );
 }
+
+Page<void> _fadeThrough(LocalKey key, Widget child) => CustomTransitionPage(
+  key: key,
+  child: child,
+  transitionDuration: BayaMotion.emphasized,
+  reverseTransitionDuration: BayaMotion.standard,
+  transitionsBuilder: bayaFadeThrough,
+);
 
 class _BootSplash extends StatelessWidget {
   const _BootSplash();

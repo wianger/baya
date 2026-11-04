@@ -65,7 +65,13 @@ class ToolRunItem {
 /// Tool and thinking boundaries split one logical answer across several
 /// bubbles. The result uses identity equality so segments are told apart
 /// even when ids repeat.
-Set<AssistantMsg> assistantCopyOwnersForTurns(List<ChatMessage> messages) {
+/// The reply of each finished turn: the last assistant segment before the
+/// next prompt. While [working], the newest turn is still being written and
+/// gets none, so copy and read-aloud never offer half an answer.
+Set<AssistantMsg> assistantCopyOwnersForTurns(
+  List<ChatMessage> messages, {
+  bool working = false,
+}) {
   final owners = Set<AssistantMsg>.identity();
   AssistantMsg? lastAssistant;
 
@@ -81,7 +87,7 @@ Set<AssistantMsg> assistantCopyOwnersForTurns(List<ChatMessage> messages) {
     }
     if (message is UserMsg) finishTurn();
   }
-  finishTurn();
+  if (!working) finishTurn();
   return owners;
 }
 
@@ -203,10 +209,15 @@ class ChatMessageList extends StatefulWidget {
   final List<ChatMessage> messages;
   final bool working;
 
+  /// The history has loaded: rows that appear from now on arrive live and
+  /// animate in, once each.
+  final bool live;
+
   const ChatMessageList({
     super.key,
     required this.messages,
     required this.working,
+    this.live = true,
   });
 
   @override
@@ -284,18 +295,45 @@ class _ChatMessageListState extends State<ChatMessageList> {
   // only when the transcript changes; a streamed chunk then rebuilds the one
   // message it touched, not every visible bubble.
   List<ChatMessage>? _seen;
+  bool _seenWorking = false;
   List<Object> _items = const [];
   Set<AssistantMsg> _copyOwners = const {};
   final _built = Map<ChatMessage, (bool, Widget)>.identity();
 
   void _refresh() {
     final messages = widget.messages;
-    if (identical(messages, _seen)) return;
+    if (identical(messages, _seen) && widget.working == _seenWorking) return;
+    _seenWorking = widget.working;
     _seen = messages;
     _items = toolRunItemsForMessages(messages);
-    _copyOwners = assistantCopyOwnersForTurns(messages);
+    _copyOwners = assistantCopyOwnersForTurns(
+      messages,
+      working: widget.working,
+    );
     final live = Set<ChatMessage>.identity()..addAll(messages);
     _built.removeWhere((message, _) => !live.contains(message));
+  }
+
+  // Rows already on screen, or in the history when it loaded, never animate
+  // in again.
+  final _shown = <Object>{};
+  bool _wasLive = false;
+
+  static Object _rowKey(Object item) => switch (item) {
+    ToolRunItem(:final tools) => tools.first.id,
+    StartupNote(:final message) => message.id,
+    ToolEvent(:final toolCallId) => toolCallId,
+    ChatMessage(:final id) => id,
+    _ => item,
+  };
+
+  void _settle() {
+    if (!widget.live) {
+      _wasLive = false;
+    } else if (!_wasLive) {
+      _wasLive = true;
+      _shown.addAll(_items.map(_rowKey));
+    }
   }
 
   Widget _once(ChatMessage message, bool flag, Widget Function() build) {
@@ -309,10 +347,12 @@ class _ChatMessageListState extends State<ChatMessageList> {
   @override
   Widget build(BuildContext context) {
     _refresh();
+    _settle();
     final items = _items;
-    // While a turn runs and the agent is not mid-reply, a quiet row says so.
-    final showWorkingIndicator =
-        widget.working && widget.messages.lastOrNull is! AssistantMsg;
+    // While a turn runs, a quiet row at the newest position says so, also
+    // under text already written: the agent may be thinking or about to call
+    // a tool, with nothing new to show for a while.
+    final showWorkingIndicator = widget.working;
     final leadingRows = showWorkingIndicator ? 1 : 0;
     final itemCount = items.length + leadingRows;
     // One copy action per assistant turn: tool calls can split a single reply
@@ -367,11 +407,19 @@ class _ChatMessageListState extends State<ChatMessageList> {
               itemBuilder: (_, i) {
                 // `reverse: true` makes index 0 the newest row. Stable keys
                 // keep streaming insertion from rematching unrelated rows.
-                Widget constrain(Widget child) => Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 760),
-                    child: child,
+                var fresh = false;
+                if (i >= leadingRows) {
+                  final row = items[items.length - 1 - (i - leadingRows)];
+                  fresh = widget.live && _shown.add(_rowKey(row));
+                }
+                Widget constrain(Widget child) => RevealGate(
+                  animate: fresh,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 760),
+                      child: child,
+                    ),
                   ),
                 );
                 if (showWorkingIndicator && i == 0) {

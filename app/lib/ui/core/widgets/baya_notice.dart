@@ -1,6 +1,7 @@
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -19,7 +20,7 @@ Future<void> showBayaNotice(
   VoidCallback? onSecondary,
   bool dismissible = true,
 }) {
-  return showDialog<void>(
+  return showBayaDialog<void>(
     context: context,
     barrierDismissible: dismissible,
     builder: (dialogContext) {
