@@ -166,6 +166,21 @@ Future<String?> tailnetDomainOfThisPhone() async {
   return null;
 }
 
+/// This phone's own tailnet IPv4 address, or null when Tailscale is off.
+Future<String?> tailnetAddressOfThisPhone() async {
+  try {
+    final interfaces = await NetworkInterface.list(
+      type: InternetAddressType.IPv4,
+    );
+    for (final address in interfaces.expand((i) => i.addresses)) {
+      if (isTailnetAddress(address.address)) return address.address;
+    }
+  } catch (_) {
+    // No interfaces to read.
+  }
+  return null;
+}
+
 /// Tailscale addresses are in 100.64.0.0/10.
 bool isTailnetAddress(String ipv4) {
   final parts = ipv4.split('.').map(int.tryParse).toList();

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
+import { adbConnect, adbDisconnect, adbPair, adbStatus } from "../integrations/adb.ts";
 import { pairPhone } from "../pairing/service.ts";
 import { PREVIEW_TOKEN_HEADER, previewPorts, previews } from "../preview/preview.ts";
 import { packageVersion } from "../runtime/version.ts";
@@ -209,6 +210,14 @@ export class PhoneConnection implements HubPhone {
         );
       case "_baya/convert_pdf":
         return convertToPdf(this.session(params).record.cwd, stringParam(params, "path"));
+      case "_baya/adb_status":
+        return adbStatus();
+      case "_baya/adb_pair":
+        return adbPair(params["address"], params["code"]);
+      case "_baya/adb_connect":
+        return adbConnect(params["address"]);
+      case "_baya/adb_disconnect":
+        return adbDisconnect(params["address"]);
       case "_baya/git_status":
         return gitStatus(this.session(params).record.cwd);
       case "_baya/git_diff":

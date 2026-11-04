@@ -167,6 +167,10 @@ Baya methods:
 | `_baya/archive_list` | `{sessionId, path}` | `{entries:[{name,size,directory}], truncated}`: a zip (also jar, apk, whl, epub…), tar or tar.gz in the session |
 | `_baya/archive_extract` | `{sessionId, path, entry}` | `{path, name, size}`: the entry written below the session's `.baya/extracted`, names made safe |
 | `_baya/convert_pdf` | `{sessionId, path}` | `{path, name}`: an office document (doc/x, xls/x, ppt/x, odt/ods/odp, rtf) as PDF in `.baya/converted`, through LibreOffice. Error reason `no_office` when the computer has none |
+| `_baya/adb_status` | `{}` | `{adb, devices:[{serial,state}]}`: the computer's `adb` (null without one) and `adb devices` |
+| `_baya/adb_pair` | `{address, code}` | `{output}`: `adb pair` with the phone's Wireless debugging pairing address and six-digit code |
+| `_baya/adb_connect` | `{address}` | `{serial, output}`: `adb connect`; fails unless the phone then shows as `device`. Agents use it with `adb -s <serial>` |
+| `_baya/adb_disconnect` | `{address}` | `{output}` |
 | `_baya/agent_auth` | `{agent}` | `{authMethods, logout}`: the agent's ACP auth methods; `logout` when it supports signing out |
 | `_baya/authenticate` | `{agent, methodId}` | `{}`; the agent restarts signed in |
 | `_baya/logout` | `{agent}` | `{}` |

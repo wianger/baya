@@ -1,6 +1,6 @@
 {
   "name": "@wianger/baya",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "description": "Baya host: runs ACP coding agents on this computer for the Baya phone app.",
   "type": "module",
   "main": "dist/cli.js",

@@ -857,5 +857,75 @@
         "type": "int"
       }
     }
-  }
+  },
+  "phoneForAgents": "Let agents use this phone",
+  "phoneForAgentsSettingsHint": "Wireless debugging: agents on the computer use adb",
+  "phoneForAgentsHint": "The computer's agents can then work on this phone with adb: screenshots, taps and typing, logs, installing an APK. It goes over your tailnet, and stops when you turn Wireless debugging off.",
+  "noComputerOnline": "No computer is online. Open Baya on a computer, then come back.",
+  "adbChecking": "Asking {computer} for its adb…",
+  "@adbChecking": {
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "adbMissing": "{computer} has no adb. Install Android platform-tools there, then come back.",
+  "@adbMissing": {
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "adbNotConnected": "{computer} isn't connected to this phone yet.",
+  "@adbNotConnected": {
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      }
+    }
+  },
+  "adbConnectedTo": "{computer} is connected to this phone as {serial}.",
+  "@adbConnectedTo": {
+    "placeholders": {
+      "computer": {
+        "type": "String"
+      },
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "adbAgentHint": "This phone is adb device {serial} (adb -s {serial} …)",
+  "@adbAgentHint": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "adbStepEnable": "Turn on Wireless debugging",
+  "adbStepEnableHint": "In Developer options (tap Build number seven times in About phone to show them), turn on Wireless debugging. The phone needs to be on Wi-Fi for it.",
+  "adbStepPair": "Pair once",
+  "adbStepPairHint": "In Wireless debugging, tap \"Pair device with pairing code\" and enter its port and code here. Split screen keeps both in view. The address is this phone's on your tailnet.",
+  "adbStepConnect": "Connect",
+  "adbStepConnectHint": "Enter the port shown under \"IP address & Port\" on the Wireless debugging screen. It changes each time Wireless debugging is turned on.",
+  "openDeveloperOptions": "Open developer options",
+  "phoneAddress": "This phone's address",
+  "pairingPort": "Pairing port",
+  "pairingCode": "Pairing code",
+  "connect": "Connect",
+  "disconnect": "Disconnect",
+  "adbPaired": "Paired. Now connect.",
+  "adbConnected": "Connected to {address}.",
+  "@adbConnected": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "adbDisconnected": "Disconnected.",
+  "phoneSection": "This phone"
 }

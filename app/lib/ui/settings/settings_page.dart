@@ -6,6 +6,7 @@ import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
+import 'package:app/ui/settings/adb_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -93,6 +94,21 @@ class SettingsPage extends StatelessWidget {
                             context,
                             () => const DisplaySettingsPage(),
                           ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                    BayaSectionLabel(context.l10n.phoneSection),
+                    BayaGroup(
+                      children: [
+                        BayaRow(
+                          key: const Key('settings-adb'),
+                          icon: LucideIcons.smartphone,
+                          label: context.l10n.phoneForAgents,
+                          subtitle: context.l10n.phoneForAgentsSettingsHint,
+                          chevron: true,
+                          onTap: () =>
+                              _openDetail(context, () => const AdbPage()),
                         ),
                       ],
                     ),

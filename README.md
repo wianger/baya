@@ -48,6 +48,9 @@ end-to-end encrypted.
 - **See files**: images, PDFs, video and audio, SVG, CSV tables and
   Jupyter notebooks open on the phone; archives list their files, and office
   documents show as PDF when the computer has LibreOffice.
+- **The phone for agents**: pair the computer's adb with the phone's
+  Wireless debugging over the tailnet, and agents test on the phone itself:
+  screenshots, taps, logs, installing an APK.
 - **Review**: per-file diffs, revert a hunk, commit, push and open a pull
   request.
 - **Private**: Noise end-to-end encryption over Tailscale; nothing goes
