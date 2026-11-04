@@ -14,23 +14,35 @@ class Transcript {
   int _sequence = 0;
 
   /// Confirmed rows, then this phone's pending prompts.
-  List<ChatMessage> get messages => [..._rows, ..._pending];
+  /// The same list until the transcript changes, so widgets can tell an
+  /// unchanged transcript by identity.
+  List<ChatMessage> get messages =>
+      _messages ??= List.unmodifiable([..._rows, ..._pending]);
+  List<ChatMessage>? _messages;
 
   bool get isEmpty => _rows.isEmpty && _pending.isEmpty;
 
   void clear() {
+    _messages = null;
     _rows.clear();
     _terminals.clear();
     _sequence = 0;
   }
 
   /// Shows a prompt right away; its echo from the computer replaces it.
-  void addPending(UserMsg message) => _pending.add(message);
+  void addPending(UserMsg message) {
+    _messages = null;
+    _pending.add(message);
+  }
 
-  void dropPending(String id) => _pending.removeWhere((m) => m.id == id);
+  void dropPending(String id) {
+    _messages = null;
+    _pending.removeWhere((m) => m.id == id);
+  }
 
   /// Ends a turn: nothing is still being written.
   void settle() {
+    _messages = null;
     for (var i = 0; i < _rows.length; i++) {
       final row = _rows[i];
       if (row is ThinkingMsg && !row.complete) {
@@ -41,6 +53,7 @@ class Transcript {
 
   /// A terminal's latest output, shown on the tool call that runs it.
   void terminal(TerminalSnapshot snapshot) {
+    _messages = null;
     _terminals[snapshot.terminalId] = snapshot;
     for (var i = 0; i < _rows.length; i++) {
       final row = _rows[i];
@@ -60,6 +73,7 @@ class Transcript {
 
   /// Marks the tool calls a permission question is waiting on.
   void markAwaiting(Set<String> toolCallIds) {
+    _messages = null;
     for (var i = 0; i < _rows.length; i++) {
       final row = _rows[i];
       if (row is ToolEvent) {
@@ -69,6 +83,7 @@ class Transcript {
   }
 
   void apply(SessionUpdate update) {
+    _messages = null;
     if (update is! MessageChunk || update.role != ChunkRole.thought) {
       _completeThinking();
     }

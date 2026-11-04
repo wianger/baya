@@ -125,8 +125,10 @@ class _CodeBlockState extends State<CodeBlock> {
                       ),
                     ),
                   ),
-                SelectableText.rich(
-                  context.highlightCode(shown, widget.language, style),
+                HighlightedCode(
+                  code: shown,
+                  language: widget.language,
+                  style: style,
                 ),
               ],
             ),
@@ -306,4 +308,75 @@ class DiffView extends StatelessWidget {
     }
     return max;
   }
+}
+
+/// Selectable code in colour. Long code shows plain for the moment it takes a
+/// background isolate to colour it; results are cached.
+class HighlightedCode extends StatefulWidget {
+  const HighlightedCode({
+    super.key,
+    required this.code,
+    required this.language,
+    required this.style,
+  });
+
+  final String code;
+  final String? language;
+  final TextStyle style;
+
+  @override
+  State<HighlightedCode> createState() => _HighlightedCodeState();
+}
+
+class _HighlightedCodeState extends State<HighlightedCode> {
+  List<Token>? _tokens;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(HighlightedCode old) {
+    super.didUpdateWidget(old);
+    if (old.code != widget.code || old.language != widget.language) _load();
+  }
+
+  void _load() {
+    final language = CodeHighlighter.resolve(widget.language);
+    _tokens = CodeHighlighter.cachedTokens(widget.code, language);
+    if (_tokens != null || language == null) return;
+    final code = widget.code;
+    CodeHighlighter.tokensLater(code, language).then((tokens) {
+      if (mounted && widget.code == code) setState(() => _tokens = tokens);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = _tokens;
+    return SelectableText.rich(
+      tokens == null
+          ? TextSpan(text: widget.code, style: widget.style)
+          : CodeHighlighter.spans(
+              tokens,
+              widget.style,
+              Theme.of(context).brightness,
+            ),
+    );
+  }
+}
+
+/// [tokens] cut into lines, each line its own runs.
+List<List<Token>> tokenLines(List<Token> tokens) {
+  final lines = <List<Token>>[[]];
+  for (final (text, scope) in tokens) {
+    final parts = text.split('\n');
+    for (var i = 0; i < parts.length; i++) {
+      if (i > 0) lines.add([]);
+      if (parts[i].isNotEmpty) lines.last.add((parts[i], scope));
+    }
+  }
+  return lines;
 }

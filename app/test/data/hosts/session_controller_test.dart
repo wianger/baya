@@ -290,4 +290,25 @@ void main() {
     session.dispose();
     conn.dispose();
   });
+
+  test('a burst of streamed chunks makes one rebuild, not one each', () async {
+    final (host, conn) = await online(FakeHost(sessions: [testSession()]));
+    final session = SessionController(conn, 's1');
+    await settle();
+    var notified = 0;
+    session.addListener(() => notified++);
+    for (var i = 0; i < 200; i++) {
+      host.update('s1', {
+        'sessionUpdate': 'agent_message_chunk',
+        'content': {'type': 'text', 'text': 'x'},
+      });
+    }
+    await settle();
+    expect(session.messages.whereType<AssistantMsg>().single.text, 'x' * 200);
+    // The burst still reaches the screen, in at most a couple of rebuilds.
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect(notified, inInclusiveRange(1, 3));
+    session.dispose();
+    conn.dispose();
+  });
 }

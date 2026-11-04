@@ -7,12 +7,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 class _Repository extends Repository implements ISessionFilesRepository {
+  _Repository({this.content = '# Remote Pi\n', this.name = 'README.md'});
+  final String content;
+  final String name;
+
   @override
   Future<SessionDirectoryListing> browse({
     String? path,
     bool showHidden = false,
   }) async {
-    return const SessionDirectoryListing(
+    return SessionDirectoryListing(
       root: '/project',
       path: '/project',
       parent: null,
@@ -23,8 +27,8 @@ class _Repository extends Repository implements ISessionFilesRepository {
           kind: SessionFileKind.directory,
         ),
         SessionFileEntry(
-          name: 'README.md',
-          path: '/project/README.md',
+          name: name,
+          path: '/project/$name',
           kind: SessionFileKind.file,
           size: 14,
         ),
@@ -35,11 +39,11 @@ class _Repository extends Repository implements ISessionFilesRepository {
   @override
   Future<SessionFileContent> read(String path) async {
     return SessionFileContent(
-      name: 'README.md',
+      name: name,
       path: path,
-      size: 14,
+      size: content.length,
       modifiedAt: DateTime(2026, 11, 1),
-      content: '# Remote Pi\n',
+      content: content,
       binary: false,
       truncated: false,
     );
@@ -77,6 +81,36 @@ void main() {
     expect(find.byKey(const Key('code-copy')), findsOneWidget);
     expect(find.byTooltip('Back to directory'), findsOneWidget);
 
+    await tester.pumpWidget(const SizedBox());
+    vm.dispose();
+  });
+
+  testWidgets('a large file builds only the lines on screen', (tester) async {
+    final vm = SessionFilesViewModel(
+      _Repository(
+        name: 'big.txt',
+        content: [for (var i = 1; i <= 20000; i++) 'line $i'].join('\n'),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChangeNotifierProvider<SessionFilesViewModel>.value(
+          value: vm,
+          child: const SessionFilesPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('session-file-/project/big.txt')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('line 1', findRichText: true), findsOneWidget);
+    expect(find.text('line 20000', findRichText: true), findsNothing);
+    expect(
+      find.textContaining('line ', findRichText: true).evaluate().length,
+      lessThan(120),
+    );
     await tester.pumpWidget(const SizedBox());
     vm.dispose();
   });

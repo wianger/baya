@@ -280,10 +280,36 @@ class _ChatMessageListState extends State<ChatMessageList> {
     );
   }
 
-  List<Object> _items() => toolRunItemsForMessages(widget.messages);
+  // Grouping, copy buttons and each message's widget are worked out again
+  // only when the transcript changes; a streamed chunk then rebuilds the one
+  // message it touched, not every visible bubble.
+  List<ChatMessage>? _seen;
+  List<Object> _items = const [];
+  Set<AssistantMsg> _copyOwners = const {};
+  final _built = Map<ChatMessage, (bool, Widget)>.identity();
+
+  void _refresh() {
+    final messages = widget.messages;
+    if (identical(messages, _seen)) return;
+    _seen = messages;
+    _items = toolRunItemsForMessages(messages);
+    _copyOwners = assistantCopyOwnersForTurns(messages);
+    final live = Set<ChatMessage>.identity()..addAll(messages);
+    _built.removeWhere((message, _) => !live.contains(message));
+  }
+
+  Widget _once(ChatMessage message, bool flag, Widget Function() build) {
+    final hit = _built[message];
+    if (hit != null && hit.$1 == flag) return hit.$2;
+    final widget = build();
+    _built[message] = (flag, widget);
+    return widget;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final items = _items();
+    _refresh();
+    final items = _items;
     // While a turn runs and the agent is not mid-reply, a quiet row says so.
     final showWorkingIndicator =
         widget.working && widget.messages.lastOrNull is! AssistantMsg;
@@ -291,7 +317,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
     final itemCount = items.length + leadingRows;
     // One copy action per assistant turn: tool calls can split a single reply
     // into several text segments, but only the final segment gets the button.
-    final copyOwners = assistantCopyOwnersForTurns(widget.messages);
+    final copyOwners = _copyOwners;
 
     // Follow the measured composer height (includes attachment previews, queued
     // messages, multi-line text, safe-area inset). Fall back to 160 before the
@@ -393,10 +419,14 @@ class _ChatMessageListState extends State<ChatMessageList> {
                   KeyedSubtree(
                     key: ValueKey(msg.id),
                     child: switch (msg) {
-                      UserMsg() => UserBubble(msg),
-                      AssistantMsg() => AssistantBubble(
+                      UserMsg() => _once(msg, false, () => UserBubble(msg)),
+                      AssistantMsg() => _once(
                         msg,
-                        showCopy: copyOwners.contains(msg),
+                        copyOwners.contains(msg),
+                        () => AssistantBubble(
+                          msg,
+                          showCopy: copyOwners.contains(msg),
+                        ),
                       ),
                       ThinkingMsg() => ThinkingBlock(
                         id: msg.id,

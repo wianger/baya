@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:flutter/material.dart';
 import 'package:re_highlight/languages/bash.dart';
@@ -211,7 +213,65 @@ abstract final class CodeHighlighter {
     return _engine.getLanguage(name) != null ? name : null;
   }
 
-  /// [code] as coloured spans; plain when the language is unknown.
+  /// Code up to this length is tokenised on the spot; longer code goes to a
+  /// background isolate so a frame never waits on it.
+  static const inlineLength = 4000;
+
+  static final _cache = <(String, int, int), List<Token>>{};
+
+  /// [code] split into runs of text with the scope that colours each.
+  /// Pure Dart, so it runs on any isolate.
+  static List<Token> tokens(String code, String language) {
+    final resolved = resolve(language);
+    if (resolved == null || code.length > maxLength) return [(code, null)];
+    try {
+      final renderer = _TokenRenderer();
+      _engine.highlight(code: code, language: resolved).render(renderer);
+      return renderer.tokens;
+    } catch (_) {
+      return [(code, null)];
+    }
+  }
+
+  /// Tokens from the cache, or null when they still have to be worked out.
+  static List<Token>? cachedTokens(String code, String? language) {
+    if (language == null) return [(code, null)];
+    if (code.length <= inlineLength) return tokens(code, language);
+    final key = (language, code.length, code.hashCode);
+    final hit = _cache.remove(key);
+    if (hit != null) _cache[key] = hit;
+    return hit;
+  }
+
+  /// Tokens for long code, worked out on a background isolate and cached.
+  static Future<List<Token>> tokensLater(String code, String language) async {
+    final key = (language, code.length, code.hashCode);
+    final result = await Isolate.run(() => tokens(code, language));
+    _cache[key] = result;
+    while (_cache.length > 48) {
+      _cache.remove(_cache.keys.first);
+    }
+    return result;
+  }
+
+  /// [tokens] as one span in the theme for [brightness].
+  static TextSpan spans(
+    List<Token> tokens,
+    TextStyle style,
+    Brightness brightness,
+  ) {
+    final theme = brightness == Brightness.dark ? _dark : _light;
+    return TextSpan(
+      style: style,
+      children: [
+        for (final (text, scope) in tokens)
+          TextSpan(text: text, style: scope == null ? null : theme[scope]),
+      ],
+    );
+  }
+
+  /// [code] as coloured spans; plain when the language is unknown. For short
+  /// code; long code goes through [cachedTokens] and [tokensLater].
   static TextSpan highlight(
     String code, {
     required String? language,
@@ -222,17 +282,7 @@ abstract final class CodeHighlighter {
     if (resolved == null || code.length > maxLength) {
       return TextSpan(text: code, style: style);
     }
-    try {
-      final result = _engine.highlight(code: code, language: resolved);
-      final renderer = TextSpanRenderer(
-        style,
-        brightness == Brightness.dark ? _dark : _light,
-      );
-      result.render(renderer);
-      return renderer.span ?? TextSpan(text: code, style: style);
-    } catch (_) {
-      return TextSpan(text: code, style: style);
-    }
+    return spans(tokens(code, resolved), style, brightness);
   }
 
   static Map<String, TextStyle> _theme({
@@ -314,6 +364,38 @@ abstract final class CodeHighlighter {
     attr: const Color(0xFF8A5A00),
     meta: const Color(0xFF6A3FB5),
   );
+}
+
+/// A run of text and the highlight scope that colours it, if any.
+typedef Token = (String, String?);
+
+/// Flattens the highlighter's nested scopes: each run takes the innermost
+/// scope the theme colours.
+class _TokenRenderer implements HighlightRenderer {
+  final tokens = <Token>[];
+  final _scopes = <String?>[];
+
+  @override
+  void addText(String text) {
+    String? scope;
+    for (final candidate in _scopes.reversed) {
+      if (candidate != null && CodeHighlighter._dark.containsKey(candidate)) {
+        scope = candidate;
+        break;
+      }
+    }
+    if (tokens.isNotEmpty && tokens.last.$2 == scope) {
+      tokens[tokens.length - 1] = (tokens.last.$1 + text, scope);
+    } else {
+      tokens.add((text, scope));
+    }
+  }
+
+  @override
+  void openNode(DataNode node) => _scopes.add(node.scope);
+
+  @override
+  void closeNode(DataNode node) => _scopes.removeLast();
 }
 
 extension CodeHighlightContext on BuildContext {

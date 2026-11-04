@@ -311,9 +311,26 @@ class SessionController extends ChangeNotifier {
     _changed();
   }
 
+  /// At most one rebuild per frame: the first change shows at once, and
+  /// what streams in during the next 16 ms follows in one more.
   void _changed() {
-    if (!_disposed) notifyListeners();
+    if (_disposed) return;
+    if (_throttle != null) {
+      _changedSince = true;
+      return;
+    }
+    notifyListeners();
+    _throttle = Timer(const Duration(milliseconds: 16), () {
+      _throttle = null;
+      if (_changedSince) {
+        _changedSince = false;
+        _changed();
+      }
+    });
   }
+
+  Timer? _throttle;
+  bool _changedSince = false;
 
   static String _describe(Object error) => switch (error) {
     RpcError(:final message) => message,
@@ -325,6 +342,7 @@ class SessionController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _throttle?.cancel();
     unawaited(_updates.cancel());
     unawaited(_questions.cancel());
     unawaited(_terminals.cancel());

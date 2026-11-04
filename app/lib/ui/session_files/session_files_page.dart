@@ -2,6 +2,7 @@ import 'package:app/domain/session_files/session_files_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/core/code/code_view.dart';
+import 'package:app/ui/core/widgets/copy_button.dart';
 import 'package:app/ui/core/code/highlighter.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -468,139 +469,247 @@ class _FileRow extends StatelessWidget {
   }
 }
 
-class _FileView extends StatelessWidget {
+class _FileView extends StatefulWidget {
   const _FileView({required this.file});
   final SessionFileContent file;
 
   @override
+  State<_FileView> createState() => _FileViewState();
+}
+
+class _FileViewState extends State<_FileView> {
+  late bool _rendered = _isMarkdown;
+
+  bool get _isMarkdown =>
+      CodeHighlighter.languageForPath(widget.file.name) == 'markdown';
+
+  @override
   Widget build(BuildContext context) {
+    final file = widget.file;
     final content = file.content;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 4, 14, 28),
-      children: [
-        BayaSurface(
-          role: BayaSurfaceRole.content,
-          radius: 18,
-          elevated: false,
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    _fileIcon(file.name),
-                    size: 19,
-                    color: context.colors.highlight,
-                  ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Text(
-                      file.path,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.typo.monoSmall,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 7,
-                runSpacing: 7,
-                children: [
-                  _MetadataChip(label: _formatBytes(file.size)),
-                  if (file.modifiedAt case final modified?)
-                    _MetadataChip(label: _formatDate(modified)),
-                  if (file.truncated)
-                    _MetadataChip(label: context.l10n.previewTruncated),
-                ],
-              ),
-            ],
-          ),
+    final text = !file.binary && content != null && content.isNotEmpty
+        ? content
+        : null;
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+          sliver: SliverToBoxAdapter(child: _FileHeader(file: file)),
         ),
-        const SizedBox(height: 10),
         if (file.binary)
-          _FileNotice(
-            icon: LucideIcons.fileArchive,
-            title: context.l10n.binaryFile,
-            message: context.l10n.binaryFileHint,
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            sliver: SliverToBoxAdapter(
+              child: _FileNotice(
+                icon: LucideIcons.fileArchive,
+                title: context.l10n.binaryFile,
+                message: context.l10n.binaryFileHint,
+              ),
+            ),
           )
-        else if (content == null || content.isEmpty)
-          _FileNotice(
-            icon: LucideIcons.file,
-            title: context.l10n.emptyFile,
-            message: context.l10n.noTextContent,
+        else if (text == null)
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            sliver: SliverToBoxAdapter(
+              child: _FileNotice(
+                icon: LucideIcons.file,
+                title: context.l10n.emptyFile,
+                message: context.l10n.noTextContent,
+              ),
+            ),
           )
-        else
-          _FileContent(name: file.name, content: content),
-        if (file.truncated && !file.binary)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text(
-              context.l10n.first256Kb,
-              style: context.typo.sansBody.copyWith(
-                color: context.colors.warning,
-                fontSize: 12,
+        else ...[
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+            sliver: SliverToBoxAdapter(
+              child: Row(
+                children: [
+                  if (_isMarkdown)
+                    SegmentedButton<bool>(
+                      key: const ValueKey('session-file-view'),
+                      showSelectedIcon: false,
+                      segments: [
+                        ButtonSegment(
+                          value: true,
+                          label: Text(context.l10n.preview),
+                        ),
+                        ButtonSegment(
+                          value: false,
+                          label: Text(context.l10n.source),
+                        ),
+                      ],
+                      selected: {_rendered},
+                      onSelectionChanged: (value) =>
+                          setState(() => _rendered = value.first),
+                    ),
+                  const Spacer(),
+                  BayaCopyButton(key: const Key('code-copy'), text: text),
+                ],
               ),
             ),
           ),
+          if (_isMarkdown && _rendered)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              sliver: SliverToBoxAdapter(
+                child: AgentMarkdown(text, selectable: true),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              sliver: _CodeLines(
+                key: const ValueKey('session-file-content'),
+                code: text,
+                language: CodeHighlighter.languageForPath(file.name),
+              ),
+            ),
+        ],
+        if (file.truncated && !file.binary)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+            sliver: SliverToBoxAdapter(
+              child: Text(
+                context.l10n.first256Kb,
+                style: context.typo.sansBody.copyWith(
+                  color: context.colors.warning,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 28)),
       ],
     );
   }
 }
 
-/// A file's text: Markdown rendered (with its source a tap away), anything
-/// else as highlighted code with line numbers.
-class _FileContent extends StatefulWidget {
-  const _FileContent({required this.name, required this.content});
-
-  final String name;
-  final String content;
-
-  @override
-  State<_FileContent> createState() => _FileContentState();
-}
-
-class _FileContentState extends State<_FileContent> {
-  late bool _rendered = _isMarkdown;
-
-  bool get _isMarkdown =>
-      CodeHighlighter.languageForPath(widget.name) == 'markdown';
+class _FileHeader extends StatelessWidget {
+  const _FileHeader({required this.file});
+  final SessionFileContent file;
 
   @override
   Widget build(BuildContext context) {
-    final code = CodeBlock(
-      key: const ValueKey('session-file-content'),
-      code: widget.content,
-      language: CodeHighlighter.languageForPath(widget.name),
-      title: CodeHighlighter.languageForPath(widget.name) ?? widget.name,
-      lineNumbers: true,
-    );
-    if (!_isMarkdown) return code;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: SegmentedButton<bool>(
-            key: const ValueKey('session-file-view'),
-            showSelectedIcon: false,
-            segments: [
-              ButtonSegment(value: true, label: Text(context.l10n.preview)),
-              ButtonSegment(value: false, label: Text(context.l10n.source)),
+    return BayaSurface(
+      role: BayaSurfaceRole.content,
+      radius: 18,
+      elevated: false,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _fileIcon(file.name),
+                size: 19,
+                color: context.colors.highlight,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  file.path,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.typo.monoSmall,
+                ),
+              ),
             ],
-            selected: {_rendered},
-            onSelectionChanged: (value) =>
-                setState(() => _rendered = value.first),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              _MetadataChip(label: _formatBytes(file.size)),
+              if (file.modifiedAt case final modified?)
+                _MetadataChip(label: _formatDate(modified)),
+              if (file.truncated)
+                _MetadataChip(label: context.l10n.previewTruncated),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A file's lines, numbered and wrapped, built only as they scroll into view
+/// so a large file opens at once; colour arrives from a background isolate.
+class _CodeLines extends StatefulWidget {
+  const _CodeLines({super.key, required this.code, required this.language});
+
+  final String code;
+  final String? language;
+
+  @override
+  State<_CodeLines> createState() => _CodeLinesState();
+}
+
+class _CodeLinesState extends State<_CodeLines> {
+  late List<List<Token>> _lines = _plain();
+
+  List<List<Token>> _plain() => [
+    for (final line in widget.code.split('\n')) [(line, null)],
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final language = CodeHighlighter.resolve(widget.language);
+    if (language == null) return;
+    final cached = CodeHighlighter.cachedTokens(widget.code, language);
+    if (cached != null) {
+      _lines = tokenLines(cached);
+      return;
+    }
+    CodeHighlighter.tokensLater(widget.code, language).then((tokens) {
+      if (mounted) setState(() => _lines = tokenLines(tokens));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final style = codeTextStyle(context, size: 12).copyWith(color: colors.text);
+    final numberStyle = style.copyWith(
+      color: colors.muted.withValues(alpha: .7),
+    );
+    final brightness = Theme.of(context).brightness;
+    final gutter = '${_lines.length}'.length * 7.5 + 8;
+    return DecoratedSliver(
+      decoration: BoxDecoration(
+        color: colors.codeBg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      sliver: SliverPadding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        sliver: SliverList.builder(
+          itemCount: _lines.length,
+          itemBuilder: (context, index) => Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: gutter,
+                  child: Text(
+                    '${index + 1}',
+                    textAlign: TextAlign.right,
+                    style: numberStyle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text.rich(
+                    CodeHighlighter.spans(_lines[index], style, brightness),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 10),
-        if (_rendered)
-          AgentMarkdown(widget.content, selectable: true)
-        else
-          code,
-      ],
+      ),
     );
   }
 }
