@@ -46,7 +46,7 @@ import { dshDesktop, isDsh } from "./integrations/dsh_desktop.ts";
 import { buildQRUri, displayQR } from "./pairing/qr.ts";
 import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/storage.ts";
 import { issuePendingPairToken, type PendingPairToken } from "./pairing/token_store.ts";
-import { selfCommand } from "./runtime/self.ts";
+import { packaged, selfCommand } from "./runtime/self.ts";
 import { packageVersion } from "./runtime/version.ts";
 import { installStartup, uninstallStartup } from "./service.ts";
 import { findSession, folderName, listSessions, removeSession } from "./session/registry.ts";
@@ -58,6 +58,12 @@ import {
   tailnetSelf,
 } from "./tailnet/pairing_server.ts";
 import { DirectServer } from "./transport/direct_server.ts";
+import {
+  cleanUpAfterUpdate,
+  compareVersions,
+  installRelease,
+  latestHostRelease,
+} from "./update.ts";
 import { findExecutable, resolveDirectory } from "./workspace/directories.ts";
 
 const LABEL_NAMES = { windows: "Windows", wsl: "WSL", linux: "Linux", macos: "macOS" } as const;
@@ -93,6 +99,7 @@ ${bold("Host")}
   baya logs [-f]          Show the host log  ${dim("-f follows it")}
   baya doctor             Check Tailscale, identity, agents and pairing
   baya autostart on|off   Start Baya when you log in  ${dim("(no admin rights)")}
+  baya update [--check]   Update to the newest release  ${dim("(the single-file baya)")}
 
 ${dim("Add --json to status, devices, agents, pair or doctor for machine-readable output.")}
 `;
@@ -113,6 +120,7 @@ const COMMANDS = [
   "doctor",
   "agents",
   "autostart",
+  "update",
   "help",
   "version",
 ] as const;
@@ -655,10 +663,36 @@ function autostart(args: ParsedArgs): void {
   }
 }
 
+async function update(args: ParsedArgs): Promise<void> {
+  const current = packageVersion();
+  const release = await latestHostRelease();
+  if (!release || compareVersions(release.version, current) <= 0) {
+    return out(ok(`Baya ${current} is the newest release`));
+  }
+  if (booleanFlag(args, "check")) {
+    return out(
+      `${bold(release.version)} is available ${dim(`(this is ${current})`)} → baya update`,
+    );
+  }
+  if (!packaged) {
+    throw new Error(
+      `Baya ${release.version} is out. This baya runs from source: update it with git pull and pnpm build.`,
+    );
+  }
+  out(dim(`Downloading Baya ${release.version}…`));
+  await installRelease(release, process.execPath);
+  out(ok(`Updated to ${release.version}`));
+  if (await hostStatus()) {
+    await stopHost();
+    printStatus(await startBackground());
+  }
+}
+
 // ── entry ───────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  if (packaged) cleanUpAfterUpdate(process.execPath);
   switch (args.command) {
     case "up":
       return up(args);
@@ -696,6 +730,8 @@ async function main(): Promise<void> {
       return agents(args);
     case "autostart":
       return autostart(args);
+    case "update":
+      return update(args);
     case "help":
       return void process.stdout.write(HELP());
     case "version":

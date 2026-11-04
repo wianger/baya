@@ -10,6 +10,9 @@ on:
 
 permissions:
   contents: write
+  # Build provenance: `gh attestation verify <file> --repo wianger/baya`.
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -23,6 +26,10 @@ jobs:
           - macos-latest
           - macos-15-intel
     runs-on: ${{ matrix.os }}
+    env:
+      # Only to decide whether the signing steps run.
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
     defaults:
       run:
         working-directory: host
@@ -38,8 +45,48 @@ jobs:
           cache-dependency-path: host/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm build:binary
+
+      # Signing runs once the certificates are repository secrets; without
+      # them the binaries ship ad-hoc signed (macOS) and unsigned (Windows).
+      - name: Sign (macOS, Developer ID)
+        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode > cert.p12
+          security create-keychain -p ci build.keychain
+          security import cert.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          security list-keychains -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          for bin in build/bin/baya-*; do
+            codesign --force --timestamp --options runtime \
+              --entitlements scripts/entitlements.plist --sign "$APPLE_IDENTITY" "$bin"
+            ditto -c -k "$bin" "$bin.zip"
+            xcrun notarytool submit "$bin.zip" --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+            rm "$bin.zip"
+          done
+      - name: Sign (Windows)
+        if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          [IO.File]::WriteAllBytes("cert.pfx", [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Select-Object -Last 1
+          & $signtool sign /f cert.pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd sha256 `
+            /tr http://timestamp.digicert.com /td sha256 (Get-ChildItem build\bin\baya-*).FullName
+
       - run: ./build/bin/baya-* --version
         shell: bash
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: host/build/bin/*
       - uses: actions/upload-artifact@v5
         with:
           name: baya-${{ matrix.os }}
@@ -62,4 +109,4 @@ jobs:
           sha256sum baya-* > SHA256SUMS
           gh release create "$GITHUB_REF_NAME" baya-* SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" --title "Baya host ${GITHUB_REF_NAME#host-v}" \
-            --notes "Single-file Baya host. Download the one for your computer, make it executable, and run \`baya\`."
+            --notes "Single-file Baya host. Download the one for your computer, make it executable, and run \`baya\`; \`baya update\` keeps it current. Check a download with \`gh attestation verify <file> --repo $GITHUB_REPOSITORY\`."

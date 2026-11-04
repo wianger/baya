@@ -2,6 +2,15 @@ import { hostname } from "node:os";
 import { pairPhone } from "../pairing/service.ts";
 import { packageVersion } from "../runtime/version.ts";
 import { browseDirectory, resolveDirectory } from "../workspace/directories.ts";
+import {
+  gitCommit,
+  gitDiff,
+  gitPush,
+  gitRevertFile,
+  gitRevertHunk,
+  gitStatus,
+  openPullRequest,
+} from "../workspace/git.ts";
 import { browseSessionFiles, readSessionFile } from "../workspace/session_files.ts";
 import type { HostedSession } from "./hosted_session.ts";
 import type { HubPhone, SessionHub } from "./hub.ts";
@@ -135,6 +144,26 @@ export class PhoneConnection implements HubPhone {
         );
       case "_baya/read_file":
         return readSessionFile(this.session(params).record.cwd, stringParam(params, "path"));
+      case "_baya/git_status":
+        return gitStatus(this.session(params).record.cwd);
+      case "_baya/git_diff":
+        return gitDiff(this.session(params).record.cwd, stringParam(params, "path"));
+      case "_baya/git_revert": {
+        const cwd = this.session(params).record.cwd;
+        const path = stringParam(params, "path");
+        const hunk = params["hunk"];
+        return typeof hunk === "number" ? gitRevertHunk(cwd, path, hunk) : gitRevertFile(cwd, path);
+      }
+      case "_baya/git_commit":
+        return gitCommit(this.session(params).record.cwd, stringParam(params, "message"));
+      case "_baya/git_push":
+        return gitPush(this.session(params).record.cwd);
+      case "_baya/pr_create":
+        return openPullRequest(
+          this.session(params).record.cwd,
+          stringParam(params, "title"),
+          optionalString(params, "body") ?? "",
+        );
       default:
         throw RpcError.methodNotFound(method);
     }
