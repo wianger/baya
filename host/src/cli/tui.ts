@@ -81,7 +81,7 @@ export function textWidth(text: string): number {
 }
 
 /** The terminal's width, kept sane. */
-export function columns(): number {
+function columns(): number {
   return Math.max(30, Math.min(process.stdout.columns || 80, 160));
 }
 
