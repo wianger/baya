@@ -4,30 +4,21 @@
  * sends the other sees as it happens, and the agent has one conversation,
  * whichever agent it is.
  *
- * The screen is the conversation scrolling above a small live area: the
- * reply line being written, tools running, and a status line, with the
- * input under it.
+ * The conversation scrolls above a small live area redrawn in place: the
+ * reply line being written, tools running, and a rule carrying the status,
+ * with the input under it.
  */
 import { randomUUID } from "node:crypto";
 import { connect, type Socket } from "node:net";
+import { homedir } from "node:os";
 import { createInterface, type Interface } from "node:readline";
 import { isObject, type Json, JsonRpcPeer, type RpcId } from "../acp/jsonrpc.ts";
 import { readControlInfo } from "../control/client.ts";
+import { box, c, hang, isTty, MarkdownLines, meter, rule, textWidth } from "./tui.ts";
 
 const ESC = "\x1b[";
-const tty = () => Boolean(process.stdout.isTTY);
-const style = (open: number, close: number) => (text: string) =>
-  tty() ? `${ESC}${open}m${text}${ESC}${close}m` : text;
-const bold = style(1, 22);
-const dim = style(2, 22);
-const italic = style(3, 23);
-const red = style(31, 39);
-const green = style(32, 39);
-const yellow = style(33, 39);
-const magenta = style(35, 39);
-const cyan = style(36, 39);
-
-const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+// Geometric shapes, which every terminal font has (braille is not a given).
+const SPINNER = ["◐", "◓", "◑", "◒"];
 
 interface SessionInfo {
   sessionId: string;
@@ -64,88 +55,6 @@ export function pickSession(sessions: SessionInfo[], query: string | undefined):
   );
   if (matches.length === 0) throw new Error(`No session matches "${query}". See: baya status`);
   return matches[0]!;
-}
-
-// ── text ─────────────────────────────────────────────────────────────────────
-
-// biome-ignore lint/suspicious/noControlCharactersInRegex: matches ANSI escapes.
-const ANSI = /\x1b\[[0-9;]*[A-Za-z]/gu;
-
-/** Columns [text] takes: wide (CJK, full-width, emoji) characters take two. */
-export function textWidth(text: string): number {
-  let width = 0;
-  for (const char of text.replace(ANSI, "")) {
-    const code = char.codePointAt(0)!;
-    if (code < 32 || (code >= 0x300 && code <= 0x36f) || code === 0x200d || code === 0xfe0f) {
-      continue;
-    }
-    const wide =
-      (code >= 0x1100 && code <= 0x115f) ||
-      (code >= 0x2e80 && code <= 0xa4cf) ||
-      (code >= 0xac00 && code <= 0xd7a3) ||
-      (code >= 0xf900 && code <= 0xfaff) ||
-      (code >= 0xfe30 && code <= 0xfe4f) ||
-      (code >= 0xff00 && code <= 0xff60) ||
-      (code >= 0xffe0 && code <= 0xffe6) ||
-      (code >= 0x1f300 && code <= 0x1faff) ||
-      (code >= 0x20000 && code <= 0x3fffd);
-    width += wide ? 2 : 1;
-  }
-  return width;
-}
-
-/** Inline markdown: `code`, **bold**, *emphasis*. */
-function inline(text: string): string {
-  return text
-    .replace(/`([^`]+)`/gu, (_, code: string) => cyan(code))
-    .replace(/\*\*([^*]+)\*\*/gu, (_, strong: string) => bold(strong))
-    .replace(
-      /(^|[^*\w])\*([^*\s][^*]*)\*(?!\w)/gu,
-      (_, before: string, em: string) => before + italic(em),
-    );
-}
-
-const FENCE = /^\s*```/u;
-
-function fence(text: string, opening: boolean): string {
-  const language = text.trim().slice(3);
-  return opening ? dim(`╭─ ${language || "code"}`) : dim("╰─");
-}
-
-/** Markdown a line at a time: headings, lists, quotes and fenced code. */
-export class MarkdownLines {
-  private fenced = false;
-
-  /** A finished line, which may open or close a fence. */
-  line(text: string): string {
-    if (FENCE.test(text)) {
-      const opening = !this.fenced;
-      this.fenced = opening;
-      return fence(text, opening);
-    }
-    return this.render(text, this.fenced);
-  }
-
-  /** The line still being written, shown without changing any state. */
-  preview(text: string): string {
-    return FENCE.test(text) ? fence(text, !this.fenced) : this.render(text, this.fenced);
-  }
-
-  private render(text: string, fenced: boolean): string {
-    if (fenced) return `${dim("│")} ${text}`;
-    const heading = /^(#{1,6})\s+(.*)$/u.exec(text);
-    if (heading) return bold(inline(heading[2]!));
-    const bullet = /^(\s*)[-*+]\s+(.*)$/u.exec(text);
-    if (bullet) return `${bullet[1]}${dim("•")} ${inline(bullet[2]!)}`;
-    const quote = /^>\s?(.*)$/u.exec(text);
-    if (quote) return `${dim("▏")}${italic(inline(quote[1]!))}`;
-    if (/^\s*([-*_])\1{2,}\s*$/u.test(text)) return dim("─".repeat(24));
-    return inline(text);
-  }
-
-  reset(): void {
-    this.fenced = false;
-  }
 }
 
 // ── the socket ───────────────────────────────────────────────────────────────
@@ -197,7 +106,7 @@ async function openSocket(): Promise<{
 // ── the screen ───────────────────────────────────────────────────────────────
 
 /**
- * Lines go into the scrollback above a live area redrawn in place: what
+ * Rows go into the scrollback above a live area redrawn in place: what
  * [live] returns, then [status], then the input line under them.
  */
 class Screen {
@@ -205,15 +114,27 @@ class Screen {
   live: () => string[] = () => [];
   status: () => string = () => "";
   private drawnRows = 0;
+  private lastBlank = true;
+  private lastSection: string | null = null;
 
-  private rows(line: string): number {
-    const columns = process.stdout.columns || 80;
-    return Math.max(1, Math.ceil(textWidth(line) / columns));
+  /**
+   * Starts a section of [kind]: one blank row before it, unless the last
+   * section was of the same kind and [kind] groups (a run of tools).
+   */
+  section(kind: string, groups = false): void {
+    const same = groups && this.lastSection === kind;
+    this.lastSection = kind;
+    if (!same && !this.lastBlank) this.print("");
   }
 
-  /** Adds lines to the scrollback and redraws the live area under them. */
+  private rows(line: string): number {
+    return Math.max(1, Math.ceil(textWidth(line) / (process.stdout.columns || 80)));
+  }
+
+  /** Adds rows to the scrollback and redraws the live area under them. */
   print(...lines: string[]): void {
-    if (!tty()) {
+    if (lines.length) this.lastBlank = lines[lines.length - 1] === "";
+    if (!isTty()) {
       if (lines.length) process.stdout.write(`${lines.join("\n")}\n`);
       return;
     }
@@ -221,12 +142,19 @@ class Screen {
   }
 
   draw(commit: string[] = []): void {
-    if (!tty()) return;
+    if (!isTty()) return;
     let out = "\r";
     if (this.drawnRows > 0) out += `${ESC}${this.drawnRows}A`;
     out += `${ESC}0J`;
     for (const line of commit) out += `${line}\n`;
-    const area = [...this.live(), this.status()].filter((line) => line !== "");
+    // One blank row between the conversation and what is live under it.
+    const live = this.live().filter((line) => line !== "");
+    const area = [
+      ...(this.lastBlank ? [] : [""]),
+      ...live,
+      ...(live.length ? [""] : []),
+      this.status(),
+    ];
     for (const line of area) out += `${line}\n`;
     this.drawnRows = area.reduce((sum, line) => sum + this.rows(line), 0);
     process.stdout.write(out);
@@ -235,7 +163,7 @@ class Screen {
 
   /** Clears the live area, for good. */
   close(): void {
-    if (tty()) {
+    if (isTty()) {
       const up = this.drawnRows > 0 ? `${ESC}${this.drawnRows}A` : "";
       process.stdout.write(`\r${up}${ESC}0J`);
     }
@@ -246,6 +174,13 @@ class Screen {
 function seconds(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
+}
+
+/** A folder as people read it: ~ for home, the end kept when it is long. */
+function folder(path: string): string {
+  const home = homedir();
+  const short = path.startsWith(home) ? `~${path.slice(home.length)}` : path;
+  return short.length > 48 ? `…${short.slice(-47)}` : short;
 }
 
 interface ConfigOption {
@@ -267,12 +202,17 @@ function configOptions(raw: unknown): ConfigOption[] {
   }));
 }
 
-const HELP = () => [
-  `${bold("/model")}  choose the model`,
-  `${bold("/stop")}   stop the turn ${dim("(Ctrl+C while it runs)")}`,
-  `${bold("/quit")}   leave ${dim("(Ctrl+C when idle, or Ctrl+D)")}`,
-  dim("Enter sends; the phone sees it too. Messages wait while the agent works."),
-];
+const HELP = () =>
+  box(
+    [
+      `${c.accent("/model")}   choose the model`,
+      `${c.accent("/stop")}    stop the turn         ${c.faint("Ctrl+C while it runs")}`,
+      `${c.accent("/quit")}    leave                 ${c.faint("Ctrl+C when idle · Ctrl+D")}`,
+      "",
+      c.muted("Enter sends. The phone sees it too; messages wait while the agent works."),
+    ],
+    { title: c.bold("Commands"), width: 72 },
+  );
 
 /** The text a finished tool printed, from its content blocks. */
 function toolOutput(raw: Json): string {
@@ -291,11 +231,12 @@ function toolOutput(raw: Json): string {
 export async function attach(query: string | undefined): Promise<void> {
   const { socket, lines } = await openSocket();
   const screen = new Screen();
-  const markdown = new MarkdownLines();
+  const markdown = new MarkdownLines("  ");
   let sessionId = "";
   let agentName = "Agent";
   let working = false;
   let turnStarted = 0;
+  let turnTools = 0;
   let frame = 0;
   let config: ConfigOption[] = [];
   let usage: { used: number; size: number } | null = null;
@@ -303,16 +244,13 @@ export async function attach(query: string | undefined): Promise<void> {
   // What is being written now: the reply line, a thought, running tools.
   let partial = "";
   let block: string | null = null;
+  let firstRow = false;
   let thoughtSince = 0;
   let lastUser: string | null = null;
   const tools = new Map<string, string>();
 
   /** A question waiting for a number typed: permission, or a choice. */
-  let choice: {
-    title: string;
-    count: number;
-    pick: (index: number | null) => void;
-  } | null = null;
+  let choice: { title: string; count: number; pick: (index: number | null) => void } | null = null;
   /** Permission questions open, by request id, to withdraw when answered elsewhere. */
   const asked = new Map<RpcId, () => void>();
 
@@ -323,30 +261,49 @@ export async function attach(query: string | undefined): Promise<void> {
   };
   const spin = () => SPINNER[frame % SPINNER.length]!;
 
+  /** Reply rows; the first of a reply carries its marker. */
+  const reply = (rows: string[]) =>
+    rows.map((row) => {
+      if (!firstRow || row === "") return row;
+      firstRow = false;
+      return `${c.accent("●")} ${row.startsWith("  ") ? row.slice(2) : row}`;
+    });
+
   screen.live = () => [
-    ...[...tools.values()].map((title) => `${yellow(spin())} ${title}`),
-    ...(partial ? [markdown.preview(partial)] : []),
+    ...[...tools.values()].flatMap((title) => hang(title, `${c.accent(spin())} `, "  ")),
+    ...(partial
+      ? markdown
+          .preview(partial)
+          .map((row, i) =>
+            i === 0 && firstRow
+              ? `${c.accent("●")} ${row.startsWith("  ") ? row.slice(2) : row}`
+              : row,
+          )
+      : []),
+    "",
   ];
   screen.status = () => {
     if (choice) {
-      return yellow(`? ${choice.title} Type 1–${choice.count}, or Enter to skip.`);
-    }
-    const parts: string[] = [];
-    if (working) {
-      const doing = block === "thought" ? "thinking" : tools.size ? "using tools" : "working";
-      parts.push(
-        `${magenta(spin())} ${bold(agentName)} ${doing} ${dim(seconds(Date.now() - turnStarted))}`,
+      return rule(
+        `${c.accent("?")} ${c.bold(choice.title)}`,
+        c.muted(`1–${choice.count} · Enter skips`),
+        c.accent,
       );
-    } else {
-      parts.push(`${green("●")} ${bold(agentName)} ${dim("ready")}`);
     }
+    const left = working
+      ? `${c.violet(spin())} ${c.bold(agentName)} ${c.muted(
+          block === "thought" ? "thinking" : tools.size ? "using tools" : "working",
+        )} ${c.faint(seconds(Date.now() - turnStarted))}`
+      : `${c.green("●")} ${c.bold(agentName)} ${c.muted("ready")}`;
+    const right: string[] = [];
     const name = modelName();
-    if (name) parts.push(dim(name));
+    if (name) right.push(c.muted(name));
     if (usage && usage.size > 0) {
-      parts.push(dim(`context ${Math.round((usage.used / usage.size) * 100)}%`));
+      const f = usage.used / usage.size;
+      right.push(`${meter(f)} ${c.muted(`${Math.round(f * 100)}%`)}`);
     }
-    parts.push(dim(working ? "Ctrl+C stops" : "/help"));
-    return parts.join(dim("  ·  "));
+    right.push(c.faint(working ? "Ctrl+C stops" : "/help"));
+    return rule(left, right.join(c.faint("  ·  ")));
   };
 
   /** Ends the reply line and the thought shown, before something else. */
@@ -354,26 +311,46 @@ export async function attach(query: string | undefined): Promise<void> {
     if (block === next) return;
     const commit: string[] = [];
     if (partial) {
-      commit.push(markdown.line(partial));
+      commit.push(...reply(markdown.line(partial)));
       partial = "";
     }
+    if (block === "agent") markdown.reset();
+    if (commit.length) screen.print(...commit);
     if (block === "thought" && thoughtSince) {
-      commit.push(dim(italic(`✻ Thought for ${seconds(Date.now() - thoughtSince)}`)));
+      screen.section("thought");
+      screen.print(c.italic(c.muted(`✻ Thought for ${seconds(Date.now() - thoughtSince)}`)));
       thoughtSince = 0;
     }
-    if (block === "agent") markdown.reset();
     block = next;
-    if (commit.length) screen.print(...commit);
   };
 
   /** A finished tool: a line for good, with the end of what it printed. */
   const finishTool = (title: string, failed: boolean, raw: Json) => {
-    const out = [`${failed ? red("✗") : green("✓")} ${dim(title)}`];
+    turnTools++;
+    screen.section("tool", true);
+    const out = hang(c.bold(title), `${failed ? c.red("●") : c.green("●")} `, "  ");
     const text = toolOutput(raw);
     if (text) {
-      for (const line of text.split("\n").slice(-4)) out.push(dim(`  │ ${line.slice(0, 200)}`));
+      const tail = text
+        .split("\n")
+        .filter((line) => line.trim() !== "")
+        .slice(-4);
+      for (const line of tail) {
+        out.push(...hang(c.faint(line.slice(0, 400)), c.faint("  │ "), c.faint("  │ ")));
+      }
     }
     screen.print(...out);
+  };
+
+  /** The end of a turn: how long it took and what it used. */
+  const turnEnded = () => {
+    if (!turnStarted) return;
+    screen.section("end");
+    const took = seconds(Date.now() - turnStarted);
+    const used = turnTools ? ` · ${turnTools} tool${turnTools === 1 ? "" : "s"}` : "";
+    screen.print(c.faint(`└ ${took}${used}`), "");
+    turnStarted = 0;
+    turnTools = 0;
   };
 
   const update = (raw: Json, replay: boolean) => {
@@ -389,19 +366,24 @@ export async function attach(query: string | undefined): Promise<void> {
         if (!replay && !working) {
           working = true;
           turnStarted = Date.now();
+          turnTools = 0;
         }
-        screen.print("", `${cyan("▍")}${bold(text)}`, "");
-        return;
+        screen.section("user");
+        return screen.print(...hang(c.bold(text), `${c.accent("›")} `, "  "));
       }
       case "agent_message_chunk": {
-        settle("agent");
+        if (block !== "agent") {
+          settle("agent");
+          screen.section("agent");
+          firstRow = true;
+        }
         partial += text;
         const end = partial.lastIndexOf("\n");
         if (end < 0) return screen.draw();
         const done = partial
           .slice(0, end)
           .split("\n")
-          .map((line) => markdown.line(line));
+          .flatMap((line) => reply(markdown.line(line)));
         partial = partial.slice(end + 1);
         return screen.print(...done);
       }
@@ -435,19 +417,16 @@ export async function attach(query: string | undefined): Promise<void> {
       }
       case "plan": {
         settle(null);
+        screen.section("plan");
         const entries = (Array.isArray(raw["entries"]) ? raw["entries"] : []).filter(isObject);
         return screen.print(
-          dim("Plan"),
-          ...entries.map((entry) => {
+          `${c.accent("◆")} ${c.bold("Plan")}`,
+          ...entries.flatMap((entry) => {
             const status = entry["status"];
-            const mark =
-              status === "completed"
-                ? green("✓")
-                : status === "in_progress"
-                  ? yellow("◐")
-                  : dim("○");
             const line = String(entry["content"] ?? "");
-            return `  ${mark} ${status === "completed" ? dim(line) : line}`;
+            if (status === "completed") return hang(c.faint(line), `  ${c.green("✓")} `, "    ");
+            if (status === "in_progress") return hang(c.bold(line), `  ${c.accent("◐")} `, "    ");
+            return hang(line, `  ${c.faint("○")} `, "    ");
           }),
         );
       }
@@ -473,10 +452,34 @@ export async function attach(query: string | undefined): Promise<void> {
         const call = isObject(params["toolCall"]) ? params["toolCall"] : {};
         const options = (Array.isArray(params["options"]) ? params["options"] : [])
           .filter(isObject)
-          .map((o) => ({ optionId: String(o["optionId"]), name: String(o["name"]) }));
+          .map((o) => ({
+            optionId: String(o["optionId"]),
+            name: String(o["name"]),
+            kind: String(o["kind"] ?? ""),
+          }));
+        const title = String(call["title"] ?? tools.get(String(call["toolCallId"])) ?? "");
+        screen.section("permission");
         screen.print(
-          `${yellow("?")} ${bold(String(call["title"] ?? "The agent asks for permission"))}`,
-          ...options.map((o, i) => `  ${yellow(String(i + 1))}  ${o.name}`),
+          ...box(
+            [
+              c.bold(title || "The agent asks to go on."),
+              "",
+              ...options.map((o, i) => {
+                const paint = o.kind.startsWith("reject")
+                  ? c.red
+                  : o.kind.startsWith("allow")
+                    ? c.green
+                    : c.text;
+                return `${c.accent(String(i + 1))}  ${paint(o.name)}`;
+              }),
+            ],
+            {
+              title: c.bold(c.accent("Permission")),
+              foot: c.muted("a number · or on the phone"),
+              color: c.accent,
+              width: 72,
+            },
+          ),
         );
         return new Promise((answer) => {
           const cancelled = { outcome: { outcome: "cancelled" } };
@@ -492,14 +495,16 @@ export async function attach(query: string | undefined): Promise<void> {
                   ? { outcome: { outcome: "selected", optionId: picked.optionId } }
                   : cancelled,
               );
-              screen.print(dim(`  → ${picked?.name ?? "skipped"}`));
+              screen.print(c.muted(`  → ${picked?.name ?? "skipped"}`), "");
             },
           };
           screen.draw();
         });
       }
       if (method === "elicitation/create") {
-        screen.print(yellow("? The agent asks for details. Answer it on the phone."));
+        screen.print(
+          `${c.accent("?")} ${c.muted("The agent asks for details. Answer it on the phone.")}`,
+        );
         return new Promise(() => {});
       }
       throw new Error(`Not handled here: ${method}`);
@@ -510,10 +515,14 @@ export async function attach(query: string | undefined): Promise<void> {
       } else if (method === "_baya/session_changed" && isObject(params["session"])) {
         const info = sessionInfo(params["session"]);
         if (info.sessionId !== sessionId) return;
-        if (info.working && !working) turnStarted = Date.now();
+        if (info.working && !working) {
+          turnStarted = Date.now();
+          turnTools = 0;
+        }
         if (!info.working && working) {
           settle(null);
           tools.clear();
+          turnEnded();
         }
         working = info.working;
         screen.draw();
@@ -524,7 +533,7 @@ export async function attach(query: string | undefined): Promise<void> {
         asked.delete(id);
         withdraw();
         choice = null;
-        screen.print(dim("  Answered on the phone."));
+        screen.print(c.muted("  Answered on the phone."), "");
       }
     },
   });
@@ -560,10 +569,18 @@ export async function attach(query: string | undefined): Promise<void> {
   const session = pickSession((listed.sessions ?? []).map(sessionInfo), query);
   sessionId = session.sessionId;
   agentName = session.agentName || "Agent";
-  const rule = dim("─".repeat(Math.min(56, process.stdout.columns || 56)));
-  process.stdout.write(
-    `\n${bold(session.title || session.cwd)}\n${dim(`${agentName} · ${session.cwd}`)}\n${rule}\n`,
-  );
+  const header = (model: string) =>
+    box(
+      [
+        c.bold(session.title || folder(session.cwd)),
+        c.muted([agentName, model, folder(session.cwd)].filter(Boolean).join("  ·  ")),
+      ],
+      {
+        title: `${c.accent("◆")} ${c.bold("Baya")}`,
+        foot: c.faint("live with your phone"),
+        width: 72,
+      },
+    );
   const loaded = await peer.request<Json>("session/load", {
     sessionId,
     cwd: session.cwd,
@@ -573,20 +590,23 @@ export async function attach(query: string | undefined): Promise<void> {
   config = configOptions(loaded["configOptions"]);
   settle(null);
   tools.clear();
+  // The header goes last, so it is what one sees above the input.
+  screen.print("", ...header(modelName()), "");
   working = session.working;
   if (working) turnStarted = Date.now();
 
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: tty() ? `${cyan("›")} ` : "",
+    prompt: isTty() ? `${c.accent("❯")} ` : "",
   });
   screen.rl = rl;
   screen.draw();
   const ticker = setInterval(() => {
     frame++;
     if (working || tools.size) screen.draw();
-  }, 100);
+  }, 150);
+  process.stdout.on("resize", () => screen.draw());
 
   await new Promise<void>((resolve) => {
     let closed = false;
@@ -607,18 +627,22 @@ export async function attach(query: string | undefined): Promise<void> {
     };
     const stop = () => {
       peer.notify("session/cancel", { sessionId });
-      screen.print(dim("Stopping the turn… Ctrl+C again to leave."));
+      screen.print(c.muted("  Stopping the turn… Ctrl+C again to leave."));
     };
     const chooseModel = () => {
       const option = model();
       if (!option || option.options.length === 0) {
-        return screen.print(dim("This agent has no models to choose from."));
+        return screen.print(c.muted("  This agent has no models to choose from."));
       }
       screen.print(
-        bold("Model"),
-        ...option.options.map(
-          (o, i) =>
-            `  ${yellow(String(i + 1))}  ${o.name}${o.value === option.currentValue ? dim("  (now)") : ""}`,
+        ...box(
+          option.options.map(
+            (o, i) =>
+              `${c.accent(String(i + 1))}  ${o.value === option.currentValue ? c.bold(o.name) : o.name}${
+                o.value === option.currentValue ? c.green("  ✓") : ""
+              }`,
+          ),
+          { title: c.bold("Model"), foot: c.muted("a number · Enter keeps it"), width: 72 },
         ),
       );
       choice = {
@@ -641,9 +665,9 @@ export async function attach(query: string | undefined): Promise<void> {
                   : config.map((o) =>
                       o.id === option.id ? { ...o, currentValue: picked.value } : o,
                     );
-                screen.print(dim(`  → ${picked.name}`));
+                screen.print(c.muted(`  → ${picked.name}`), "");
               },
-              (error: Error) => screen.print(red(`✗ ${error.message}`)),
+              (error: Error) => screen.print(`${c.red("✗")} ${error.message}`),
             );
         },
       };
@@ -652,7 +676,7 @@ export async function attach(query: string | undefined): Promise<void> {
 
     rl.on("line", (input) => {
       // Readline has echoed the line; the host echoes a sent message back.
-      if (tty()) process.stdout.write(`${ESC}1A${ESC}2K`);
+      if (isTty()) process.stdout.write(`${ESC}1A${ESC}2K`);
       const text = input.trim();
       const open = choice;
       if (open) {
@@ -669,7 +693,7 @@ export async function attach(query: string | undefined): Promise<void> {
         case "/help":
           return screen.print(...HELP());
         case "/stop":
-          return working ? stop() : screen.print(dim("Nothing is running."));
+          return working ? stop() : screen.print(c.muted("  Nothing is running."));
         case "/model":
           return chooseModel();
       }
@@ -684,7 +708,7 @@ export async function attach(query: string | undefined): Promise<void> {
             settle(null);
             screen.draw();
           },
-          (error: Error) => screen.print(red(`✗ ${error.message}`)),
+          (error: Error) => screen.print(`${c.red("✗")} ${error.message}`),
         );
     });
     rl.on("SIGINT", () => {
@@ -704,7 +728,7 @@ export async function attach(query: string | undefined): Promise<void> {
     rl.on("close", quit);
     socket.on("close", () => {
       if (closed) return;
-      screen.print(dim("Baya closed the connection."));
+      screen.print(c.muted("  Baya closed the connection."));
       quit();
     });
   });

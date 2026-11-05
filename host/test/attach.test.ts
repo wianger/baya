@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, expect, test, vi } from "vitest";
-import { MarkdownLines, pickSession, textWidth } from "../src/cli/attach.ts";
+import { pickSession } from "../src/cli/attach.ts";
+import { box, hang, MarkdownLines, textWidth, wrap } from "../src/cli/tui.ts";
 
 const FAKE_AGENT = fileURLToPath(new URL("./fixtures/fake-agent.mjs", import.meta.url));
 const cleanup: Array<() => void | Promise<void>> = [];
@@ -39,23 +40,34 @@ test("Chinese and emoji take two columns; colours take none", () => {
   expect(textWidth("hello")).toBe(5);
   expect(textWidth("登录跳转")).toBe(8);
   expect(textWidth("ok 👍")).toBe(5);
-  expect(textWidth("\x1b[1mbold\x1b[22m")).toBe(4);
+  expect(textWidth("\u001b[1mbold\u001b[22m")).toBe(4);
+});
+
+test("text wraps at spaces, between wide characters, with a hanging indent", () => {
+  expect(wrap("the quick brown fox jumps", 10)).toEqual(["the quick", "brown fox", "jumps"]);
+  expect(wrap("登录后跳回登录页", 6)).toEqual(["登录后", "跳回登", "录页"]);
+  expect(hang("one two three four", "• ", "  ", 10)).toEqual(["• one two", "  three", "  four"]);
+});
+
+test("a box fits its lines, wrapped, inside its edges", () => {
+  const drawn = box(["Allow it?", "1  Allow"], { title: "Permission", width: 24 });
+  expect(drawn).toHaveLength(4);
+  for (const row of drawn) expect(textWidth(row)).toBe(24);
+  expect(drawn[0]).toContain("Permission");
 });
 
 test("markdown renders a line at a time, the line being written changing nothing", () => {
-  const md = new MarkdownLines();
-  // Off a terminal there is no colour to strip.
-  const plain = (s: string) => s;
-  expect(plain(md.line("## 修好了"))).toBe("修好了");
-  expect(plain(md.line("- 改了 `login.ts`"))).toBe("• 改了 login.ts");
+  const md = new MarkdownLines("  ");
+  expect(md.line("## 修好了")).toEqual(["  修好了"]);
+  expect(md.line("- 改了 `login.ts`")).toEqual(["  • 改了 login.ts"]);
   // Previewing an opening fence, again and again, does not open it.
-  expect(plain(md.preview("```ts"))).toBe("╭─ ts");
-  expect(plain(md.preview("```ts"))).toBe("╭─ ts");
-  expect(plain(md.line("```ts"))).toBe("╭─ ts");
-  expect(plain(md.line("await x()"))).toBe("│ await x()");
-  expect(plain(md.preview("- not a list in code"))).toBe("│ - not a list in code");
-  expect(plain(md.line("```"))).toBe("╰─");
-  expect(plain(md.line("**done**"))).toBe("done");
+  expect(md.preview("```ts")).toEqual(["  ╭─ ts"]);
+  expect(md.preview("```ts")).toEqual(["  ╭─ ts"]);
+  expect(md.line("```ts")).toEqual(["  ╭─ ts"]);
+  expect(md.line("await x()")).toEqual(["  │ await x()"]);
+  expect(md.preview("- not a list in code")).toEqual(["  │ - not a list in code"]);
+  expect(md.line("```")).toEqual(["  ╰─"]);
+  expect(md.line("**done**")).toEqual(["  done"]);
 });
 
 test("the control socket attaches a terminal that shares the session live", async () => {
