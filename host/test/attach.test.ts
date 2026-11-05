@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, expect, test, vi } from "vitest";
-import { pickSession } from "../src/cli/attach.ts";
+import { MarkdownLines, pickSession, textWidth } from "../src/cli/attach.ts";
 
 const FAKE_AGENT = fileURLToPath(new URL("./fixtures/fake-agent.mjs", import.meta.url));
 const cleanup: Array<() => void | Promise<void>> = [];
@@ -33,6 +33,29 @@ test("attach picks the session named, or the latest", () => {
   expect(pickSession(sessions, "LOGIN").sessionId).toBe("a1b2");
   expect(() => pickSession(sessions, "nothing")).toThrow(/No session matches/);
   expect(() => pickSession([], undefined)).toThrow(/No sessions yet/);
+});
+
+test("Chinese and emoji take two columns; colours take none", () => {
+  expect(textWidth("hello")).toBe(5);
+  expect(textWidth("登录跳转")).toBe(8);
+  expect(textWidth("ok 👍")).toBe(5);
+  expect(textWidth("\x1b[1mbold\x1b[22m")).toBe(4);
+});
+
+test("markdown renders a line at a time, the line being written changing nothing", () => {
+  const md = new MarkdownLines();
+  // Off a terminal there is no colour to strip.
+  const plain = (s: string) => s;
+  expect(plain(md.line("## 修好了"))).toBe("修好了");
+  expect(plain(md.line("- 改了 `login.ts`"))).toBe("• 改了 login.ts");
+  // Previewing an opening fence, again and again, does not open it.
+  expect(plain(md.preview("```ts"))).toBe("╭─ ts");
+  expect(plain(md.preview("```ts"))).toBe("╭─ ts");
+  expect(plain(md.line("```ts"))).toBe("╭─ ts");
+  expect(plain(md.line("await x()"))).toBe("│ await x()");
+  expect(plain(md.preview("- not a list in code"))).toBe("│ - not a list in code");
+  expect(plain(md.line("```"))).toBe("╰─");
+  expect(plain(md.line("**done**"))).toBe("done");
 });
 
 test("the control socket attaches a terminal that shares the session live", async () => {

@@ -718,7 +718,10 @@ async function main(): Promise<void> {
     case "open":
       return open(args);
     case "attach":
-      return attach(args.positionals[0]);
+      await attach(args.positionals[0]);
+      // Nothing of the terminal session should keep the process: stdin on
+      // Windows can hold it open after readline lets go.
+      return process.exit(0);
     case "close":
       return close(args);
     case "pair":
