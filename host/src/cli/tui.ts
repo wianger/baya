@@ -35,6 +35,67 @@ function fg(rgb: Rgb): (text: string) => string {
   };
 }
 
+/** The terminal's background is light (from COLORFGBG, when it says). */
+function lightTerminal(): boolean {
+  const bg = Number((process.env["COLORFGBG"] ?? "").split(";").pop());
+  return bg === 7 || bg === 15;
+}
+
+function bgCode(rgb: Rgb): string {
+  return trueColor() ? `48;2;${rgb[0]};${rgb[1]};${rgb[2]}` : `48;5;${to256(rgb)}`;
+}
+
+/**
+ * [text] on a soft band of colour to the edge of [width]: how a sent
+ * message stands apart from the replies.
+ */
+export function band(text: string, width: number): string {
+  if (!isTty()) return text;
+  const tone: Rgb = lightTerminal() ? [236, 236, 241] : [38, 38, 46];
+  const pad = Math.max(0, width - textWidth(text));
+  // Keep the band through any resets inside the text.
+  const open = `${ESC}${bgCode(tone)}m`;
+  return `${open}${text.replaceAll(`${ESC}0m`, `${ESC}0m${open}`)}${" ".repeat(pad)}${ESC}49m`;
+}
+
+/** [text] in a colour that runs from [from] to [to] across its letters. */
+export function gradient(text: string, from: Rgb, to: Rgb): string {
+  if (!isTty() || !trueColor()) return c.bold(c.accent(text));
+  const chars = [...text];
+  return chars
+    .map((char, i) => {
+      const t = chars.length > 1 ? i / (chars.length - 1) : 0;
+      const mix = from.map((v, k) => Math.round(v + (to[k]! - v) * t)) as unknown as Rgb;
+      return `${ESC}38;2;${mix[0]};${mix[1]};${mix[2]}m${char}`;
+    })
+    .join("")
+    .concat(`${ESC}39m`);
+}
+
+/**
+ * [text] with a light sweeping across it, one step per [frame]: the live
+ * "Thinking…" every agent terminal now has.
+ */
+export function shimmer(text: string, frame: number): string {
+  if (!isTty()) return text;
+  const chars = [...text];
+  const span = chars.length + 8;
+  const head = (frame % span) - 4;
+  const base: Rgb = [232, 180, 74];
+  const lit: Rgb = [255, 236, 190];
+  return chars
+    .map((char, i) => {
+      const glow = Math.max(0, 1 - Math.abs(i - head) / 4);
+      const rgb = base.map((v, k) => Math.round(v + (lit[k]! - v) * glow)) as unknown as Rgb;
+      return (
+        (trueColor() ? `${ESC}38;2;${rgb[0]};${rgb[1]};${rgb[2]}m` : `${ESC}38;5;${to256(rgb)}m`) +
+        char
+      );
+    })
+    .join("")
+    .concat(`${ESC}39m`);
+}
+
 const attr = (open: number, close: number) => (text: string) =>
   isTty() && text !== "" ? `${ESC}${open}m${text}${ESC}${close}m` : text;
 
@@ -56,7 +117,7 @@ export const c = {
 // biome-ignore lint/suspicious/noControlCharactersInRegex: matches ANSI escapes.
 const ANSI = /\x1b\[[0-9;]*[A-Za-z]/gu;
 
-function charWidth(code: number): number {
+export function charWidth(code: number): number {
   if (code < 32 || (code >= 0x300 && code <= 0x36f) || code === 0x200d || code === 0xfe0f) {
     return 0;
   }
@@ -162,15 +223,6 @@ export function box(
   return out;
 }
 
-/** A full-width rule with [left] and [right] set into it. */
-export function rule(left: string, right: string, paint = c.faint): string {
-  const width = columns();
-  const l = left ? ` ${left} ` : "";
-  const r = right ? ` ${right} ` : "";
-  const fill = Math.max(1, width - 2 - textWidth(l) - textWidth(r));
-  return paint("─") + l + paint("─".repeat(fill)) + r + paint("─");
-}
-
 /** ▰▰▰▱▱ for [fraction]. */
 export function meter(fraction: number, cells = 6): string {
   const full = Math.max(0, Math.min(cells, Math.round(fraction * cells)));
@@ -264,4 +316,64 @@ export class MarkdownLines {
     }
     return hang(inline(text), at, at);
   }
+}
+
+// ── diffs ────────────────────────────────────────────────────────────────────
+
+/**
+ * The changed lines between [before] and [after] with a line of context
+ * around them, as rows: removed in red, added in green, the rest muted.
+ */
+export function diffRows(before: string, after: string, limit = 14): string[] {
+  const a = before.split("\n");
+  const b = after.split("\n");
+  if (a.length * b.length > 250_000)
+    return [c.muted(`  ${b.length - a.length >= 0 ? "+" : ""}${b.length - a.length} lines`)];
+  // Longest common subsequence, then walk it.
+  const lcs: number[][] = Array.from({ length: a.length + 1 }, () =>
+    new Array<number>(b.length + 1).fill(0),
+  );
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      lcs[i]![j] =
+        a[i] === b[j] ? lcs[i + 1]![j + 1]! + 1 : Math.max(lcs[i + 1]![j]!, lcs[i]![j + 1]!);
+    }
+  }
+  const ops: Array<[" " | "-" | "+", string]> = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i] === b[j]) {
+      ops.push([" ", a[i]!]);
+      i++;
+      j++;
+    } else if (i < a.length && (j >= b.length || lcs[i + 1]![j]! >= lcs[i]![j + 1]!)) {
+      // Removed before added, as diffs read.
+      ops.push(["-", a[i]!]);
+      i++;
+    } else {
+      ops.push(["+", b[j]!]);
+      j++;
+    }
+  }
+  // A change, or a line next to one.
+  const changed = (k: number) => (ops[k]?.[0] ?? " ") !== " ";
+  const keep = ops.map((_, k) => changed(k) || changed(k - 1) || changed(k + 1));
+  const rows: string[] = [];
+  let skipped = false;
+  ops.forEach(([op, line], k) => {
+    if (!keep[k]) {
+      if (!skipped) rows.push(c.faint("  ⋮"));
+      skipped = true;
+      return;
+    }
+    skipped = false;
+    if (op === "+") rows.push(c.green(`+ ${line}`));
+    else if (op === "-") rows.push(c.red(`- ${line}`));
+    else rows.push(c.faint(`  ${line}`));
+  });
+  if (rows.length > limit) {
+    return [...rows.slice(0, limit), c.faint(`  … ${rows.length - limit} more lines`)];
+  }
+  return rows;
 }

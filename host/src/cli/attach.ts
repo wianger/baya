@@ -4,17 +4,30 @@
  * sends the other sees as it happens, and the agent has one conversation,
  * whichever agent it is.
  *
- * The conversation scrolls above a small live area redrawn in place: the
- * reply line being written, tools running, and a rule carrying the status,
- * with the input under it.
+ * The look follows today's agent terminals: the conversation scrolls above
+ * a live area redrawn in place (a shimmering "Thinking…", tools running),
+ * the input sits in a rounded box with a footer under it, questions are
+ * menus moved through with the arrows, and Esc interrupts.
  */
 import { randomUUID } from "node:crypto";
 import { connect, type Socket } from "node:net";
 import { homedir } from "node:os";
-import { createInterface, type Interface } from "node:readline";
+import { createInterface, emitKeypressEvents } from "node:readline";
 import { isObject, type Json, JsonRpcPeer, type RpcId } from "../acp/jsonrpc.ts";
 import { readControlInfo } from "../control/client.ts";
-import { box, c, hang, isTty, MarkdownLines, meter, rule, textWidth } from "./tui.ts";
+import { Editor } from "./editor.ts";
+import {
+  band,
+  c,
+  diffRows,
+  gradient,
+  hang,
+  isTty,
+  MarkdownLines,
+  meter,
+  shimmer,
+  textWidth,
+} from "./tui.ts";
 
 const ESC = "\x1b[";
 // Geometric shapes, which every terminal font has (braille is not a given).
@@ -105,15 +118,22 @@ async function openSocket(): Promise<{
 
 // ── the screen ───────────────────────────────────────────────────────────────
 
+/** The width to draw to: one short of the terminal, so no row ever wraps. */
+const width = () => Math.max(30, Math.min((process.stdout.columns || 80) - 1, 140));
+
+/** The live area: its rows, and where the caret goes among them. */
+interface Region {
+  rows: string[];
+  caret: { row: number; column: number } | null;
+}
+
 /**
- * Rows go into the scrollback above a live area redrawn in place: what
- * [live] returns, then [status], then the input line under them.
+ * Rows go into the scrollback above the live area, which is redrawn in
+ * place; the terminal's caret is put in the input box.
  */
 class Screen {
-  rl: Interface | null = null;
-  live: () => string[] = () => [];
-  status: () => string = () => "";
-  private drawnRows = 0;
+  region: () => Region = () => ({ rows: [], caret: null });
+  private caretRow = 0;
   private lastBlank = true;
   private lastSection: string | null = null;
 
@@ -127,11 +147,6 @@ class Screen {
     if (!same && !this.lastBlank) this.print("");
   }
 
-  private rows(line: string): number {
-    return Math.max(1, Math.ceil(textWidth(line) / (process.stdout.columns || 80)));
-  }
-
-  /** Adds rows to the scrollback and redraws the live area under them. */
   print(...lines: string[]): void {
     if (lines.length) this.lastBlank = lines[lines.length - 1] === "";
     if (!isTty()) {
@@ -143,31 +158,28 @@ class Screen {
 
   draw(commit: string[] = []): void {
     if (!isTty()) return;
-    let out = "\r";
-    if (this.drawnRows > 0) out += `${ESC}${this.drawnRows}A`;
+    const { rows, caret } = this.region();
+    let out = `${ESC}?25l\r`;
+    if (this.caretRow > 0) out += `${ESC}${this.caretRow}A`;
     out += `${ESC}0J`;
     for (const line of commit) out += `${line}\n`;
-    // One blank row between the conversation and what is live under it.
-    const live = this.live().filter((line) => line !== "");
-    const area = [
-      ...(this.lastBlank ? [] : [""]),
-      ...live,
-      ...(live.length ? [""] : []),
-      this.status(),
-    ];
-    for (const line of area) out += `${line}\n`;
-    this.drawnRows = area.reduce((sum, line) => sum + this.rows(line), 0);
+    const area = [...(this.lastBlank ? [] : [""]), ...rows];
+    out += area.join("\n");
+    const at = caret ? caret.row + (area.length - rows.length) : area.length - 1;
+    const up = area.length - 1 - at;
+    if (up > 0) out += `${ESC}${up}A`;
+    out += `\r${caret ? `${ESC}${caret.column + 1}G${ESC}?25h` : ""}`;
+    this.caretRow = at;
     process.stdout.write(out);
-    this.rl?.prompt(true);
   }
 
-  /** Clears the live area, for good. */
+  /** Clears the live area for good and leaves the caret under the conversation. */
   close(): void {
     if (isTty()) {
-      const up = this.drawnRows > 0 ? `${ESC}${this.drawnRows}A` : "";
-      process.stdout.write(`\r${up}${ESC}0J`);
+      const up = this.caretRow > 0 ? `${ESC}${this.caretRow}A` : "";
+      process.stdout.write(`\r${up}${ESC}0J${ESC}?25h`);
     }
-    this.drawnRows = 0;
+    this.caretRow = 0;
   }
 }
 
@@ -180,7 +192,35 @@ function seconds(ms: number): string {
 function folder(path: string): string {
   const home = homedir();
   const short = path.startsWith(home) ? `~${path.slice(home.length)}` : path;
-  return short.length > 48 ? `…${short.slice(-47)}` : short;
+  return short.length > 56 ? `…${short.slice(-55)}` : short;
+}
+
+/** [left] and [right] on one row of [w] columns. */
+function spread(left: string, right: string, w: number): string {
+  const gap = Math.max(2, w - textWidth(left) - textWidth(right));
+  return left + " ".repeat(gap) + right;
+}
+
+/** A rounded box [w] wide around [rows], each already within the inside. */
+function frame(
+  rows: string[],
+  w: number,
+  options: { title?: string; foot?: string; paint?: (t: string) => string } = {},
+): string[] {
+  const paint = options.paint ?? c.faint;
+  const inner = w - 4;
+  const edge = (l: string, label: string | undefined, r: string) => {
+    const tag = label ? ` ${label} ` : "";
+    return paint(`${l}─`) + tag + paint(`${"─".repeat(Math.max(0, w - 3 - textWidth(tag)))}${r}`);
+  };
+  return [
+    edge("╭", options.title, "╮"),
+    ...rows.map(
+      (row) =>
+        `${paint("│")} ${row}${" ".repeat(Math.max(0, inner - textWidth(row)))} ${paint("│")}`,
+    ),
+    edge("╰", options.foot, "╯"),
+  ];
 }
 
 interface ConfigOption {
@@ -202,42 +242,83 @@ function configOptions(raw: unknown): ConfigOption[] {
   }));
 }
 
-const HELP = () =>
-  box(
-    [
-      `${c.accent("/model")}   choose the model`,
-      `${c.accent("/stop")}    stop the turn         ${c.faint("Ctrl+C while it runs")}`,
-      `${c.accent("/quit")}    leave                 ${c.faint("Ctrl+C when idle · Ctrl+D")}`,
-      "",
-      c.muted("Enter sends. The phone sees it too; messages wait while the agent works."),
-    ],
-    { title: c.bold("Commands"), width: 72 },
-  );
+const COMMANDS: Array<[string, string]> = [
+  ["/model", "choose the model"],
+  ["/stop", "interrupt the turn"],
+  ["/clear", "clear the screen"],
+  ["/help", "keys and commands"],
+  ["/quit", "leave"],
+];
 
-/** The text a finished tool printed, from its content blocks. */
-function toolOutput(raw: Json): string {
-  const blocks = Array.isArray(raw["content"]) ? raw["content"] : [];
-  return blocks
-    .filter(isObject)
-    .map((b) =>
-      isObject(b["content"]) && typeof b["content"]["text"] === "string"
-        ? b["content"]["text"]
-        : "",
-    )
-    .join("\n")
-    .trimEnd();
+/** What a tool did, as Claude Code and Codex name it: Run, Read, Edit… */
+const KIND_LABEL: Record<string, string> = {
+  execute: "Run",
+  read: "Read",
+  edit: "Edit",
+  delete: "Delete",
+  move: "Move",
+  search: "Search",
+  fetch: "Fetch",
+  think: "Think",
+};
+
+/** `Run(npm test)`: the kind, then what it acted on. */
+export function toolLabel(kind: string, title: string): string {
+  const label = KIND_LABEL[kind];
+  const target = title.replace(/`/gu, "").trim();
+  if (!label) return c.bold(target || "Tool");
+  const rest = target.toLowerCase().startsWith(label.toLowerCase())
+    ? target.slice(label.length).trim()
+    : target;
+  return rest ? `${c.bold(label)}${c.muted(`(${rest})`)}` : c.bold(label);
+}
+
+interface ToolContent {
+  text: string;
+  diffs: Array<{ path: string; before: string; after: string }>;
+}
+
+/** What a finished tool printed, and the files it changed. */
+function toolContent(raw: Json): ToolContent {
+  const blocks = (Array.isArray(raw["content"]) ? raw["content"] : []).filter(isObject);
+  return {
+    text: blocks
+      .map((b) =>
+        isObject(b["content"]) && typeof b["content"]["text"] === "string"
+          ? b["content"]["text"]
+          : "",
+      )
+      .join("\n")
+      .trimEnd(),
+    diffs: blocks
+      .filter((b) => b["type"] === "diff")
+      .map((b) => ({
+        path: String(b["path"] ?? ""),
+        before: typeof b["oldText"] === "string" ? b["oldText"] : "",
+        after: typeof b["newText"] === "string" ? b["newText"] : "",
+      })),
+  };
+}
+
+interface Choice {
+  title: string;
+  question: string;
+  options: Array<{ label: string; paint?: (t: string) => string; note?: string }>;
+  index: number;
+  pick: (index: number | null) => void;
 }
 
 export async function attach(query: string | undefined): Promise<void> {
   const { socket, lines } = await openSocket();
   const screen = new Screen();
   const markdown = new MarkdownLines("  ");
+  const editor = new Editor();
   let sessionId = "";
   let agentName = "Agent";
   let working = false;
   let turnStarted = 0;
   let turnTools = 0;
-  let frame = 0;
+  let frameNo = 0;
   let config: ConfigOption[] = [];
   let usage: { used: number; size: number } | null = null;
 
@@ -247,10 +328,10 @@ export async function attach(query: string | undefined): Promise<void> {
   let firstRow = false;
   let thoughtSince = 0;
   let lastUser: string | null = null;
-  const tools = new Map<string, string>();
+  const tools = new Map<string, { kind: string; title: string }>();
 
-  /** A question waiting for a number typed: permission, or a choice. */
-  let choice: { title: string; count: number; pick: (index: number | null) => void } | null = null;
+  /** A menu waiting for a pick: permission, or the model. */
+  let choice: Choice | null = null;
   /** Permission questions open, by request id, to withdraw when answered elsewhere. */
   const asked = new Map<RpcId, () => void>();
 
@@ -259,51 +340,95 @@ export async function attach(query: string | undefined): Promise<void> {
     const m = model();
     return m?.options.find((o) => o.value === m.currentValue)?.name ?? m?.currentValue ?? "";
   };
-  const spin = () => SPINNER[frame % SPINNER.length]!;
+  const spin = () => SPINNER[Math.floor(frameNo / 2) % SPINNER.length]!;
+  const marker = (row: string) => `${c.accent("●")} ${row.startsWith("  ") ? row.slice(2) : row}`;
 
   /** Reply rows; the first of a reply carries its marker. */
   const reply = (rows: string[]) =>
     rows.map((row) => {
       if (!firstRow || row === "") return row;
       firstRow = false;
-      return `${c.accent("●")} ${row.startsWith("  ") ? row.slice(2) : row}`;
+      return marker(row);
     });
 
-  screen.live = () => [
-    ...[...tools.values()].flatMap((title) => hang(title, `${c.accent(spin())} `, "  ")),
-    ...(partial
-      ? markdown
-          .preview(partial)
-          .map((row, i) =>
-            i === 0 && firstRow
-              ? `${c.accent("●")} ${row.startsWith("  ") ? row.slice(2) : row}`
-              : row,
-          )
-      : []),
-    "",
-  ];
-  screen.status = () => {
-    if (choice) {
-      return rule(
-        `${c.accent("?")} ${c.bold(choice.title)}`,
-        c.muted(`1–${choice.count} · Enter skips`),
-        c.accent,
+  // ── the live area ─────────────────────────────────────────────────────────
+
+  screen.region = () => {
+    const w = width();
+    const rows: string[] = [];
+    for (const tool of tools.values()) {
+      rows.push(...hang(toolLabel(tool.kind, tool.title), `${c.accent(spin())} `, "  ", w));
+    }
+    if (partial) {
+      rows.push(
+        ...markdown.preview(partial).map((row, i) => (i === 0 && firstRow ? marker(row) : row)),
       );
     }
-    const left = working
-      ? `${c.violet(spin())} ${c.bold(agentName)} ${c.muted(
-          block === "thought" ? "thinking" : tools.size ? "using tools" : "working",
-        )} ${c.faint(seconds(Date.now() - turnStarted))}`
-      : `${c.green("●")} ${c.bold(agentName)} ${c.muted("ready")}`;
-    const right: string[] = [];
-    const name = modelName();
-    if (name) right.push(c.muted(name));
-    if (usage && usage.size > 0) {
-      const f = usage.used / usage.size;
-      right.push(`${meter(f)} ${c.muted(`${Math.round(f * 100)}%`)}`);
+    if (rows.length) rows.push("");
+    if (working) {
+      const doing = block === "thought" ? "Thinking…" : tools.size ? "Working…" : "Thinking…";
+      rows.push(
+        `${c.accent("✻")} ${shimmer(doing, frameNo)} ${c.faint(
+          `${seconds(Date.now() - turnStarted)} · esc to interrupt`,
+        )}`,
+      );
     }
-    right.push(c.faint(working ? "Ctrl+C stops" : "/help"));
-    return rule(left, right.join(c.faint("  ·  ")));
+
+    // A menu takes the input's place while it is open.
+    const open = choice;
+    if (open) {
+      const inside = w - 4;
+      const body = [
+        ...hang(c.bold(open.question), "", "", inside),
+        "",
+        ...open.options.map((o, i) => {
+          const selected = i === open.index;
+          const label = (o.paint ?? ((t: string) => t))(o.label);
+          const note = o.note ? c.faint(`  ${o.note}`) : "";
+          return selected
+            ? `${c.accent("❯")} ${c.accent(`${i + 1}.`)} ${c.bold(label)}${note}`
+            : `  ${c.faint(`${i + 1}.`)} ${label}${note}`;
+        }),
+      ];
+      rows.push(
+        ...frame(body, w, {
+          title: c.bold(c.accent(open.title)),
+          foot: c.muted("↑↓ choose · enter · esc skips · or answer on the phone"),
+          paint: c.accent,
+        }),
+      );
+      return { rows, caret: null };
+    }
+
+    const inside = w - 4 - 2;
+    const layout = editor.layout(inside);
+    const box = layout.rows.map((row, i) => `${i === 0 ? c.accent("›") : " "} ${row}`);
+    if (editor.empty) {
+      box[0] = `${c.accent("›")} ${c.faint(`Message ${agentName}…  / for commands`)}`;
+    }
+    const top = rows.length;
+    rows.push(...frame(box, w, { paint: c.faint }));
+
+    // Commands matching what is typed, under the box.
+    const typed = editor.value;
+    if (typed.startsWith("/") && !typed.includes(" ")) {
+      for (const [name, what] of COMMANDS.filter(([n]) => n.startsWith(typed))) {
+        rows.push(`  ${c.accent(name.padEnd(8))} ${c.muted(what)}`);
+      }
+    }
+
+    const left = [
+      `${working ? c.violet(spin()) : c.green("●")} ${c.bold(agentName)}`,
+      modelName() ? c.muted(modelName()) : "",
+      usage && usage.size > 0
+        ? `${meter(usage.used / usage.size)} ${c.muted(`${Math.round((usage.used / usage.size) * 100)}%`)}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(c.faint("  ·  "));
+    const right = c.faint(working ? "esc interrupt · ctrl+c leave" : "↑ history · ctrl+d leave");
+    rows.push(` ${spread(left, right, w - 1)}`);
+    return { rows, caret: { row: top + 1 + layout.row, column: 4 + layout.column } };
   };
 
   /** Ends the reply line and the thought shown, before something else. */
@@ -324,31 +449,48 @@ export async function attach(query: string | undefined): Promise<void> {
     block = next;
   };
 
-  /** A finished tool: a line for good, with the end of what it printed. */
-  const finishTool = (title: string, failed: boolean, raw: Json) => {
+  /** A finished tool: its line for good, with what it printed or changed. */
+  const finishTool = (kind: string, title: string, failed: boolean, raw: Json) => {
     turnTools++;
     screen.section("tool", true);
-    const out = hang(c.bold(title), `${failed ? c.red("●") : c.green("●")} `, "  ");
-    const text = toolOutput(raw);
-    if (text) {
-      const tail = text
-        .split("\n")
-        .filter((line) => line.trim() !== "")
-        .slice(-4);
-      for (const line of tail) {
-        out.push(...hang(c.faint(line.slice(0, 400)), c.faint("  │ "), c.faint("  │ ")));
+    const w = width();
+    const out = hang(toolLabel(kind, title), `${failed ? c.red("●") : c.green("●")} `, "  ", w);
+    const { text, diffs } = toolContent(raw);
+    const lead = c.faint("  └ ");
+    const under = "    ";
+    if (diffs.length) {
+      for (const diff of diffs) {
+        const rows = diffRows(diff.before, diff.after);
+        const added = rows.filter((r) => r.includes("+ ")).length;
+        const removed = rows.filter((r) => r.includes("- ")).length;
+        out.push(
+          `${lead}${c.muted(`Updated ${diff.path || "the file"} with `)}${c.green(`+${added}`)} ${c.red(`-${removed}`)}`,
+          ...rows.map((row) => `${under}${row}`),
+        );
       }
+    } else if (text) {
+      const all = text.split("\n").filter((line) => line.trim() !== "");
+      const tail = all.slice(-4);
+      if (all.length > tail.length)
+        out.push(`${lead}${c.faint(`… ${all.length - tail.length} lines`)}`);
+      tail.forEach((line, i) => {
+        const first = i === 0 && all.length === tail.length;
+        out.push(...hang(c.faint(line.slice(0, 400)), first ? lead : under, under, w));
+      });
+    } else if (failed) {
+      out.push(`${lead}${c.red("failed")}`);
     }
     screen.print(...out);
   };
 
-  /** The end of a turn: how long it took and what it used. */
+  /** The end of a turn: a rule with how long it took and what it used. */
   const turnEnded = () => {
     if (!turnStarted) return;
-    screen.section("end");
-    const took = seconds(Date.now() - turnStarted);
     const used = turnTools ? ` · ${turnTools} tool${turnTools === 1 ? "" : "s"}` : "";
-    screen.print(c.faint(`└ ${took}${used}`), "");
+    const label = ` Worked for ${seconds(Date.now() - turnStarted)}${used} `;
+    const side = Math.max(2, Math.floor((width() - textWidth(label)) / 2));
+    screen.section("end");
+    screen.print(c.faint(`${"─".repeat(side)}${label}${"─".repeat(side)}`), "");
     turnStarted = 0;
     turnTools = 0;
   };
@@ -369,7 +511,10 @@ export async function attach(query: string | undefined): Promise<void> {
           turnTools = 0;
         }
         screen.section("user");
-        return screen.print(...hang(c.bold(text), `${c.accent("›")} `, "  "));
+        const w = width();
+        return screen.print(
+          ...hang(text, `${c.accent("›")} `, "  ", w - 1).map((row) => band(` ${row}`, w)),
+        );
       }
       case "agent_message_chunk": {
         if (block !== "agent") {
@@ -396,37 +541,45 @@ export async function attach(query: string | undefined): Promise<void> {
       case "tool_call": {
         settle(null);
         const id = String(raw["toolCallId"]);
-        const title = String(raw["title"] ?? "tool");
+        const tool = { kind: String(raw["kind"] ?? ""), title: String(raw["title"] ?? "tool") };
         const status = raw["status"];
         if (status === "completed" || status === "failed") {
-          return finishTool(title, status === "failed", raw);
+          return finishTool(tool.kind, tool.title, status === "failed", raw);
         }
-        tools.set(id, title);
+        tools.set(id, tool);
         return screen.draw();
       }
       case "tool_call_update": {
         const id = String(raw["toolCallId"]);
-        const title = tools.get(id) ?? String(raw["title"] ?? "tool");
+        const tool = tools.get(id) ?? {
+          kind: String(raw["kind"] ?? ""),
+          title: String(raw["title"] ?? "tool"),
+        };
+        if (typeof raw["title"] === "string") tool.title = raw["title"];
         const status = raw["status"];
         if (status === "completed" || status === "failed") {
           tools.delete(id);
-          return finishTool(title, status === "failed", raw);
+          return finishTool(tool.kind, tool.title, status === "failed", raw);
         }
-        if (typeof raw["title"] === "string" && tools.has(id)) tools.set(id, raw["title"]);
+        if (tools.has(id)) tools.set(id, tool);
         return screen.draw();
       }
       case "plan": {
         settle(null);
         screen.section("plan");
         const entries = (Array.isArray(raw["entries"]) ? raw["entries"] : []).filter(isObject);
+        const w = width();
         return screen.print(
-          `${c.accent("◆")} ${c.bold("Plan")}`,
-          ...entries.flatMap((entry) => {
+          `${c.accent("●")} ${c.bold("Update plan")}`,
+          ...entries.flatMap((entry, i) => {
             const status = entry["status"];
             const line = String(entry["content"] ?? "");
-            if (status === "completed") return hang(c.faint(line), `  ${c.green("✓")} `, "    ");
-            if (status === "in_progress") return hang(c.bold(line), `  ${c.accent("◐")} `, "    ");
-            return hang(line, `  ${c.faint("○")} `, "    ");
+            const lead = i === 0 ? c.faint("  └ ") : "    ";
+            if (status === "completed")
+              return hang(c.faint(line), `${lead}${c.green("✓")} `, "      ", w);
+            if (status === "in_progress")
+              return hang(c.bold(line), `${lead}${c.accent("◐")} `, "      ", w);
+            return hang(line, `${lead}${c.faint("○")} `, "      ", w);
           }),
         );
       }
@@ -450,6 +603,7 @@ export async function attach(query: string | undefined): Promise<void> {
       if (method === "session/request_permission") {
         settle(null);
         const call = isObject(params["toolCall"]) ? params["toolCall"] : {};
+        const running = tools.get(String(call["toolCallId"]));
         const options = (Array.isArray(params["options"]) ? params["options"] : [])
           .filter(isObject)
           .map((o) => ({
@@ -457,36 +611,27 @@ export async function attach(query: string | undefined): Promise<void> {
             name: String(o["name"]),
             kind: String(o["kind"] ?? ""),
           }));
-        const title = String(call["title"] ?? tools.get(String(call["toolCallId"])) ?? "");
-        screen.section("permission");
-        screen.print(
-          ...box(
-            [
-              c.bold(title || "The agent asks to go on."),
-              "",
-              ...options.map((o, i) => {
-                const paint = o.kind.startsWith("reject")
-                  ? c.red
-                  : o.kind.startsWith("allow")
-                    ? c.green
-                    : c.text;
-                return `${c.accent(String(i + 1))}  ${paint(o.name)}`;
-              }),
-            ],
-            {
-              title: c.bold(c.accent("Permission")),
-              foot: c.muted("a number · or on the phone"),
-              color: c.accent,
-              width: 72,
-            },
-          ),
-        );
+        const what =
+          typeof call["title"] === "string"
+            ? call["title"]
+            : running
+              ? running.title
+              : "The agent asks to go on.";
         return new Promise((answer) => {
           const cancelled = { outcome: { outcome: "cancelled" } };
           asked.set(id, () => answer(cancelled));
           choice = {
-            title: "Allow it?",
-            count: options.length,
+            title: "Permission",
+            question: what,
+            index: 0,
+            options: options.map((o) => ({
+              label: o.name,
+              ...(o.kind.startsWith("reject")
+                ? { paint: c.red }
+                : o.kind === "allow_always"
+                  ? { note: "this session" }
+                  : {}),
+            })),
             pick: (index) => {
               asked.delete(id);
               const picked = index === null ? undefined : options[index];
@@ -495,7 +640,16 @@ export async function attach(query: string | undefined): Promise<void> {
                   ? { outcome: { outcome: "selected", optionId: picked.optionId } }
                   : cancelled,
               );
-              screen.print(c.muted(`  → ${picked?.name ?? "skipped"}`), "");
+              const verdict = picked
+                ? picked.kind.startsWith("reject")
+                  ? c.red(picked.name)
+                  : c.green(picked.name)
+                : c.muted("Skipped");
+              screen.section("permission");
+              screen.print(
+                `${c.accent("●")} ${c.bold("Permission")} ${c.muted(what)}`,
+                `${c.faint("  └ ")}${verdict}`,
+              );
             },
           };
           screen.draw();
@@ -503,7 +657,7 @@ export async function attach(query: string | undefined): Promise<void> {
       }
       if (method === "elicitation/create") {
         screen.print(
-          `${c.accent("?")} ${c.muted("The agent asks for details. Answer it on the phone.")}`,
+          `${c.accent("●")} ${c.muted("The agent asks for details. Answer it on the phone.")}`,
         );
         return new Promise(() => {});
       }
@@ -533,7 +687,7 @@ export async function attach(query: string | undefined): Promise<void> {
         asked.delete(id);
         withdraw();
         choice = null;
-        screen.print(c.muted("  Answered on the phone."), "");
+        screen.print(`${c.faint("  └ ")}${c.muted("Answered on the phone")}`, "");
       }
     },
   });
@@ -569,18 +723,6 @@ export async function attach(query: string | undefined): Promise<void> {
   const session = pickSession((listed.sessions ?? []).map(sessionInfo), query);
   sessionId = session.sessionId;
   agentName = session.agentName || "Agent";
-  const header = (model: string) =>
-    box(
-      [
-        c.bold(session.title || folder(session.cwd)),
-        c.muted([agentName, model, folder(session.cwd)].filter(Boolean).join("  ·  ")),
-      ],
-      {
-        title: `${c.accent("◆")} ${c.bold("Baya")}`,
-        foot: c.faint("live with your phone"),
-        width: 72,
-      },
-    );
   const loaded = await peer.request<Json>("session/load", {
     sessionId,
     cwd: session.cwd,
@@ -590,23 +732,32 @@ export async function attach(query: string | undefined): Promise<void> {
   config = configOptions(loaded["configOptions"]);
   settle(null);
   tools.clear();
-  // The header goes last, so it is what one sees above the input.
-  screen.print("", ...header(modelName()), "");
+
+  // The welcome card goes last, so it is what one sees over the input.
+  const card = (() => {
+    const w = Math.min(width(), 78);
+    const rows = [
+      `${gradient("✻ Baya", [232, 180, 74], [214, 120, 170])}  ${c.faint("live with your phone")}`,
+      "",
+      ...hang(c.bold(session.title || folder(session.cwd)), "  ", "  ", w - 4),
+      `  ${c.muted([agentName, modelName()].filter(Boolean).join(" · "))}`,
+      `  ${c.muted(folder(session.cwd))}`,
+      "",
+      `  ${c.faint("/help for commands · esc interrupts · ctrl+d leaves")}`,
+    ];
+    return frame(rows, w, { paint: c.accent });
+  })();
+  screen.section("card");
+  screen.print(...card, "");
   working = session.working;
   if (working) turnStarted = Date.now();
 
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: isTty() ? `${c.accent("❯")} ` : "",
-  });
-  screen.rl = rl;
-  screen.draw();
   const ticker = setInterval(() => {
-    frame++;
+    frameNo++;
     if (working || tools.size) screen.draw();
-  }, 150);
-  process.stdout.on("resize", () => screen.draw());
+  }, 80);
+  const resize = () => screen.draw();
+  process.stdout.on("resize", resize);
 
   await new Promise<void>((resolve) => {
     let closed = false;
@@ -615,42 +766,43 @@ export async function attach(query: string | undefined): Promise<void> {
       if (closed) return;
       closed = true;
       clearInterval(ticker);
+      process.stdout.off("resize", resize);
       settle(null);
-      screen.rl = null;
       screen.close();
-      rl.close();
+      if (isTty()) {
+        process.stdout.write(`${ESC}?2004l`);
+        if (process.stdin.isTTY) process.stdin.setRawMode(false);
+      }
       // Leave no handle behind: the socket goes now and stdin lets go.
       socket.destroy();
       process.stdin.pause();
       process.stdin.unref?.();
       resolve();
     };
-    const stop = () => {
+    const interrupt = () => {
       peer.notify("session/cancel", { sessionId });
-      screen.print(c.muted("  Stopping the turn… Ctrl+C again to leave."));
+      screen.section("interrupt");
+      screen.print(`${c.faint("  └ ")}${c.muted("Interrupted")}`);
     };
     const chooseModel = () => {
       const option = model();
       if (!option || option.options.length === 0) {
-        return screen.print(c.muted("  This agent has no models to choose from."));
+        return screen.print(
+          `${c.faint("  └ ")}${c.muted("This agent has no models to choose from.")}`,
+        );
       }
-      screen.print(
-        ...box(
-          option.options.map(
-            (o, i) =>
-              `${c.accent(String(i + 1))}  ${o.value === option.currentValue ? c.bold(o.name) : o.name}${
-                o.value === option.currentValue ? c.green("  ✓") : ""
-              }`,
-          ),
-          { title: c.bold("Model"), foot: c.muted("a number · Enter keeps it"), width: 72 },
-        ),
-      );
+      const current = option.options.findIndex((o) => o.value === option.currentValue);
       choice = {
-        title: "Which model?",
-        count: option.options.length,
+        title: "Model",
+        question: `Which model should ${agentName} use?`,
+        index: Math.max(0, current),
+        options: option.options.map((o) => ({
+          label: o.name,
+          ...(o.value === option.currentValue ? { note: "current" } : {}),
+        })),
         pick: (index) => {
           const picked = index === null ? undefined : option.options[index];
-          if (!picked) return;
+          if (!picked || picked.value === option.currentValue) return screen.draw();
           peer
             .request<Json>("session/set_config_option", {
               sessionId,
@@ -665,42 +817,56 @@ export async function attach(query: string | undefined): Promise<void> {
                   : config.map((o) =>
                       o.id === option.id ? { ...o, currentValue: picked.value } : o,
                     );
-                screen.print(c.muted(`  → ${picked.name}`), "");
+                screen.section("model");
+                screen.print(`${c.accent("●")} ${c.bold("Model")} ${c.muted(picked.name)}`);
               },
-              (error: Error) => screen.print(`${c.red("✗")} ${error.message}`),
+              (error: Error) => screen.print(`${c.red("●")} ${error.message}`),
             );
         },
       };
       screen.draw();
     };
-
-    rl.on("line", (input) => {
-      // Readline has echoed the line; the host echoes a sent message back.
-      if (isTty()) process.stdout.write(`${ESC}1A${ESC}2K`);
-      const text = input.trim();
-      const open = choice;
-      if (open) {
-        choice = null;
-        const n = Number(text);
-        open.pick(text && Number.isInteger(n) && n >= 1 && n <= open.count ? n - 1 : null);
-        return screen.draw();
-      }
-      if (!text) return screen.draw();
-      switch (text) {
+    const help = () => {
+      screen.section("help");
+      screen.print(
+        ...frame(
+          [
+            c.bold("Commands"),
+            ...COMMANDS.map(([name, what]) => `  ${c.accent(name.padEnd(8))} ${c.muted(what)}`),
+            "",
+            c.bold("Keys"),
+            `  ${c.accent("enter".padEnd(8))} ${c.muted("send — the phone sees it too")}`,
+            `  ${c.accent("ctrl+j".padEnd(8))} ${c.muted("new line")}`,
+            `  ${c.accent("esc".padEnd(8))} ${c.muted("interrupt the agent")}`,
+            `  ${c.accent("↑ ↓".padEnd(8))} ${c.muted("earlier messages")}`,
+            `  ${c.accent("ctrl+d".padEnd(8))} ${c.muted("leave")}`,
+          ],
+          Math.min(width(), 72),
+          { paint: c.faint },
+        ),
+      );
+    };
+    const send = (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return screen.draw();
+      switch (trimmed) {
         case "/quit":
         case "/exit":
           return quit();
         case "/help":
-          return screen.print(...HELP());
+          return help();
         case "/stop":
-          return working ? stop() : screen.print(c.muted("  Nothing is running."));
+          return working ? interrupt() : screen.draw();
+        case "/clear":
+          process.stdout.write(`${ESC}2J${ESC}3J${ESC}H`);
+          return screen.print(...card, "");
         case "/model":
           return chooseModel();
       }
       peer
         .request("session/prompt", {
           sessionId,
-          prompt: [{ type: "text", text }],
+          prompt: [{ type: "text", text: trimmed }],
           _meta: { baya: { messageId: randomUUID() } },
         })
         .then(
@@ -708,28 +874,121 @@ export async function attach(query: string | undefined): Promise<void> {
             settle(null);
             screen.draw();
           },
-          (error: Error) => screen.print(`${c.red("✗")} ${error.message}`),
+          (error: Error) => screen.print(`${c.red("●")} ${error.message}`),
         );
-    });
-    rl.on("SIGINT", () => {
-      if (choice) {
-        const open = choice;
-        choice = null;
-        open.pick(null);
-        return screen.draw();
-      }
-      const now = Date.now();
-      if (working && now - lastInterrupt > 1500) {
-        lastInterrupt = now;
-        return stop();
-      }
-      quit();
-    });
-    rl.on("close", quit);
+      screen.draw();
+    };
+
     socket.on("close", () => {
       if (closed) return;
-      screen.print(c.muted("  Baya closed the connection."));
+      screen.print(`${c.faint("  └ ")}${c.muted("Baya closed the connection.")}`);
       quit();
     });
+
+    if (!isTty() || !process.stdin.isTTY) {
+      // Piped input: one message per line.
+      const rl = createInterface({ input: process.stdin });
+      rl.on("line", (line) => {
+        if (choice) {
+          const open = choice;
+          choice = null;
+          const n = Number(line.trim());
+          open.pick(Number.isInteger(n) && n >= 1 && n <= open.options.length ? n - 1 : null);
+          return;
+        }
+        send(line);
+      });
+      rl.on("close", quit);
+      screen.draw();
+      return;
+    }
+
+    emitKeypressEvents(process.stdin);
+    process.stdin.setRawMode(true);
+    process.stdout.write(`${ESC}?2004h`);
+    let pasting = false;
+    process.stdin.on(
+      "keypress",
+      (
+        str: string | undefined,
+        key: { name?: string; ctrl?: boolean; meta?: boolean; sequence?: string } = {},
+      ) => {
+        if (closed) return;
+        const name = key.name;
+        if (name === "paste-start") {
+          pasting = true;
+          return;
+        }
+        if (name === "paste-end") {
+          pasting = false;
+          return screen.draw();
+        }
+        if (pasting) {
+          editor.insert(name === "return" || name === "enter" ? "\n" : (str ?? ""));
+          return;
+        }
+
+        const open = choice;
+        if (open) {
+          if (name === "up")
+            open.index = (open.index + open.options.length - 1) % open.options.length;
+          else if (name === "down" || name === "tab")
+            open.index = (open.index + 1) % open.options.length;
+          else if (name === "return" || name === "enter") {
+            choice = null;
+            open.pick(open.index);
+          } else if (name === "escape" || (key.ctrl && name === "c")) {
+            choice = null;
+            open.pick(null);
+          } else if (str && /^[1-9]$/u.test(str) && Number(str) <= open.options.length) {
+            choice = null;
+            open.pick(Number(str) - 1);
+          }
+          return screen.draw();
+        }
+
+        if (key.ctrl && name === "c") {
+          const now = Date.now();
+          if (!editor.empty) editor.take();
+          else if (working && now - lastInterrupt > 1500) {
+            lastInterrupt = now;
+            interrupt();
+          } else return quit();
+          return screen.draw();
+        }
+        if (key.ctrl && name === "d") {
+          if (editor.empty) return quit();
+          editor.delete();
+          return screen.draw();
+        }
+        if (name === "escape") {
+          if (working) interrupt();
+          return screen.draw();
+        }
+        if ((key.ctrl && name === "j") || (name === "return" && key.meta)) editor.insert("\n");
+        else if (name === "return" || name === "enter") {
+          const text = editor.take();
+          return send(text);
+        } else if (name === "backspace") editor.backspace();
+        else if (name === "delete") editor.delete();
+        else if (name === "left") editor.left();
+        else if (name === "right") editor.right();
+        else if (name === "home" || (key.ctrl && name === "a")) editor.home();
+        else if (name === "end" || (key.ctrl && name === "e")) editor.end();
+        else if (key.ctrl && name === "u") editor.killBefore();
+        else if (key.ctrl && name === "k") editor.killAfter();
+        else if (key.ctrl && name === "w") editor.killWord();
+        else if (key.ctrl && name === "l") {
+          process.stdout.write(`${ESC}2J${ESC}H`);
+        } else if (name === "up" && editor.onFirstLine) editor.previous();
+        else if (name === "down" && editor.onLastLine) editor.next();
+        else if (name === "tab" && editor.value.startsWith("/")) {
+          const match = COMMANDS.find(([n]) => n.startsWith(editor.value));
+          if (match) editor.set(match[0]);
+        } else if (str && !key.ctrl && !key.meta) editor.insert(str);
+        screen.draw();
+      },
+    );
+    screen.draw();
   });
 }
