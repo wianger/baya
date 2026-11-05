@@ -4,6 +4,8 @@ import 'package:app/domain/contracts/url_opener.dart';
 import 'package:app/domain/entities/update_info.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
+import 'package:app/ui/update/update_prompt.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // ── Hand-written fakes (no mocktail in this repo) ──────────────────────────
@@ -76,6 +78,82 @@ UpdateBannerViewModel _vm(
 );
 
 void main() {
+  group('on opening the app', () {
+    test('checks again only once the given while has passed', () async {
+      final checker = _FakeChecker(null);
+      final vm = _vm(checker);
+      final t0 = DateTime(2026, 11, 5, 9);
+      await vm.check(now: t0);
+      await vm.check(
+        after: const Duration(hours: 6),
+        now: t0.add(const Duration(hours: 2)),
+      );
+      expect(checker.calls, 1);
+      await vm.check(
+        after: const Duration(hours: 6),
+        now: t0.add(const Duration(hours: 7)),
+      );
+      expect(checker.calls, 2);
+      // Plain check() stays once.
+      await vm.check(now: t0.add(const Duration(days: 2)));
+      expect(checker.calls, 2);
+    });
+
+    testWidgets('the prompt shows the release; Later hides this version', (
+      tester,
+    ) async {
+      final store = _FakeDismissedStore();
+      final opener = _FakeOpener();
+      final vm = _vm(
+        _FakeChecker(
+          const UpdateInfo(
+            version: '2.15.0',
+            buildNumber: 113,
+            date: '2026-11-05',
+            notes: 'Files open on the phone.',
+            artifacts: [],
+          ),
+        ),
+        store: store,
+        opener: opener,
+      );
+      await tester.runAsync(vm.check);
+      final info = (vm.state as UpdateBannerVisible).info;
+      late BuildContext context;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (c) {
+              context = c;
+              return const Scaffold();
+            },
+          ),
+        ),
+      );
+      showUpdatePrompt(context, vm, info).ignore();
+      await tester.pumpAndSettle();
+      expect(find.text('Baya 2.15.0 is out'), findsOneWidget);
+      expect(find.text('Files open on the phone.'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('update-later')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('update-prompt')), findsNothing);
+      expect(store.dismissedCalls, ['2.15.0']);
+
+      // Download opens the release when asked.
+      final again = _vm(
+        _FakeChecker(info),
+        opener: opener,
+        store: _FakeDismissedStore(),
+      );
+      await tester.runAsync(again.check);
+      showUpdatePrompt(context, again, info).ignore();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('update-download')));
+      await tester.pumpAndSettle();
+      expect(opener.opened, hasLength(1));
+    });
+  });
+
   group('UpdateBannerViewModel.check — gating', () {
     test('newer + not dismissed → Visible', () async {
       final vm = _vm(_FakeChecker(_info('1.2.0')));

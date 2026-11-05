@@ -52,11 +52,22 @@ class UpdateBannerViewModel extends ViewModel<UpdateBannerState> {
   bool _checked = false;
   bool _disposed = false;
 
-  /// Checks once per instance whether to show the notice. Silent on failure.
-  Future<void> check() async {
+  DateTime? _lastCheck;
+
+  /// Checks whether to show the notice: once, and again when [after] has
+  /// passed since the last check (the app coming back after a while).
+  /// Silent on failure.
+  Future<void> check({Duration? after, DateTime? now}) async {
     if (!enabled) return;
-    if (_checked) return;
+    final at = now ?? DateTime.now();
+    final last = _lastCheck;
+    if (_checked &&
+        (after == null || last == null || at.difference(last) < after)) {
+      return;
+    }
+    if (state is UpdateBannerVisible) return;
     _checked = true;
+    _lastCheck = at;
 
     final latest = await _checker.fetchLatest();
     if (_disposed) return;

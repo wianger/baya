@@ -928,5 +928,13 @@
   "adbDisconnected": "Disconnected.",
   "phoneSection": "This phone",
   "phoneToolsReady": "New sessions get this phone as tools (mobile-mcp): the screen's elements, taps and swipes, typing, screenshots, apps and logs. Sessions already open get them when reopened.",
-  "phoneToolsInstalling": "Setting up the phone tools on the computer… Sessions started meanwhile can still use adb."
+  "phoneToolsInstalling": "Setting up the phone tools on the computer… Sessions started meanwhile can still use adb.",
+  "updateOut": "Baya {version} is out",
+  "@updateOut": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  }
 }

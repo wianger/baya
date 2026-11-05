@@ -10,6 +10,9 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/themes/app_font_licenses.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
+import 'package:app/ui/update/states/update_banner_state.dart';
+import 'package:app/ui/update/update_prompt.dart';
+import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -38,18 +41,53 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
 
   StreamSubscription<Uri>? _links;
 
+  /// Newer releases, told about once the app is past boot and onboarding.
+  late final _updates = services.viewModel<UpdateBannerViewModel>();
+  bool _prompting = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // Includes the link that cold-started the app.
     _links = AppLinks().uriLinkStream.listen(_openLink);
+    _updates.addListener(_onUpdate);
+    _router.routerDelegate.addListener(_checkWhenSettled);
+  }
+
+  String get _path => _router.routerDelegate.currentConfiguration.uri.path;
+
+  /// Where an update prompt would interrupt: boot, onboarding, pairing.
+  bool get _busy => const ['/boot', '/onboarding', '/pair'].contains(_path);
+
+  void _checkWhenSettled() {
+    if (_busy) return;
+    _router.routerDelegate.removeListener(_checkWhenSettled);
+    unawaited(_updates.check());
+  }
+
+  void _onUpdate() {
+    final state = _updates.state;
+    if (state is! UpdateBannerVisible || _prompting || _busy) return;
+    final context = _router.routerDelegate.navigatorKey.currentContext;
+    if (context == null) return;
+    _prompting = true;
+    unawaited(
+      showUpdatePrompt(
+        context,
+        _updates,
+        state.info,
+      ).whenComplete(() => _prompting = false),
+    );
   }
 
   /// Back in the foreground: reconnect now instead of waiting out a backoff.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) services.hosts.reconnectAll();
+    if (state != AppLifecycleState.resumed) return;
+    services.hosts.reconnectAll();
+    // Back after a while: a release may have come out meanwhile.
+    if (!_busy) unawaited(_updates.check(after: const Duration(hours: 6)));
   }
 
   /// `baya://pair?…` opens pairing with the code already filled in. A link
@@ -72,6 +110,9 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _links?.cancel();
+    _updates.removeListener(_onUpdate);
+    _router.routerDelegate.removeListener(_checkWhenSettled);
+    _updates.dispose();
     disposeDependencies();
     super.dispose();
   }
