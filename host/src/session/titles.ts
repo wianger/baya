@@ -61,12 +61,15 @@ const piTitle: Generator = async (text) => {
     `${INSTRUCTIONS}\n\nThe conversation begins with this message:\n<message>\n${text.slice(0, 1000)}\n</message>\n\nTitle:`,
   ]);
   try {
-    const { stdout } = await run(plan.command, plan.prefixArgs, {
+    const asked = run(plan.command, plan.prefixArgs, {
       cwd: tmpdir(),
       timeout: 60_000,
       windowsHide: true,
       windowsVerbatimArguments: plan.windowsVerbatimArguments,
     });
+    // `pi -p` reads a piped stdin as more of the prompt, and an open one stops it.
+    asked.child.stdin?.end();
+    const { stdout } = await asked;
     return cleanTitle(stdout);
   } catch {
     return null;
