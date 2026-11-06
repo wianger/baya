@@ -4,10 +4,13 @@ import { dshDesktop, isDsh } from "../integrations/dsh_desktop.ts";
 import { phoneMcpServers } from "../integrations/phone_tools.ts";
 import {
   folderName,
+  outranks,
   type SessionRecord,
+  type TitleSource,
   transcriptPath,
   updateSession,
 } from "../session/registry.ts";
+import { generateTitle } from "../session/titles.ts";
 import { AgentProcess } from "./agent_process.ts";
 import { ClientServices, type TerminalSnapshot } from "./client_services.ts";
 import { isObject, type Json, RpcError, type RpcId } from "./jsonrpc.ts";
@@ -68,6 +71,10 @@ function cancelled(question: { method: string }): Json {
  * with `session/load` whether or not the agent supports loading, and so
  * several phones see one conversation.
  */
+/** How long the agent has to name a session itself before one is made. */
+const NAME_AFTER_MS = Number(process.env["BAYA_NAME_AFTER_MS"]) || 8_000;
+const NAME_ON_OPEN_MS = Number(process.env["BAYA_NAME_AFTER_MS"]) || 12_000;
+
 export class HostedSession {
   record: SessionRecord;
   private readonly resolveAgent: () => AgentDefinition | null;
@@ -145,6 +152,11 @@ export class HostedSession {
   /** `session/new` and `session/load`: replays history to [phone] and attaches it. */
   async attach(phone: PhoneLink, replay: boolean): Promise<Json> {
     await this.ensureAgent();
+    // Named only by its first line so far: the agent may still name it as it
+    // loads; if not, a short title is made.
+    if (this.record.titleSource === "prompt" && this.record.title) {
+      this.nameLater(this.record.title, NAME_ON_OPEN_MS);
+    }
     if (replay) {
       for (const update of this.transcript.updates) this.send(phone, update);
       for (const terminal of this.transcript.terminals) {
@@ -442,15 +454,64 @@ export class HostedSession {
     }
   }
 
-  /** The first prompt names an untitled session. */
+  /**
+   * The first prompt names an untitled session with its first line, until
+   * the agent names it or, if it does not, a short title is generated.
+   */
   private touch(prompt: ContentBlock[]): void {
     const patch: Partial<SessionRecord> = { updatedAt: Date.now() };
     if (this.record.title === null) {
       const text = prompt.find((block) => block.type === "text")?.["text"];
-      const line = typeof text === "string" ? text.trim().split(/\r?\n/u)[0]?.trim() : "";
-      if (line) patch.title = line.length > 60 ? `${line.slice(0, 59)}…` : line;
+      const all = typeof text === "string" ? text.trim() : "";
+      const line = all.split(/\r?\n/u)[0]?.trim() ?? "";
+      if (line) {
+        patch.title = line.length > 60 ? `${line.slice(0, 59)}…` : line;
+        patch.titleSource = "prompt";
+        this.nameLater(all, NAME_AFTER_MS);
+      }
     }
     this.record = updateSession(this.id, patch) ?? { ...this.record, ...patch };
+  }
+
+  /** A person's name for the session, which nothing else replaces. */
+  rename(title: string): void {
+    const name = title.trim().slice(0, 120);
+    if (!name) throw RpcError.invalidParams("A name is required.");
+    this.setTitle(name, "user");
+  }
+
+  private setTitle(title: string, source: TitleSource): void {
+    if (!outranks(source, this.record.titleSource)) return;
+    if (title === this.record.title && source === this.record.titleSource) return;
+    this.record = updateSession(this.id, { title, titleSource: source }) ?? {
+      ...this.record,
+      title,
+      titleSource: source,
+    };
+    this.events.changed(this);
+  }
+
+  private naming = false;
+
+  /**
+   * After [delay], if the session still has only its first line for a name
+   * (the agent gave none), asks for a short title.
+   */
+  private nameLater(text: string, delay: number): void {
+    if (this.naming) return;
+    this.naming = true;
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          if (this.record.titleSource !== "prompt") return;
+          const title = await generateTitle(text);
+          if (title && this.record.titleSource === "prompt") this.setTitle(title, "generated");
+        } finally {
+          this.naming = false;
+        }
+      })();
+    }, delay);
+    timer.unref?.();
   }
 
   // ── agent → phones ──────────────────────────────────────────────────────
@@ -488,8 +549,7 @@ export class HostedSession {
         break;
       case "session_info_update":
         if (typeof update["title"] === "string" && update["title"].trim()) {
-          this.record = updateSession(this.id, { title: update["title"].trim() }) ?? this.record;
-          this.events.changed(this);
+          this.setTitle(update["title"].trim(), "agent");
         }
         break;
       case "user_message_chunk":

@@ -175,7 +175,6 @@
   "noWorkspacesOnComputer": "这台电脑上没有工作区",
   "chooseWorkspaceTitle": "选择工作区",
   "renameConversation": "重命名对话",
-  "leaveEmptyForComputerName": "留空则使用电脑名称",
   "renameDevice": "重命名设备",
   "nameShownInApp": "在本应用中显示的名称",
   "renameWorkspace": "重命名工作区",
@@ -464,5 +463,6 @@
   "phoneSection": "这部手机",
   "phoneToolsReady": "之后新开的会话会自动拿到这部手机的工具（mobile-mcp）：读取屏幕元素、点击滑动、输入文字、截图、管理应用、看日志。已经开着的会话重新打开后才有。",
   "phoneToolsInstalling": "正在电脑上安装手机工具…这期间开的会话仍可以直接用 adb。",
-  "updateOut": "Baya {version} 已发布"
+  "updateOut": "Baya {version} 已发布",
+  "sessionNameEverywhere": "所有手机和终端都会显示这个名字，之后不会再被自动改掉。"
 }

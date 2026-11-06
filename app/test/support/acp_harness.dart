@@ -221,6 +221,13 @@ class FakeHost {
           this.update(id, update);
         }
         return {'stopReason': stopReason};
+      case '_baya/rename':
+        final id = params['sessionId'];
+        final at = sessions.indexWhere((s) => s.sessionId == id);
+        final renamed = sessions[at].copyWith(title: params['title'] as String);
+        sessions[at] = renamed;
+        push('_baya/session_changed', {'session': renamed.toJson()});
+        return {'session': renamed.toJson()};
       case 'session/delete':
         final id = params['sessionId'];
         sessions.removeWhere((s) => s.sessionId == id);

@@ -117,11 +117,9 @@ class ChatPage extends StatelessWidget {
     final colors = context.colors;
     final online = session.online || (!session.loaded && initialOnline);
     final working = session.working;
-    final prefs = context.watch<Preferences>();
-    final localName = prefs.sessionName(session.host.key, session.sessionId);
-    final title =
-        localName ??
-        (session.title.isNotEmpty ? session.title : initialTitle ?? kAppName);
+    final title = session.title.isNotEmpty
+        ? session.title
+        : initialTitle ?? kAppName;
     final device = session.host.host.label.isNotEmpty
         ? session.host.host.label
         : initialDevice ?? '—';
@@ -272,11 +270,19 @@ class ChatPage extends StatelessWidget {
           currentName: displayName,
         );
         if (name == null || !context.mounted) return;
-        await context.read<Preferences>().setSessionName(
-          session.host.key,
-          session.sessionId,
-          name,
-        );
+        try {
+          await session.host.call('_baya/rename', {
+            'sessionId': session.sessionId,
+            'title': name,
+          });
+        } catch (_) {
+          if (context.mounted) {
+            await showBayaError(
+              context,
+              message: context.l10n.couldNotRenameSession,
+            );
+          }
+        }
       },
       onDelete: () async {
         await session.host.call('session/delete', {

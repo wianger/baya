@@ -58,7 +58,13 @@ test("a branch holds the conversation up to the chosen agent message", async () 
     { messageId: "msg_1", messageFingerprint: `sha256:${"a".repeat(64)}`, messageOccurrence: 1 },
   ]);
   expect(created).toEqual([
-    { cwd: "/w", agent: "claude", title: "Add dark mode", agentSessionId: "agent-branch" },
+    {
+      cwd: "/w",
+      agent: "claude",
+      title: "Add dark mode",
+      titleSource: "prompt",
+      agentSessionId: "agent-branch",
+    },
   ]);
 });
 
@@ -66,5 +72,7 @@ test("branching before the first reply starts the conversation over", async () =
   const { call, forks, created } = phone();
   await call({ sessionId: "s" });
   expect(forks).toEqual([]);
-  expect(created).toEqual([{ cwd: "/w", agent: "claude", title: "Add dark mode" }]);
+  expect(created).toEqual([
+    { cwd: "/w", agent: "claude", title: "Add dark mode", titleSource: "prompt" },
+  ]);
 });

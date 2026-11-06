@@ -186,10 +186,14 @@ export class PhoneConnection implements HubPhone {
           : undefined;
         const session = this.hub.create(source.record.cwd, source.record.agent, {
           title: source.title,
+          titleSource: source.record.titleSource ?? "prompt",
           ...(agentSessionId ? { agentSessionId } : {}),
         });
         return { session: session.info() };
       }
+      case "_baya/rename":
+        this.session(params).rename(stringParam(params, "title"));
+        return { session: this.session(params).info() };
       case "session/delete":
         this.hub.delete(this.session(params).id);
         return {};

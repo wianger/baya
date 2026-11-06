@@ -11,6 +11,15 @@ import { basename, join } from "node:path";
 import { BAYA_HOME, ensureBayaHome } from "../config.ts";
 
 /** A Baya session: a conversation with one agent in one folder. */
+export type TitleSource = "prompt" | "generated" | "agent" | "user";
+
+const TITLE_SOURCES: readonly TitleSource[] = ["prompt", "generated", "agent", "user"];
+
+/** Whether a title from [next] may replace one from [current]. */
+export function outranks(next: TitleSource, current: TitleSource | null): boolean {
+  return current === null || TITLE_SOURCES.indexOf(next) >= TITLE_SOURCES.indexOf(current);
+}
+
 export interface SessionRecord {
   /** Baya's id; the ACP `sessionId` phones see. */
   id: string;
@@ -19,6 +28,11 @@ export interface SessionRecord {
   agent: string;
   /** Set from the first prompt or by the agent; phones fall back to the folder name. */
   title: string | null;
+  /**
+   * Who named it, weakest first: the first prompt's line, a generated title,
+   * the agent's own, a person's. A name only gives way to a stronger one.
+   */
+  titleSource: TitleSource | null;
   /** The agent's own session id, for `session/load` or `session/resume`. */
   agentSessionId: string | null;
   createdAt: number;
@@ -59,6 +73,11 @@ function parse(raw: unknown): SessionRecord[] {
         cwd: r["cwd"],
         agent: r["agent"],
         title: typeof r["title"] === "string" ? r["title"] : null,
+        titleSource: TITLE_SOURCES.includes(r["titleSource"] as TitleSource)
+          ? (r["titleSource"] as TitleSource)
+          : typeof r["title"] === "string"
+            ? "prompt"
+            : null,
         agentSessionId: typeof r["agentSessionId"] === "string" ? r["agentSessionId"] : null,
         createdAt: typeof r["createdAt"] === "number" ? r["createdAt"] : Date.now(),
         updatedAt: typeof r["updatedAt"] === "number" ? r["updatedAt"] : Date.now(),
@@ -91,6 +110,7 @@ export function addSession(input: {
   cwd: string;
   agent: string;
   title?: string;
+  titleSource?: TitleSource;
   agentSessionId?: string;
 }): SessionRecord {
   const now = Date.now();
@@ -99,6 +119,7 @@ export function addSession(input: {
     cwd: normalizeCwd(input.cwd),
     agent: input.agent,
     title: input.title?.trim() || null,
+    titleSource: input.title?.trim() ? (input.titleSource ?? "user") : null,
     agentSessionId: input.agentSessionId ?? null,
     createdAt: now,
     updatedAt: now,
@@ -110,7 +131,7 @@ export function addSession(input: {
 
 export function updateSession(
   id: string,
-  patch: Partial<Pick<SessionRecord, "title" | "agentSessionId" | "updatedAt">>,
+  patch: Partial<Pick<SessionRecord, "title" | "titleSource" | "agentSessionId" | "updatedAt">>,
 ): SessionRecord | null {
   const sessions = listSessions();
   const record = sessions.find((entry) => entry.id === id);

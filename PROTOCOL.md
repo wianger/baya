@@ -162,6 +162,7 @@ Baya methods:
 | `_baya/browse` | `{path?, showHidden?}` | `{path, parent, home, roots, directories:[{name,path}], truncated}` |
 | `_baya/files` | `{sessionId, path?, showHidden?}` | `{root, path, parent, entries:[{name,path,type,size,modifiedAt}], truncated}` |
 | `_baya/read_file` | `{sessionId, path}` | `{name, path, size, modifiedAt, content, binary, truncated}` (256 KiB at most) |
+| `_baya/rename` | `{sessionId, title}` | `{session}`: a person's name for the session, shown on every device; neither the agent's titles nor generated ones replace it |
 | `_baya/fork` | `{sessionId, messageId?, messageFingerprint?, messageOccurrence?}` | `{session}`: a new session (same folder, agent and title) holding the conversation up to the agent message `messageId`, or none of it without one. The fingerprint (`sha256:<hex>` of the message text) and its 1-based occurrence find the message when the agent lost its id. Only when `canFork`: the agent declares `sessionCapabilities.fork` and reads the JetBrains AIR fork point in `session/fork` `_meta` (Claude Code, Codex). The fork runs in a short-lived agent process, so the new session's own process can open it |
 | `_baya/upload_begin` | `{sessionId, name, size, dir?, stream}` | `{uploadId, dir}`: starts sending a phone file (100 MB at most) into `dir`, a folder inside the session, or `.baya/uploads` there (kept out of git). The phone then sends its bytes as data frames of `stream`, in order |
 | `_baya/upload_resume` | `{uploadId, stream}` | `{received}`: after a dropped connection, the phone's data frames continue on `stream` from `received`. An upload waits 30 minutes for its phone to come back |
@@ -255,8 +256,12 @@ Every paired phone also gets the session list as it changes:
 {"jsonrpc":"2.0","method":"_baya/session_removed","params":{"sessionId":"…"}}
 ```
 
-A session's title is the start of its first prompt until the agent names it
-(`session_info_update`).
+A session's title is its first prompt's first line until something better
+comes: the agent's own title (`session_info_update`, as Claude Code and Codex
+send), or, when the agent gives none within seconds, a short title the host
+asks Pi's default model for (`pi -p --no-session --no-tools`), in the
+language of the first message. A rename (`_baya/rename`) outranks them all;
+a name only ever gives way to a stronger source.
 
 File transfers report as they go:
 

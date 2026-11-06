@@ -175,7 +175,6 @@
   "noWorkspacesOnComputer": "No workspaces on this computer",
   "chooseWorkspaceTitle": "Choose Workspace",
   "renameConversation": "Rename conversation",
-  "leaveEmptyForComputerName": "Leave empty to use the computer name",
   "renameDevice": "Rename device",
   "nameShownInApp": "Name shown in this app",
   "renameWorkspace": "Rename workspace",
@@ -936,5 +935,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "sessionNameEverywhere": "Shown on every phone and terminal; nothing renames it after you."
 }

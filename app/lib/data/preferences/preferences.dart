@@ -18,7 +18,6 @@ import 'package:app/ui/core/themes/app_font_scale.dart';
 class Preferences extends ChangeNotifier {
   final FlutterSecureStorage _store;
   bool _hideToolCalls = false;
-  Map<String, String> _sessionNames = {};
   Map<String, String> _sessionWorkspaces = {};
   Map<String, String> _workspaceNames = {};
   String? _selectedWorkspace;
@@ -33,7 +32,6 @@ class Preferences extends ChangeNotifier {
   Preferences([FlutterSecureStorage? store])
     : _store = store ?? const FlutterSecureStorage();
 
-  static const _kSessionNamesKey = 'prefs.session_names';
   static const _kSessionWorkspacesKey = 'prefs.session_workspaces';
   static const _kWorkspaceNamesKey = 'prefs.workspace_names';
   static const _kNavigationKey = 'prefs.workspace_navigation';
@@ -146,26 +144,6 @@ class Preferences extends ChangeNotifier {
       changed = true;
     }
     _selectedWorkspace = remembered[device];
-    final namesRaw = await _store.read(key: _kSessionNamesKey);
-    Map<String, String> names = {};
-    try {
-      final decoded = namesRaw == null ? null : jsonDecode(namesRaw);
-      if (decoded is Map) {
-        for (final entry in decoded.entries) {
-          if (entry.key is String &&
-              entry.value is String &&
-              (entry.value as String).trim().isNotEmpty) {
-            names[entry.key as String] = (entry.value as String).trim();
-          }
-        }
-      }
-    } on FormatException {
-      /* Invalid preference, fall back to the session title. */
-    }
-    if (!mapEquals(names, _sessionNames)) {
-      _sessionNames = names;
-      changed = true;
-    }
     final sessionWorkspacesRaw = await _store.read(key: _kSessionWorkspacesKey);
     Map<String, String> sessionWorkspaces = {};
     try {
@@ -268,43 +246,6 @@ class Preferences extends ChangeNotifier {
     return workspace != null && isWorkspaceKeyForDevice(workspace, device)
         ? workspace
         : null;
-  }
-
-  /// Local display-name override for a conversation. Null → use the name the
-  /// computer announced. Kept on this phone so renaming never touches the
-  /// running agent or another device.
-  String? sessionName(String epk, String sessionId) =>
-      _sessionNames[_conversationKey(epk, sessionId)];
-
-  Future<void> setSessionName(
-    String epk,
-    String sessionId,
-    String? name,
-  ) async {
-    final key = _conversationKey(epk, sessionId);
-    final trimmed = name?.trim();
-    final next = (trimmed == null || trimmed.isEmpty) ? null : trimmed;
-    final before = _sessionNames[key];
-    if (next == before) return;
-    if (next == null) {
-      _sessionNames.remove(key);
-    } else {
-      _sessionNames[key] = next;
-    }
-    try {
-      await _store.write(
-        key: _kSessionNamesKey,
-        value: jsonEncode(_sessionNames),
-      );
-    } catch (_) {
-      if (before == null) {
-        _sessionNames.remove(key);
-      } else {
-        _sessionNames[key] = before;
-      }
-      rethrow;
-    }
-    notifyListeners();
   }
 
   /// Display name for a logical workspace. Inbox has no stored name until the

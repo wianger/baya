@@ -6,6 +6,7 @@ import {
   listSessions,
   removeSession,
   type SessionRecord,
+  type TitleSource,
 } from "../session/registry.ts";
 import { findExecutable } from "../workspace/directories.ts";
 import { AgentProcess } from "./agent_process.ts";
@@ -85,7 +86,7 @@ export class SessionHub {
   create(
     cwd: string,
     agent?: string,
-    options: { title?: string; agentSessionId?: string } = {},
+    options: { title?: string; titleSource?: TitleSource; agentSessionId?: string } = {},
   ): HostedSession {
     const id = agent ?? defaultAgentId();
     if (!id) throw new Error("No agent is set up on this computer. Add one: baya agents add");

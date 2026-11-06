@@ -5,17 +5,21 @@ import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/material.dart';
 
-/// Phone-local conversation rename. Empty input clears the override so the
-/// computer's session title is shown again.
+/// Names a session on its computer: every device shows the name, and no
+/// title the agent or Baya makes replaces it. Null when cancelled or empty.
 Future<String?> showSessionRenameDialog(
   BuildContext context, {
   required String currentName,
-}) => showNameDialog(
-  context,
-  title: context.l10n.renameConversation,
-  currentValue: currentName,
-  hintText: context.l10n.leaveEmptyForComputerName,
-);
+}) async {
+  final name = await showNameDialog(
+    context,
+    title: context.l10n.renameConversation,
+    currentValue: currentName,
+    hintText: context.l10n.sessionNameEverywhere,
+  );
+  final trimmed = name?.trim();
+  return trimmed == null || trimmed.isEmpty ? null : trimmed;
+}
 
 Future<String?> showDeviceRenameDialog(
   BuildContext context, {

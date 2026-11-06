@@ -244,6 +244,7 @@ function configOptions(raw: unknown): ConfigOption[] {
 
 const COMMANDS: Array<[string, string]> = [
   ["/model", "choose the model"],
+  ["/rename", "name this session"],
   ["/stop", "interrupt the turn"],
   ["/clear", "clear the screen"],
   ["/help", "keys and commands"],
@@ -411,7 +412,7 @@ export async function attach(query: string | undefined): Promise<void> {
 
     // Commands matching what is typed, under the box.
     const typed = editor.value;
-    if (typed.startsWith("/") && !typed.includes(" ")) {
+    if (typed.startsWith("/") && !typed.includes(" ") && typed.length > 0) {
       for (const [name, what] of COMMANDS.filter(([n]) => n.startsWith(typed))) {
         rows.push(`  ${c.accent(name.padEnd(8))} ${c.muted(what)}`);
       }
@@ -862,6 +863,20 @@ export async function attach(query: string | undefined): Promise<void> {
           return screen.print(...card, "");
         case "/model":
           return chooseModel();
+      }
+      if (trimmed === "/rename" || trimmed.startsWith("/rename ")) {
+        const title = trimmed.slice("/rename".length).trim();
+        if (!title) {
+          return screen.print(`${c.faint("  └ ")}${c.muted("Type a name after /rename.")}`);
+        }
+        peer.request("_baya/rename", { sessionId, title }).then(
+          () => {
+            screen.section("rename");
+            screen.print(`${c.accent("●")} ${c.bold("Renamed")} ${c.muted(title)}`);
+          },
+          (error: Error) => screen.print(`${c.red("●")} ${error.message}`),
+        );
+        return screen.draw();
       }
       peer
         .request("session/prompt", {

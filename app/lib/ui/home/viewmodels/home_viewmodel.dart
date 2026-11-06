@@ -94,14 +94,20 @@ class HomeViewModel extends ViewModel<HomeState> {
     String workspaceKey,
   ) => _prefs.setSessionWorkspace(deviceEpk, sessionId, workspaceKey);
 
-  /// Name shown in lists and the chat header. A phone-local rename wins over
-  /// the title the computer gives the session.
-  String displayNameOf(HomeItem item) =>
-      _prefs.sessionName(item.peer.remoteEpk, item.sessionId) ??
-      item.displayName;
+  /// Name shown in lists and the chat header: the computer's, so every
+  /// phone and terminal shows the same.
+  String displayNameOf(HomeItem item) => item.displayName;
 
-  Future<void> renameSession(HomeItem item, String? name) =>
-      _prefs.setSessionName(item.peer.remoteEpk, item.sessionId, name);
+  /// Names the session on its computer, for every device; nothing renames
+  /// it after that.
+  Future<void> renameSession(HomeItem item, String name) async {
+    final host = _hosts.byKey(item.peer.remoteEpk);
+    if (host == null) throw StateError('offline');
+    await host.call('_baya/rename', {
+      'sessionId': item.sessionId,
+      'title': name,
+    });
+  }
 
   /// Rename the paired computer from the sidebar device card.
   Future<void> renameDevice(String epk, String name) async {
