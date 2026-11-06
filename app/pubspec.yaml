@@ -16,7 +16,7 @@ dependencies:
 
   lucide_icons_flutter: ^3.1.14+2
   cryptography: ^2.7.0
-  mobile_scanner: ^7.4.3
+  mobile_scanner: ^7.5.0
   flutter_secure_storage: ^11.2.0
   web_socket_channel: ^3.0.1
   go_router: ^18.1.2
@@ -51,7 +51,7 @@ dependencies:
   url_launcher: ^6.3.3
 
   # Where the crash log is kept.
-  path_provider: ^2.1.5
+  path_provider: ^2.1.6
 
   # Read the installed version for the Android update channel.
   package_info_plus: ^10.2.2
