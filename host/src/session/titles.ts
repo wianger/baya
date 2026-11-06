@@ -57,7 +57,8 @@ const piTitle: Generator = async (text) => {
     "off",
     "--system-prompt",
     INSTRUCTIONS,
-    text.slice(0, 1000),
+    // The ask goes in the message too: some setups keep their own system prompt.
+    `${INSTRUCTIONS}\n\nThe conversation begins with this message:\n<message>\n${text.slice(0, 1000)}\n</message>\n\nTitle:`,
   ]);
   try {
     const { stdout } = await run(plan.command, plan.prefixArgs, {
