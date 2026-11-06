@@ -64,11 +64,18 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
     if (_busy) return;
     _router.routerDelegate.removeListener(_checkWhenSettled);
     unawaited(_updates.check());
+    // A release found while pairing or onboarding waits until it is done.
+    _onUpdate();
   }
 
   void _onUpdate() {
     final state = _updates.state;
-    if (state is! UpdateBannerVisible || _prompting || _busy) return;
+    if (state is! UpdateBannerVisible || _prompting) return;
+    if (_busy) {
+      _router.routerDelegate.removeListener(_checkWhenSettled);
+      _router.routerDelegate.addListener(_checkWhenSettled);
+      return;
+    }
     final context = _router.routerDelegate.navigatorKey.currentContext;
     if (context == null) return;
     _prompting = true;
@@ -86,8 +93,9 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     services.hosts.reconnectAll();
-    // Back after a while: a release may have come out meanwhile.
-    if (!_busy) unawaited(_updates.check(after: const Duration(hours: 6)));
+    // Android keeps the app alive in the background, so opening it is
+    // mostly a resume: look again unless we just did.
+    if (!_busy) unawaited(_updates.check(after: const Duration(minutes: 10)));
   }
 
   /// `baya://pair?…` opens pairing with the code already filled in. A link
