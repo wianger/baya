@@ -5,7 +5,9 @@
  * Claude Code and Codex title theirs.
  */
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { spawnPlan } from "../process/spawn.ts";
 import { findExecutable } from "../workspace/directories.ts";
@@ -42,7 +44,12 @@ type Generator = (text: string) => Promise<string | null>;
 const piTitle: Generator = async (text) => {
   const pi = await findExecutable("pi");
   if (!pi) return null;
-  const plan = spawnPlan(pi, [
+  // Windows' pi.cmd only runs node on pi-launcher.js beside it; going through
+  // cmd.exe loses the arguments, so run the launcher directly.
+  const launcher = join(dirname(pi), "pi-launcher.js");
+  const node = /\.cmd$/iu.test(pi) && existsSync(launcher) ? await findExecutable("node") : null;
+  const plan = spawnPlan(node ?? pi, [
+    ...(node ? [launcher] : []),
     "-p",
     "--no-session",
     "--no-tools",
