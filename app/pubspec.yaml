@@ -14,12 +14,12 @@ dependencies:
     sdk: flutter
   intl: any
 
-  lucide_icons_flutter: ^3.1.14+2
+  lucide_icons_flutter: ^4.0.2
   cryptography: ^2.7.0
-  mobile_scanner: ^7.4.3
+  mobile_scanner: ^7.5.0
   flutter_secure_storage: ^11.2.0
   web_socket_channel: ^3.0.1
-  go_router: ^18.1.2
+  go_router: ^18.1.3
 
   # baya://pair links open the app straight into pairing.
   app_links: ^7.2.0
@@ -47,11 +47,11 @@ dependencies:
   flutter_image_compress: ^2.5.1
 
   # Markdown rendering and external links.
-  gpt_markdown: ^1.1.7
+  gpt_markdown: ^1.4.1
   url_launcher: ^6.3.3
 
   # Where the crash log is kept.
-  path_provider: ^2.1.5
+  path_provider: ^2.1.6
 
   # Read the installed version for the Android update channel.
   package_info_plus: ^10.2.2
