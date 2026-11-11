@@ -31,7 +31,8 @@ end-to-end encrypted.
 
 - **Sessions on any of your computers**: pick a folder and an agent; follow
   its thinking, tool calls, diffs and terminals as they stream; answer its
-  permission questions and forms.
+  permission questions and forms. Back from a locked screen or a new
+  network, the phone catches up with only what it missed.
 - **Edit and branch**: put a sent message back in the composer to change
   and resend; with Claude Code and Codex, branch from it instead, into a new
   session that holds only the conversation before it.
