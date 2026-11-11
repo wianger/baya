@@ -5,7 +5,16 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, expect, test, vi } from "vitest";
 import { pickSession } from "../src/cli/attach.ts";
-import { box, clip, hang, MarkdownLines, textWidth, wrap } from "../src/cli/tui.ts";
+import {
+  box,
+  clip,
+  hang,
+  MarkdownLines,
+  TaskbarState,
+  taskbar,
+  textWidth,
+  wrap,
+} from "../src/cli/tui.ts";
 
 const FAKE_AGENT = fileURLToPath(new URL("./fixtures/fake-agent.mjs", import.meta.url));
 const cleanup: Array<() => void | Promise<void>> = [];
@@ -190,4 +199,10 @@ test("the control socket attaches a terminal that shares the session live", asyn
   expect(kinds).toEqual(expect.arrayContaining(["user_message_chunk", "agent_message_chunk"]));
   // A terminal is not counted as a phone.
   expect(hub.connectedPhones).toBe(0);
+});
+
+test("the taskbar shows a turn, and rings when the agent waits for an answer", () => {
+  expect(taskbar(TaskbarState.Busy)).toBe("\x1b]9;4;3;0\x07");
+  expect(taskbar(TaskbarState.Waiting)).toBe("\x1b]9;4;4;0\x07\x07");
+  expect(taskbar(TaskbarState.None)).toBe("\x1b]9;4;0;0\x07");
 });

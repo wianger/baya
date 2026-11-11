@@ -33,12 +33,17 @@ end-to-end encrypted.
   its thinking, tool calls, diffs and terminals as they stream; answer its
   permission questions and forms. Back from a locked screen or a new
   network, the phone catches up with only what it missed.
+- **In your pocket**: while an agent works, it stays in the status bar
+  (a Live Update on Android 16, counting up the turn); when one finishes
+  or asks for approval with the app closed, you are told, and can allow or
+  reject right from the notification.
 - **Edit and branch**: put a sent message back in the composer to change
   and resend; with Claude Code and Codex, branch from it instead, into a new
   session that holds only the conversation before it.
 - **One session, phone and terminal**: `baya attach` opens a session in a
   terminal on the computer, live with the phone: what either sends, both
-  see, and the agent keeps one conversation, whichever agent it is.
+  see, and the agent keeps one conversation, whichever agent it is. The
+  terminal's tab and taskbar show the turn, and ring when it waits for you.
 - **Parallel runs**: give the same task to Claude Code, Codex and Pi at
   once, each in its own git worktree and branch, then compare their replies
   and changes on one board and send follow-ups to all of them.

@@ -464,5 +464,18 @@
   "phoneToolsReady": "之后新开的会话会自动拿到这部手机的工具（mobile-mcp）：读取屏幕元素、点击滑动、输入文字、截图、管理应用、看日志。已经开着的会话重新打开后才有。",
   "phoneToolsInstalling": "正在电脑上安装手机工具…这期间开的会话仍可以直接用 adb。",
   "updateOut": "Baya {version} 已发布",
-  "sessionNameEverywhere": "所有手机和终端都会显示这个名字，之后不会再被自动改掉。"
+  "sessionNameEverywhere": "所有手机和终端都会显示这个名字，之后不会再被自动改掉。",
+  "notifications": "通知",
+  "notificationsHint": "agent 工作时常驻状态栏；完成或需要你时会通知你",
+  "notificationsOffInSystem": "已在 Android 设置中关闭，点按去打开",
+  "agentNeedsApproval": "{agent} 等你批准",
+  "agentHasQuestion": "{agent} 有问题问你",
+  "agentFinishedOn": "{agent} 已完成 · {device}",
+  "agentOn": "{agent} · {device}",
+  "agentsAtWork": "{count, plural, other{{count} 个 agent 正在工作}}",
+  "waitingForYouCount": "{count, plural, =1{等你处理} other{{count} 项等你处理}}",
+  "approveChip": "待批准",
+  "notifyAllow": "允许",
+  "notifyReject": "拒绝",
+  "notifyStop": "停止"
 }

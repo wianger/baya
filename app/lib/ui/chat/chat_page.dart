@@ -142,31 +142,30 @@ class ChatPage extends StatelessWidget {
     return SizedBox(
       key: const ValueKey('chat-floating-header'),
       height: 58,
-      child: Stack(
+      // The title takes the room between the controls, so a long one ends
+      // in an ellipsis instead of running under them.
+      child: Row(
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: BayaSurface(
-              role: BayaSurfaceRole.control,
-              radius: 25,
-              child: SizedBox.square(
-                dimension: 48,
-                child: IconButton(
-                  tooltip: menu != null
-                      ? context.l10n.sessions
-                      : context.l10n.back,
-                  onPressed: leadingAction,
-                  icon: Icon(
-                    menu != null ? LucideIcons.menu : LucideIcons.chevronLeft,
-                    size: 21,
-                    color: colors.text,
-                  ),
+          BayaSurface(
+            role: BayaSurfaceRole.control,
+            radius: 25,
+            child: SizedBox.square(
+              dimension: 48,
+              child: IconButton(
+                tooltip: menu != null
+                    ? context.l10n.sessions
+                    : context.l10n.back,
+                onPressed: leadingAction,
+                icon: Icon(
+                  menu != null ? LucideIcons.menu : LucideIcons.chevronLeft,
+                  size: 21,
+                  color: colors.text,
                 ),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 64),
+          const SizedBox(width: 10),
+          Expanded(
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -217,29 +216,26 @@ class ChatPage extends StatelessWidget {
               ),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: BayaSurface(
-              role: BayaSurfaceRole.control,
-              radius: 25,
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ContextUsageButton(enabled: session.online),
-                  IconButton(
-                    key: const Key('chat-actions'),
-                    tooltip: context.l10n.sessionActions,
-                    onPressed: () =>
-                        _openSessionActions(context, session, title),
-                    icon: Icon(
-                      LucideIcons.ellipsis,
-                      size: 21,
-                      color: colors.muted2,
-                    ),
+          const SizedBox(width: 10),
+          BayaSurface(
+            role: BayaSurfaceRole.control,
+            radius: 25,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ContextUsageButton(enabled: session.online),
+                IconButton(
+                  key: const Key('chat-actions'),
+                  tooltip: context.l10n.sessionActions,
+                  onPressed: () => _openSessionActions(context, session, title),
+                  icon: Icon(
+                    LucideIcons.ellipsis,
+                    size: 21,
+                    color: colors.muted2,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],

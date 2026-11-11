@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agents_live_channel">agent 工作中</string>
+    <string name="agents_live_channel_about">有 agent 正在你的电脑上工作时显示</string>
+    <string name="agents_alert_channel">agent 完成或等你处理</string>
+    <string name="agents_alert_channel_about">agent 已完成，或需要你批准、回答问题</string>
+</resources>

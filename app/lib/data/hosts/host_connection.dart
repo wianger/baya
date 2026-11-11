@@ -124,6 +124,11 @@ class HostConnection extends ChangeNotifier {
   List<AgentInfo> get agents => _intro?.agents ?? const [];
   List<SessionSummary> get sessions => _sessions;
 
+  /// [sessions] is the computer's current list: listed since it last
+  /// connected, and kept up to date since. Cached or stale otherwise.
+  bool get sessionsLive => _sessionsLive;
+  bool _sessionsLive = false;
+
   Stream<SessionEvent> get updates => _updates.stream;
   Stream<QuestionEvent> get questions => _questionEvents.stream;
   Stream<TerminalEvent> get terminals => _terminals.stream;
@@ -288,6 +293,8 @@ class HostConnection extends ChangeNotifier {
       _error = null;
       _setStatus(HostStatus.online);
       await refreshSessions();
+      _sessionsLive = true;
+      notifyListeners();
       if (!_online.isClosed) _online.add(null);
     } on RpcError catch (error) {
       if (error.code == RpcError.notPaired) {
@@ -304,6 +311,7 @@ class HostConnection extends ChangeNotifier {
   void _closed(HostSocket socket, SocketClosed closed) {
     if (_socket != socket) return;
     _socket = null;
+    _sessionsLive = false;
     _peer?.close(RpcClosed(_offlineMessage));
     _peer = null;
     for (final id in _questions.keys.toList()) {

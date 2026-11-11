@@ -936,5 +936,66 @@
       }
     }
   },
-  "sessionNameEverywhere": "Shown on every phone and terminal; nothing renames it after you."
+  "sessionNameEverywhere": "Shown on every phone and terminal; nothing renames it after you.",
+  "notifications": "Notifications",
+  "notificationsHint": "While an agent works it stays in the status bar; you're told when it finishes or needs you",
+  "notificationsOffInSystem": "Turned off in Android settings. Tap to turn them on",
+  "agentNeedsApproval": "{agent} needs your approval",
+  "@agentNeedsApproval": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "agentHasQuestion": "{agent} has a question",
+  "@agentHasQuestion": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "agentFinishedOn": "{agent} finished · {device}",
+  "@agentFinishedOn": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      },
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "agentOn": "{agent} · {device}",
+  "@agentOn": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      },
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "agentsAtWork": "{count, plural, =1{1 agent working} other{{count} agents working}}",
+  "@agentsAtWork": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "waitingForYouCount": "{count, plural, =1{Waiting for you} other{{count} waiting for you}}",
+  "@waitingForYouCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "approveChip": "Approve",
+  "notifyAllow": "Allow",
+  "notifyReject": "Reject",
+  "notifyStop": "Stop"
 }

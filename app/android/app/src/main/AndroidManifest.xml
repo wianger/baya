@@ -13,6 +13,12 @@
     <!-- Plan 30 — image attachments. CAMERA covers the photo-capture path;
          the gallery uses the Android Photo Picker (no storage permission). -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Agents at work: a notification (a Live Update on Android 16) and a
+         foreground service that keeps the connections up meanwhile. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <application
         android:label="Baya"
         android:name="${applicationName}"
@@ -50,6 +56,15 @@
             <!-- Links are handled by app_links, not the router. -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>
+        <service
+            android:name=".AgentService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Shows a coding agent's progress on the user's computer, live, and keeps the encrypted connection to it open until the agent finishes."/>
+        </service>
+        <receiver android:name=".AgentActionReceiver" android:exported="false"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
