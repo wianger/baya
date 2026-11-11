@@ -998,5 +998,6 @@
   "notifyReject": "Reject",
   "notifyStop": "Stop",
   "sharedTextHint": "Open a session to add it there, or start a new one",
-  "discardShared": "Discard shared text"
+  "discardShared": "Discard shared text",
+  "unread": "New since you last looked"
 }

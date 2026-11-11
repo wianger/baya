@@ -18,7 +18,7 @@ export const cyan = paint("cyan");
 
 export const ok = (text: string) => `${green("✓")} ${text}`;
 export const warn = (text: string) => `${yellow("!")} ${text}`;
-export const fail = (text: string) => `${red("✗")} ${text}`;
+export const fail = (text: string) => `${red("×")} ${text}`;
 /** A follow-up command the user can copy. */
 export const hint = (text: string) => `  ${dim("→")} ${text}`;
 

@@ -147,7 +147,7 @@ Standard ACP methods, with Baya's meaning:
 
 | Method | |
 |---|---|
-| `session/list` | Every session on the computer, newest first. `SessionInfo._meta.baya` carries `agent`, `agentName`, `working`, `running` and, when the agent could not start, `error`. |
+| `session/list` | Every session on the computer, newest first by `updatedAt`: when a turn last started or ended. `SessionInfo._meta.baya` carries `agent`, `agentName`, `working`, `running` and, when the agent could not start, `error`. |
 | `session/new` | `{cwd, mcpServers, _meta.baya.agent}`; the configured default agent when omitted. With `_meta.baya.agentSessionId` it adopts one of the agent's own conversations (see `_baya/agent_sessions`) and loads its history. |
 | `session/load` | Replays the transcript as `session/update` notifications, then answers with `configOptions`, `modes` and `_meta.baya` (`agentName`, `title`, `working`, `promptCapabilities`, `canFork`, `cursor`, `resumed`). With `_meta.baya.resume` (a `cursor` from before) the host sends only the live notifications after it, when it still has them, and answers `resumed: true`. The phone is attached until `session/close`. |
 | `session/resume` | Attaches without the replay. |

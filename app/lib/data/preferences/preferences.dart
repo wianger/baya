@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:app/acp/acp.dart' show SessionSummary;
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/domain/value_objects/workspace.dart';
@@ -18,6 +20,11 @@ class Preferences extends ChangeNotifier {
   final FlutterSecureStorage _store;
   bool _hideToolCalls = false;
   bool _notifyAgents = true;
+
+  /// Per session (`host:session`), the last activity seen on this phone,
+  /// in the computer's clock; sessions without one compare to [_seenSince].
+  Map<String, int> _seen = {};
+  int _seenSince = 0;
   Map<String, String> _sessionWorkspaces = {};
   Map<String, String> _workspaceNames = {};
   String? _selectedWorkspace;
@@ -38,6 +45,8 @@ class Preferences extends ChangeNotifier {
 
   static const _kHideToolCallsKey = 'prefs.hide_tool_calls';
   static const _kNotifyAgentsKey = 'prefs.notify_agents';
+  static const _kSeenKey = 'prefs.seen_sessions';
+  static const _seenKept = 400;
   static const _kTailnetDomainKey = 'prefs.tailnet_domain';
   static const _kOnboardingCompletedKey = 'prefs.onboarding_completed';
   static const _kThemeModeKey = 'prefs.theme_mode';
@@ -83,6 +92,27 @@ class Preferences extends ChangeNotifier {
     if (next != _hideToolCalls) {
       _hideToolCalls = next;
       changed = true;
+    }
+
+    try {
+      final seen = jsonDecode(await _store.read(key: _kSeenKey) ?? 'null');
+      if (seen case {
+        'since': final int since,
+        'seen': final Map<String, dynamic> map,
+      }) {
+        _seenSince = since;
+        _seen = {
+          for (final MapEntry(:key, :value) in map.entries)
+            if (value is int) key: value,
+        };
+      }
+    } on FormatException {
+      /* Start over: nothing is unread. */
+    }
+    if (_seenSince == 0) {
+      // From now on: what happened before this phone kept track isn't new.
+      _seenSince = DateTime.now().millisecondsSinceEpoch;
+      _saveSeen();
     }
 
     final notify = await _store.read(key: _kNotifyAgentsKey) != 'false';
@@ -466,6 +496,40 @@ class Preferences extends ChangeNotifier {
     await _store.write(key: _kHideToolCallsKey, value: value.toString());
     notifyListeners();
   }
+
+  static String _seenKey(String hostEpk, String sessionId) =>
+      '${toStandardB64(hostEpk)}:$sessionId';
+
+  /// The agent did something in [session] since it was last open here.
+  bool isUnread(String hostEpk, SessionSummary session) {
+    final at = session.updatedAt?.millisecondsSinceEpoch;
+    if (session.working || at == null) return false;
+    return at > (_seen[_seenKey(hostEpk, session.sessionId)] ?? _seenSince);
+  }
+
+  /// [session] is on screen: all it has done so far is seen.
+  void markSeen(String hostEpk, SessionSummary session) {
+    final at = session.updatedAt?.millisecondsSinceEpoch;
+    final key = _seenKey(hostEpk, session.sessionId);
+    if (at == null || (_seen[key] ?? 0) >= at) return;
+    _seen
+      ..remove(key)
+      ..[key] = at;
+    while (_seen.length > _seenKept) {
+      _seen.remove(_seen.keys.first);
+    }
+    notifyListeners();
+    _saveSeen();
+  }
+
+  void _saveSeen() => unawaited(
+    _store
+        .write(
+          key: _kSeenKey,
+          value: jsonEncode({'since': _seenSince, 'seen': _seen}),
+        )
+        .catchError((Object _) {}),
+  );
 
   Future<void> setNotifyAgents(bool value) async {
     if (_notifyAgents == value) return;
