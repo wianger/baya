@@ -71,9 +71,10 @@ export function installStartup(target: StartupTarget): string {
   }
 }
 
-export function uninstallStartup(): string {
+export function uninstallStartup(launcher: string): string {
   switch (process.platform) {
     case "win32": {
+      rmSync(launcher, { force: true });
       const query = spawnSync("reg.exe", ["QUERY", BAYA_RUN_KEY, "/V", BAYA_RUN_VALUE], {
         windowsHide: true,
       });

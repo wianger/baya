@@ -648,6 +648,7 @@ async function agents(args: ParsedArgs): Promise<void> {
 
 function autostart(args: ParsedArgs): void {
   const mode = args.positionals[0];
+  const launcher = join(BAYA_HOME, "runtime", "autostart.js");
   if (mode === "on") {
     out(
       ok(
@@ -656,12 +657,12 @@ function autostart(args: ParsedArgs): void {
           cwd: resolve(process.cwd()),
           path: process.env["PATH"] ?? "",
           logDir: join(BAYA_HOME, "logs"),
-          launcher: join(BAYA_HOME, "runtime", "autostart.js"),
+          launcher,
         }),
       ),
     );
   } else if (mode === "off") {
-    out(ok(uninstallStartup()));
+    out(ok(uninstallStartup(launcher)));
   } else {
     throw new Error("Use `baya autostart on` or `baya autostart off`.");
   }
