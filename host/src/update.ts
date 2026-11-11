@@ -8,7 +8,7 @@ import { chmodSync, existsSync, renameSync, rmSync, writeFileSync } from "node:f
 
 const RELEASES = "https://api.github.com/repos/wianger/baya/releases?per_page=50";
 
-export interface HostRelease {
+interface HostRelease {
   version: string;
   assets: Map<string, string>;
 }

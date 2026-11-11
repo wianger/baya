@@ -28,7 +28,7 @@ const run = promisify(execFile);
 export const PREVIEW_TOKEN_HEADER = "x-baya-preview";
 
 /** A port something listens on, as the phone lists it. */
-export interface PreviewPort {
+interface PreviewPort {
   port: number;
   /** HTTP status of `GET /`. */
   status: number;

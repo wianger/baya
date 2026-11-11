@@ -84,7 +84,7 @@ function address(value: unknown): string {
   return value;
 }
 
-export interface AdbDevice {
+interface AdbDevice {
   serial: string;
   state: string;
 }

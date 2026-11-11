@@ -123,7 +123,7 @@ const TINT = {
 } satisfies Record<string, { dark: Rgb; light: Rgb }>;
 
 /** [text] on a [tone] tinted row [width] columns wide. */
-export function tinted(text: string, width: number, tone: keyof typeof TINT): string {
+function tinted(text: string, width: number, tone: keyof typeof TINT): string {
   if (!isTty()) return text;
   const rgb = lightTerminal() ? TINT[tone].light : TINT[tone].dark;
   const open = `${ESC}${bgCode(rgb)}m`;
@@ -278,7 +278,7 @@ export function meter(fraction: number, cells = 6): string {
 // ── markdown ─────────────────────────────────────────────────────────────────
 
 /** Inline markdown: `code`, **bold**, *emphasis*, ~~struck~~, [links](url). */
-export function inline(text: string): string {
+function inline(text: string): string {
   return text
     .replace(/`([^`]+)`/gu, (_, code: string) => c.code(code))
     .replace(/\*\*([^*]+)\*\*/gu, (_, strong: string) => c.bold(strong))
@@ -308,7 +308,7 @@ const KEYWORDS = new Set(
  * comments, strings, numbers, keywords and calls. Good enough to read,
  * never wrong enough to mislead.
  */
-export function highlight(line: string, language = ""): string {
+function highlight(line: string, language = ""): string {
   const hash =
     /^(py|python|sh|bash|zsh|shell|rb|ruby|yaml|yml|toml|r|ps1|powershell|dockerfile|make)$/iu.test(
       language,
@@ -353,7 +353,7 @@ function cells(row: string): string[] {
  * cells apart by a faint bar. One too wide for [width] lists each row as
  * `header: value` lines instead.
  */
-export function table(rows: string[], indent: string, width: number): string[] {
+function table(rows: string[], indent: string, width: number): string[] {
   const body = rows.filter((row) => !TABLE_RULE.test(row)).map(cells);
   if (body.length === 0) return [];
   const align = rows.find((row) => TABLE_RULE.test(row));
