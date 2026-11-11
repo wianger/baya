@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A launcher shortcut to a session: a speech bubble on the brand gold. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+  <path android:fillColor="#FFF2B33D" android:pathData="M24 0A24 24 0 1 1 24 48A24 24 0 1 1 24 0Z"/>
+  <path android:fillColor="#FF141414"
+      android:pathData="M15 15H33A3 3 0 0 1 36 18V28A3 3 0 0 1 33 31H22L16 36V31H15A3 3 0 0 1 12 28V18A3 3 0 0 1 15 15Z"/>
+</vector>

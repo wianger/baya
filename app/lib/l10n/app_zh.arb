@@ -98,7 +98,6 @@
   "connectToDevice": "连接你的设备",
   "scanQrThatAppears": "扫描显示的二维码：",
   "scanLater": "稍后扫描",
-  "welcomeTagline": "你的智能体，随处可用。",
   "pairSecurely": "安全配对",
   "pairSecurelyHint": "几秒钟连接你自己的电脑。",
   "keepWorkspaces": "保留工作区",
@@ -231,7 +230,7 @@
   "mobile": "手机",
   "androidDevice": "Android 设备",
   "versionReady": "版本 {version}（{build}）已可下载。",
-  "aboutTagline": "你的编程智能体，在手机上。",
+  "aboutTagline": "你的编程智能体，尽在掌中。",
   "updateKeepsDataAndroid": "Android 安装更新时会保留你的配对和设置。",
   "replyToAgentOrTalk": "回复 {agent}，或按住说话…",
   "replyToAgent": "回复 {agent}…",
@@ -477,5 +476,7 @@
   "approveChip": "待批准",
   "notifyAllow": "允许",
   "notifyReject": "拒绝",
-  "notifyStop": "停止"
+  "notifyStop": "停止",
+  "sharedTextHint": "打开一个会话放进去，或新开一个",
+  "discardShared": "丢弃分享的内容"
 }

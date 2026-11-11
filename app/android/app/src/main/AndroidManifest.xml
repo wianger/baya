@@ -53,6 +53,12 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="baya" android:host="pair"/>
             </intent-filter>
+            <!-- Text shared from another app goes into a session's composer. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
             <!-- Links are handled by app_links, not the router. -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>

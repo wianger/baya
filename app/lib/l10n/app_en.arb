@@ -98,7 +98,6 @@
   "connectToDevice": "Connect to your device",
   "scanQrThatAppears": "Scan the QR code that appears:",
   "scanLater": "Scan later",
-  "welcomeTagline": "Your agents. Across devices.",
   "pairSecurely": "Pair securely",
   "pairSecurelyHint": "Connect your own computers in seconds.",
   "keepWorkspaces": "Keep your workspaces",
@@ -997,5 +996,7 @@
   "approveChip": "Approve",
   "notifyAllow": "Allow",
   "notifyReject": "Reject",
-  "notifyStop": "Stop"
+  "notifyStop": "Stop",
+  "sharedTextHint": "Open a session to add it there, or start a new one",
+  "discardShared": "Discard shared text"
 }

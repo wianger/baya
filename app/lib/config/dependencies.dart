@@ -5,6 +5,7 @@ import 'package:app/data/agents/agent_watch.dart';
 import 'package:app/data/diagnostics/crash_log.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/images/image_picker_service.dart';
+import 'package:app/data/launcher/launcher.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/session_files/session_files_repository.dart';
 import 'package:app/data/transport/host_socket.dart';
@@ -77,6 +78,11 @@ final class AppServices {
   late final AgentNotifier agentNotifier = MethodChannelAgentNotifier();
   late final agentWatch = AgentWatch(hosts, prefs, agentNotifier);
 
+  /// Text shared from other apps, and the launcher's session shortcuts.
+  late final Launcher launcher = MethodChannelLauncher();
+  late final sharedDraft = SharedDraft();
+  late final shortcuts = SessionShortcuts(hosts, launcher);
+
   // Owns a broadcast sound-level stream that outlives chat screens.
   late final SpeechService speech = SpeechToTextService();
   late final IImagePickerService imagePicker = ImagePickerService();
@@ -117,6 +123,7 @@ final class AppServices {
 
   void dispose() {
     agentWatch.dispose();
+    shortcuts.dispose();
     hosts.dispose();
     speech.dispose();
   }

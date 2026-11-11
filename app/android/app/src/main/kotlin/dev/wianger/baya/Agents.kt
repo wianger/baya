@@ -32,8 +32,8 @@ object Agents {
     const val LIVE_ID = 1
     private const val ALERT_ID = 2
     private const val LIVE_TAG = "live"
-    private const val EXTRA_HOST = "dev.wianger.baya.host"
-    private const val EXTRA_SESSION = "dev.wianger.baya.session"
+    const val EXTRA_HOST = "dev.wianger.baya.host"
+    const val EXTRA_SESSION = "dev.wianger.baya.session"
     const val EXTRA_PAYLOAD = "dev.wianger.baya.payload"
     const val EXTRA_TAG = "dev.wianger.baya.tag"
     private const val ASKED = "asked_notifications"

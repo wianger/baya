@@ -37,6 +37,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
         Agents.attach(this, flutterEngine.dartExecutor.binaryMessenger)
+        Launcher.attach(this, flutterEngine.dartExecutor.binaryMessenger)
 
         textToSpeech = TextToSpeech(this) { status ->
             if (status != TextToSpeech.SUCCESS) return@TextToSpeech
@@ -158,12 +159,14 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         Agents.opened(intent)
+        Launcher.received(intent)
     }
 
     override fun onDestroy() {
         // Leaving for good takes Dart with it: nothing would keep the
         // notifications current, or act on their buttons.
         if (isFinishing) Agents.detach(this)
+        Launcher.detach()
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         textToSpeech = null
