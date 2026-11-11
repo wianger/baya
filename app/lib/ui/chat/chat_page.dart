@@ -61,6 +61,15 @@ class ChatPage extends StatelessWidget {
     final session = context.watch<SessionController>();
     // The agent's prompt capabilities decide whether images can be attached.
     final vision = session.loaded ? session.acceptsImages : null;
+    // What is on screen is read: the overview's unread dot goes.
+    if (session.summary case final summary?) {
+      final prefs = context.read<Preferences?>();
+      if (prefs != null) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => prefs.markSeen(session.host.key, summary),
+        );
+      }
+    }
     final attachment = context.read<AttachmentViewModel>();
     if (attachment.state.visionSupported != vision) {
       WidgetsBinding.instance.addPostFrameCallback(

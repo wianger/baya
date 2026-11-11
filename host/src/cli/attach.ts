@@ -32,6 +32,7 @@ import {
   textWidth,
   wrap,
 } from "./tui.ts";
+import { duration } from "./ui.ts";
 
 const ESC = "\x1b[";
 // Geometric shapes, which every terminal font has (braille is not a given).
@@ -72,6 +73,91 @@ export function pickSession(sessions: SessionInfo[], query: string | undefined):
   );
   if (matches.length === 0) throw new Error(`No session matches "${query}". See: baya status`);
   return matches[0]!;
+}
+
+/** The sessions offered when none is named: the most recent ones. */
+const PICKER_ROWS = 9;
+
+/** The picker's rows, [index] highlighted, each within [w] columns. */
+export function pickerRows(
+  sessions: SessionInfo[],
+  index: number,
+  w: number,
+  now = Date.now(),
+): string[] {
+  return sessions.map((s, i) => {
+    const selected = i === index;
+    const mark = s.working ? c.accent("◐") : c.faint("○");
+    const title = s.title || s.agentName || s.sessionId.slice(0, 8);
+    const when = Date.parse(s.updatedAt);
+    const about = [
+      s.agentName,
+      folder(s.cwd).split(/[/\\]/u).filter(Boolean).pop() ?? "",
+      s.working
+        ? "working"
+        : Number.isNaN(when)
+          ? ""
+          : now - when < 60_000
+            ? "just now"
+            : `${duration(now - when)} ago`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const head = `${selected ? c.accent("❯") : " "} ${c.faint(`${i + 1}`)} ${mark} `;
+    const room = Math.max(8, w - textWidth(head) - 1);
+    const name = clip(title, Math.max(8, room - textWidth(about) - 2));
+    const rest = clip(about, Math.max(0, room - textWidth(name) - 2));
+    return `${head}${selected ? c.bold(name) : name}  ${c.faint(rest)}`;
+  });
+}
+
+/** Asks which session to join, with arrows or its number; null to leave. */
+async function chooseSession(sessions: SessionInfo[]): Promise<SessionInfo | null> {
+  const shown = [...sessions]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, PICKER_ROWS);
+  if (shown.length <= 1) return shown[0] ?? null;
+  let index = 0;
+  const out = process.stdout;
+  out.write(
+    `\n  ${c.bold("Which session?")}  ${c.faint("↑↓ choose · enter joins · esc leaves")}\n\n`,
+  );
+  const draw = (again: boolean) => {
+    const rows = pickerRows(shown, index, out.columns || 80);
+    if (again) out.write(`${ESC}${rows.length}A`);
+    for (const row of rows) out.write(`${ESC}2K\r${row}\n`);
+  };
+  out.write(`${ESC}?25l`);
+  draw(false);
+  emitKeypressEvents(process.stdin);
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+  return new Promise((resolve) => {
+    const done = (picked: SessionInfo | null) => {
+      process.stdin.off("keypress", onKey);
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+      // The question goes once answered: the session takes its place.
+      out.write(`${ESC}${shown.length + 3}A\r${ESC}0J${ESC}?25h`);
+      resolve(picked);
+    };
+    const onKey = (text: string | undefined, key: { name?: string; ctrl?: boolean } = {}) => {
+      if (key.name === "up" || key.name === "k") index = (index + shown.length - 1) % shown.length;
+      else if (key.name === "down" || key.name === "j") index = (index + 1) % shown.length;
+      else if (key.name === "return") return done(shown[index]!);
+      else if (
+        key.name === "escape" ||
+        key.name === "q" ||
+        (key.ctrl && (key.name === "c" || key.name === "d"))
+      ) {
+        return done(null);
+      } else if (text && /^[1-9]$/u.test(text) && Number(text) <= shown.length) {
+        return done(shown[Number(text) - 1]!);
+      } else return;
+      draw(true);
+    };
+    process.stdin.on("keypress", onKey);
+  });
 }
 
 // ── the socket ───────────────────────────────────────────────────────────────
@@ -834,14 +920,32 @@ export async function attach(query: string | undefined): Promise<void> {
     clientInfo: { name: "baya-attach", title: "Baya terminal" },
   });
   const listed = await peer.request<{ sessions?: Json[] }>("session/list", {});
-  const session = pickSession((listed.sessions ?? []).map(sessionInfo), query);
+  const sessions = (listed.sessions ?? []).map(sessionInfo);
+  // Nothing named and a person at the terminal: let them choose.
+  const chosen =
+    !query && isTty() && process.stdin.isTTY && sessions.length > 1
+      ? await chooseSession(sessions)
+      : pickSession(sessions, query);
+  if (!chosen) {
+    socket.destroy();
+    return;
+  }
+  const session = chosen;
   sessionId = session.sessionId;
   agentName = session.agentName || "Agent";
-  const loaded = await peer.request<Json>("session/load", {
-    sessionId,
-    cwd: session.cwd,
-    mcpServers: [],
-  });
+  let loaded: Json;
+  try {
+    loaded = await peer.request<Json>("session/load", {
+      sessionId,
+      cwd: session.cwd,
+      mcpServers: [],
+    });
+  } catch (error) {
+    // Leave the terminal as it was before saying why.
+    screen.close();
+    socket.destroy();
+    throw error;
+  }
   replaying = false;
   config = configOptions(loaded["configOptions"]);
   settle(null);

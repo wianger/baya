@@ -83,7 +83,7 @@ ${bold("Get started")}
 ${bold("Sessions")}
   baya status             Host, phones and sessions at a glance
   baya open [folder]      Add a session in a folder  ${dim("--agent <id>")}
-  baya attach [session]   Join a session in this terminal, live with the phone  ${dim("(id prefix or title; the latest by default)")}
+  baya attach [session]   Join a session in this terminal, live with the phone  ${dim("(id prefix or title; asks which when there are several)")}
   baya close <session>    Remove a session and its history  ${dim("(id prefix or title)")}
 
 ${bold("Agents")} ${dim("— any command that speaks ACP (agentclientprotocol.com)")}
@@ -160,7 +160,7 @@ function sessionRows(sessions: SessionStatus[]): string[] {
   return table(
     sessions.map((session) => [
       session.error
-        ? red("✗ failed")
+        ? red("× failed")
         : session.working
           ? cyan("● working")
           : session.running
@@ -773,6 +773,6 @@ process.stdout.on("error", (error: NodeJS.ErrnoException) => {
 });
 
 main().catch((error: unknown) => {
-  process.stderr.write(`${red("✗")} ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(`${red("×")} ${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
 });

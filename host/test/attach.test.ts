@@ -3,8 +3,9 @@ import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripVTControlCharacters as strip } from "node:util";
 import { afterEach, expect, test, vi } from "vitest";
-import { pickSession } from "../src/cli/attach.ts";
+import { pickerRows, pickSession } from "../src/cli/attach.ts";
 import {
   box,
   clip,
@@ -205,4 +206,27 @@ test("the taskbar shows a turn, and rings when the agent waits for an answer", (
   expect(taskbar(TaskbarState.Busy)).toBe("\x1b]9;4;3;0\x07");
   expect(taskbar(TaskbarState.Waiting)).toBe("\x1b]9;4;4;0\x07\x07");
   expect(taskbar(TaskbarState.None)).toBe("\x1b]9;4;0;0\x07");
+});
+
+test("the session picker lists each with its agent, folder and age", () => {
+  const now = Date.parse("2026-11-05T12:00:00Z");
+  const rows = pickerRows(
+    [
+      { ...session("a1b2", "Fix the login redirect", "2026-11-05T09:00:00Z"), cwd: "/code/web" },
+      { ...session("c3d4", "Add dark mode", "2026-11-05T11:00:00Z"), working: true },
+    ],
+    1,
+    60,
+    now,
+  ).map(strip);
+  expect(rows[0]).toBe("  1 ○ Fix the login redirect  Pi · web · 3h 0m ago");
+  expect(rows[1]).toBe("❯ 2 ◐ Add dark mode  Pi · w · working");
+  // Narrow: each row still fits.
+  for (const row of pickerRows(
+    [session("e5", "A very long title that goes on and on", "x")],
+    0,
+    30,
+  )) {
+    expect(textWidth(strip(row))).toBeLessThanOrEqual(30);
+  }
 });

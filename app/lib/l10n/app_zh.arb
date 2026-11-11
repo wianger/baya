@@ -478,5 +478,6 @@
   "notifyReject": "拒绝",
   "notifyStop": "停止",
   "sharedTextHint": "打开一个会话放进去，或新开一个",
-  "discardShared": "丢弃分享的内容"
+  "discardShared": "丢弃分享的内容",
+  "unread": "有你还没看过的新内容"
 }
