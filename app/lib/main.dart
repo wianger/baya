@@ -4,6 +4,7 @@ import 'package:app/config/dependencies.dart';
 import 'package:app/data/agents/agent_notifier.dart';
 import 'package:app/data/device/device_name.dart';
 import 'package:app/data/hosts/hosts.dart';
+import 'package:app/data/launcher/launcher.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/domain/value_objects/workspace.dart';
@@ -66,9 +67,40 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
         if (ref != null) _openSession(ref);
       }),
     );
+    services.shortcuts.start();
+    _shared = services.launcher.shared.listen(_receive);
+    unawaited(
+      services.launcher.takeLaunchText().then((text) {
+        if (text != null) _receive(text);
+      }),
+    );
   }
 
   StreamSubscription<SessionRef>? _opened;
+  StreamSubscription<String>? _shared;
+
+  /// Text shared from another app waits on the overview for a session.
+  void _receive(String text) {
+    services.sharedDraft.offer(text);
+    _whenReady(() {
+      services.selection.clear();
+      _router.go('/home');
+    });
+  }
+
+  /// Runs [action] once the app is past boot and knows its computers.
+  void _whenReady(VoidCallback action) {
+    if (!_busy && services.hosts.loaded) return action();
+    void check() {
+      if (_busy || !services.hosts.loaded) return;
+      _router.routerDelegate.removeListener(check);
+      services.hosts.removeListener(check);
+      action();
+    }
+
+    _router.routerDelegate.addListener(check);
+    services.hosts.addListener(check);
+  }
 
   /// A notification was tapped: show its session once the app is past boot.
   void _openSession(SessionRef ref) {
@@ -97,14 +129,7 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
       );
     }
 
-    if (!_busy && services.hosts.loaded) return open();
-    void whenReady() {
-      if (_busy || !services.hosts.loaded) return;
-      _router.routerDelegate.removeListener(whenReady);
-      open();
-    }
-
-    _router.routerDelegate.addListener(whenReady);
+    _whenReady(open);
   }
 
   String get _path => _router.routerDelegate.currentConfiguration.uri.path;
@@ -175,6 +200,7 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _links?.cancel();
     _opened?.cancel();
+    _shared?.cancel();
     _updates.removeListener(_onUpdate);
     _router.routerDelegate.removeListener(_checkWhenSettled);
     _updates.dispose();
@@ -195,6 +221,7 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<Hosts>.value(value: services.hosts),
         Provider<AgentNotifier>.value(value: services.agentNotifier),
+        ChangeNotifierProvider<SharedDraft>.value(value: services.sharedDraft),
       ],
       // Theme is reactive: toggling the mode in Settings notifies
       // [Preferences] → this Consumer rebuilds → MaterialApp swaps theme.

@@ -1,6 +1,7 @@
 import 'package:app/config/dependencies.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/hosts/session_controller.dart';
+import 'package:app/data/launcher/launcher.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
@@ -256,8 +257,11 @@ GoRouter buildRouter(
                 MultiProvider(
                   providers: [
                     ChangeNotifierProvider<SessionController>(
-                      create: (_) =>
-                          SessionController(host, selection.sessionId),
+                      create: (_) => SessionController(
+                        host,
+                        selection.sessionId,
+                        shared: ctx.read<SharedDraft?>(),
+                      ),
                     ),
                     ViewmodelProvider<VoiceInputViewModel>(),
                     ViewmodelProvider<AttachmentViewModel>(),

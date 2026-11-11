@@ -2,7 +2,7 @@
 
 Drawn the way magpie's icon is: one ink silhouette on a soft grey tile, with
 white cut into it for the weaver's crown, pale breast, wing and tail
-feathers. Run from the repository root:
+feathers, and gold for its crown. Run from the repository root:
 
     python branding/generate.py
 
@@ -20,6 +20,8 @@ DART = ROOT.parent / "app/lib/ui/core/branding/mark_geometry.g.dart"
 
 INK = "#141414"
 PAPER = "#FFFFFF"
+# The baya weaver's golden crown, in the family of the app's amber accent.
+GOLD = "#F2B33D"
 TILE_TOP = "#FAFAFA"
 TILE_BOTTOM = "#E6E6E6"
 
@@ -41,8 +43,9 @@ WING = "M66.5 47C59 46 49 50.5 41.5 60.5C50 62.5 60 60.5 67 53C68.5 51 68.2 48.4
 # Wing and tail feather lines, cut in white.
 LINES = ("M48 57.4L60.5 50.8", "M38.5 61.4L24.5 70.8", "M40.6 66.2L27.6 75.6")
 EYE = (71.5, 40.2, 2.5, 1.3)
-WING_EDGE = 1.5
-LINE_WIDTH = 1.3
+# Thick enough to stay apart at launcher size (48 px).
+WING_EDGE = 1.9
+LINE_WIDTH = 1.8
 # The bird is drawn around CENTER, then sized by SCALE about the canvas centre.
 CENTER = (56, 53.5)
 SCALE = 1.12
@@ -66,7 +69,7 @@ def svg_bird(scale: float = 1.0) -> str:
     return f"""  <g transform="{place(scale)}">
     <path d="{BODY}" fill="{INK}"/>
     <path d="{BREAST}" fill="{PAPER}"/>
-    <path d="{CROWN}" fill="{PAPER}"/>
+    <path d="{CROWN}" fill="{GOLD}"/>
     <path d="{WING}" fill="{INK}" stroke="{PAPER}" stroke-width="{WING_EDGE}" stroke-linejoin="round"/>
     <g stroke="{PAPER}" stroke-width="{LINE_WIDTH}" stroke-linecap="round" fill="none">{lines}</g>
     <circle cx="{ex}" cy="{ey}" r="{ring}" fill="{PAPER}"/>
@@ -160,7 +163,7 @@ def vector_foreground() -> str:
         group(
             f'      <path android:pathData="{BODY}" android:fillColor="{argb(INK)}"/>\n'
             f'      <path android:pathData="{BREAST}" android:fillColor="{argb(PAPER)}"/>\n'
-            f'      <path android:pathData="{CROWN}" android:fillColor="{argb(PAPER)}"/>\n'
+            f'      <path android:pathData="{CROWN}" android:fillColor="{argb(GOLD)}"/>\n'
             f'      <path android:pathData="{WING}" android:fillColor="{argb(INK)}"'
             f' android:strokeColor="{argb(PAPER)}" android:strokeWidth="{WING_EDGE}"'
             ' android:strokeLineJoin="round"/>\n'
@@ -231,6 +234,7 @@ const kMarkLineWidth = {LINE_WIDTH};
 const kMarkCenter = ({float(cx)}, {float(cy)});
 const kMarkScale = {SCALE};
 const kMarkTile = (0xFF{TILE_TOP[1:]}, 0xFF{TILE_BOTTOM[1:]});
+const kMarkGold = 0xFF{GOLD[1:]};
 """
 
 

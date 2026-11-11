@@ -1,6 +1,7 @@
 /// The workspace overview shown when no chat is open.
 library;
 
+import 'package:app/data/launcher/launcher.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/l10n/l10n.dart';
@@ -267,6 +268,9 @@ class _StartCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // Text shared from another app waits here for the session it goes to.
+    final draft = context.watch<SharedDraft?>();
+    final shared = draft?.text;
     return BayaSurface(
       key: const Key('overview-new-session'),
       role: BayaSurfaceRole.control,
@@ -281,21 +285,59 @@ class _StartCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  context.l10n.whatShouldAgentDo,
-                  style: context.typo.sansBody.copyWith(
-                    fontSize: 16,
-                    color: colors.muted,
+                if (shared == null)
+                  Text(
+                    context.l10n.whatShouldAgentDo,
+                    style: context.typo.sansBody.copyWith(
+                      fontSize: 16,
+                      color: colors.muted,
+                    ),
+                  )
+                else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          shared,
+                          key: const Key('overview-shared-text'),
+                          maxLines: 5,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.typo.sansBody.copyWith(
+                            fontSize: 15,
+                            height: 1.4,
+                            color: colors.text,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: context.l10n.discardShared,
+                        visualDensity: VisualDensity.compact,
+                        onPressed: draft!.clear,
+                        icon: Icon(
+                          LucideIcons.x,
+                          size: 18,
+                          color: colors.muted,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
                 const SizedBox(height: 18),
                 Row(
                   children: [
-                    Icon(LucideIcons.folderOpen, size: 16, color: colors.muted),
+                    Icon(
+                      shared == null
+                          ? LucideIcons.folderOpen
+                          : LucideIcons.share,
+                      size: 16,
+                      color: colors.muted,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        context.l10n.pickFolderAndAgent,
+                        shared == null
+                            ? context.l10n.pickFolderAndAgent
+                            : context.l10n.sharedTextHint,
                         style: context.typo.sansBody.copyWith(
                           fontSize: 13,
                           color: colors.muted,
