@@ -999,5 +999,15 @@
   "notifyStop": "Stop",
   "sharedTextHint": "Open a session to add it there, or start a new one",
   "discardShared": "Discard shared text",
-  "unread": "New since you last looked"
+  "unread": "New since you last looked",
+  "notifyReply": "Reply",
+  "replyTo": "Reply to {agent}…",
+  "@replyTo": {
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      }
+    }
+  },
+  "replyNotSent": "Your reply wasn't sent: the computer is offline"
 }

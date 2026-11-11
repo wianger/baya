@@ -6,6 +6,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.RemoteInput
 import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -36,6 +37,7 @@ object Agents {
     const val EXTRA_SESSION = "dev.wianger.baya.session"
     const val EXTRA_PAYLOAD = "dev.wianger.baya.payload"
     const val EXTRA_TAG = "dev.wianger.baya.tag"
+    const val REPLY = "dev.wianger.baya.reply"
     private const val ASKED = "asked_notifications"
     private const val ACCENT = 0xFFE0A93B.toInt()
 
@@ -92,8 +94,9 @@ object Agents {
         sessionOf(intent)?.let { channel?.invokeMethod("open", it) }
     }
 
-    fun action(payload: String) {
-        channel?.invokeMethod("action", mapOf("payload" to payload))
+    /** [text] is what was typed into a reply action. */
+    fun action(payload: String, text: String? = null) {
+        channel?.invokeMethod("action", mapOf("payload" to payload, "text" to text))
     }
 
     private fun sessionOf(intent: Intent?): Map<String, String>? {
@@ -229,6 +232,7 @@ object Agents {
             .setContentIntent(
                 openIntent(context, content["host"] as? String, content["session"] as? String, tag)
             )
+        (content["reply"] as? Map<*, *>)?.let { addReply(context, builder, it, tag) }
         addActions(context, builder, content["actions"], tag)
         manager(context).notify(tag, ALERT_ID, builder.build())
     }
@@ -248,6 +252,31 @@ object Agents {
             tag.hashCode(),
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
+
+    /** A reply typed in the shade, as a messaging app's: the next prompt. */
+    private fun addReply(context: Context, builder: Notification.Builder, reply: Map<*, *>, tag: String) {
+        val label = reply["label"] as? String ?: return
+        val input = RemoteInput.Builder(REPLY)
+            .setLabel(reply["hint"] as? String ?: label)
+            .build()
+        val intent = Intent(context, AgentActionReceiver::class.java)
+            .putExtra(EXTRA_PAYLOAD, reply["payload"] as? String)
+            .putExtra(EXTRA_TAG, tag)
+        // Mutable, so the system can add the typed text; explicit, as it must be.
+        val pending = PendingIntent.getBroadcast(
+            context,
+            "$tag#reply".hashCode(),
+            intent,
+            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        builder.addAction(
+            Notification.Action.Builder(null as Icon?, label, pending)
+                .addRemoteInput(input)
+                .setSemanticAction(Notification.Action.SEMANTIC_ACTION_REPLY)
+                .setAllowGeneratedReplies(false)
+                .build()
         )
     }
 
@@ -306,7 +335,12 @@ class AgentService : Service() {
 class AgentActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val payload = intent.getStringExtra(Agents.EXTRA_PAYLOAD) ?: return
+        // Answered: the notification goes (a reply's would spin otherwise).
         intent.getStringExtra(Agents.EXTRA_TAG)?.let { Agents.cancel(context, it) }
-        Agents.action(payload)
+        val text = RemoteInput.getResultsFromIntent(intent)
+            ?.getCharSequence(Agents.REPLY)
+            ?.toString()
+            ?.trim()
+        Agents.action(payload, text?.takeIf { it.isNotEmpty() })
     }
 }

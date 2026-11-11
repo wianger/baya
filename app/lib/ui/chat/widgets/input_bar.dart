@@ -217,6 +217,7 @@ class _InputBarState extends State<InputBar> {
     final hasImage = widget.attachment?.hasImage ?? false;
     if (text.isEmpty && !hasImage) return;
     _controller.clear();
+    unawaited(HapticFeedback.lightImpact());
     widget.onSend(text);
   }
 

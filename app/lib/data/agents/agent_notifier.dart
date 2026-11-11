@@ -58,6 +58,24 @@ class LiveActivity {
   };
 }
 
+/// A tapped notification button: its payload, and for a reply the text.
+typedef TappedAction = ({String payload, String? text});
+
+/// A reply box on a notification, as a messaging app's.
+@immutable
+class NotificationReply {
+  const NotificationReply(this.label, this.hint, this.payload);
+  final String label;
+  final String hint;
+  final String payload;
+
+  Map<String, Object?> toMap() => {
+    'label': label,
+    'hint': hint,
+    'payload': payload,
+  };
+}
+
 /// A notification that asks for attention, replacing any with its [id].
 @immutable
 class AgentAlert {
@@ -67,6 +85,7 @@ class AgentAlert {
     required this.text,
     required this.opens,
     this.actions = const [],
+    this.reply,
   });
 
   final String id;
@@ -74,8 +93,10 @@ class AgentAlert {
   final String text;
   final SessionRef opens;
   final List<NotificationAction> actions;
+  final NotificationReply? reply;
 
   Map<String, Object?> toMap() => {
+    'reply': reply?.toMap(),
     'id': id,
     'title': title,
     'text': text,
@@ -100,8 +121,8 @@ abstract interface class AgentNotifier {
   /// Whether Android lets the app post notifications.
   Future<bool> allowed();
 
-  /// Payloads of tapped notification buttons.
-  Stream<String> get actions;
+  /// Tapped notification buttons and sent replies.
+  Stream<TappedAction> get actions;
 
   /// Sessions whose notification was tapped.
   Stream<SessionRef> get opened;
@@ -116,8 +137,11 @@ class MethodChannelAgentNotifier implements AgentNotifier {
       final args = call.arguments;
       switch (call.method) {
         case 'action':
-          if (args is Map && args['payload'] is String) {
-            _actions.add(args['payload'] as String);
+          if (args case {'payload': final String payload}) {
+            _actions.add((
+              payload: payload,
+              text: args['text'] is String ? args['text'] as String : null,
+            ));
           }
         case 'open':
           final ref = _ref(args);
@@ -127,7 +151,7 @@ class MethodChannelAgentNotifier implements AgentNotifier {
   }
 
   static const _channel = MethodChannel('dev.wianger.baya/agents');
-  final _actions = StreamController<String>.broadcast();
+  final _actions = StreamController<TappedAction>.broadcast();
   final _opened = StreamController<SessionRef>.broadcast();
 
   static SessionRef? _ref(Object? args) => switch (args) {
@@ -171,7 +195,7 @@ class MethodChannelAgentNotifier implements AgentNotifier {
   }
 
   @override
-  Stream<String> get actions => _actions.stream;
+  Stream<TappedAction> get actions => _actions.stream;
 
   @override
   Stream<SessionRef> get opened => _opened.stream;

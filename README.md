@@ -37,7 +37,7 @@ end-to-end encrypted.
 - **In your pocket**: while an agent works, it stays in the status bar
   (a Live Update on Android 16, counting up the turn); when one finishes
   or asks for approval with the app closed, you are told, and can allow or
-  reject right from the notification.
+  reject, or reply with the next instruction, right from the notification.
 - **From anywhere on the phone**: share an error, a link or any text to
   Baya from another app and it waits on the overview for the session you
   pick; long-press the app icon to jump back into a recent session.
