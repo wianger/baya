@@ -14,6 +14,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
@@ -195,7 +196,9 @@ object Agents {
             // A Live Update: a chip in the status bar, on the lock screen and
             // at the top of the shade, counting up the turn or saying what
             // the agent waits for.
-            builder.setRequestPromotedOngoing(true)
+            // Notification.EXTRA_REQUEST_PROMOTED_ONGOING, as NotificationCompat
+            // sets it: the platform builder has no setter for it.
+            builder.addExtras(Bundle().apply { putBoolean("android.requestPromotedOngoing", true) })
             (content["chip"] as? String)?.let { builder.setShortCriticalText(it) }
             if (content["busy"] == true) {
                 builder.setStyle(Notification.ProgressStyle().setProgressIndeterminate(true))
