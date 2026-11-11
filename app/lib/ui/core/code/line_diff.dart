@@ -19,13 +19,18 @@ const _maxCells = 1500000;
 
 /// The hunks turning [oldText] into [newText]; a null [oldText] is a new
 /// file. Unchanged runs longer than twice [context] are left out between
-/// hunks.
-List<DiffHunk> lineDiff(String? oldText, String newText, {int context = 3}) {
+/// hunks. Lines are numbered from [firstLine], where the texts start.
+List<DiffHunk> lineDiff(
+  String? oldText,
+  String newText, {
+  int context = 3,
+  int firstLine = 1,
+}) {
   final a = oldText == null || oldText.isEmpty
       ? <String>[]
       : oldText.split('\n');
   final b = newText.isEmpty ? <String>[] : newText.split('\n');
-  final lines = _diff(a, b);
+  final lines = _diff(a, b, firstLine);
   final hunks = <DiffHunk>[];
   final changed = [
     for (var i = 0; i < lines.length; i++)
@@ -47,7 +52,7 @@ List<DiffHunk> lineDiff(String? oldText, String newText, {int context = 3}) {
   return hunks;
 }
 
-List<DiffLine> _diff(List<String> a, List<String> b) {
+List<DiffLine> _diff(List<String> a, List<String> b, int firstLine) {
   var prefix = 0;
   while (prefix < a.length && prefix < b.length && a[prefix] == b[prefix]) {
     prefix++;
@@ -59,8 +64,8 @@ List<DiffLine> _diff(List<String> a, List<String> b) {
     suffix++;
   }
   final out = <DiffLine>[];
-  var oldNo = 1;
-  var newNo = 1;
+  var oldNo = firstLine;
+  var newNo = firstLine;
   void same(String text) => out.add(
     DiffLine(DiffKind.context, text, oldNumber: oldNo++, newNumber: newNo++),
   );

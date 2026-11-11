@@ -21,6 +21,98 @@ export function isConversationUpdate(update: SessionUpdate): boolean {
   );
 }
 
+/** The longest string kept in a tool's raw input or output. */
+const RAW_TEXT_LIMIT = 32 * 1024;
+
+/**
+ * A tool call as phones need it. `rawInput` and `rawOutput` are the
+ * agent's own records, shown only when a tool has no content: images in
+ * them (an agent reading a photo puts its base64 there) are dropped and
+ * long text is cut. A conversation that read a few photos was 20 MB, nearly
+ * all of it there, sent to the phone on every open.
+ */
+export function slim(update: SessionUpdate): SessionUpdate {
+  if (update.sessionUpdate !== "tool_call" && update.sessionUpdate !== "tool_call_update") {
+    return update;
+  }
+  const content = update["content"];
+  const diffs =
+    Array.isArray(content) && content.some((block) => isObject(block) && block["type"] === "diff");
+  if (update["rawInput"] === undefined && update["rawOutput"] === undefined && !diffs)
+    return update;
+  const out: SessionUpdate = { ...update };
+  for (const key of ["rawInput", "rawOutput"]) {
+    if (out[key] !== undefined) out[key] = slimRaw(out[key], 0);
+  }
+  if (diffs) {
+    out["content"] = (content as unknown[]).map((block) =>
+      isObject(block) && block["type"] === "diff" ? trimDiff(block) : block,
+    );
+  }
+  return out;
+}
+
+/** Unchanged lines kept around a change when a diff is trimmed. */
+const DIFF_CONTEXT = 3;
+
+/**
+ * Some agents report an edit as the whole file before and after, 70 KB
+ * for a one-line change. Long unchanged runs before the first change and
+ * after the last are left out, and `_meta.baya.firstLine` says where the
+ * texts now start, so line numbers stay true.
+ */
+export function trimDiff(block: Record<string, unknown>): Record<string, unknown> {
+  const before = block["oldText"];
+  const after = block["newText"];
+  if (typeof before !== "string" || before === "" || typeof after !== "string") return block;
+  if (before.length + after.length < 8 * 1024) return block;
+  const a = before.split("\n");
+  const b = after.split("\n");
+  let head = 0;
+  while (head < a.length && head < b.length && a[head] === b[head]) head++;
+  let tail = 0;
+  while (
+    tail < a.length - head &&
+    tail < b.length - head &&
+    a[a.length - 1 - tail] === b[b.length - 1 - tail]
+  ) {
+    tail++;
+  }
+  const from = Math.max(0, head - DIFF_CONTEXT);
+  const cut = Math.max(0, tail - DIFF_CONTEXT);
+  if (from === 0 && cut === 0) return block;
+  const meta = isObject(block["_meta"]) ? block["_meta"] : {};
+  const baya = isObject(meta["baya"]) ? meta["baya"] : {};
+  const previous = typeof baya["firstLine"] === "number" ? baya["firstLine"] : 1;
+  return {
+    ...block,
+    oldText: a.slice(from, a.length - cut).join("\n"),
+    newText: b.slice(from, b.length - cut).join("\n"),
+    _meta: { ...meta, baya: { ...baya, firstLine: previous + from } },
+  };
+}
+
+function slimRaw(value: unknown, depth: number): unknown {
+  if (typeof value === "string") {
+    return value.length > RAW_TEXT_LIMIT
+      ? `${value.slice(0, RAW_TEXT_LIMIT)}… (${Math.round((value.length - RAW_TEXT_LIMIT) / 1024)} KB more)`
+      : value;
+  }
+  if (depth > 12 || value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map((item) => slimRaw(item, depth + 1));
+  const record = value as Record<string, unknown>;
+  const binary =
+    (record["type"] === "image" || record["type"] === "audio" || record["type"] === "blob") &&
+    typeof record["data"] === "string";
+  const out: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(record)) {
+    if (binary && key === "data") continue;
+    if (key === "blob" && typeof item === "string" && item.length > 1024) continue;
+    out[key] = slimRaw(item, depth + 1);
+  }
+  return out;
+}
+
 /**
  * The replayable history of one session, as ACP `session/update` payloads.
  *
@@ -50,10 +142,12 @@ export class Transcript {
           }
         }
         if (Array.isArray(document.entries)) {
-          this.entries = document.entries.filter(
-            (entry): entry is SessionUpdate =>
-              isObject(entry) && typeof entry["sessionUpdate"] === "string",
-          );
+          this.entries = document.entries
+            .filter(
+              (entry): entry is SessionUpdate =>
+                isObject(entry) && typeof entry["sessionUpdate"] === "string",
+            )
+            .map(slim);
         }
       } catch {
         this.entries = [];
@@ -80,6 +174,7 @@ export class Transcript {
 
   append(update: SessionUpdate): void {
     if (!isConversationUpdate(update)) return;
+    update = slim(update);
     if (!this.fold(update)) this.entries.push(structuredClone(update));
     if (this.entries.length > MAX_ENTRIES) {
       this.entries.splice(0, this.entries.length - MAX_ENTRIES);

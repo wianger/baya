@@ -162,16 +162,18 @@ class DiffView extends StatelessWidget {
     required this.path,
     required this.oldText,
     required this.newText,
+    this.firstLine = 1,
   });
 
   final String path;
   final String? oldText;
   final String newText;
+  final int firstLine;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final hunks = lineDiff(oldText, newText);
+    final hunks = lineDiff(oldText, newText, firstLine: firstLine);
     final stats = diffStats(hunks);
     final language = CodeHighlighter.languageForPath(path);
     return Container(

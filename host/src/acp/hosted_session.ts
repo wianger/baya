@@ -23,7 +23,7 @@ import {
   type SessionSetup,
   type SessionUpdate,
 } from "./schema.ts";
-import { isConversationUpdate, Transcript } from "./transcript.ts";
+import { isConversationUpdate, slim, Transcript } from "./transcript.ts";
 
 /** A phone attached to sessions; the hub owns one per connection. */
 export interface PhoneLink {
@@ -614,8 +614,9 @@ export class HostedSession {
   }
 
   private publish(update: SessionUpdate): void {
-    this.transcript.append(update);
-    this.broadcast(update);
+    const slimmed = slim(update);
+    this.transcript.append(slimmed);
+    this.broadcast(slimmed);
   }
 
   private broadcast(update: SessionUpdate, except?: PhoneLink): void {

@@ -522,11 +522,12 @@ export class MarkdownLines {
 export function diffRows(
   before: string,
   after: string,
-  options: { width?: number; limit?: number; indent?: string } = {},
+  options: { width?: number; limit?: number; indent?: string; firstLine?: number } = {},
 ): { rows: string[]; added: number; removed: number } {
   const width = options.width ?? columns() - 1;
   const limit = options.limit ?? 16;
   const indent = options.indent ?? "";
+  const start = (options.firstLine ?? 1) - 1;
   const lines = (text: string) => (text === "" ? [] : text.replace(/\n$/u, "").split("\n"));
   const a = lines(before);
   const b = lines(after);
@@ -550,21 +551,21 @@ export function diffRows(
   let j = 0;
   while (i < a.length || j < b.length) {
     if (i < a.length && j < b.length && a[i] === b[j]) {
-      ops.push({ op: " ", line: a[i]!, number: j + 1 });
+      ops.push({ op: " ", line: a[i]!, number: start + j + 1 });
       i++;
       j++;
     } else if (i < a.length && (j >= b.length || lcs[i + 1]![j]! >= lcs[i]![j + 1]!)) {
       // Removed before added, as diffs read.
-      ops.push({ op: "-", line: a[i]!, number: i + 1 });
+      ops.push({ op: "-", line: a[i]!, number: start + i + 1 });
       i++;
     } else {
-      ops.push({ op: "+", line: b[j]!, number: j + 1 });
+      ops.push({ op: "+", line: b[j]!, number: start + j + 1 });
       j++;
     }
   }
   const added = ops.filter((o) => o.op === "+").length;
   const removed = ops.filter((o) => o.op === "-").length;
-  const digits = String(Math.max(a.length, b.length, 1)).length;
+  const digits = String(start + Math.max(a.length, b.length, 1)).length;
   const inside = width - textWidth(indent);
   // A change, or a line next to one.
   const changed = (k: number) => (ops[k]?.op ?? " ") !== " ";

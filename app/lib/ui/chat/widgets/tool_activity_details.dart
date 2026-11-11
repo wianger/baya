@@ -36,6 +36,7 @@ class ToolActivityDetails extends StatelessWidget {
             path: diff.path,
             oldText: diff.oldText,
             newText: diff.newText,
+            firstLine: diff.firstLine,
           )
       else if (command != null)
         _Terminal(

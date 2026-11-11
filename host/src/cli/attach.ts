@@ -281,7 +281,7 @@ export function toolLabel(kind: string, title: string): string {
 
 interface ToolContent {
   text: string;
-  diffs: Array<{ path: string; before: string; after: string }>;
+  diffs: Array<{ path: string; before: string; after: string; firstLine: number }>;
 }
 
 /** What a finished tool printed, and the files it changed. */
@@ -298,11 +298,15 @@ function toolContent(raw: Json): ToolContent {
       .trimEnd(),
     diffs: blocks
       .filter((b) => b["type"] === "diff")
-      .map((b) => ({
-        path: String(b["path"] ?? ""),
-        before: typeof b["oldText"] === "string" ? b["oldText"] : "",
-        after: typeof b["newText"] === "string" ? b["newText"] : "",
-      })),
+      .map((b) => {
+        const meta = isObject(b["_meta"]) && isObject(b["_meta"]["baya"]) ? b["_meta"]["baya"] : {};
+        return {
+          path: String(b["path"] ?? ""),
+          before: typeof b["oldText"] === "string" ? b["oldText"] : "",
+          after: typeof b["newText"] === "string" ? b["newText"] : "",
+          firstLine: typeof meta["firstLine"] === "number" ? meta["firstLine"] : 1,
+        };
+      }),
   };
 }
 
@@ -522,6 +526,7 @@ export async function attach(query: string | undefined): Promise<void> {
         const { rows, added, removed } = diffRows(diff.before, diff.after, {
           width: w,
           indent: under,
+          firstLine: diff.firstLine,
         });
         const what = [
           added ? `${c.green("+")}${count(added, "line", "lines")}` : "",
@@ -716,7 +721,12 @@ export async function attach(query: string | undefined): Promise<void> {
         const what = title ? toolLabel(kind, title) : c.bold("Go on");
         const { diffs } = toolContent(call);
         const preview = diffs.flatMap(
-          (diff) => diffRows(diff.before, diff.after, { width: width() - 4, limit: 10 }).rows,
+          (diff) =>
+            diffRows(diff.before, diff.after, {
+              width: width() - 4,
+              limit: 10,
+              firstLine: diff.firstLine,
+            }).rows,
         );
         return new Promise((answer) => {
           const cancelled = { outcome: { outcome: "cancelled" } };
