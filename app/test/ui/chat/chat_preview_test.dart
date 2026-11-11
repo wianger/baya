@@ -1,8 +1,8 @@
+import 'dart:async';
 // Renders the chat screen with a sample ACP conversation to PNG for design
 // review: `BAYA_PREVIEW_DIR=<dir> flutter test test/ui/chat/chat_preview_test.dart`.
 // Skipped otherwise.
 
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -24,6 +24,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import '../../support/acp_harness.dart';
+import '../../support/fonts.dart';
 
 class _Speech implements SpeechService {
   @override
@@ -201,16 +202,8 @@ FakeHost _computer() =>
       };
 
 Future<void> _fonts(WidgetTester tester) async {
+  await loadAppFonts(tester);
   await tester.runAsync(() async {
-    final manifest =
-        jsonDecode(await rootBundle.loadString('FontManifest.json')) as List;
-    for (final entry in manifest) {
-      final loader = FontLoader(entry['family'] as String);
-      for (final face in entry['fonts'] as List) {
-        loader.addFont(rootBundle.load(face['asset'] as String));
-      }
-      await loader.load();
-    }
     final fallback = File(r'C:\Windows\Fonts\segoeui.ttf');
     if (fallback.existsSync()) {
       await (FontLoader(
@@ -320,7 +313,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     final context = tester.element(find.byType(ChatPage));
-    showContextUsage(context);
+    unawaited(showContextUsage(context));
     // The first frame starts the sheet's animation; the second finishes it.
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
@@ -332,7 +325,7 @@ void main() {
     Navigator.of(context).pop();
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    showSessionSettings(context);
+    unawaited(showSessionSettings(context));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     await _save(tester, boundary, '$output/settings.png');

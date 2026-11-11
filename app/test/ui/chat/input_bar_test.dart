@@ -257,7 +257,6 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: InputBar(
-            disabled: false,
             streaming: true,
             onSend: (text) => sent = text,
             onCancel: () {},
@@ -285,7 +284,6 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: InputBar(
-            disabled: false,
             streaming: true,
             onSend: (text) => sent = text,
             onCancel: () {},
@@ -341,12 +339,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: InputBar(
-            disabled: false,
-            streaming: false,
-            onSend: sent.add,
-            onCancel: () {},
-          ),
+          body: InputBar(onSend: sent.add, onCancel: () {}),
         ),
       ),
     );
@@ -387,12 +380,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: InputBar(
-            disabled: false,
-            streaming: true,
-            onSend: sent.add,
-            onCancel: () {},
-          ),
+          body: InputBar(streaming: true, onSend: sent.add, onCancel: () {}),
         ),
       ),
     );

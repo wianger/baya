@@ -3,17 +3,16 @@ import 'dart:async';
 import 'package:app/data/hosts/session_controller.dart';
 import 'package:app/data/preview/preview_proxy.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/ui/preview/preview_page.dart';
-import 'package:provider/provider.dart';
 import 'package:app/ui/core/code/code_view.dart';
-
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/preview/preview_page.dart';
 import 'package:flutter/material.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:gpt_markdown/custom_widgets/markdown_config.dart';
 import 'package:gpt_markdown/custom_widgets/unordered_ordered_list.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Renders the agent's Markdown reply (GFM + code) themed to the

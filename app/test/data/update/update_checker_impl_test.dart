@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:app/data/update/update_checker_impl.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:flutter_test/flutter_test.dart';
 
 Map<String, Object?> release(
   String version,

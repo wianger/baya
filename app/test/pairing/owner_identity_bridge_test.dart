@@ -10,10 +10,10 @@ import 'dart:typed_data';
 import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/storage.dart';
+import 'package:baya_identity/baya_identity.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:baya_identity/baya_identity.dart';
 
 class _FakeSecureStorage implements FlutterSecureStorage {
   final Map<String, String> _store = {};
@@ -65,7 +65,7 @@ class _FakeSecureStorage implements FlutterSecureStorage {
     WindowsOptions? wOptions,
   }) async => Map.of(_store);
   @override
-  noSuchMethod(Invocation i) => super.noSuchMethod(i);
+  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
 
 Future<OwnerIdentity> _freshIdentity() async {

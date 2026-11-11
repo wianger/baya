@@ -1,6 +1,5 @@
 // Renders the streaming thought window to PNG for design review:
 //   BAYA_PREVIEW_DIR=<dir> flutter test test/ui/chat/thinking_preview_test.dart
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -8,8 +7,9 @@ import 'package:app/ui/chat/widgets/thinking_block.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../support/fonts.dart';
 
 void main() {
   final output = Platform.environment['BAYA_PREVIEW_DIR'];
@@ -17,17 +17,7 @@ void main() {
     tester.view.physicalSize = const Size(412, 420);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
-    await tester.runAsync(() async {
-      final manifest =
-          jsonDecode(await rootBundle.loadString('FontManifest.json')) as List;
-      for (final entry in manifest) {
-        final loader = FontLoader(entry['family'] as String);
-        for (final face in entry['fonts'] as List) {
-          loader.addFont(rootBundle.load(face['asset'] as String));
-        }
-        await loader.load();
-      }
-    });
+    await loadAppFonts(tester);
     const thought =
         'The user wants the login redirect fixed. Let me look at where the '
         'redirect happens first. In src/auth/login.ts the router pushes the '

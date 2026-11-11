@@ -4,9 +4,9 @@ import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/dismiss_on_session_change.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 export 'package:app/ui/core/widgets/baya_group.dart';
-import 'package:provider/provider.dart';
 
 /// Every bottom sheet in the app: one surface, handle, header and spacing.
 /// [builder] gives the body; it scrolls inside the sheet when it is taller
@@ -30,7 +30,7 @@ Future<T?> showBayaSheet<T>(
     useSafeArea: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: .4),
-    sheetAnimationStyle: AnimationStyle(
+    sheetAnimationStyle: const AnimationStyle(
       duration: BayaMotion.standard,
       curve: BayaMotion.enter,
     ),
@@ -100,7 +100,6 @@ class BayaSheet extends StatelessWidget {
                   SizedBox(height: title == null ? 10 : 16),
                   if (title != null) ...[
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
                           child: Text(

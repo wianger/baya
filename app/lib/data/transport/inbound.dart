@@ -43,17 +43,21 @@ class InboundWorker {
     results.listen((Object? result) {
       if (worker._closed) return;
       switch (result) {
-        case SendPort port:
+        case final SendPort port:
           worker._frames = port;
           for (final frame in worker._waiting) {
             port.send(TransferableTypedData.fromList([frame]));
           }
           worker._waiting.clear();
-        case Map<String, dynamic> message:
+        case final Map<String, dynamic> message:
           onMessage(message);
-        case (int stream, int offset, TransferableTypedData bytes):
+        case (
+          final int stream,
+          final int offset,
+          final TransferableTypedData bytes,
+        ):
           onData(DataFrame(stream, offset, bytes.materialize().asUint8List()));
-        case String error:
+        case final String error:
           worker.close();
           onError(NoiseException(error));
       }
@@ -102,7 +106,7 @@ void _main((SendPort, List<int>, int) setup) {
             return;
           case DataFrame(:final stream, :final offset, :final bytes):
             out.send((stream, offset, TransferableTypedData.fromList([bytes])));
-          case Uint8List bytes:
+          case final Uint8List bytes:
             final json = jsonDecode(utf8.decode(bytes));
             if (json is Map<String, dynamic>) out.send(json);
         }

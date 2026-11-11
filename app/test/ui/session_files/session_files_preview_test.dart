@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -9,9 +8,10 @@ import 'package:app/ui/session_files/session_files_page.dart';
 import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+
+import '../../support/fonts.dart';
 
 class _PreviewRepository extends Repository implements ISessionFilesRepository {
   @override
@@ -81,20 +81,6 @@ class _PreviewRepository extends Repository implements ISessionFilesRepository {
   }
 }
 
-Future<void> _loadFonts(WidgetTester tester) async {
-  await tester.runAsync(() async {
-    final manifest =
-        jsonDecode(await rootBundle.loadString('FontManifest.json')) as List;
-    for (final entry in manifest) {
-      final loader = FontLoader(entry['family'] as String);
-      for (final face in entry['fonts'] as List) {
-        loader.addFont(rootBundle.load(face['asset'] as String));
-      }
-      await loader.load();
-    }
-  });
-}
-
 Future<void> _save(WidgetTester tester, GlobalKey key, String path) async {
   await tester.runAsync(() async {
     final render =
@@ -116,7 +102,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await _loadFonts(tester);
+    await loadAppFonts(tester);
     final vm = SessionFilesViewModel(_PreviewRepository());
     final key = GlobalKey();
     await tester.pumpWidget(

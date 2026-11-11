@@ -4,9 +4,9 @@ import 'package:app/data/hosts/host_connection.dart';
 import 'package:app/data/preview/preview_proxy.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -212,39 +212,40 @@ class _PreviewPageState extends State<PreviewPage> {
 
   Future<void> _start() async {
     setState(() => _error = null);
+    PreviewProxy? proxy;
     try {
-      final proxy = await PreviewProxy.open(widget.host, widget.port);
+      proxy = await PreviewProxy.open(widget.host, widget.port);
       if (_closed) return unawaited(proxy.close());
-      final web = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onProgress: (progress) {
-              if (mounted) setState(() => _progress = progress);
-            },
-            onUrlChange: (change) {
-              final url = change.url;
-              if (url != null && mounted) {
-                setState(() => _path = _pathOf(Uri.parse(url)));
-              }
-            },
-            onPageFinished: (_) => unawaited(_refreshState()),
-            onWebResourceError: (error) {
-              if (error.isForMainFrame == true && mounted) {
-                setState(() => _error = error.description);
-              }
-            },
-            onNavigationRequest: (request) {
-              // Links off the site open in the phone's browser.
-              final uri = Uri.parse(request.url);
-              if (uri.host == '127.0.0.1' || !uri.hasScheme) {
-                return NavigationDecision.navigate;
-              }
-              unawaited(launchUrl(uri, mode: LaunchMode.externalApplication));
-              return NavigationDecision.prevent;
-            },
-          ),
-        );
+      final web = WebViewController();
+      await web.setJavaScriptMode(JavaScriptMode.unrestricted);
+      await web.setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (progress) {
+            if (mounted) setState(() => _progress = progress);
+          },
+          onUrlChange: (change) {
+            final url = change.url;
+            if (url != null && mounted) {
+              setState(() => _path = _pathOf(Uri.parse(url)));
+            }
+          },
+          onPageFinished: (_) => unawaited(_refreshState()),
+          onWebResourceError: (error) {
+            if (error.isForMainFrame == true && mounted) {
+              setState(() => _error = error.description);
+            }
+          },
+          onNavigationRequest: (request) {
+            // Links off the site open in the phone's browser.
+            final uri = Uri.parse(request.url);
+            if (uri.host == '127.0.0.1' || !uri.hasScheme) {
+              return NavigationDecision.navigate;
+            }
+            unawaited(launchUrl(uri, mode: LaunchMode.externalApplication));
+            return NavigationDecision.prevent;
+          },
+        ),
+      );
       await web.loadRequest(proxy.url(widget.path));
       if (!mounted) return unawaited(proxy.close());
       setState(() {
@@ -252,6 +253,8 @@ class _PreviewPageState extends State<PreviewPage> {
         _web = web;
       });
     } catch (error) {
+      // A proxy that never reached the page is ours to close.
+      if (proxy != null && !identical(proxy, _proxy)) unawaited(proxy.close());
       if (mounted) setState(() => _error = '$error');
     }
   }

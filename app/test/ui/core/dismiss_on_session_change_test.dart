@@ -1,3 +1,4 @@
+import 'dart:async';
 // The Quick Actions sheet must close when the tablet's
 // selected session changes out from under it.
 
@@ -26,11 +27,13 @@ void main() {
     );
 
     // Open a modal sheet wrapped like the Quick Actions sheet.
-    showModalBottomSheet<void>(
-      context: pageContext,
-      builder: (_) => DismissOnSessionChange(
-        selection: selection,
-        child: const Text('quick-actions'),
+    unawaited(
+      showModalBottomSheet<void>(
+        context: pageContext,
+        builder: (_) => DismissOnSessionChange(
+          selection: selection,
+          child: const Text('quick-actions'),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -58,11 +61,13 @@ void main() {
         ),
       ),
     );
-    showModalBottomSheet<void>(
-      context: pageContext,
-      builder: (_) => DismissOnSessionChange(
-        selection: selection,
-        child: const Text('quick-actions'),
+    unawaited(
+      showModalBottomSheet<void>(
+        context: pageContext,
+        builder: (_) => DismissOnSessionChange(
+          selection: selection,
+          child: const Text('quick-actions'),
+        ),
       ),
     );
     await tester.pumpAndSettle();

@@ -986,7 +986,7 @@ class AuthMethod {
   final String name;
   final String? description;
 
-  /// Terminal sign-in: run the agent with [args] on the computer.
+  /// Terminal sign-in: run the agent with `args` on the computer.
   final List<String>? terminalArgs;
 
   const AuthMethod(this.id, this.name, {this.description, this.terminalArgs});

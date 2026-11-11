@@ -1,12 +1,12 @@
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_group.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
-import 'package:app/pairing/backed_up_identity_store.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/settings/adb_page.dart';
+import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -74,7 +74,6 @@ class SettingsPage extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 620),
               child: BayaReveal(
-                offset: 8,
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 36),
                   children: [
@@ -309,7 +308,6 @@ class _SettingsDetailScaffold extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 620),
               child: BayaReveal(
-                offset: 8,
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 36),
                   children: [child],

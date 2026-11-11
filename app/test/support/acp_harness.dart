@@ -3,8 +3,8 @@
 // questions.
 
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:app/acp/acp.dart';
 import 'package:app/acp/json_rpc.dart';
@@ -40,7 +40,7 @@ SessionSummary testSession({
   agentName: agentName,
   working: working,
   running: true,
-  updatedAt: updatedAt ?? DateTime.utc(2026, 11, 1),
+  updatedAt: updatedAt ?? DateTime.utc(2026, 11),
 );
 
 /// Pairings and cached session lists in memory.
@@ -134,7 +134,7 @@ class FakeHost {
   final calls = <({String method, Json params})>[];
 
   /// Set to make the next connection fail.
-  Object? refuse;
+  Exception? refuse;
 
   /// When set, `initialize` fails as for an unpaired phone.
   bool unpaired = false;
@@ -304,6 +304,7 @@ class FakeHostSocket implements HostSocket {
     peer.close(const RpcClosed('closed'));
     _closed.complete(SocketClosed(code, reason));
     unawaited(_messages.close());
+    unawaited(dataFrames.close());
   }
 
   @override

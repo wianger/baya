@@ -6,13 +6,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:app/acp/acp.dart';
-import 'package:cryptography/cryptography.dart';
 import 'package:app/acp/json_rpc.dart';
-import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/data/hosts/host_connection.dart';
+import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/domain/transcript.dart';
 import 'package:app/protocol/uuid7.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 
 class SessionController extends ChangeNotifier {

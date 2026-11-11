@@ -1,5 +1,5 @@
-import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/hosts/hosts.dart';
+import 'package:app/data/preferences/preferences.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/settings/states/settings_state.dart';

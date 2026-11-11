@@ -1,8 +1,7 @@
 import 'dart:io';
 
-import 'package:flutter/services.dart';
-
 import 'package:app/l10n/l10n.dart';
+import 'package:flutter/services.dart';
 
 const _channel = MethodChannel('dev.wianger.baya/device');
 String? _cached;

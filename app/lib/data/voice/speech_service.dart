@@ -330,14 +330,11 @@ class SttPluginImpl implements SttPlugin {
       listenOptions: stt.SpeechListenOptions(
         // Decision #7 — local recognition only; audio never leaves the device.
         onDevice: true,
-        // Accumulate partials internally (decision #6 hides them visually).
-        partialResults: true,
         // Hold-to-talk: don't auto-stop on a pause; only the user release or
         // the listenFor cap ends the session.
         pauseFor: listenFor,
         listenFor: listenFor,
         localeId: localeId,
-        cancelOnError: false,
       ),
     );
   }

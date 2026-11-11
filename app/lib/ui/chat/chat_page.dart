@@ -5,7 +5,6 @@ import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/changes/changes_page.dart';
-import 'package:app/ui/preview/preview_page.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/chat_message_list.dart';
@@ -14,18 +13,19 @@ import 'package:app/ui/chat/widgets/attach_sheet.dart';
 import 'package:app/ui/chat/widgets/context_usage_button.dart';
 import 'package:app/ui/chat/widgets/elicitation_card.dart';
 import 'package:app/ui/chat/widgets/file_picker_sheet.dart';
-import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:app/ui/chat/widgets/input_bar.dart';
 import 'package:app/ui/chat/widgets/permission_card.dart';
 import 'package:app/ui/chat/widgets/session_settings_sheet.dart';
 import 'package:app/ui/chat/widgets/sign_in_card.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
+import 'package:app/ui/preview/preview_page.dart';
+import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
 import 'package:app/ui/workspaces/session_sheet.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
@@ -149,7 +149,6 @@ class ChatPage extends StatelessWidget {
             child: BayaSurface(
               role: BayaSurfaceRole.control,
               radius: 25,
-              padding: EdgeInsets.zero,
               child: SizedBox.square(
                 dimension: 48,
                 child: IconButton(
@@ -618,7 +617,7 @@ class _RevokedBanner extends StatelessWidget {
           Expanded(
             child: Text(
               context.l10n.pairingRevoked,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
                 color: Colors.white,
                 fontWeight: FontWeight.w500,

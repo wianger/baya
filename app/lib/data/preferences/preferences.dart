@@ -3,11 +3,10 @@ import 'dart:convert';
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/domain/value_objects/workspace.dart';
+import 'package:app/ui/core/themes/app_font_scale.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
-import 'package:app/ui/core/themes/app_font_scale.dart';
 
 /// App-wide UI preferences (persisted across launches).
 ///
@@ -145,7 +144,7 @@ class Preferences extends ChangeNotifier {
     }
     _selectedWorkspace = remembered[device];
     final sessionWorkspacesRaw = await _store.read(key: _kSessionWorkspacesKey);
-    Map<String, String> sessionWorkspaces = {};
+    final Map<String, String> sessionWorkspaces = {};
     try {
       final decoded = sessionWorkspacesRaw == null
           ? null
@@ -173,7 +172,7 @@ class Preferences extends ChangeNotifier {
       changed = true;
     }
     final workspaceNamesRaw = await _store.read(key: _kWorkspaceNamesKey);
-    Map<String, String> workspaceNames = {};
+    final Map<String, String> workspaceNames = {};
     try {
       final decoded = workspaceNamesRaw == null
           ? null

@@ -30,9 +30,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildLightTheme(),
-        home: Scaffold(
+        home: const Scaffold(
           body: ChatMessageList(
-            messages: const [
+            messages: [
               UserMsg(id: 'u1', text: 'Fix it'),
               AssistantMsg(id: 'u1', text: 'I will inspect the code.'),
               ToolEvent(

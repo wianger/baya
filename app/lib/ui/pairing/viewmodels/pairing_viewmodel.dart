@@ -1,13 +1,12 @@
-import 'package:app/l10n/l10n.dart';
-
 import 'package:app/data/device/device_name.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/host_socket.dart';
-import 'package:app/pairing/tailnet_pairing.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/pairing_flow.dart' as pair_flow;
 import 'package:app/pairing/qr_scanner.dart';
 import 'package:app/pairing/storage.dart';
+import 'package:app/pairing/tailnet_pairing.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
 
@@ -37,7 +36,6 @@ class PairingViewModel extends ViewModel<PairingState> {
           message: rawUri.trim().startsWith('baya://')
               ? appL10n.pairingCodeInvalid
               : appL10n.notAPairingCode,
-          canRetry: true,
         ),
       );
       return;
@@ -83,10 +81,10 @@ class PairingViewModel extends ViewModel<PairingState> {
       emit(PairingPaired(peer: result.peer, hostnameHint: result.hostnameHint));
     } on pair_flow.PairingError catch (e) {
       await _closeTransient();
-      emit(PairingError(message: _friendlyError(e), canRetry: true));
+      emit(PairingError(message: _friendlyError(e)));
     } catch (e) {
       await _closeTransient();
-      emit(PairingError(message: e.toString(), canRetry: true));
+      emit(PairingError(message: e.toString()));
     }
   }
 

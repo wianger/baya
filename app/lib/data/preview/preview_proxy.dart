@@ -38,7 +38,7 @@ class PreviewPort {
 
 /// The web servers running on [host].
 Future<List<PreviewPort>> previewPorts(HostConnection host) async {
-  final result = await host.call('_baya/preview_ports', const {});
+  final result = await host.call('_baya/preview_ports');
   return [
     for (final port in (result['ports'] as List? ?? const []))
       PreviewPort.fromJson((port as Map).cast<String, dynamic>()),

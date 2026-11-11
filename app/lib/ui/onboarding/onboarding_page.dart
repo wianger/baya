@@ -70,15 +70,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     children: [
                       WelcomeStep(onNext: vm.next),
                       PairStep(
-                        onPaired: () {
-                          // ignore: unawaited_futures
-                          vm.completePairing();
-                        },
+                        onPaired: vm.completePairing,
                         onBack: vm.back,
-                        onSkip: () {
-                          // ignore: unawaited_futures
-                          vm.skipPairing();
-                        },
+                        onSkip: vm.skipPairing,
                       ),
                     ],
                   ),

@@ -1,19 +1,19 @@
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/services.dart';
-import 'package:app/ui/core/widgets/baya_group.dart';
 import 'package:app/data/diagnostics/crash_log.dart';
-import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/widgets/baya_group.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Identity, version and the update button, then the project as grouped
 /// rows like Settings. Settings keeps only configuration.
@@ -123,7 +123,6 @@ class AboutPage extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: BayaReveal(
-                offset: 8,
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
                   children: [

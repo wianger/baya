@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -18,7 +19,10 @@ Future<HttpServer> _host() async {
     final path = request.uri.path.substring('/baya-pair/wsl/preview'.length);
     if (WebSocketTransformer.isUpgradeRequest(request)) {
       final socket = await WebSocketTransformer.upgrade(request);
-      socket.listen((message) => socket.add('echo $path $message'));
+      socket.listen(
+        (message) => socket.add('echo $path $message'),
+        onDone: () => unawaited(socket.close()),
+      );
       return;
     }
     final body = await utf8.decodeStream(request);

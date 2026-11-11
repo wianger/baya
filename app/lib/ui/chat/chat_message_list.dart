@@ -548,7 +548,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                           alignment: Alignment.centerLeft,
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 320),
-                            child: ImageBubble(image: msg.image, caption: ''),
+                            child: ImageBubble(image: msg.image),
                           ),
                         ),
                       },

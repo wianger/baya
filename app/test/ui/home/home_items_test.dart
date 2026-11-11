@@ -31,7 +31,7 @@ void main() {
     test('equivalent key encodings find the same sessions', () {
       const urlSafe = 'Bz02uLiwrmQZ0S8qiwtFJAt0KzUvrgepYO_oMQ6yyQE';
       const standard = 'Bz02uLiwrmQZ0S8qiwtFJAt0KzUvrgepYO/oMQ6yyQE=';
-      final peer = PeerRecord(
+      final peer = const PeerRecord(
         remoteEpk: urlSafe,
         name: 'PC',
         endpoint: 'ws://x',

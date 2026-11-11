@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:app/pairing/storage.dart';
+import 'package:baya_identity/baya_identity.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
-import 'package:baya_identity/baya_identity.dart';
 
 /// Outcome of `bridge.boot()`: the owner identity, and whether this run
 /// created it (a fresh install goes through onboarding).

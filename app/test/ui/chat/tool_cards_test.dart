@@ -186,14 +186,13 @@ void main() {
     testWidgets('a call waiting on permission says so', (tester) async {
       await tester.pumpWidget(
         app(
-          ToolRunGroup(
+          const ToolRunGroup(
             tools: [
-              const ToolEvent(
+              ToolEvent(
                 id: 't',
                 toolCallId: 't',
                 title: 'Delete build/',
                 kind: ToolKind.delete,
-                status: ToolEventStatus.pending,
                 awaitingApproval: true,
               ),
             ],

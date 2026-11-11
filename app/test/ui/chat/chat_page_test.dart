@@ -1,3 +1,4 @@
+import 'dart:async';
 // The chat screen against an in-memory computer: history, header, sending,
 // permission questions and session settings.
 
@@ -219,20 +220,22 @@ void main() {
   ) async {
     final chat = await _pump(tester);
     Object? answer;
-    chat.host
-        .askPermission({
-          'sessionId': 's1',
-          'toolCall': {
-            'toolCallId': 't1',
-            'title': 'rm -rf build',
-            'kind': 'execute',
-          },
-          'options': [
-            {'optionId': 'once', 'name': 'Allow', 'kind': 'allow_once'},
-            {'optionId': 'no', 'name': 'Reject', 'kind': 'reject_once'},
-          ],
-        })
-        .then((value) => answer = value);
+    unawaited(
+      chat.host
+          .askPermission({
+            'sessionId': 's1',
+            'toolCall': {
+              'toolCallId': 't1',
+              'title': 'rm -rf build',
+              'kind': 'execute',
+            },
+            'options': [
+              {'optionId': 'once', 'name': 'Allow', 'kind': 'allow_once'},
+              {'optionId': 'no', 'name': 'Reject', 'kind': 'reject_once'},
+            ],
+          })
+          .then((value) => answer = value),
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('permission-card')), findsOneWidget);
     expect(find.text('rm -rf build'), findsOneWidget);
@@ -269,21 +272,23 @@ void main() {
   testWidgets('an elicitation form is filled in and submitted', (tester) async {
     final chat = await _pump(tester);
     Object? answer;
-    chat.host
-        .askElicitation({
-          'sessionId': 's1',
-          'mode': 'form',
-          'message': 'Which branch?',
-          'requestedSchema': {
-            'type': 'object',
-            'properties': {
-              'branch': {'type': 'string', 'title': 'Branch'},
-              'push': {'type': 'boolean', 'title': 'Push'},
+    unawaited(
+      chat.host
+          .askElicitation({
+            'sessionId': 's1',
+            'mode': 'form',
+            'message': 'Which branch?',
+            'requestedSchema': {
+              'type': 'object',
+              'properties': {
+                'branch': {'type': 'string', 'title': 'Branch'},
+                'push': {'type': 'boolean', 'title': 'Push'},
+              },
+              'required': ['branch'],
             },
-            'required': ['branch'],
-          },
-        })
-        .then((value) => answer = value);
+          })
+          .then((value) => answer = value),
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('elicitation-card')), findsOneWidget);
     expect(find.text('Which branch?'), findsOneWidget);

@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/chat/widgets/input_bar.dart' show InputBar;
 
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:flutter/material.dart';
@@ -47,7 +48,7 @@ class _RecordingStripState extends State<RecordingStrip>
   late final AnimationController _pulse;
 
   /// Rolling buffer of recent amplitude samples (oldest → newest), one pushed
-  /// per [level] change. Renders the scrolling waveform.
+  /// per `level` change. Renders the scrolling waveform.
   final Queue<double> _samples = Queue<double>();
 
   @override
@@ -166,7 +167,6 @@ class _Waveform extends StatelessWidget {
           alignment: Alignment.centerRight,
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               for (var i = 0; i < pad; i++) const _Bar(level: 0),
               for (final s in samples) _Bar(level: s),

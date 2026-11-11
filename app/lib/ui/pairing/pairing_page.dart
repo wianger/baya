@@ -1,10 +1,9 @@
 import 'dart:async';
 
 import 'package:app/l10n/l10n.dart';
-
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
 import 'package:app/ui/pairing/widgets/nickname_sheet.dart';
@@ -238,11 +237,11 @@ class _PairingPageState extends State<PairingPage> {
 
   List<Widget> _cornerBrackets() {
     return [
-      Align(alignment: const Alignment(-0.7, -0.4), child: _Bracket(rotate: 0)),
-      Align(alignment: const Alignment(0.7, -0.4), child: _Bracket(rotate: 90)),
-      Align(alignment: const Alignment(0.7, 0.4), child: _Bracket(rotate: 180)),
-      Align(
-        alignment: const Alignment(-0.7, 0.4),
+      const Align(alignment: Alignment(-0.7, -0.4), child: _Bracket(rotate: 0)),
+      const Align(alignment: Alignment(0.7, -0.4), child: _Bracket(rotate: 90)),
+      const Align(alignment: Alignment(0.7, 0.4), child: _Bracket(rotate: 180)),
+      const Align(
+        alignment: Alignment(-0.7, 0.4),
         child: _Bracket(rotate: 270),
       ),
     ];
@@ -285,8 +284,8 @@ class _BracketPainter extends CustomPainter {
       ..color = color
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset.zero, Offset(18, 0), paint);
-    canvas.drawLine(Offset.zero, Offset(0, 18), paint);
+    canvas.drawLine(Offset.zero, const Offset(18, 0), paint);
+    canvas.drawLine(Offset.zero, const Offset(0, 18), paint);
   }
 
   @override

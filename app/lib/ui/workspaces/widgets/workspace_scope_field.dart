@@ -41,7 +41,6 @@ class WorkspaceScopeField extends StatelessWidget {
       enabled: enabled,
       label: '$label, $value$supportingLabel',
       child: BayaSurface(
-        role: BayaSurfaceRole.card,
         radius: 18,
         elevated: false,
         child: Material(

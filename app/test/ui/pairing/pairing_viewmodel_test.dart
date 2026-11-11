@@ -4,15 +4,15 @@
 import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/host_socket.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
+import 'package:baya_identity/baya_identity.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:baya_identity/baya_identity.dart';
 
 import '../../support/acp_harness.dart';
 
@@ -62,7 +62,7 @@ class _FakeSecureStorage implements FlutterSecureStorage {
   }
 
   @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _PrefsForTest extends Preferences {

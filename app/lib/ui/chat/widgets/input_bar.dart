@@ -1,18 +1,17 @@
 import 'dart:async';
 
-import 'package:app/l10n/l10n.dart';
-
 import 'package:app/data/images/image_picker_service.dart';
 import 'package:app/domain/entities/agent_command.dart';
+import 'package:app/domain/session_state.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/voice/states/voice_input_state.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/chat/voice/widgets/recording_strip.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/domain/session_state.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -45,7 +44,7 @@ class InputBar extends StatefulWidget {
   final VoidCallback? onCancel;
   final VoidCallback? onOpenQuickActions;
 
-  /// Slash-command palette selection. [id] is a built-in action; [raw] keeps
+  /// Slash-command palette selection. `id` is a built-in action; `raw` keeps
   /// the full `/text` so the host can forward unknown commands to the agent.
   final void Function(String id, String raw)? onSlashCommand;
   final VoidCallback? onSlashOpen;
@@ -774,8 +773,6 @@ class _QuickActionsButtonState extends State<_QuickActionsButton>
               child: Center(
                 widthFactor: 1,
                 child: BayaSurface(
-                  role: BayaSurfaceRole.card,
-                  radius: 20,
                   elevated: false,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 7, 9, 7),
@@ -963,7 +960,6 @@ class _ComposerActionButton extends StatelessWidget {
                   : colors.border,
               width: 0.5,
             ),
-            boxShadow: null,
           ),
           child: AnimatedSwitcher(
             duration: reduceMotion ? Duration.zero : BayaMotion.fast,

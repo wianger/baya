@@ -1,19 +1,19 @@
 import 'dart:async';
 
-import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/config/dependencies.dart';
+import 'package:app/data/device/device_name.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/routing/adaptive.dart';
-import 'package:app/routing/app_router.dart';
-import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/themes/app_font_licenses.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
+import 'package:app/routing/adaptive.dart';
+import 'package:app/routing/app_router.dart';
+import 'package:app/ui/core/branding/app_brand.dart';
+import 'package:app/ui/core/themes/app_font_licenses.dart';
+import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:app/ui/update/update_prompt.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
-import 'package:app/data/device/device_name.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

@@ -1,7 +1,7 @@
 import 'package:app/ui/core/code/code_view.dart';
 import 'package:app/ui/core/code/highlighter.dart';
-import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/code/line_diff.dart';
+import 'package:app/ui/core/themes/themes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

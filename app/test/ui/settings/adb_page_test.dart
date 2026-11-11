@@ -1,5 +1,5 @@
-import 'package:app/ui/settings/adb_page.dart';
 import 'package:app/data/hosts/hosts.dart';
+import 'package:app/ui/settings/adb_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';

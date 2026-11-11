@@ -1,7 +1,7 @@
-import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/l10n/l10n.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
 import 'package:app/ui/pairing/widgets/paste_qr_sheet.dart';
@@ -82,7 +82,6 @@ class _PairStepState extends State<PairStep> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: BayaSurface(
-        role: BayaSurfaceRole.card,
         radius: 28,
         elevated: false,
         child: Padding(
@@ -230,7 +229,10 @@ class _PairStepState extends State<PairStep> {
       );
     }
     if (state is PairingConnecting) {
-      return _StatusOverlay(icon: LucideIcons.refreshCw, message: 'Pairing…');
+      return const _StatusOverlay(
+        icon: LucideIcons.refreshCw,
+        message: 'Pairing…',
+      );
     }
     if (state is PairingError) {
       return _StatusOverlay(
@@ -247,7 +249,10 @@ class _PairStepState extends State<PairStep> {
       );
     }
     if (state is PairingPaired) {
-      return _StatusOverlay(icon: LucideIcons.circleCheck, message: 'Paired!');
+      return const _StatusOverlay(
+        icon: LucideIcons.circleCheck,
+        message: 'Paired!',
+      );
     }
     return const SizedBox.shrink();
   }
