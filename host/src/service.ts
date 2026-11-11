@@ -6,7 +6,8 @@ import { dirname, join, win32 } from "node:path";
 /**
  * Per-user login startup for the resident host. No platform needs admin
  * rights: Windows uses the HKCU Run key, Linux a systemd user unit, and macOS
- * a LaunchAgent. systemd and launchd also restart the host if it crashes.
+ * a LaunchAgent. On Windows the Run key starts a launcher script, see
+ * [buildWindowsStartupCommand]. systemd and launchd also restart the host if it crashes.
  */
 interface StartupTarget {
   /** Runs Baya: the executable, or Node and the script. */
@@ -15,6 +16,8 @@ interface StartupTarget {
   /** PATH for the service, so it finds the agents' commands. */
   path: string;
   logDir: string;
+  /** Windows: the script the Run key starts, which starts Baya hidden. */
+  launcher: string;
 }
 
 export const BAYA_RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
@@ -24,7 +27,9 @@ const LAUNCHD_LABEL = "dev.baya.host";
 
 export function installStartup(target: StartupTarget): string {
   switch (process.platform) {
-    case "win32":
+    case "win32": {
+      mkdirSync(dirname(target.launcher), { recursive: true });
+      writeFileSync(target.launcher, buildWindowsLauncher(target));
       run("reg.exe", [
         "ADD",
         BAYA_RUN_KEY,
@@ -34,12 +39,13 @@ export function installStartup(target: StartupTarget): string {
         "REG_SZ",
         "/D",
         buildWindowsStartupCommand({
-          ...target,
+          launcher: target.launcher,
           systemRoot: process.env["SystemRoot"] || "C:\\Windows",
         }),
         "/F",
       ]);
       return "Installed the per-user BayaHost Windows startup entry.";
+    }
     case "linux": {
       const unit = systemdUnitPath();
       mkdirSync(dirname(unit), { recursive: true });
@@ -95,28 +101,68 @@ export function uninstallStartup(): string {
   }
 }
 
+/**
+ * The Run key starts wscript.exe, a windowed program, so no console opens
+ * at login. A console program started there would get a visible window, and
+ * with Windows Terminal as the default terminal it can't hide again.
+ */
 export function buildWindowsStartupCommand(input: {
-  command: string[];
-  cwd: string;
+  launcher: string;
   systemRoot: string;
 }): string {
-  const [executable, ...prefix] = input.command;
-  const script = [
-    `& ${powerShellLiteral(executable!)}`,
-    ...prefix.map(powerShellLiteral),
+  const wscript = win32.join(input.systemRoot, "System32", "wscript.exe");
+  return `"${wscript}" //B //Nologo //E:JScript "${input.launcher}"`;
+}
+
+/**
+ * JScript for wscript.exe: starts Baya with its window hidden (0) and
+ * returns. A console started hidden stays in conhost, never in a terminal
+ * window, and the agents and their tools share it, so none of them flash
+ * a window either.
+ */
+export function buildWindowsLauncher(
+  target: Pick<StartupTarget, "command" | "cwd" | "logDir">,
+): string {
+  const line = [
+    ...target.command,
     "serve",
     "--cwd",
-    powerShellLiteral(input.cwd),
-  ].join(" ");
-  const encoded = Buffer.from(script, "utf16le").toString("base64");
-  const powershell = win32.join(
-    input.systemRoot,
-    "System32",
-    "WindowsPowerShell",
-    "v1.0",
-    "powershell.exe",
+    target.cwd,
+    "--log",
+    win32.join(target.logDir, "host.log"),
+  ]
+    .map(windowsArgument)
+    .join(" ");
+  return [
+    "// Starts the Baya host at login, hidden. Written by `baya autostart on`.",
+    'var shell = new ActiveXObject("WScript.Shell");',
+    `shell.CurrentDirectory = ${jscriptString(target.cwd)};`,
+    `shell.Run(${jscriptString(line)}, 0, false);`,
+    "",
+  ].join("\r\n");
+}
+
+/** One argument as CreateProcess's command-line parsing reads it back. */
+export function windowsArgument(value: string): string {
+  if (value !== "" && !/[\s"]/u.test(value)) return value;
+  let quoted = '"';
+  let slashes = 0;
+  for (const char of value) {
+    if (char === "\\") {
+      slashes++;
+      continue;
+    }
+    quoted += "\\".repeat(char === '"' ? slashes * 2 + 1 : slashes) + char;
+    slashes = 0;
+  }
+  return `${quoted}${"\\".repeat(slashes * 2)}"`;
+}
+
+function jscriptString(value: string): string {
+  return JSON.stringify(value).replace(
+    /[\u2028\u2029]/gu,
+    (char) => `\\u${char.charCodeAt(0).toString(16)}`,
   );
-  return `"${powershell}" -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand ${encoded}`;
 }
 
 export function buildSystemdUnit(target: StartupTarget): string {
@@ -192,10 +238,6 @@ function run(command: string, args: string[]): void {
   if (result.status !== 0) {
     throw new Error((result.stderr || result.stdout || `${command} failed.`).trim());
   }
-}
-
-function powerShellLiteral(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
 }
 
 /** systemd double-quoted word; `%` is a specifier and must be doubled. */

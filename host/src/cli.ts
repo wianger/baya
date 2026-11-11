@@ -656,6 +656,7 @@ function autostart(args: ParsedArgs): void {
           cwd: resolve(process.cwd()),
           path: process.env["PATH"] ?? "",
           logDir: join(BAYA_HOME, "logs"),
+          launcher: join(BAYA_HOME, "runtime", "autostart.js"),
         }),
       ),
     );
