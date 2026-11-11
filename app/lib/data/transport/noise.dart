@@ -96,7 +96,9 @@ class CipherState {
   }
 
   /// Takes up a direction [export]ed elsewhere.
-  CipherState.resume(List<int> key, int nonce) : _key = SecretKey(key), _nonce = nonce;
+  CipherState.resume(List<int> key, int nonce)
+    : _key = SecretKey(key),
+      _nonce = nonce;
 
   CipherState();
 

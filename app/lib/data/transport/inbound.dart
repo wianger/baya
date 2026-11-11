@@ -52,9 +52,7 @@ class InboundWorker {
         case Map<String, dynamic> message:
           onMessage(message);
         case (int stream, int offset, TransferableTypedData bytes):
-          onData(
-            DataFrame(stream, offset, bytes.materialize().asUint8List()),
-          );
+          onData(DataFrame(stream, offset, bytes.materialize().asUint8List()));
         case String error:
           worker.close();
           onError(NoiseException(error));
