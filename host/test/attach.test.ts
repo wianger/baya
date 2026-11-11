@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, expect, test, vi } from "vitest";
 import { pickSession } from "../src/cli/attach.ts";
-import { box, hang, MarkdownLines, textWidth, wrap } from "../src/cli/tui.ts";
+import { box, clip, hang, MarkdownLines, textWidth, wrap } from "../src/cli/tui.ts";
 
 const FAKE_AGENT = fileURLToPath(new URL("./fixtures/fake-agent.mjs", import.meta.url));
 const cleanup: Array<() => void | Promise<void>> = [];
@@ -45,8 +45,16 @@ test("Chinese and emoji take two columns; colours take none", () => {
 
 test("text wraps at spaces, between wide characters, with a hanging indent", () => {
   expect(wrap("the quick brown fox jumps", 10)).toEqual(["the quick", "brown fox", "jumps"]);
+  // A row that fills up right at a space does not start the next with it.
+  expect(wrap("abcde fgh", 5)).toEqual(["abcde", "fgh"]);
   expect(wrap("登录后跳回登录页", 6)).toEqual(["登录后", "跳回登", "录页"]);
   expect(hang("one two three four", "• ", "  ", 10)).toEqual(["• one two", "  three", "  four"]);
+});
+
+test("a row cut to the width keeps whole wide characters", () => {
+  expect(clip("short", 10)).toBe("short");
+  expect(clip("a long footer row", 10)).toBe("a long fo…");
+  expect(textWidth(clip("登录跳转回到登录页", 9))).toBeLessThanOrEqual(9);
 });
 
 test("a box fits its lines, wrapped, inside its edges", () => {
@@ -61,13 +69,38 @@ test("markdown renders a line at a time, the line being written changing nothing
   expect(md.line("## 修好了")).toEqual(["  修好了"]);
   expect(md.line("- 改了 `login.ts`")).toEqual(["  • 改了 login.ts"]);
   // Previewing an opening fence, again and again, does not open it.
-  expect(md.preview("```ts")).toEqual(["  ╭─ ts"]);
-  expect(md.preview("```ts")).toEqual(["  ╭─ ts"]);
-  expect(md.line("```ts")).toEqual(["  ╭─ ts"]);
-  expect(md.line("await x()")).toEqual(["  │ await x()"]);
-  expect(md.preview("- not a list in code")).toEqual(["  │ - not a list in code"]);
-  expect(md.line("```")).toEqual(["  ╰─"]);
+  expect(md.preview("```ts")).toEqual(["  ts"]);
+  expect(md.preview("```ts")).toEqual(["  ts"]);
+  expect(md.line("```ts")).toEqual(["  ts"]);
+  expect(md.line("await x()")).toEqual(["   await x()"]);
+  expect(md.preview("- not a list in code")).toEqual(["   - not a list in code"]);
+  expect(md.line("```")).toEqual([]);
   expect(md.line("**done**")).toEqual(["  done"]);
+});
+
+test("a table lines up its columns once it ends", () => {
+  const md = new MarkdownLines("  ", () => 60);
+  expect(md.line("| attempt | before |")).toEqual([]);
+  expect(md.line("|---|--:|")).toEqual([]);
+  // While it streams, the rows so far show lined up.
+  expect(md.preview("| 3 | 8 s |")).toEqual([
+    "  attempt │ before",
+    "  ────────┼───────",
+    "  3       │    8 s",
+  ]);
+  expect(md.line("| 3 | 8 s |")).toEqual([]);
+  expect(md.line("")).toEqual([
+    "  attempt │ before",
+    "  ────────┼───────",
+    "  3       │    8 s",
+    "",
+  ]);
+  // A table too wide for the screen lists each row instead.
+  const narrow = new MarkdownLines("  ", () => 20);
+  narrow.line("| name | what it does |");
+  narrow.line("|---|---|");
+  narrow.line("| /model | choose the model |");
+  expect(narrow.flush()).toEqual(["  name: /model", "  what it does:", "    choose the model"]);
 });
 
 test("the control socket attaches a terminal that shares the session live", async () => {

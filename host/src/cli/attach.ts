@@ -19,6 +19,7 @@ import { Editor } from "./editor.ts";
 import {
   band,
   c,
+  clip,
   diffRows,
   gradient,
   hang,
@@ -27,6 +28,7 @@ import {
   meter,
   shimmer,
   textWidth,
+  wrap,
 } from "./tui.ts";
 
 const ESC = "\x1b[";
@@ -163,7 +165,9 @@ class Screen {
     if (this.caretRow > 0) out += `${ESC}${this.caretRow}A`;
     out += `${ESC}0J`;
     for (const line of commit) out += `${line}\n`;
-    const area = [...(this.lastBlank ? [] : [""]), ...rows];
+    // A live row that wrapped would throw off where the redraw starts.
+    const w = width();
+    const area = [...(this.lastBlank ? [] : [""]), ...rows.map((row) => clip(row, w))];
     out += area.join("\n");
     const at = caret ? caret.row + (area.length - rows.length) : area.length - 1;
     const up = area.length - 1 - at;
@@ -242,6 +246,7 @@ function configOptions(raw: unknown): ConfigOption[] {
   }));
 }
 
+/** Baya's own commands; the agent's (`/compact`…) are listed after them. */
 const COMMANDS: Array<[string, string]> = [
   ["/model", "choose the model"],
   ["/rename", "name this session"],
@@ -304,6 +309,8 @@ function toolContent(raw: Json): ToolContent {
 interface Choice {
   title: string;
   question: string;
+  /** Rows shown above the question: what is being allowed. */
+  detail?: string[];
   options: Array<{ label: string; paint?: (t: string) => string; note?: string }>;
   index: number;
   pick: (index: number | null) => void;
@@ -312,7 +319,7 @@ interface Choice {
 export async function attach(query: string | undefined): Promise<void> {
   const { socket, lines } = await openSocket();
   const screen = new Screen();
-  const markdown = new MarkdownLines("  ");
+  const markdown = new MarkdownLines("  ", width);
   const editor = new Editor();
   let sessionId = "";
   let agentName = "Agent";
@@ -328,8 +335,13 @@ export async function attach(query: string | undefined): Promise<void> {
   let block: string | null = null;
   let firstRow = false;
   let thoughtSince = 0;
+  let thought = "";
   let lastUser: string | null = null;
-  const tools = new Map<string, { kind: string; title: string }>();
+  const tools = new Map<string, { kind: string; title: string; since: number }>();
+  /** The agent's own slash commands, from `available_commands_update`. */
+  let agentCommands: Array<[string, string]> = [];
+  /** The highlighted row of the command menu under the input. */
+  let commandIndex = 0;
 
   /** A menu waiting for a pick: permission, or the model. */
   let choice: Choice | null = null;
@@ -358,7 +370,14 @@ export async function attach(query: string | undefined): Promise<void> {
     const w = width();
     const rows: string[] = [];
     for (const tool of tools.values()) {
-      rows.push(...hang(toolLabel(tool.kind, tool.title), `${c.accent(spin())} `, "  ", w));
+      const took = Date.now() - tool.since;
+      const label = `${toolLabel(tool.kind, tool.title)}${took >= 2000 ? c.faint(` ${seconds(took)}`) : ""}`;
+      rows.push(...hang(label, `${c.accent(spin())} `, "  ", w));
+    }
+    if (block === "thought" && thought.trim()) {
+      // The end of the thinking, as it is written.
+      const lines = wrap(thought.replace(/\s+/gu, " ").trim(), w - 4).slice(-2);
+      rows.push(...lines.map((line) => `  ${c.faint("│")} ${c.italic(c.muted(line))}`));
     }
     if (partial) {
       rows.push(
@@ -369,7 +388,7 @@ export async function attach(query: string | undefined): Promise<void> {
     if (working) {
       const doing = block === "thought" ? "Thinking…" : tools.size ? "Working…" : "Thinking…";
       rows.push(
-        `${c.accent("✻")} ${shimmer(doing, frameNo)} ${c.faint(
+        `${c.accent(spin())} ${shimmer(doing, frameNo)} ${c.faint(
           `${seconds(Date.now() - turnStarted)} · esc to interrupt`,
         )}`,
       );
@@ -379,7 +398,9 @@ export async function attach(query: string | undefined): Promise<void> {
     const open = choice;
     if (open) {
       const inside = w - 4;
+      if (rows.length && rows[rows.length - 1] !== "") rows.push("");
       const body = [
+        ...(open.detail?.length ? [...open.detail, ""] : []),
         ...hang(c.bold(open.question), "", "", inside),
         "",
         ...open.options.map((o, i) => {
@@ -410,12 +431,21 @@ export async function attach(query: string | undefined): Promise<void> {
     const top = rows.length;
     rows.push(...frame(box, w, { paint: c.faint }));
 
-    // Commands matching what is typed, under the box.
-    const typed = editor.value;
-    if (typed.startsWith("/") && !typed.includes(" ") && typed.length > 0) {
-      for (const [name, what] of COMMANDS.filter(([n]) => n.startsWith(typed))) {
-        rows.push(`  ${c.accent(name.padEnd(8))} ${c.muted(what)}`);
-      }
+    // Commands matching what is typed, under the box, in place of the footer.
+    const menu = commandMenu();
+    if (menu.length) {
+      const pad = Math.max(...menu.map(([name]) => textWidth(name))) + 2;
+      menu.forEach(([name, what, mine], i) => {
+        const selected = i === commandIndex % menu.length;
+        const label = name.padEnd(pad);
+        const note = mine ? "" : c.faint(`  ${agentName}`);
+        rows.push(
+          selected
+            ? ` ${c.accent("❯")} ${c.bold(c.accent(label))}${c.text(what)}${note}`
+            : `   ${c.muted(label)}${c.faint(what)}${note}`,
+        );
+      });
+      return { rows, caret: { row: top + 1 + layout.row, column: 4 + layout.column } };
     }
 
     const left = [
@@ -428,8 +458,27 @@ export async function attach(query: string | undefined): Promise<void> {
       .filter(Boolean)
       .join(c.faint("  ·  "));
     const right = c.faint(working ? "esc interrupt · ctrl+c leave" : "↑ history · ctrl+d leave");
-    rows.push(` ${spread(left, right, w - 1)}`);
+    // The hints go first when the row is short of room.
+    rows.push(
+      textWidth(left) + 2 + textWidth(right) <= w - 1
+        ? ` ${spread(left, right, w - 1)}`
+        : ` ${left}`,
+    );
     return { rows, caret: { row: top + 1 + layout.row, column: 4 + layout.column } };
+  };
+
+  /** Commands matching what is typed: [name, what it does, Baya's own]. */
+  const commandMenu = (): Array<[string, string, boolean]> => {
+    const typed = editor.value;
+    if (!typed.startsWith("/") || typed.includes(" ") || typed.includes("\n")) return [];
+    return [
+      ...COMMANDS.map(([n, w]): [string, string, boolean] => [n, w, true]),
+      ...agentCommands
+        .filter(([n]) => !COMMANDS.some(([own]) => own === n))
+        .map(([n, w]): [string, string, boolean] => [n, w, false]),
+    ]
+      .filter(([n]) => n.startsWith(typed))
+      .slice(0, 8);
   };
 
   /** Ends the reply line and the thought shown, before something else. */
@@ -440,17 +489,24 @@ export async function attach(query: string | undefined): Promise<void> {
       commit.push(...reply(markdown.line(partial)));
       partial = "";
     }
-    if (block === "agent") markdown.reset();
+    if (block === "agent") {
+      commit.push(...reply(markdown.flush()));
+      markdown.reset();
+    }
     if (commit.length) screen.print(...commit);
     if (block === "thought" && thoughtSince) {
+      const took = Date.now() - thoughtSince;
       screen.section("thought");
-      screen.print(c.italic(c.muted(`✻ Thought for ${seconds(Date.now() - thoughtSince)}`)));
+      screen.print(
+        `${c.faint("◇")} ${c.italic(c.muted(took < 1000 ? "Thought briefly" : `Thought for ${seconds(took)}`))}`,
+      );
       thoughtSince = 0;
+      thought = "";
     }
     block = next;
   };
 
-  /** A finished tool: its line for good, with what it printed or changed. */
+  /** A finished tool: its line for good, with what it did, shortly. */
   const finishTool = (kind: string, title: string, failed: boolean, raw: Json) => {
     turnTools++;
     screen.section("tool", true);
@@ -459,27 +515,54 @@ export async function attach(query: string | undefined): Promise<void> {
     const { text, diffs } = toolContent(raw);
     const lead = c.faint("  └ ");
     const under = "    ";
+    const lines = text.split("\n").filter((line) => line.trim() !== "");
+    const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
     if (diffs.length) {
       for (const diff of diffs) {
-        const rows = diffRows(diff.before, diff.after);
-        const added = rows.filter((r) => r.includes("+ ")).length;
-        const removed = rows.filter((r) => r.includes("- ")).length;
+        const { rows, added, removed } = diffRows(diff.before, diff.after, {
+          width: w,
+          indent: under,
+        });
+        const what = [
+          added ? `${c.green("+")}${count(added, "line", "lines")}` : "",
+          removed ? `${c.red("-")}${count(removed, "line", "lines")}` : "",
+        ]
+          .filter(Boolean)
+          .join(c.muted(", "));
+        const file = diff.path.split(/[\\/]/u).pop() || "the file";
         out.push(
-          `${lead}${c.muted(`Updated ${diff.path || "the file"} with `)}${c.green(`+${added}`)} ${c.red(`-${removed}`)}`,
-          ...rows.map((row) => `${under}${row}`),
+          `${lead}${c.muted(diff.before === "" ? `Created ${file} ` : `Updated ${file} `)}${what}`,
+          ...rows,
         );
       }
-    } else if (text) {
-      const all = text.split("\n").filter((line) => line.trim() !== "");
-      const tail = all.slice(-4);
-      if (all.length > tail.length)
-        out.push(`${lead}${c.faint(`… ${all.length - tail.length} lines`)}`);
-      tail.forEach((line, i) => {
-        const first = i === 0 && all.length === tail.length;
-        out.push(...hang(c.faint(line.slice(0, 400)), first ? lead : under, under, w));
-      });
     } else if (failed) {
-      out.push(`${lead}${c.red("failed")}`);
+      const shown = lines.slice(0, 3);
+      for (const [i, line] of shown.entries()) {
+        out.push(...hang(c.red(line.slice(0, 400)), i === 0 ? lead : under, under, w));
+      }
+      if (!shown.length) out.push(`${lead}${c.red("Failed")}`);
+    } else if (kind === "read") {
+      // What was read is in the agent's context; the count is what matters here.
+      if (lines.length)
+        out.push(`${lead}${c.muted(`Read ${count(lines.length, "line", "lines")}`)}`);
+    } else if (kind === "search" || kind === "fetch") {
+      if (lines.length) {
+        out.push(
+          `${lead}${c.muted(kind === "search" ? count(lines.length, "result", "results") : count(lines.length, "line", "lines"))}`,
+        );
+        for (const line of lines.slice(0, 3))
+          out.push(...hang(c.faint(line.slice(0, 200)), under, under, w));
+        if (lines.length > 3) out.push(`${under}${c.faint(`… +${lines.length - 3} more`)}`);
+      }
+    } else if (lines.length) {
+      const tail = lines.slice(-5);
+      for (const [i, line] of tail.entries()) {
+        out.push(...hang(c.muted(line.slice(0, 400)), i === 0 ? lead : under, under, w));
+      }
+      if (lines.length > tail.length)
+        out.push(
+          `${under}${c.faint(`… +${count(lines.length - tail.length, "line", "lines")} above`)}`,
+        );
     }
     screen.print(...out);
   };
@@ -537,12 +620,18 @@ export async function attach(query: string | undefined): Promise<void> {
         if (block !== "thought") {
           settle("thought");
           thoughtSince = Date.now();
+          thought = "";
         }
+        thought = (thought + text).slice(-2000);
         return screen.draw();
       case "tool_call": {
         settle(null);
         const id = String(raw["toolCallId"]);
-        const tool = { kind: String(raw["kind"] ?? ""), title: String(raw["title"] ?? "tool") };
+        const tool = {
+          kind: String(raw["kind"] ?? ""),
+          title: String(raw["title"] ?? "tool"),
+          since: Date.now(),
+        };
         const status = raw["status"];
         if (status === "completed" || status === "failed") {
           return finishTool(tool.kind, tool.title, status === "failed", raw);
@@ -555,6 +644,7 @@ export async function attach(query: string | undefined): Promise<void> {
         const tool = tools.get(id) ?? {
           kind: String(raw["kind"] ?? ""),
           title: String(raw["title"] ?? "tool"),
+          since: Date.now(),
         };
         if (typeof raw["title"] === "string") tool.title = raw["title"];
         const status = raw["status"];
@@ -577,7 +667,7 @@ export async function attach(query: string | undefined): Promise<void> {
             const line = String(entry["content"] ?? "");
             const lead = i === 0 ? c.faint("  └ ") : "    ";
             if (status === "completed")
-              return hang(c.faint(line), `${lead}${c.green("✓")} `, "      ", w);
+              return hang(c.strike(c.faint(line)), `${lead}${c.green("✓")} `, "      ", w);
             if (status === "in_progress")
               return hang(c.bold(line), `${lead}${c.accent("◐")} `, "      ", w);
             return hang(line, `${lead}${c.faint("○")} `, "      ", w);
@@ -586,6 +676,14 @@ export async function attach(query: string | undefined): Promise<void> {
       }
       case "config_option_update":
         config = configOptions(raw["configOptions"]);
+        return screen.draw();
+      case "available_commands_update":
+        agentCommands = (Array.isArray(raw["availableCommands"]) ? raw["availableCommands"] : [])
+          .filter(isObject)
+          .map((cmd): [string, string] => [
+            `/${String(cmd["name"])}`,
+            String(cmd["description"] ?? ""),
+          ]);
         return screen.draw();
       case "usage_update":
         if (typeof raw["used"] === "number" && typeof raw["size"] === "number") {
@@ -612,18 +710,21 @@ export async function attach(query: string | undefined): Promise<void> {
             name: String(o["name"]),
             kind: String(o["kind"] ?? ""),
           }));
-        const what =
-          typeof call["title"] === "string"
-            ? call["title"]
-            : running
-              ? running.title
-              : "The agent asks to go on.";
+        const title =
+          typeof call["title"] === "string" ? call["title"] : running ? running.title : "";
+        const kind = typeof call["kind"] === "string" ? call["kind"] : (running?.kind ?? "");
+        const what = title ? toolLabel(kind, title) : c.bold("Go on");
+        const { diffs } = toolContent(call);
+        const preview = diffs.flatMap(
+          (diff) => diffRows(diff.before, diff.after, { width: width() - 4, limit: 10 }).rows,
+        );
         return new Promise((answer) => {
           const cancelled = { outcome: { outcome: "cancelled" } };
           asked.set(id, () => answer(cancelled));
           choice = {
             title: "Permission",
-            question: what,
+            detail: [what, ...preview],
+            question: `Allow ${agentName} to do this?`,
             index: 0,
             options: options.map((o) => ({
               label: o.name,
@@ -648,7 +749,7 @@ export async function attach(query: string | undefined): Promise<void> {
                 : c.muted("Skipped");
               screen.section("permission");
               screen.print(
-                `${c.accent("●")} ${c.bold("Permission")} ${c.muted(what)}`,
+                `${c.accent("●")} ${c.bold("Permission")} ${c.muted("·")} ${what}`,
                 `${c.faint("  └ ")}${verdict}`,
               );
             },
@@ -738,7 +839,7 @@ export async function attach(query: string | undefined): Promise<void> {
   const card = (() => {
     const w = Math.min(width(), 78);
     const rows = [
-      `${gradient("✻ Baya", [232, 180, 74], [214, 120, 170])}  ${c.faint("live with your phone")}`,
+      `${gradient("◆ Baya", [232, 180, 74], [214, 120, 170])}  ${c.faint("live with your phone")}`,
       "",
       ...hang(c.bold(session.title || folder(session.cwd)), "  ", "  ", w - 4),
       `  ${c.muted([agentName, modelName()].filter(Boolean).join(" · "))}`,
@@ -962,6 +1063,7 @@ export async function attach(query: string | undefined): Promise<void> {
           return screen.draw();
         }
 
+        const menu = commandMenu();
         if (key.ctrl && name === "c") {
           const now = Date.now();
           if (!editor.empty) editor.take();
@@ -982,8 +1084,12 @@ export async function attach(query: string | undefined): Promise<void> {
         }
         if ((key.ctrl && name === "j") || (name === "return" && key.meta)) editor.insert("\n");
         else if (name === "return" || name === "enter") {
-          const text = editor.take();
-          return send(text);
+          // Enter on a part of a command runs the one highlighted.
+          if (menu.length && !menu.some(([n]) => n === editor.value)) {
+            editor.set(menu[commandIndex % menu.length]![0]);
+          }
+          commandIndex = 0;
+          return send(editor.take());
         } else if (name === "backspace") editor.backspace();
         else if (name === "delete") editor.delete();
         else if (name === "left") editor.left();
@@ -995,12 +1101,16 @@ export async function attach(query: string | undefined): Promise<void> {
         else if (key.ctrl && name === "w") editor.killWord();
         else if (key.ctrl && name === "l") {
           process.stdout.write(`${ESC}2J${ESC}H`);
+        } else if (menu.length && (name === "up" || name === "down")) {
+          commandIndex = (commandIndex + (name === "up" ? menu.length - 1 : 1)) % menu.length;
+          return screen.draw();
         } else if (name === "up" && editor.onFirstLine) editor.previous();
         else if (name === "down" && editor.onLastLine) editor.next();
-        else if (name === "tab" && editor.value.startsWith("/")) {
-          const match = COMMANDS.find(([n]) => n.startsWith(editor.value));
-          if (match) editor.set(match[0]);
+        else if (name === "tab" && menu.length) {
+          editor.set(`${menu[commandIndex % menu.length]![0]} `);
         } else if (str && !key.ctrl && !key.meta) editor.insert(str);
+        // What is typed changed: the menu starts at its top again.
+        commandIndex = 0;
         screen.draw();
       },
     );
