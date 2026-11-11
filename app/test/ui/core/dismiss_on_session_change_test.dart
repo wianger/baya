@@ -1,6 +1,7 @@
-import 'dart:async';
 // The Quick Actions sheet must close when the tablet's
 // selected session changes out from under it.
+
+import 'dart:async';
 
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/widgets/dismiss_on_session_change.dart';

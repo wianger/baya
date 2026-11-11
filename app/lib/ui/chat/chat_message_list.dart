@@ -406,6 +406,12 @@ class _ChatMessageListState extends State<ChatMessageList> {
                 key: const ValueKey('chat-message-scroll'),
                 controller: _controller,
                 physics: AnchoredScrollPhysics(_anchor),
+                // A row off screen is dropped, never kept alive. An ink
+                // splash asks to keep its row, and one frozen mid-tap by the
+                // screen going off left an offstage row whose rebuild on
+                // waking crashed (a defunct MediaQuery ancestor), leaving
+                // the list unable to scroll until the page was reopened.
+                addAutomaticKeepAlives: false,
                 shrinkWrap: true,
                 reverse: true,
                 padding: EdgeInsets.fromLTRB(16, 94, 16, bottomPad),

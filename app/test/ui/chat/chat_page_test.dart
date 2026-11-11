@@ -1,6 +1,7 @@
-import 'dart:async';
 // The chat screen against an in-memory computer: history, header, sending,
 // permission questions and session settings.
+
+import 'dart:async';
 
 import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/hosts/hosts.dart';

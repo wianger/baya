@@ -1,7 +1,8 @@
-import 'dart:async';
 // Renders the chat screen with a sample ACP conversation to PNG for design
 // review: `BAYA_PREVIEW_DIR=<dir> flutter test test/ui/chat/chat_preview_test.dart`.
 // Skipped otherwise.
+
+import 'dart:async';
 
 import 'dart:io';
 import 'dart:ui' as ui;

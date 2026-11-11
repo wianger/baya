@@ -21,7 +21,7 @@ void main() {
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.text('Get started'));
-    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
     expect(find.text('Get started'), findsNothing);
     expect(tester.takeException(), isNull);
   });
