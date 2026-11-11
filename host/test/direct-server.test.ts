@@ -209,6 +209,8 @@ describe("ACP over the direct connection", () => {
     await hub.refreshPeers();
     await a.call("initialize", { protocolVersion: 1 });
     await b.call("initialize", { protocolVersion: 1 });
+    // Two phones, each counted once.
+    expect(hub.connectedPhones).toBe(2);
 
     const created = await a.call("session/new", {
       cwd: tmpdir(),

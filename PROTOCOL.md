@@ -124,8 +124,10 @@ only method it may call; anything else fails with `-32000` and
 
 ## Phone → host
 
-The phone sends `initialize` (protocol version 1). The answer describes the
-computer and its agents:
+The phone sends `initialize` (protocol version 1), with
+`_meta.baya.device` naming the phone (its name in Settings, else maker and
+model); the host records it, with the time, for `baya devices`. The answer
+describes the computer and its agents:
 
 ```json
 {

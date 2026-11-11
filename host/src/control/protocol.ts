@@ -1,4 +1,12 @@
-export type ControlCommand = "status" | "open" | "remove" | "pair" | "unpair" | "stop" | "attach";
+export type ControlCommand =
+  | "status"
+  | "open"
+  | "remove"
+  | "pair"
+  | "unpair"
+  | "devices"
+  | "stop"
+  | "attach";
 
 export interface ControlRequest {
   token: string;

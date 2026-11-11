@@ -447,8 +447,12 @@ async function printPairingCode(invite: PairInvite): Promise<void> {
   out(dim(`Valid for ${minutes} min, once. Can't scan? Paste this in the app:`), dim(uri));
 }
 
+type Device = Awaited<ReturnType<typeof listPeers>>[number] & { connected?: boolean };
+
 async function devices(args: ParsedArgs): Promise<void> {
-  const peers = await listPeers();
+  const peers: Device[] = (await hostStatus())
+    ? (await controlCall<{ devices: Device[] }>("devices", {})).devices
+    : await listPeers();
   if (json(args)) return printJson({ devices: peers });
   if (peers.length === 0) return out(warn("No phone paired"), hint("baya pair"));
   out(
@@ -456,10 +460,17 @@ async function devices(args: ParsedArgs): Promise<void> {
       peers.map((peer) => [
         bold(peer.name),
         dim(peer.remote_epk.slice(0, 10)),
+        peer.connected
+          ? green("connected")
+          : peer.last_seen
+            ? dim(`seen ${duration(Date.now() - Date.parse(peer.last_seen))} ago`)
+            : dim("last seen unknown"),
         dim(`paired ${new Date(peer.paired_at).toLocaleDateString()}`),
       ]),
     ),
   );
+  if (peers.length > 1)
+    out(hint("baya unpair <name or key prefix>  removes one you no longer use"));
 }
 
 async function unpair(args: ParsedArgs): Promise<void> {

@@ -137,9 +137,12 @@ export class PhoneConnection implements HubPhone {
       });
     }
     switch (method) {
-      case "initialize":
+      case "initialize": {
         this.initialized = true;
+        const device = bayaMeta(params)["device"];
+        this.hub.seen(this.key, typeof device === "string" ? device : undefined);
         return this.initialize();
+      }
       case "session/list":
         return {
           sessions: this.hub

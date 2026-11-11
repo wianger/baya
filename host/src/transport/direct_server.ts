@@ -108,7 +108,17 @@ export class DirectServer {
         socket.send(sealData(session.send, stream, offset, bytes));
       },
     });
-    const ping = setInterval(() => socket.ping(), PING_MS);
+    // A phone that drops off the network without closing (sleep, lost
+    // signal) leaves a socket that never errors; one missed pong ends it.
+    let answered = true;
+    socket.on("pong", () => {
+      answered = true;
+    });
+    const ping = setInterval(() => {
+      if (!answered) return socket.terminate();
+      answered = false;
+      socket.ping();
+    }, PING_MS);
     socket.on("message", (raw, isBinary) => {
       try {
         if (!isBinary) throw new NoiseError("Expected a binary frame.");

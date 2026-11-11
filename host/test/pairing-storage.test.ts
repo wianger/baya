@@ -100,6 +100,25 @@ describe("paired devices", () => {
     expect(await storage.listPeers()).toEqual([]);
   });
 
+  test("a phone that connects is marked seen and keeps its own name", async () => {
+    isolatedHome();
+    const storage = await import("../src/pairing/storage.js");
+    await storage.addPeer({
+      name: "Android device",
+      remote_epk: PHONE_A.toString("base64"),
+      paired_at: "x",
+    });
+    await storage.markSeen(PHONE_B.toString("base64url"), "Stranger");
+    await storage.markSeen(PHONE_A.toString("base64url"), "Xiaomi 15");
+    const [peer] = await storage.listPeers();
+    expect(peer).toMatchObject({ name: "Xiaomi 15", last_seen: expect.any(String) });
+    expect(await storage.listPeers()).toHaveLength(1);
+    // Within a minute, a second hello writes nothing.
+    const first = peer!.last_seen;
+    await storage.markSeen(PHONE_A.toString("base64"));
+    expect((await storage.listPeers())[0]!.last_seen).toBe(first);
+  });
+
   test("sees edits made by another process", async () => {
     const home = isolatedHome();
     const storage = await import("../src/pairing/storage.js");

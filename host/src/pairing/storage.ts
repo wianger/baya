@@ -195,6 +195,8 @@ export interface PeerRecord {
   remote_epk: string;
   /** ISO-8601 timestamp. */
   paired_at: string;
+  /** ISO-8601: when the phone last connected or left. */
+  last_seen?: string;
 }
 
 function canonicalKey(value: unknown): string | null {
@@ -249,10 +251,11 @@ async function writePeers(peers: PeerRecord[]): Promise<PeerRecord[]> {
 
 let mutations: Promise<unknown> = Promise.resolve();
 
-function mutatePeers<T>(change: (peers: PeerRecord[]) => [PeerRecord[], T]): Promise<T> {
+/** `change` returns null peers to leave the file untouched. */
+function mutatePeers<T>(change: (peers: PeerRecord[]) => [PeerRecord[] | null, T]): Promise<T> {
   const run = mutations.then(async () => {
     const [next, result] = change([...(await listPeers())]);
-    await writePeers(next);
+    if (next) await writePeers(next);
     return result;
   });
   mutations = run.catch(() => {});
@@ -272,6 +275,35 @@ export function addPeer(record: PeerRecord): Promise<void> {
     [...peers.filter((peer) => canonicalKey(peer.remote_epk) !== key), record],
     undefined,
   ]);
+}
+
+/** Between two `last_seen` writes for the same phone. */
+const SEEN_EVERY_MS = 60_000;
+
+/**
+ * Notes that a paired phone is here now, and takes the name it reports for
+ * itself. Unknown keys are ignored. Writes at most once a minute per phone.
+ */
+export function markSeen(key: string, name?: string): Promise<void> {
+  const canonical = canonicalKey(key);
+  const label = name?.trim().slice(0, 80);
+  return mutatePeers((peers) => {
+    const now = Date.now();
+    let changed = false;
+    const next = peers.map((peer) => {
+      if (canonicalKey(peer.remote_epk) !== canonical) return peer;
+      const renamed = label && label !== peer.name;
+      const recent = now - Date.parse(peer.last_seen ?? "") < SEEN_EVERY_MS;
+      if (!renamed && recent) return peer;
+      changed = true;
+      return {
+        ...peer,
+        ...(renamed ? { name: label } : {}),
+        last_seen: new Date(now).toISOString(),
+      };
+    });
+    return [changed ? next : null, undefined];
+  });
 }
 
 /**
