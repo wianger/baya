@@ -34,7 +34,10 @@ enum HostStatus {
 class SessionEvent {
   final String sessionId;
   final SessionUpdate update;
-  const SessionEvent(this.sessionId, this.update);
+
+  /// Its number among the session's live notifications; null in a replay.
+  final int? seq;
+  const SessionEvent(this.sessionId, this.update, [this.seq]);
 }
 
 /// A question from an agent (permission or elicitation) arrived, was
@@ -48,7 +51,8 @@ class QuestionEvent {
 class TerminalEvent {
   final String sessionId;
   final TerminalSnapshot snapshot;
-  const TerminalEvent(this.sessionId, this.snapshot);
+  final int? seq;
+  const TerminalEvent(this.sessionId, this.snapshot, [this.seq]);
 }
 
 typedef IdentityLoader = Future<SimpleKeyPair> Function();
@@ -371,6 +375,7 @@ class HostConnection extends ChangeNotifier {
             SessionEvent(
               sessionId,
               SessionUpdate.fromJson(update.cast<String, dynamic>()),
+              _seq(params),
             ),
           );
         }
@@ -406,11 +411,20 @@ class HostConnection extends ChangeNotifier {
         final sessionId = params['sessionId'];
         if (sessionId is String && !_terminals.isClosed) {
           _terminals.add(
-            TerminalEvent(sessionId, TerminalSnapshot.fromJson(params)),
+            TerminalEvent(
+              sessionId,
+              TerminalSnapshot.fromJson(params),
+              _seq(params),
+            ),
           );
         }
     }
   }
+
+  static int? _seq(Json params) => switch (bayaMeta(params)['seq']) {
+    final int seq => seq,
+    _ => null,
+  };
 
   void _withdraw(Object requestId) {
     final known = _questions.remove(requestId) != null;

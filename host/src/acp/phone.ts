@@ -21,7 +21,7 @@ import {
 } from "../workspace/git.ts";
 import { browseSessionFiles, readSessionFile } from "../workspace/session_files.ts";
 import { openDownload, uploads } from "../workspace/transfer.ts";
-import type { HostedSession } from "./hosted_session.ts";
+import type { Cursor, HostedSession } from "./hosted_session.ts";
 import type { HubPhone, SessionHub } from "./hub.ts";
 import { isObject, type Json, JsonRpcPeer, RpcError, type RpcId } from "./jsonrpc.ts";
 import { BAYA_META, PROTOCOL_VERSION } from "./schema.ts";
@@ -158,7 +158,7 @@ export class PhoneConnection implements HubPhone {
         return { sessionId: session.id, ...setup };
       }
       case "session/load":
-        return this.session(params).attach(this, true);
+        return this.session(params).attach(this, true, cursorParam(bayaMeta(params)["resume"]));
       case "session/resume":
         return this.session(params).attach(this, false);
       case "session/prompt":
@@ -388,4 +388,13 @@ function bayaMeta(params: Json): Json {
   const meta = params["_meta"];
   const baya = isObject(meta) ? meta[BAYA_META] : undefined;
   return isObject(baya) ? baya : {};
+}
+
+/** A `{epoch, seq}` resume cursor, or undefined. */
+function cursorParam(value: unknown): Cursor | undefined {
+  if (!isObject(value)) return undefined;
+  const { epoch, seq } = value;
+  return typeof epoch === "string" && typeof seq === "number" && Number.isInteger(seq)
+    ? { epoch, seq }
+    : undefined;
 }

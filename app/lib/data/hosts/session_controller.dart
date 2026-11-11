@@ -21,8 +21,10 @@ class SessionController extends ChangeNotifier {
     _questions = host.questions.listen((_) => _syncPermissions());
     _terminals = host.terminals.listen((event) {
       if (event.sessionId != sessionId) return;
+      if (_held case final held?) return held.add(event);
+      _seen(event.seq);
       _transcript.terminal(event.snapshot);
-      if (!_replaying) _changed();
+      if (!_loading) _changed();
     });
     _online = host.onOnline.listen((_) => unawaited(_load()));
     host.addListener(_onHostChanged);
@@ -41,7 +43,15 @@ class SessionController extends ChangeNotifier {
 
   bool _loading = false;
   bool _loaded = false;
-  bool _replaying = false;
+
+  /// What arrives while a load is out, applied once its answer says whether
+  /// it is a catch-up (on top of what is here) or the whole history.
+  List<Object>? _held;
+
+  /// Where this phone is in the session's live notifications, so coming
+  /// back (screen on, new network) fetches only what it missed.
+  String? _epoch;
+  int _seq = 0;
   bool _disposed = false;
   String? _error;
   bool _localWorking = false;
@@ -338,18 +348,40 @@ class SessionController extends ChangeNotifier {
       _changed();
       return;
     }
+    final resume = _loaded && _epoch != null
+        ? {'epoch': _epoch, 'seq': _seq}
+        : null;
     _loading = true;
     _error = null;
     _changed();
-    // The replay rebuilds the history from scratch.
-    _transcript.clear();
-    _replaying = true;
+    // A first load shows the history as it streams in. A catch-up holds
+    // what comes until the answer says it is one, or the whole history.
+    final held = <Object>[];
+    if (resume != null) {
+      _held = held;
+    } else {
+      _transcript.clear();
+    }
+    var replaced = false;
     try {
       final result = await host.call('session/load', {
         'sessionId': sessionId,
         'cwd': summary?.cwd ?? '',
         'mcpServers': const <Object>[],
+        if (resume != null)
+          '_meta': {
+            'baya': {'resume': resume},
+          },
       }, const Duration(minutes: 3));
+      final meta = bayaMeta(result);
+      replaced = resume != null && meta['resumed'] != true;
+      final cursor = meta['cursor'];
+      if (cursor is Map && cursor['epoch'] is String && cursor['seq'] is int) {
+        _epoch = cursor['epoch'] as String;
+        _seq = cursor['seq'] as int;
+      } else {
+        _epoch = null;
+      }
       _setup = SessionSetup.fromJson(result);
       _config = _setup.configOptions;
       _modes = _setup.modes;
@@ -358,16 +390,40 @@ class SessionController extends ChangeNotifier {
       if (waiting != null) scheduleMicrotask(() => editAgain(waiting));
     } catch (error) {
       _error = _describe(error);
+      // A failed catch-up keeps what is shown.
+      held.clear();
     } finally {
-      _replaying = false;
+      _held = null;
+      if (replaced) _transcript.clear();
+      for (final event in held) {
+        switch (event) {
+          case SessionEvent():
+            _apply(event);
+          case TerminalEvent(:final snapshot, :final seq):
+            _seen(seq);
+            _transcript.terminal(snapshot);
+        }
+      }
       _loading = false;
       if (summary?.working != true) _transcript.settle();
       _changed();
     }
   }
 
+  void _seen(int? seq) {
+    if (seq != null && seq > _seq) _seq = seq;
+  }
+
   void _onUpdate(SessionEvent event) {
     if (event.sessionId != sessionId) return;
+    if (_held case final held?) return held.add(event);
+    _apply(event);
+    // A replay is drawn once, when it is done.
+    if (!_loading) _changed();
+  }
+
+  void _apply(SessionEvent event) {
+    _seen(event.seq);
     final update = event.update;
     switch (update) {
       case ConfigUpdate(:final options):
@@ -381,11 +437,13 @@ class SessionController extends ChangeNotifier {
       default:
         _transcript.apply(update);
     }
-    if (!_replaying) _changed();
   }
 
   void _onHostChanged() {
-    if (summary?.working == false && !_localWorking) _transcript.settle();
+    // Offline, nothing is known to have finished: a catch-up may continue it.
+    if (host.isOnline && summary?.working == false && !_localWorking) {
+      _transcript.settle();
+    }
     _changed();
   }
 

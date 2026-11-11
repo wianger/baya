@@ -147,7 +147,7 @@ Standard ACP methods, with Baya's meaning:
 |---|---|
 | `session/list` | Every session on the computer, newest first. `SessionInfo._meta.baya` carries `agent`, `agentName`, `working`, `running` and, when the agent could not start, `error`. |
 | `session/new` | `{cwd, mcpServers, _meta.baya.agent}`; the configured default agent when omitted. With `_meta.baya.agentSessionId` it adopts one of the agent's own conversations (see `_baya/agent_sessions`) and loads its history. |
-| `session/load` | Replays the transcript as `session/update` notifications, then answers with `configOptions`, `modes` and `_meta.baya` (`agentName`, `title`, `working`, `promptCapabilities`, `canFork`). The phone is attached until `session/close`. |
+| `session/load` | Replays the transcript as `session/update` notifications, then answers with `configOptions`, `modes` and `_meta.baya` (`agentName`, `title`, `working`, `promptCapabilities`, `canFork`, `cursor`, `resumed`). With `_meta.baya.resume` (a `cursor` from before) the host sends only the live notifications after it, when it still has them, and answers `resumed: true`. The phone is attached until `session/close`. |
 | `session/resume` | Attaches without the replay. |
 | `session/prompt` | Queued behind a running turn. `_meta.baya.messageId` names the echoed `user_message_chunk`s. |
 | `session/cancel` | Ends the turn and drops queued prompts. |
@@ -234,6 +234,14 @@ and each tool call is stored once in its final state. State updates
 (`available_commands_update`, `usage_update`, `config_option_update`,
 `current_mode_update`, `session_info_update`) are applied to the session and
 the latest commands and usage follow every replay.
+
+Live `session/update` and `_baya/terminal` notifications carry
+`_meta.baya.seq`, numbered per session from 1; replays carry none. The host
+keeps the last 4,000 (a terminal only its newest snapshot), so a phone that
+drops off (screen off, network change) loads again with
+`resume: {epoch, seq}` and catches up with what it missed instead of
+replaying the conversation. The `epoch` is new each time the host starts the
+session, so a cursor from before a restart gets the full replay.
 
 `session/request_permission` and `elicitation/create` go to every attached
 phone, and to phones that attach while they are open. The first answer is

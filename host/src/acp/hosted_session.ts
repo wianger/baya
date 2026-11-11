@@ -74,6 +74,21 @@ function cancelled(question: { method: string }): Json {
 /** How long the agent has to name a session itself before one is made. */
 const NAME_AFTER_MS = Number(process.env["BAYA_NAME_AFTER_MS"]) || 8_000;
 const NAME_ON_OPEN_MS = Number(process.env["BAYA_NAME_AFTER_MS"]) || 12_000;
+/** Live notifications kept for phones that come back after a drop. */
+const RESUME_LOG = 4_000;
+
+/** Where a phone is in a session's live notifications. */
+export interface Cursor {
+  epoch: string;
+  seq: number;
+}
+
+interface Logged {
+  seq: number;
+  method: string;
+  params: Json;
+  terminalId?: string | undefined;
+}
 
 export class HostedSession {
   record: SessionRecord;
@@ -99,6 +114,17 @@ export class HostedSession {
   });
   private idleTimer: NodeJS.Timeout | null = null;
   private lastError: string | null = null;
+  /**
+   * Every live notification is numbered and kept for a while, so a phone
+   * that drops off (screen off, network change) catches up with only what it
+   * missed instead of replaying the whole conversation. A new epoch, as
+   * after a restart, means numbers from before mean nothing.
+   */
+  private readonly epoch = randomUUID();
+  private seq = 0;
+  /** Notifications up to this number are no longer in [log]. */
+  private floor = 0;
+  private readonly log: Logged[] = [];
 
   constructor(
     record: SessionRecord,
@@ -149,15 +175,25 @@ export class HostedSession {
 
   // ── phone-facing ACP ────────────────────────────────────────────────────
 
-  /** `session/new` and `session/load`: replays history to [phone] and attaches it. */
-  async attach(phone: PhoneLink, replay: boolean): Promise<Json> {
+  /**
+   * `session/new` and `session/load`: replays history to [phone] and attaches
+   * it. A phone that brings a [resume] cursor this session can still serve
+   * gets only the notifications after it.
+   */
+  async attach(phone: PhoneLink, replay: boolean, resume?: Cursor): Promise<Json> {
     await this.ensureAgent();
     // Named only by its first line so far: the agent may still name it as it
     // loads; if not, a short title is made.
     if (this.record.titleSource === "prompt" && this.record.title) {
       this.nameLater(this.record.title, NAME_ON_OPEN_MS);
     }
-    if (replay) {
+    const resumed =
+      replay && resume?.epoch === this.epoch && resume.seq >= this.floor && resume.seq <= this.seq;
+    if (resumed) {
+      for (const entry of this.log) {
+        if (entry.seq > resume.seq) phone.notify(entry.method, entry.params);
+      }
+    } else if (replay) {
       for (const update of this.transcript.updates) this.send(phone, update);
       for (const terminal of this.transcript.terminals) {
         phone.notify("_baya/terminal", { sessionId: this.id, ...terminal });
@@ -171,7 +207,8 @@ export class HostedSession {
     setImmediate(() => {
       for (const question of this.questions) this.askOne(question, phone);
     });
-    return this.setupResponse();
+    // Where the phone now is, and whether it got a catch-up or the history.
+    return this.setupResponse({ cursor: { epoch: this.epoch, seq: this.seq }, resumed });
   }
 
   detach(phone: PhoneLink): void {
@@ -582,7 +619,21 @@ export class HostedSession {
   }
 
   private broadcast(update: SessionUpdate, except?: PhoneLink): void {
-    for (const phone of this.attached) if (phone !== except) this.send(phone, update);
+    const params = this.number("session/update", { sessionId: this.id, update });
+    for (const phone of this.attached) if (phone !== except) phone.notify("session/update", params);
+  }
+
+  /** Numbers a live notification and keeps it for phones that come back. */
+  private number(method: string, params: Json, terminalId?: string): Json {
+    const numbered = { ...params, _meta: { [BAYA_META]: { seq: ++this.seq } } };
+    if (terminalId !== undefined) {
+      // A terminal snapshot holds all its output: only the latest counts.
+      const older = this.log.findLastIndex((entry) => entry.terminalId === terminalId);
+      if (older !== -1) this.log.splice(older, 1);
+    }
+    this.log.push({ seq: this.seq, method, params: numbered, terminalId });
+    if (this.log.length > RESUME_LOG) this.floor = this.log.shift()!.seq;
+    return numbered;
   }
 
   private send(phone: PhoneLink, update: SessionUpdate): void {
@@ -634,12 +685,15 @@ export class HostedSession {
 
   private onTerminal(snapshot: TerminalSnapshot): void {
     this.transcript.setTerminal(snapshot);
-    for (const phone of this.attached) {
-      phone.notify("_baya/terminal", { sessionId: this.id, ...snapshot });
-    }
+    const params = this.number(
+      "_baya/terminal",
+      { sessionId: this.id, ...snapshot },
+      snapshot.terminalId,
+    );
+    for (const phone of this.attached) phone.notify("_baya/terminal", params);
   }
 
-  private setupResponse(): Json {
+  private setupResponse(extra: Json = {}): Json {
     return {
       ...(this.setup.configOptions ? { configOptions: this.setup.configOptions } : {}),
       ...(this.setup.modes ? { modes: this.setup.modes } : {}),
@@ -655,6 +709,7 @@ export class HostedSession {
               "fork"
             ],
           ),
+          ...extra,
         },
       },
     };
