@@ -45,12 +45,15 @@ void main() {
     expect(plain.text, 'hello');
   });
 
-  test('a diff the computer trimmed numbers its lines from where it starts', () {
-    final hunks = lineDiff('a\nb\nc', 'a\nB\nc', firstLine: 120);
-    final changed = hunks.single.where((l) => l.kind != DiffKind.context);
-    expect([for (final l in changed) l.oldNumber ?? l.newNumber], [121, 121]);
-    expect(hunks.single.first.newNumber, 120);
-  });
+  test(
+    'a diff the computer trimmed numbers its lines from where it starts',
+    () {
+      final hunks = lineDiff('a\nb\nc', 'a\nB\nc', firstLine: 120);
+      final changed = hunks.single.where((l) => l.kind != DiffKind.context);
+      expect([for (final l in changed) l.oldNumber ?? l.newNumber], [121, 121]);
+      expect(hunks.single.first.newNumber, 120);
+    },
+  );
 
   test('the line diff finds the changed lines and keeps context', () {
     final old = [for (var i = 1; i <= 20; i++) 'line $i'].join('\n');
