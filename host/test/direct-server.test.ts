@@ -347,6 +347,46 @@ describe("ACP over the direct connection", () => {
     );
   });
 
+  test("a session Baya holds opens at once, the agent starting behind it", async () => {
+    const { host, port, storage, hub } = await setup();
+    const a = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "P", remote_epk: a.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const { sessionId } = (await a.call("session/new", { cwd: tmpdir(), mcpServers: [] })) as {
+      sessionId: string;
+    };
+    await a.call("session/prompt", { sessionId, prompt: [{ type: "text", text: "first" }] });
+    await a.call("session/close", { sessionId });
+    hub.get(sessionId)!.stop();
+    // The agent now never answers: a load that waited for it would hang.
+    writeFileSync(
+      join(process.env["BAYA_HOME"]!, "config.json"),
+      JSON.stringify({
+        agents: [
+          {
+            id: "fake",
+            name: "Fake",
+            command: [process.execPath, "-e", "setInterval(() => {}, 1000)"],
+          },
+        ],
+      }),
+    );
+    const b = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "Q", remote_epk: b.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const started = Date.now();
+    const loaded = await b.call("session/load", { sessionId, cwd: tmpdir(), mcpServers: [] });
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(loaded["configOptions"]?.[0]).toMatchObject({ id: "model" });
+    expect(b.updates(sessionId)).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "first" },
+      }),
+    );
+    hub.get(sessionId)!.stop();
+  });
+
   test("the first phone to answer a permission request wins", async () => {
     const { host, port, storage, hub } = await setup();
     const a = await phone(port, host.publicKey);

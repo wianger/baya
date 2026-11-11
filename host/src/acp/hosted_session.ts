@@ -102,6 +102,8 @@ export class HostedSession {
   /** The agent is replaying a conversation Baya adopts and keeps. */
   private loadingHistory = false;
   private setup: SessionSetup = {};
+  /** What the agent said of itself when it last started, kept while it is stopped. */
+  private agentInfo: InitializeResponse | null = null;
   private commands: SessionUpdate | null = null;
   private usage: SessionUpdate | null = null;
   private readonly attached = new Set<PhoneLink>();
@@ -181,7 +183,14 @@ export class HostedSession {
    * gets only the notifications after it.
    */
   async attach(phone: PhoneLink, replay: boolean, resume?: Cursor): Promise<Json> {
-    await this.ensureAgent();
+    // A conversation Baya holds and has run before opens at once; the agent
+    // (stopped while idle) starts behind it and sends what changed. Only the
+    // first open, or one with nothing to show, waits for it.
+    if (replay && this.agentInfo && this.transcript.updates.length > 0) {
+      if (!this.process?.running) void this.warmUp();
+    } else {
+      await this.ensureAgent();
+    }
     // Named only by its first line so far: the agent may still name it as it
     // loads; if not, a short title is made.
     if (this.record.titleSource === "prompt" && this.record.title) {
@@ -313,6 +322,28 @@ export class HostedSession {
     return this.process?.definition.name ?? this.resolveAgent()?.name ?? this.record.agent;
   }
 
+  /** Starts the agent for phones already looking at the session. */
+  private async warmUp(): Promise<void> {
+    try {
+      await this.ensureAgent();
+    } catch {
+      // lastError says why, on the session.
+      return;
+    }
+    if (this.setup.configOptions) {
+      this.broadcast({
+        sessionUpdate: "config_option_update",
+        configOptions: this.setup.configOptions,
+      });
+    }
+    if (this.setup.modes) {
+      this.broadcast({
+        sessionUpdate: "current_mode_update",
+        currentModeId: this.setup.modes.currentModeId,
+      });
+    }
+  }
+
   private ensureAgent(): Promise<AgentProcess> {
     if (this.process?.running) return Promise.resolve(this.process);
     this.starting ??= this.startAgent().then(
@@ -353,6 +384,7 @@ export class HostedSession {
       `${this.agentName} did not answer \`initialize\` in time.`,
     );
     this.setup = await this.openAgentSession(agent, info);
+    this.agentInfo = info;
     return agent;
   }
 
@@ -704,11 +736,9 @@ export class HostedSession {
           agentName: this.agentName,
           title: this.title,
           working: this.working,
-          promptCapabilities: this.process?.info?.agentCapabilities?.promptCapabilities ?? {},
+          promptCapabilities: this.agentInfo?.agentCapabilities?.promptCapabilities ?? {},
           canFork: Boolean(
-            (this.process?.info?.agentCapabilities?.sessionCapabilities as Json | undefined)?.[
-              "fork"
-            ],
+            (this.agentInfo?.agentCapabilities?.sessionCapabilities as Json | undefined)?.["fork"],
           ),
           ...extra,
         },
