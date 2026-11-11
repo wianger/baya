@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/acp/acp.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
@@ -6,6 +8,7 @@ import 'package:app/ui/chat/widgets/tool_content.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// The agent is waiting for permission (`session/request_permission`).
@@ -45,6 +48,7 @@ class _PermissionCardState extends State<PermissionCard> {
   void _answer(String? optionId) {
     if (_answered) return;
     setState(() => _answered = true);
+    unawaited(HapticFeedback.selectionClick());
     widget.onAnswer(optionId);
   }
 

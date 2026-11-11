@@ -80,6 +80,9 @@ class AgentWatch {
           }
         } else if (_since.remove(key) != null && enabled && !_foreground) {
           _post(_finished(host, session));
+        } else if (!_prefs.isUnread(host.key, session)) {
+          // Read in the app since: the notification has said its piece.
+          _withdraw('done:$key');
         }
       }
       for (final ask in host.openPermissions) {
@@ -165,6 +168,14 @@ class AgentWatch {
         title: _title(session),
         text: appL10n.agentFinishedOn(_agent(session), host.host.label),
         opens: (host: host.key, session: session.sessionId),
+        // The next prompt, without opening the app.
+        reply: NotificationReply(
+          appL10n.notifyReply,
+          appL10n.replyTo(_agent(session)),
+          jsonEncode({
+            'reply': {'host': host.key, 'session': session.sessionId},
+          }),
+        ),
       );
 
   AgentAlert _permission(HostConnection host, PermissionRequest ask) {
@@ -252,11 +263,11 @@ class AgentWatch {
     if (_alerts.remove(id)) unawaited(_notifier.cancel(id));
   }
 
-  /// A notification button was tapped.
-  void _act(String payload) {
+  /// A notification button was tapped, or a reply sent.
+  void _act(TappedAction tapped) {
     final Object? message;
     try {
-      message = jsonDecode(payload);
+      message = jsonDecode(tapped.payload);
     } on FormatException {
       return;
     }
@@ -271,6 +282,35 @@ class AgentWatch {
         _hosts.byKey(host)?.answerPermission(request, option);
       case {'stop': {'host': final String host, 'session': final String id}}:
         _hosts.byKey(host)?.notify('session/cancel', {'sessionId': id});
+      case {'reply': {'host': final String host, 'session': final String id}}:
+        if (tapped.text case final text?) unawaited(_reply(host, id, text));
+    }
+  }
+
+  /// Sends [text] as the session's next prompt. The turn it starts shows
+  /// live like any other; one that can't be sent says so.
+  Future<void> _reply(String hostKey, String sessionId, String text) async {
+    final host = _hosts.byKey(hostKey);
+    if (host == null || !host.isOnline) {
+      return _post(
+        AgentAlert(
+          id: 'unsent:$hostKey|$sessionId',
+          title: appL10n.replyNotSent,
+          text: text,
+          opens: (host: hostKey, session: sessionId),
+        ),
+      );
+    }
+    try {
+      // Answers when the turn ends, however long that is.
+      await host.call('session/prompt', {
+        'sessionId': sessionId,
+        'prompt': [
+          {'type': 'text', 'text': text},
+        ],
+      }, Duration.zero);
+    } on Object {
+      // Sent: how the turn went shows in the session.
     }
   }
 

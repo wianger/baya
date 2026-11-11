@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/data/hosts/session_controller.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/domain/entities/agent_command.dart';
@@ -32,6 +34,7 @@ import 'package:app/ui/workspaces/session_shell.dart';
 import 'package:app/ui/workspaces/workspace_navigation.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -61,60 +64,54 @@ class ChatPage extends StatelessWidget {
     final session = context.watch<SessionController>();
     // The agent's prompt capabilities decide whether images can be attached.
     final vision = session.loaded ? session.acceptsImages : null;
-    // What is on screen is read: the overview's unread dot goes.
-    if (session.summary case final summary?) {
-      final prefs = context.read<Preferences?>();
-      if (prefs != null) {
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) => prefs.markSeen(session.host.key, summary),
-        );
-      }
-    }
     final attachment = context.read<AttachmentViewModel>();
     if (attachment.state.visionSupported != vision) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => attachment.setVision(vision),
       );
     }
-    return Scaffold(
-      backgroundColor: context.colors.bg,
-      body: BayaBackdrop(
-        child: SafeArea(
-          bottom: false,
-          child: ChatFrame(
-            topBar: _buildTopBar(context, session),
-            revoked: session.host.status.name == 'unpaired'
-                ? _RevokedBanner(onRePair: () => context.go('/pair'))
-                : null,
-            body: _buildBody(context, session),
-            composer: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (session.permission case final request?)
-                  PermissionCard(
-                    key: ValueKey('permission-${request.requestId}'),
-                    request: request,
-                    tool: session.messages
-                        .whereType<ToolEvent>()
-                        .where((t) => t.toolCallId == request.toolCall.id)
-                        .lastOrNull,
-                    onAnswer: session.answerPermission,
-                  ),
-                if (session.elicitation case final request?)
-                  ElicitationCard(
-                    key: ValueKey('elicitation-${request.requestId}'),
-                    request: request,
-                    onAnswer: session.answerElicitation,
-                  ),
-                if (session.authAgent != null)
-                  SignInCard(
-                    key: ValueKey('sign-in-${session.authAgent}'),
-                    session: session,
-                  ),
-                if (session.attachedFiles.isNotEmpty)
-                  _AttachedFiles(session: session),
-                _buildInput(context, session),
-              ],
+    return _TurnHaptics(
+      session: session,
+      child: Scaffold(
+        backgroundColor: context.colors.bg,
+        body: BayaBackdrop(
+          child: SafeArea(
+            bottom: false,
+            child: ChatFrame(
+              topBar: _buildTopBar(context, session),
+              revoked: session.host.status.name == 'unpaired'
+                  ? _RevokedBanner(onRePair: () => context.go('/pair'))
+                  : null,
+              body: _buildBody(context, session),
+              composer: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (session.permission case final request?)
+                    PermissionCard(
+                      key: ValueKey('permission-${request.requestId}'),
+                      request: request,
+                      tool: session.messages
+                          .whereType<ToolEvent>()
+                          .where((t) => t.toolCallId == request.toolCall.id)
+                          .lastOrNull,
+                      onAnswer: session.answerPermission,
+                    ),
+                  if (session.elicitation case final request?)
+                    ElicitationCard(
+                      key: ValueKey('elicitation-${request.requestId}'),
+                      request: request,
+                      onAnswer: session.answerElicitation,
+                    ),
+                  if (session.authAgent != null)
+                    SignInCard(
+                      key: ValueKey('sign-in-${session.authAgent}'),
+                      session: session,
+                    ),
+                  if (session.attachedFiles.isNotEmpty)
+                    _AttachedFiles(session: session),
+                  _buildInput(context, session),
+                ],
+              ),
             ),
           ),
         ),
@@ -687,4 +684,86 @@ class _AttachedFiles extends StatelessWidget {
 
 extension on String {
   String ifEmpty(String fallback) => isEmpty ? fallback : this;
+}
+
+/// The chat being on screen: what it shows is read (the overview's unread
+/// dot goes), and a tap is felt when the agent finishes or starts waiting
+/// for an answer, so a glance away from it is enough.
+class _TurnHaptics extends StatefulWidget {
+  const _TurnHaptics({required this.session, required this.child});
+
+  final SessionController session;
+  final Widget child;
+
+  @override
+  State<_TurnHaptics> createState() => _TurnHapticsState();
+}
+
+class _TurnHapticsState extends State<_TurnHaptics>
+    with WidgetsBindingObserver {
+  late bool _working = widget.session.working;
+  late bool _asking = _asks(widget.session);
+
+  static bool _asks(SessionController s) =>
+      s.permission != null || s.elicitation != null;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.session.addListener(_changed);
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _seen());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _seen();
+  }
+
+  bool get _inFront =>
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+
+  /// Only while the app is in front: a chat left open in the background
+  /// has not been read.
+  void _seen() {
+    final summary = widget.session.summary;
+    if (!mounted || !_inFront || summary == null) return;
+    context.read<Preferences?>()?.markSeen(widget.session.host.key, summary);
+  }
+
+  @override
+  void didUpdateWidget(_TurnHaptics old) {
+    super.didUpdateWidget(old);
+    if (identical(old.session, widget.session)) return;
+    old.session.removeListener(_changed);
+    widget.session.addListener(_changed);
+    _working = widget.session.working;
+    _asking = _asks(widget.session);
+  }
+
+  void _changed() {
+    final session = widget.session;
+    final asking = _asks(session);
+    final finished = _working && !session.working;
+    final asked = asking && !_asking;
+    _working = session.working;
+    _asking = asking;
+    _seen();
+    if (!_inFront || !session.loaded) return;
+    if (asked) {
+      unawaited(HapticFeedback.mediumImpact());
+    } else if (finished) {
+      unawaited(HapticFeedback.lightImpact());
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_changed);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

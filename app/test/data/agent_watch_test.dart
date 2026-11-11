@@ -14,7 +14,7 @@ class _Notifier implements AgentNotifier {
   int lives = 0;
   final alerts = <String, AgentAlert>{};
   int asks = 0;
-  final _actions = StreamController<String>.broadcast();
+  final _actions = StreamController<TappedAction>.broadcast();
 
   @override
   Future<void> live(LiveActivity? activity) async {
@@ -34,10 +34,14 @@ class _Notifier implements AgentNotifier {
   @override
   Future<bool> allowed() async => true;
 
-  void tap(NotificationAction action) => _actions.add(action.payload);
+  void tap(NotificationAction action) =>
+      _actions.add((payload: action.payload, text: null));
+
+  void reply(NotificationReply reply, String text) =>
+      _actions.add((payload: reply.payload, text: text));
 
   @override
-  Stream<String> get actions => _actions.stream;
+  Stream<TappedAction> get actions => _actions.stream;
 
   @override
   Stream<SessionRef> get opened => const Stream.empty();
@@ -77,11 +81,14 @@ void main() {
     hosts.dispose();
   });
 
+  // As the host does: each turn that starts or ends is the latest activity.
+  var tick = 0;
   void working(bool value) => host.push('_baya/session_changed', {
     'session': testSession(
       id: 'a',
       title: 'Fix the login redirect',
       working: value,
+      updatedAt: DateTime.now().add(Duration(seconds: ++tick)),
     ).toJson(),
   });
 
@@ -201,6 +208,56 @@ void main() {
     expect(notifier.shown, isNull);
     watch.foreground = false;
     working(false);
+    await settle();
+    expect(notifier.alerts, isEmpty);
+  });
+
+  test('a finished turn is answered from its notification', () async {
+    working(true);
+    await settle();
+    watch.foreground = false;
+    working(false);
+    await settle();
+    final done = notifier.alerts.values.single;
+    expect(done.reply!.label, 'Reply');
+    expect(done.reply!.hint, 'Reply to Claude Code…');
+
+    notifier.reply(done.reply!, 'Now run the tests');
+    await settle();
+    final prompt = host.calls.lastWhere((c) => c.method == 'session/prompt');
+    expect(prompt.params['sessionId'], 'a');
+    expect(prompt.params['prompt'], [
+      {'type': 'text', 'text': 'Now run the tests'},
+    ]);
+  });
+
+  test('a reply with the computer away says it was not sent', () async {
+    working(true);
+    await settle();
+    watch.foreground = false;
+    working(false);
+    await settle();
+    final done = notifier.alerts.values.single;
+    host.refuse = Exception('away');
+    host.socket!.drop();
+    await settle();
+    notifier.reply(done.reply!, 'Now run the tests');
+    await settle();
+    expect(
+      notifier.alerts.values.map((a) => a.title),
+      contains("Your reply wasn't sent: the computer is offline"),
+    );
+  });
+
+  test('reading the session in the app withdraws its notification', () async {
+    working(true);
+    await settle();
+    watch.foreground = false;
+    working(false);
+    await settle();
+    expect(notifier.alerts, hasLength(1));
+    watch.foreground = true;
+    prefs.markSeen(hosts.all.single.key, hosts.all.single.sessions.single);
     await settle();
     expect(notifier.alerts, isEmpty);
   });
