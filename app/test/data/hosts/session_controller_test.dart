@@ -122,6 +122,8 @@ void main() {
   });
 
   group('coming back after a drop', () {
+    tearDown(SessionController.forgetKept);
+
     Json chunk(String text, {int? seq, String role = 'agent'}) => {
       'sessionId': 's1',
       'update': {
@@ -192,6 +194,28 @@ void main() {
       await settle();
       expect(texts(session), 'user:Hi | agent:Hello there!');
       session.dispose();
+      conn.dispose();
+    });
+
+    test('a conversation opened again shows at once and catches up', () async {
+      final (host, conn, session) = await opened();
+      conn.reconnectNow();
+      host.handlers['session/load'] = (_) => loaded(seq: 5, resumed: true);
+      await settle();
+      session.dispose();
+
+      host.handlers['session/load'] = (params) {
+        expect(bayaMeta(params)['resume'], {'epoch': 'e1', 'seq': 5});
+        host.push('session/update', chunk(' again', seq: 6));
+        return loaded(seq: 6, resumed: true);
+      };
+      final again = SessionController(conn, 's1');
+      // Before the computer answers, the conversation is there.
+      expect(texts(again), 'user:Hi | agent:Hello there');
+      expect(again.loaded, isTrue);
+      await settle();
+      expect(texts(again), 'user:Hi | agent:Hello there again');
+      again.dispose();
       conn.dispose();
     });
 

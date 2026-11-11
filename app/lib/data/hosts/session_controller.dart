@@ -28,6 +28,7 @@ class SessionController extends ChangeNotifier {
     });
     _online = host.onOnline.listen((_) => unawaited(_load()));
     host.addListener(_onHostChanged);
+    _restore();
     _syncPermissions();
     unawaited(_load());
   }
@@ -35,7 +36,7 @@ class SessionController extends ChangeNotifier {
   final HostConnection host;
   final String sessionId;
 
-  final _transcript = Transcript();
+  late final Transcript _transcript;
   late final StreamSubscription<SessionEvent> _updates;
   late final StreamSubscription<QuestionEvent> _questions;
   late final StreamSubscription<TerminalEvent> _terminals;
@@ -126,6 +127,53 @@ class SessionController extends ChangeNotifier {
 
   /// Messages waiting for the composer of a branch that is opening.
   static final _handoff = <String, UserMsg>{};
+
+  /// Conversations left most recently, newest last, with where each was in
+  /// its live notifications: opening one again shows it at once and only
+  /// catches up, instead of replaying it.
+  static final _kept = <String, _Kept>{};
+  static const _keep = 6;
+
+  void _restore() {
+    final kept = _kept.remove('${host.key}/$sessionId');
+    if (kept == null) {
+      _transcript = Transcript();
+      return;
+    }
+    _transcript = kept.transcript;
+    _epoch = kept.epoch;
+    _seq = kept.seq;
+    _setup = kept.setup;
+    _config = kept.config;
+    _modes = kept.modes;
+    _commands = kept.commands;
+    _usage = kept.usage;
+    _loaded = true;
+  }
+
+  void _keepForLater() {
+    final epoch = _epoch;
+    if (!_loaded || epoch == null || _error != null) return;
+    final key = '${host.key}/$sessionId';
+    _kept.remove(key);
+    _kept[key] = _Kept(
+      transcript: _transcript,
+      epoch: epoch,
+      seq: _seq,
+      setup: _setup,
+      config: _config,
+      modes: _modes,
+      commands: _commands,
+      usage: _usage,
+    );
+    while (_kept.length > _keep) {
+      _kept.remove(_kept.keys.first);
+    }
+  }
+
+  /// Forgets kept conversations (tests start clean).
+  @visibleForTesting
+  static void forgetKept() => _kept.clear();
 
   bool get canFork => _setup.canFork;
 
@@ -493,6 +541,7 @@ class SessionController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _keepForLater();
     _disposed = true;
     _handoff.remove('${host.key}/$sessionId');
     _throttle?.cancel();
@@ -512,4 +561,26 @@ class SessionController extends ChangeNotifier {
     }
     super.dispose();
   }
+}
+
+class _Kept {
+  _Kept({
+    required this.transcript,
+    required this.epoch,
+    required this.seq,
+    required this.setup,
+    required this.config,
+    required this.modes,
+    required this.commands,
+    required this.usage,
+  });
+
+  final Transcript transcript;
+  final String epoch;
+  final int seq;
+  final SessionSetup setup;
+  final List<ConfigOption> config;
+  final SessionModes? modes;
+  final List<AgentCommandInfo> commands;
+  final Usage? usage;
 }
