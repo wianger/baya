@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:app/config/dependencies.dart';
+import 'package:app/data/agents/agent_notifier.dart';
 import 'package:app/data/device/device_name.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/preferences/preferences.dart';
+import 'package:app/data/transport/epk_encoding.dart';
+import 'package:app/domain/value_objects/workspace.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/routing/adaptive.dart';
@@ -56,6 +59,52 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
     _links = AppLinks().uriLinkStream.listen(_openLink);
     _updates.addListener(_onUpdate);
     _router.routerDelegate.addListener(_checkWhenSettled);
+    services.agentWatch.start();
+    _opened = services.agentNotifier.opened.listen(_openSession);
+    unawaited(
+      services.agentNotifier.takeLaunch().then((ref) {
+        if (ref != null) _openSession(ref);
+      }),
+    );
+  }
+
+  StreamSubscription<SessionRef>? _opened;
+
+  /// A notification was tapped: show its session once the app is past boot.
+  void _openSession(SessionRef ref) {
+    void open() {
+      final hosted = services.hosts.find(ref.host, ref.session);
+      if (hosted == null) return _router.go('/home');
+      final prefs = services.prefs;
+      unawaited(
+        prefs.setSelectedWorkspace(
+          prefs.workspaceForSession(ref.host, ref.session) ??
+              inboxWorkspaceKey(toStandardB64(ref.host)),
+        ),
+      );
+      final title = hosted.session.title;
+      final device = hosted.host.host.label;
+      services.selection.select(
+        ref.host,
+        ref.session,
+        title,
+        device,
+        hosted.live,
+      );
+      _router.go(
+        '/chat',
+        extra: {'title': title, 'device': device, 'online': hosted.live},
+      );
+    }
+
+    if (!_busy && services.hosts.loaded) return open();
+    void whenReady() {
+      if (_busy || !services.hosts.loaded) return;
+      _router.routerDelegate.removeListener(whenReady);
+      open();
+    }
+
+    _router.routerDelegate.addListener(whenReady);
   }
 
   String get _path => _router.routerDelegate.currentConfiguration.uri.path;
@@ -94,6 +143,10 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
   /// Back in the foreground: reconnect now instead of waiting out a backoff.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Inactive is the shade pulled down over the app: still in front.
+    services.agentWatch.foreground =
+        state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.inactive;
     if (state != AppLifecycleState.resumed) return;
     services.hosts.reconnectAll();
     // Android keeps the app alive in the background, so opening it is
@@ -121,6 +174,7 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _links?.cancel();
+    _opened?.cancel();
     _updates.removeListener(_onUpdate);
     _router.routerDelegate.removeListener(_checkWhenSettled);
     _updates.dispose();
@@ -140,6 +194,7 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
           value: services.identityStore,
         ),
         ChangeNotifierProvider<Hosts>.value(value: services.hosts),
+        Provider<AgentNotifier>.value(value: services.agentNotifier),
       ],
       // Theme is reactive: toggling the mode in Settings notifies
       // [Preferences] → this Consumer rebuilds → MaterialApp swaps theme.

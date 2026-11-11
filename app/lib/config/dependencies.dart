@@ -1,5 +1,7 @@
 import 'dart:io' show Platform;
 
+import 'package:app/data/agents/agent_notifier.dart';
+import 'package:app/data/agents/agent_watch.dart';
 import 'package:app/data/diagnostics/crash_log.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/images/image_picker_service.dart';
@@ -70,6 +72,11 @@ final class AppServices {
     connect: WsHostSocket.connect,
     identity: ownerBridge.requireKeyPair,
   );
+
+  /// Notifications about agents at work, from what [hosts] report.
+  late final AgentNotifier agentNotifier = MethodChannelAgentNotifier();
+  late final agentWatch = AgentWatch(hosts, prefs, agentNotifier);
+
   // Owns a broadcast sound-level stream that outlives chat screens.
   late final SpeechService speech = SpeechToTextService();
   late final IImagePickerService imagePicker = ImagePickerService();
@@ -109,6 +116,7 @@ final class AppServices {
   T viewModel<T extends ViewModel>() => _viewModels[T]!() as T;
 
   void dispose() {
+    agentWatch.dispose();
     hosts.dispose();
     speech.dispose();
   }

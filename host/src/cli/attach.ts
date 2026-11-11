@@ -27,6 +27,8 @@ import {
   MarkdownLines,
   meter,
   shimmer,
+  TaskbarState,
+  taskbar,
   textWidth,
   wrap,
 } from "./tui.ts";
@@ -864,8 +866,24 @@ export async function attach(query: string | undefined): Promise<void> {
   working = session.working;
   if (working) turnStarted = Date.now();
 
+  // The terminal's tab and taskbar show the turn (OSC 9;4: Windows Terminal,
+  // Ghostty, WezTerm, iTerm2; others ignore it): busy while the agent works,
+  // paused with a bell while it waits for an answer.
+  let shown: TaskbarState = TaskbarState.None;
+  const showTurn = () => {
+    const state =
+      choice?.title === "Permission"
+        ? TaskbarState.Waiting
+        : working
+          ? TaskbarState.Busy
+          : TaskbarState.None;
+    if (state === shown || !isTty()) return;
+    shown = state;
+    process.stdout.write(taskbar(state));
+  };
   const ticker = setInterval(() => {
     frameNo++;
+    showTurn();
     if (working || tools.size) screen.draw();
   }, 80);
   const resize = () => screen.draw();
@@ -878,6 +896,7 @@ export async function attach(query: string | undefined): Promise<void> {
       if (closed) return;
       closed = true;
       clearInterval(ticker);
+      if (shown !== TaskbarState.None && isTty()) process.stdout.write(taskbar(TaskbarState.None));
       process.stdout.off("resize", resize);
       settle(null);
       screen.close();

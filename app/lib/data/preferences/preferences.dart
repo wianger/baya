@@ -17,6 +17,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class Preferences extends ChangeNotifier {
   final FlutterSecureStorage _store;
   bool _hideToolCalls = false;
+  bool _notifyAgents = true;
   Map<String, String> _sessionWorkspaces = {};
   Map<String, String> _workspaceNames = {};
   String? _selectedWorkspace;
@@ -36,6 +37,7 @@ class Preferences extends ChangeNotifier {
   static const _kNavigationKey = 'prefs.workspace_navigation';
 
   static const _kHideToolCallsKey = 'prefs.hide_tool_calls';
+  static const _kNotifyAgentsKey = 'prefs.notify_agents';
   static const _kTailnetDomainKey = 'prefs.tailnet_domain';
   static const _kOnboardingCompletedKey = 'prefs.onboarding_completed';
   static const _kThemeModeKey = 'prefs.theme_mode';
@@ -45,6 +47,10 @@ class Preferences extends ChangeNotifier {
 
   /// True → chat hides `ToolEvent` rows (only user/assistant text remain).
   bool get hideToolCalls => _hideToolCalls;
+
+  /// Agents at work show in the status bar, and finishing or asking for an
+  /// answer while the app is away posts a notification. On by default.
+  bool get notifyAgents => _notifyAgents;
 
   /// The owner's Tailscale domain (e.g. `tail1234.ts.net`), learned from the
   /// last pairing; completes the short computer names typed when pairing.
@@ -76,6 +82,12 @@ class Preferences extends ChangeNotifier {
     final next = raw == 'true';
     if (next != _hideToolCalls) {
       _hideToolCalls = next;
+      changed = true;
+    }
+
+    final notify = await _store.read(key: _kNotifyAgentsKey) != 'false';
+    if (notify != _notifyAgents) {
+      _notifyAgents = notify;
       changed = true;
     }
 
@@ -452,6 +464,13 @@ class Preferences extends ChangeNotifier {
     if (_hideToolCalls == value) return;
     _hideToolCalls = value;
     await _store.write(key: _kHideToolCallsKey, value: value.toString());
+    notifyListeners();
+  }
+
+  Future<void> setNotifyAgents(bool value) async {
+    if (_notifyAgents == value) return;
+    _notifyAgents = value;
+    await _store.write(key: _kNotifyAgentsKey, value: value.toString());
     notifyListeners();
   }
 
