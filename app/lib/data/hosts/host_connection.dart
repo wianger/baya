@@ -9,6 +9,7 @@ import 'dart:async';
 
 import 'package:app/acp/acp.dart';
 import 'package:app/acp/json_rpc.dart';
+import 'package:app/data/device/device_name.dart';
 import 'package:app/data/transport/host_socket.dart';
 import 'package:app/data/transport/noise.dart' show DataFrame;
 import 'package:app/l10n/l10n.dart';
@@ -267,6 +268,7 @@ class HostConnection extends ChangeNotifier {
       }),
     );
     try {
+      final device = knownDeviceName;
       final intro = await peer
           .call('initialize', {
             'protocolVersion': protocolVersion,
@@ -275,6 +277,10 @@ class HostConnection extends ChangeNotifier {
               'terminal': false,
             },
             'clientInfo': {'name': 'baya-android', 'title': 'Baya'},
+            if (device != null)
+              '_meta': {
+                'baya': {'device': device},
+              },
           })
           .timeout(_callTimeout);
       _intro = HostIntro.fromJson(intro);

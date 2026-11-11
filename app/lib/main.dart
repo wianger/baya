@@ -13,6 +13,7 @@ import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:app/ui/update/update_prompt.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
+import 'package:app/data/device/device_name.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +21,8 @@ import 'package:provider/provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   registerAppFontLicenses();
+  // Before any host connects, so each one learns what to call this phone.
+  await deviceName();
   await setupDependencies();
   runApp(const BayaApp());
 }

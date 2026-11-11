@@ -1,7 +1,6 @@
-import 'dart:io' show Platform;
-
 import 'package:app/l10n/l10n.dart';
 
+import 'package:app/data/device/device_name.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/host_socket.dart';
 import 'package:app/pairing/tailnet_pairing.dart';
@@ -69,7 +68,7 @@ class PairingViewModel extends ViewModel<PairingState> {
             qr: qr,
             socket: socket,
             storage: _storage,
-            deviceName: _deviceName(),
+            deviceName: await deviceName(),
           )
           .timeout(
             const Duration(seconds: 30),
@@ -126,13 +125,4 @@ class PairingViewModel extends ViewModel<PairingState> {
     'pair_timeout' => appL10n.pairTimedOut,
     _ => e.message.isEmpty ? e.code : e.message,
   };
-
-  static String _deviceName() {
-    try {
-      if (Platform.isAndroid) return appL10n.androidDevice;
-      return appL10n.mobile;
-    } catch (_) {
-      return appL10n.mobile;
-    }
-  }
 }
