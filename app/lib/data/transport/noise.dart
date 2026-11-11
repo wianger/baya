@@ -89,6 +89,17 @@ class CipherState {
     _nonce = 0;
   }
 
+  /// The key and counter, to carry this direction on in another isolate.
+  Future<(List<int>, int)?> export() async {
+    final key = _key;
+    return key == null ? null : (await key.extractBytes(), _nonce);
+  }
+
+  /// Takes up a direction [export]ed elsewhere.
+  CipherState.resume(List<int> key, int nonce) : _key = SecretKey(key), _nonce = nonce;
+
+  CipherState();
+
   List<int> _iv() {
     final iv = Uint8List(12);
     ByteData.sublistView(iv).setUint64(4, _nonce, Endian.little);

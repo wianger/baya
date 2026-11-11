@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:app/acp/json_rpc.dart';
+import 'package:app/data/transport/inbound.dart';
 import 'package:app/data/transport/noise.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
@@ -60,12 +61,13 @@ class WsHostSocket implements HostSocket {
 
   final WebSocketChannel _ws;
   final NoiseSession _session;
-  final _reader = MessageReader();
+
+  /// Decrypts and parses what arrives, off the UI isolate.
+  late final InboundWorker _inbound;
   final _messages = StreamController<Json>.broadcast();
   final _data = StreamController<DataFrame>.broadcast();
   final _closed = Completer<SocketClosed>();
-  // Encryption is async and counters must stay in order: one chain each way.
-  Future<void> _inbound = Future.value();
+  // Encryption is async and the counter must stay in order: one chain.
   Future<void> _outbound = Future.value();
 
   static Future<HostSocket> connect({
@@ -125,6 +127,7 @@ class WsHostSocket implements HostSocket {
       );
       final (_, session) = await initiator.readMessage(await reply.future);
       final ready = WsHostSocket._(ws, session);
+      await ready._startInbound();
       socket = ready;
       for (final frame in pending) {
         ready._receive(frame);
@@ -170,29 +173,27 @@ class WsHostSocket implements HostSocket {
     return sent;
   }
 
-  void _receive(List<int> frame) {
-    _inbound = _inbound
-        .then((_) async {
-          final message = await _reader.read(_session.receive, frame);
-          if (message == null) return;
-          if (message is DataFrame) {
-            if (!_data.isClosed) _data.add(message);
-            return;
-          }
-          message as Uint8List;
-          final json = jsonDecode(utf8.decode(message));
-          if (json is Map && !_messages.isClosed) {
-            _messages.add(json.cast<String, dynamic>());
-          }
-        })
-        .catchError((Object error) async {
-          // Counters are out of step after a bad frame: end the connection.
-          debugPrint('[host] frame rejected: $error');
-          await close();
-        });
+  Future<void> _startInbound() async {
+    _inbound = await InboundWorker.start(
+      _session.receive,
+      onMessage: (message) {
+        if (!_messages.isClosed) _messages.add(message);
+      },
+      onData: (frame) {
+        if (!_data.isClosed) _data.add(frame);
+      },
+      onError: (error) async {
+        // Counters are out of step after a bad frame: end the connection.
+        debugPrint('[host] frame rejected: $error');
+        await close();
+      },
+    );
   }
 
+  void _receive(List<int> frame) => _inbound.add(frame);
+
   void _finish(SocketClosed closed) {
+    _inbound.close();
     if (!_closed.isCompleted) _closed.complete(closed);
     unawaited(_messages.close());
     unawaited(_data.close());
