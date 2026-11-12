@@ -61,3 +61,21 @@ test("a diff shows the changed lines with a line around them, numbered", () => {
   expect(diff).toMatchObject({ added: 1, removed: 1 });
   expect(diffRows("", "new\nfile\n")).toMatchObject({ rows: ["1 + new", "2 + file"], added: 2 });
 });
+
+test("↑ also brings back what was sent from elsewhere, once each", () => {
+  const editor = new Editor();
+  editor.remember("from the phone");
+  editor.insert("typed here");
+  editor.take();
+  // The session echoes what this terminal sent: not twice.
+  editor.remember("typed here");
+  editor.previous();
+  expect(editor.value).toBe("typed here");
+  // A message arriving while ↑ is in use leaves the shown one in place.
+  editor.remember("later, from the phone");
+  editor.previous();
+  expect(editor.value).toBe("from the phone");
+  editor.next();
+  editor.next();
+  expect(editor.value).toBe("later, from the phone");
+});

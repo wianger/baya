@@ -119,6 +119,17 @@ export class Editor {
     this.set(this.back === -1 ? this.draft : this.history[this.history.length - 1 - this.back]!);
   }
 
+  /**
+   * A message sent to the session from anywhere (the phone, an earlier
+   * run, the history replayed on attach), for ↑ to bring back too.
+   */
+  remember(text: string): void {
+    if (!text.trim() || this.history.at(-1) === text) return;
+    this.history.push(text);
+    // Keep ↑ where it was if it is in the middle of the history.
+    if (this.back !== -1) this.back++;
+  }
+
   /** Empties the editor, keeping what was sent for ↑. */
   take(): string {
     const text = this.value;

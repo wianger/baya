@@ -487,5 +487,10 @@
   "quickReplyHint": "点按发送，长按先编辑",
   "quickContinue": "继续",
   "quickRunTests": "跑一下测试",
-  "quickCommit": "提交这些改动"
+  "quickCommit": "提交这些改动",
+  "findInChat": "在对话中查找",
+  "findInChatHint": "在这段对话里查找",
+  "findNoMatches": "无结果",
+  "findOlder": "上一个（更早）",
+  "findNewer": "下一个（更新）"
 }

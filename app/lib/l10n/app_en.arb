@@ -1014,5 +1014,10 @@
   "quickReplyHint": "Tap to send, hold to edit first",
   "quickContinue": "Continue",
   "quickRunTests": "Run the tests",
-  "quickCommit": "Commit the changes"
+  "quickCommit": "Commit the changes",
+  "findInChat": "Find in chat",
+  "findInChatHint": "Find in this chat",
+  "findNoMatches": "None",
+  "findOlder": "Earlier match",
+  "findNewer": "Later match"
 }

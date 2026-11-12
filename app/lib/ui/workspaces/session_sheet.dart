@@ -13,6 +13,7 @@ Future<void> showSessionSheet(
   required String agent,
   required String computer,
   required String? folder,
+  VoidCallback? onFind,
   VoidCallback? onFiles,
   VoidCallback? onChanges,
   VoidCallback? onPreview,
@@ -29,6 +30,7 @@ Future<void> showSessionSheet(
       agent: agent,
       computer: computer,
       folder: folder,
+      onFind: onFind,
       onFiles: onFiles,
       onChanges: onChanges,
       onPreview: onPreview,
@@ -44,6 +46,7 @@ class _SessionSheet extends StatefulWidget {
     required this.agent,
     required this.computer,
     required this.folder,
+    required this.onFind,
     required this.onFiles,
     required this.onChanges,
     required this.onPreview,
@@ -55,6 +58,7 @@ class _SessionSheet extends StatefulWidget {
   final String agent;
   final String computer;
   final String? folder;
+  final VoidCallback? onFind;
   final VoidCallback? onFiles;
   final VoidCallback? onChanges;
   final VoidCallback? onPreview;
@@ -115,6 +119,13 @@ class _SessionSheetState extends State<_SessionSheet> {
           ),
         BayaGroup(
           children: [
+            if (widget.onFind case final find?)
+              BayaRow(
+                key: const ValueKey('session-action-find'),
+                icon: LucideIcons.search,
+                label: l10n.findInChat,
+                onTap: () => _then(find),
+              ),
             if (widget.onChanges case final changes?)
               BayaRow(
                 key: const ValueKey('session-action-changes'),
