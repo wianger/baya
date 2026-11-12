@@ -45,9 +45,13 @@ end-to-end encrypted.
   and resend; with Claude Code and Codex, branch from it instead, into a new
   session that holds only the conversation before it.
 - **One session, phone and terminal**: `baya attach` (it asks which when
-  there are several) opens a session in a terminal on the computer, live with the phone: what either sends, both
-  see, and the agent keeps one conversation, whichever agent it is. The
-  terminal's tab and taskbar show the turn, and ring when it waits for you.
+  there are several) opens a session in a terminal on the computer, live
+  with the phone: what either sends, both see, and the agent keeps one
+  conversation, whichever agent it is. The terminal's tab and taskbar show
+  the turn, and ring when it waits for you.
+- **Mention files**: type `@` in the composer or in `baya attach` to pick
+  files of the session (tab completes the path in the terminal); they go
+  with the message as links the agent opens.
 - **Parallel runs**: give the same task to Claude Code, Codex and Pi at
   once, each in its own git worktree and branch, then compare their replies
   and changes on one board and send follow-ups to all of them.
