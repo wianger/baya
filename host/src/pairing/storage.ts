@@ -84,7 +84,8 @@ function withTimeout<T>(promise: Promise<T>, operation: string): Promise<T> {
 
 async function keyringRead(service: string): Promise<string | undefined> {
   const AsyncEntry = await loadKeyring();
-  return withTimeout(new AsyncEntry(service, ACCOUNT).getPassword(), "read");
+  // Missing is null; a locked or failing store rejects, never reads as empty.
+  return (await withTimeout(new AsyncEntry(service, ACCOUNT).getPassword(), "read")) ?? undefined;
 }
 
 async function keyringWrite(service: string, value: string): Promise<void> {
