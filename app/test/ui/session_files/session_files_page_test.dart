@@ -21,7 +21,7 @@ class _Repository extends Repository implements ISessionFilesRepository {
       path: '/project',
       parent: null,
       entries: [
-        SessionFileEntry(
+        const SessionFileEntry(
           name: 'lib',
           path: '/project/lib',
           kind: SessionFileKind.directory,
@@ -42,7 +42,7 @@ class _Repository extends Repository implements ISessionFilesRepository {
       name: name,
       path: path,
       size: content.length,
-      modifiedAt: DateTime(2026, 11, 1),
+      modifiedAt: DateTime(2026, 11),
       content: content,
       binary: false,
       truncated: false,

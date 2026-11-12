@@ -1,16 +1,14 @@
-import 'package:app/acp/acp.dart';
-
 import 'dart:async';
 
-import 'package:app/l10n/l10n.dart';
-
+import 'package:app/acp/acp.dart';
 import 'package:app/data/voice/read_aloud_controller.dart';
 import 'package:app/domain/session_state.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/chat/widgets/image_bubble.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';

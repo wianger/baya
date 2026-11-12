@@ -49,7 +49,7 @@ void main() {
 
   setUp(() {
     svc = _FakeSpeechService();
-    vm = VoiceInputViewModel(svc, maxDuration: const Duration(seconds: 60));
+    vm = VoiceInputViewModel(svc);
     hints = [];
   });
 

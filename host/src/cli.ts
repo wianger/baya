@@ -83,7 +83,7 @@ ${bold("Get started")}
 ${bold("Sessions")}
   baya status             Host, phones and sessions at a glance
   baya open [folder]      Add a session in a folder  ${dim("--agent <id>")}
-  baya attach [session]   Join a session in this terminal, live with the phone  ${dim("(id prefix or title; the latest by default)")}
+  baya attach [session]   Join a session in this terminal, live with the phone  ${dim("(id prefix or title; asks which when there are several)")}
   baya close <session>    Remove a session and its history  ${dim("(id prefix or title)")}
 
 ${bold("Agents")} ${dim("— any command that speaks ACP (agentclientprotocol.com)")}
@@ -160,7 +160,7 @@ function sessionRows(sessions: SessionStatus[]): string[] {
   return table(
     sessions.map((session) => [
       session.error
-        ? red("✗ failed")
+        ? red("× failed")
         : session.working
           ? cyan("● working")
           : session.running
@@ -447,8 +447,12 @@ async function printPairingCode(invite: PairInvite): Promise<void> {
   out(dim(`Valid for ${minutes} min, once. Can't scan? Paste this in the app:`), dim(uri));
 }
 
+type Device = Awaited<ReturnType<typeof listPeers>>[number] & { connected?: boolean };
+
 async function devices(args: ParsedArgs): Promise<void> {
-  const peers = await listPeers();
+  const peers: Device[] = (await hostStatus())
+    ? (await controlCall<{ devices: Device[] }>("devices", {})).devices
+    : await listPeers();
   if (json(args)) return printJson({ devices: peers });
   if (peers.length === 0) return out(warn("No phone paired"), hint("baya pair"));
   out(
@@ -456,10 +460,17 @@ async function devices(args: ParsedArgs): Promise<void> {
       peers.map((peer) => [
         bold(peer.name),
         dim(peer.remote_epk.slice(0, 10)),
+        peer.connected
+          ? green("connected")
+          : peer.last_seen
+            ? dim(`seen ${duration(Date.now() - Date.parse(peer.last_seen))} ago`)
+            : dim("last seen unknown"),
         dim(`paired ${new Date(peer.paired_at).toLocaleDateString()}`),
       ]),
     ),
   );
+  if (peers.length > 1)
+    out(hint("baya unpair <name or key prefix>  removes one you no longer use"));
 }
 
 async function unpair(args: ParsedArgs): Promise<void> {
@@ -648,6 +659,7 @@ async function agents(args: ParsedArgs): Promise<void> {
 
 function autostart(args: ParsedArgs): void {
   const mode = args.positionals[0];
+  const launcher = join(BAYA_HOME, "runtime", "autostart.js");
   if (mode === "on") {
     out(
       ok(
@@ -656,11 +668,12 @@ function autostart(args: ParsedArgs): void {
           cwd: resolve(process.cwd()),
           path: process.env["PATH"] ?? "",
           logDir: join(BAYA_HOME, "logs"),
+          launcher,
         }),
       ),
     );
   } else if (mode === "off") {
-    out(ok(uninstallStartup()));
+    out(ok(uninstallStartup(launcher)));
   } else {
     throw new Error("Use `baya autostart on` or `baya autostart off`.");
   }
@@ -760,6 +773,6 @@ process.stdout.on("error", (error: NodeJS.ErrnoException) => {
 });
 
 main().catch((error: unknown) => {
-  process.stderr.write(`${red("✗")} ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(`${red("×")} ${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
 });

@@ -1,12 +1,15 @@
+import 'dart:async';
+
+import 'package:app/data/agents/agent_notifier.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_group.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
-import 'package:app/pairing/backed_up_identity_store.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/settings/adb_page.dart';
+import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -74,13 +77,10 @@ class SettingsPage extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 620),
               child: BayaReveal(
-                offset: 8,
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 36),
                   children: [
-                    BayaSectionLabel(context.l10n.security),
                     const _KeyBackupEntry(),
-                    const SizedBox(height: 22),
                     BayaSectionLabel(context.l10n.chatAndAppearance),
                     BayaGroup(
                       children: [
@@ -101,6 +101,7 @@ class SettingsPage extends StatelessWidget {
                     BayaSectionLabel(context.l10n.phoneSection),
                     BayaGroup(
                       children: [
+                        const _NotificationsRow(),
                         BayaRow(
                           key: const Key('settings-adb'),
                           icon: LucideIcons.smartphone,
@@ -246,7 +247,6 @@ class DisplaySettingsPage extends StatelessWidget {
             SwitchListTile(
               key: const Key('hide-tool-calls'),
               contentPadding: EdgeInsets.zero,
-              activeThumbColor: colors.accent,
               title: Text(
                 context.l10n.hideToolCalls,
                 style: context.typo.sansBody.copyWith(
@@ -309,7 +309,6 @@ class _SettingsDetailScaffold extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 620),
               child: BayaReveal(
-                offset: 8,
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 36),
                   children: [child],
@@ -365,6 +364,83 @@ class _DetailControl extends StatelessWidget {
 
 /// Shows whether the owner key survives a phone change. Never blocks: without
 /// Google Backup the app works, the pairing just lives on this phone only.
+/// Agents in the status bar, and told when one finishes or needs you.
+class _NotificationsRow extends StatefulWidget {
+  const _NotificationsRow();
+
+  @override
+  State<_NotificationsRow> createState() => _NotificationsRowState();
+}
+
+class _NotificationsRowState extends State<_NotificationsRow>
+    with WidgetsBindingObserver {
+  AgentNotifier? _notifier;
+
+  /// Whether Android lets the app post them; null until known.
+  bool? _allowed;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final notifier = context.read<AgentNotifier?>();
+    if (notifier == _notifier) return;
+    _notifier = notifier;
+    unawaited(_check());
+  }
+
+  // Back from Android's settings.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_check());
+  }
+
+  Future<void> _check() async {
+    final allowed = await _notifier?.allowed();
+    if (mounted && allowed != _allowed) setState(() => _allowed = allowed);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final prefs = context.watch<Preferences>();
+    final blocked = prefs.notifyAgents && _allowed == false;
+    Future<void> toggle() async {
+      if (blocked) return _notifier?.ask(settings: true);
+      final on = !prefs.notifyAgents;
+      await prefs.setNotifyAgents(on);
+      if (on) await _notifier?.ask(settings: true);
+    }
+
+    // One node for screen readers: the label, and the switch's state.
+    return MergeSemantics(
+      child: BayaRow(
+        key: const Key('settings-notifications'),
+        icon: blocked ? LucideIcons.bellOff : LucideIcons.bellRing,
+        label: context.l10n.notifications,
+        subtitle: blocked
+            ? context.l10n.notificationsOffInSystem
+            : context.l10n.notificationsHint,
+        trailing: Switch(
+          value: prefs.notifyAgents && !blocked,
+          onChanged: (_) => unawaited(toggle()),
+        ),
+        onTap: () => unawaited(toggle()),
+      ),
+    );
+  }
+}
+
 class _KeyBackupEntry extends StatelessWidget {
   const _KeyBackupEntry();
 
@@ -377,25 +453,32 @@ class _KeyBackupEntry extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final l10n = context.l10n;
-    return BayaGroup(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        BayaRow(
-          key: const Key('settings-key-backup'),
-          icon: store.backedUp
-              ? LucideIcons.cloudCheck
-              : LucideIcons.cloudAlert,
-          label: l10n.keyBackup,
-          subtitle: store.backedUp ? l10n.keyBackedUp : l10n.keyNotBackedUp,
-          chevron: true,
-          onTap: () => Navigator.of(context).push<void>(
-            MaterialPageRoute<void>(
-              builder: (_) => ChangeNotifierProvider.value(
-                value: store,
-                child: const KeyBackupPage(),
+        BayaSectionLabel(l10n.security),
+        BayaGroup(
+          children: [
+            BayaRow(
+              key: const Key('settings-key-backup'),
+              icon: store.backedUp
+                  ? LucideIcons.cloudCheck
+                  : LucideIcons.cloudAlert,
+              label: l10n.keyBackup,
+              subtitle: store.backedUp ? l10n.keyBackedUp : l10n.keyNotBackedUp,
+              chevron: true,
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => ChangeNotifierProvider.value(
+                    value: store,
+                    child: const KeyBackupPage(),
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
+        const SizedBox(height: 22),
       ],
     );
   }

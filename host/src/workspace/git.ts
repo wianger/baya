@@ -58,7 +58,7 @@ function inside(repo: string, path: string): string {
   return rel.split("\\").join("/");
 }
 
-export interface DiffHunk {
+interface DiffHunk {
   header: string;
   oldStart: number;
   newStart: number;

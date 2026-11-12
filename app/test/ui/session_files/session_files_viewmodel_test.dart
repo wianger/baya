@@ -42,7 +42,7 @@ class _Repository extends Repository implements ISessionFilesRepository {
       name: 'README.md',
       path: path,
       size: 14,
-      modifiedAt: DateTime(2026, 11, 1),
+      modifiedAt: DateTime(2026, 11),
       content: '# Remote Pi\n',
       binary: false,
       truncated: false,

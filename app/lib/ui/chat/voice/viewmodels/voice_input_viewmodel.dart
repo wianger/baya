@@ -77,7 +77,7 @@ class VoiceInputViewModel extends ViewModel<VoiceInputState> {
 
       _elapsed = Duration.zero;
       _level = 0;
-      _levelSub?.cancel();
+      unawaited(_levelSub?.cancel());
       _levelSub = _service.soundLevel.listen((level) {
         _level = level;
         if (state is VoiceRecording) {

@@ -177,6 +177,10 @@ sealed class ToolCallContent {
       path: _string(json['path']) ?? '',
       oldText: _string(json['oldText']),
       newText: _string(json['newText']) ?? '',
+      firstLine: switch (bayaMeta(json)['firstLine']) {
+        final int line when line > 0 => line,
+        _ => 1,
+      },
     ),
     'terminal' => ToolCallTerminal(_string(json['terminalId']) ?? ''),
     _ => null,
@@ -194,7 +198,16 @@ class ToolCallDiff extends ToolCallContent {
   /// Null for a new file.
   final String? oldText;
   final String newText;
-  const ToolCallDiff({required this.path, this.oldText, required this.newText});
+
+  /// The line of the file the texts start at: the computer leaves out long
+  /// unchanged runs before and after a change.
+  final int firstLine;
+  const ToolCallDiff({
+    required this.path,
+    this.oldText,
+    required this.newText,
+    this.firstLine = 1,
+  });
 }
 
 /// A live terminal on the agent's side; Baya does not stream these.
@@ -973,7 +986,7 @@ class AuthMethod {
   final String name;
   final String? description;
 
-  /// Terminal sign-in: run the agent with [args] on the computer.
+  /// Terminal sign-in: run the agent with `args` on the computer.
   final List<String>? terminalArgs;
 
   const AuthMethod(this.id, this.name, {this.description, this.terminalArgs});

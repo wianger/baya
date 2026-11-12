@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:app/data/workspaces/workspace_repository.dart';
-import 'package:app/pairing/storage.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
+import 'package:app/pairing/storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/acp_harness.dart';

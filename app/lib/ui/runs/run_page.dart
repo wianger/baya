@@ -421,7 +421,6 @@ class _MemberCard extends StatelessWidget {
         ? (l10n.statusReady, colors.success)
         : (l10n.statusOffline, colors.muted);
     return BayaSurface(
-      radius: 20,
       elevated: false,
       child: Material(
         type: MaterialType.transparency,
@@ -684,7 +683,7 @@ class _RunComposer extends StatelessWidget {
   }
 }
 
-/// The phone's parallel runs on [hostId], for the overview.
+/// The phone's parallel runs on `hostId`, for the overview.
 class RunRows extends StatelessWidget {
   const RunRows({super.key, required this.runs, required this.onOpen});
 

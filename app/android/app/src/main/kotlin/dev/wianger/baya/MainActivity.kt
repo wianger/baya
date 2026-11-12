@@ -1,13 +1,16 @@
 package dev.wianger.baya
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.speech.tts.TextToSpeech
+import android.provider.Settings
 import android.speech.tts.UtteranceProgressListener
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -33,6 +36,8 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+        Agents.attach(this, flutterEngine.dartExecutor.binaryMessenger)
+        Launcher.attach(this, flutterEngine.dartExecutor.binaryMessenger)
 
         textToSpeech = TextToSpeech(this) { status ->
             if (status != TextToSpeech.SUCCESS) return@TextToSpeech
@@ -55,6 +60,20 @@ class MainActivity : FlutterActivity() {
                 }
             )
         }
+
+        // What the computer lists this phone as: the name the owner gave it
+        // in Settings, else its maker and model.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.wianger.baya/device")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "name") return@setMethodCallHandler result.notImplemented()
+                val given = Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)
+                val model = if (Build.MODEL.startsWith(Build.MANUFACTURER, ignoreCase = true)) {
+                    Build.MODEL
+                } else {
+                    "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}"
+                }
+                result.success(given?.takeIf { it.isNotBlank() } ?: model)
+            }
 
         pdfChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, pdfChannelName)
         pdfChannel?.setMethodCallHandler { call, result ->
@@ -137,7 +156,17 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        Agents.opened(intent)
+        Launcher.received(intent)
+    }
+
     override fun onDestroy() {
+        // Leaving for good takes Dart with it: nothing would keep the
+        // notifications current, or act on their buttons.
+        if (isFinishing) Agents.detach(this)
+        Launcher.detach()
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         textToSpeech = null

@@ -55,7 +55,9 @@ test("tools read as Kind(target)", () => {
   expect(toolLabel("other", "fetch_page")).toBe("fetch_page");
 });
 
-test("a diff shows the changed lines with a line around them", () => {
-  const rows = diffRows("a\nb\nc\nd\ne\nf", "a\nb\nC\nd\ne\nf");
-  expect(rows).toEqual(["  ⋮", "  b", "- c", "+ C", "  d", "  ⋮"]);
+test("a diff shows the changed lines with a line around them, numbered", () => {
+  const diff = diffRows("a\nb\nc\nd\ne\nf\n", "a\nb\nC\nd\ne\nf\n");
+  expect(diff.rows).toEqual(["2   b", "3 - c", "3 + C", "4   d", "  ┆"]);
+  expect(diff).toMatchObject({ added: 1, removed: 1 });
+  expect(diffRows("", "new\nfile\n")).toMatchObject({ rows: ["1 + new", "2 + file"], added: 2 });
 });

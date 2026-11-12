@@ -81,3 +81,39 @@ test("the first prompt names a session, a short title replaces it, a person's na
   expect(session.record.titleSource).toBe("user");
   expect(() => session.rename("  ")).toThrow(/name is required/);
 });
+
+test("a session's last activity is when its turn ended", async () => {
+  const home = mkdtempSync(join(tmpdir(), "baya-activity-"));
+  process.env["BAYA_HOME"] = home;
+  writeFileSync(
+    join(home, "config.json"),
+    JSON.stringify({
+      agents: [{ id: "fake", name: "Fake", command: [process.execPath, FAKE_AGENT] }],
+    }),
+  );
+  vi.resetModules();
+  const { SessionHub } = await import("../src/acp/hub.ts");
+  const hub = new SessionHub();
+  await hub.start();
+  cleanup.push(() => {
+    hub.stop();
+    rmSync(home, { recursive: true, force: true });
+  });
+  const phone = {
+    key: "k",
+    ready: true,
+    notify() {},
+    ask: () => ({ id: 1, result: new Promise(() => {}) }),
+    close() {},
+  };
+  const session = hub.create(tmpdir(), "fake");
+  session.rename("Activity");
+  await session.attach(phone as never, false);
+  const before = Date.now();
+  await session.prompt(phone as never, { prompt: [{ type: "text", text: "hi" }] });
+  // The turn's end, after the prompt that started it.
+  const ended = session.record.updatedAt;
+  expect(ended).toBeGreaterThanOrEqual(before);
+  await vi.waitFor(() => expect(session.working).toBe(false));
+  expect(session.record.updatedAt).toBeGreaterThanOrEqual(ended);
+});

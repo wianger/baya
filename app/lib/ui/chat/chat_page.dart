@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/data/hosts/session_controller.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/domain/entities/agent_command.dart';
@@ -5,7 +7,6 @@ import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/changes/changes_page.dart';
-import 'package:app/ui/preview/preview_page.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/chat_message_list.dart';
@@ -14,24 +15,26 @@ import 'package:app/ui/chat/widgets/attach_sheet.dart';
 import 'package:app/ui/chat/widgets/context_usage_button.dart';
 import 'package:app/ui/chat/widgets/elicitation_card.dart';
 import 'package:app/ui/chat/widgets/file_picker_sheet.dart';
-import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:app/ui/chat/widgets/input_bar.dart';
 import 'package:app/ui/chat/widgets/permission_card.dart';
 import 'package:app/ui/chat/widgets/session_settings_sheet.dart';
 import 'package:app/ui/chat/widgets/sign_in_card.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
+import 'package:app/ui/preview/preview_page.dart';
+import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
 import 'package:app/ui/workspaces/session_sheet.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
 import 'package:app/ui/workspaces/workspace_navigation.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -67,45 +70,48 @@ class ChatPage extends StatelessWidget {
         (_) => attachment.setVision(vision),
       );
     }
-    return Scaffold(
-      backgroundColor: context.colors.bg,
-      body: BayaBackdrop(
-        child: SafeArea(
-          bottom: false,
-          child: ChatFrame(
-            topBar: _buildTopBar(context, session),
-            revoked: session.host.status.name == 'unpaired'
-                ? _RevokedBanner(onRePair: () => context.go('/pair'))
-                : null,
-            body: _buildBody(context, session),
-            composer: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (session.permission case final request?)
-                  PermissionCard(
-                    key: ValueKey('permission-${request.requestId}'),
-                    request: request,
-                    tool: session.messages
-                        .whereType<ToolEvent>()
-                        .where((t) => t.toolCallId == request.toolCall.id)
-                        .lastOrNull,
-                    onAnswer: session.answerPermission,
-                  ),
-                if (session.elicitation case final request?)
-                  ElicitationCard(
-                    key: ValueKey('elicitation-${request.requestId}'),
-                    request: request,
-                    onAnswer: session.answerElicitation,
-                  ),
-                if (session.authAgent != null)
-                  SignInCard(
-                    key: ValueKey('sign-in-${session.authAgent}'),
-                    session: session,
-                  ),
-                if (session.attachedFiles.isNotEmpty)
-                  _AttachedFiles(session: session),
-                _buildInput(context, session),
-              ],
+    return _TurnHaptics(
+      session: session,
+      child: Scaffold(
+        backgroundColor: context.colors.bg,
+        body: BayaBackdrop(
+          child: SafeArea(
+            bottom: false,
+            child: ChatFrame(
+              topBar: _buildTopBar(context, session),
+              revoked: session.host.status.name == 'unpaired'
+                  ? _RevokedBanner(onRePair: () => context.go('/pair'))
+                  : null,
+              body: _buildBody(context, session),
+              composer: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (session.permission case final request?)
+                    PermissionCard(
+                      key: ValueKey('permission-${request.requestId}'),
+                      request: request,
+                      tool: session.messages
+                          .whereType<ToolEvent>()
+                          .where((t) => t.toolCallId == request.toolCall.id)
+                          .lastOrNull,
+                      onAnswer: session.answerPermission,
+                    ),
+                  if (session.elicitation case final request?)
+                    ElicitationCard(
+                      key: ValueKey('elicitation-${request.requestId}'),
+                      request: request,
+                      onAnswer: session.answerElicitation,
+                    ),
+                  if (session.authAgent != null)
+                    SignInCard(
+                      key: ValueKey('sign-in-${session.authAgent}'),
+                      session: session,
+                    ),
+                  if (session.attachedFiles.isNotEmpty)
+                    _AttachedFiles(session: session),
+                  _buildInput(context, session),
+                ],
+              ),
             ),
           ),
         ),
@@ -142,32 +148,30 @@ class ChatPage extends StatelessWidget {
     return SizedBox(
       key: const ValueKey('chat-floating-header'),
       height: 58,
-      child: Stack(
+      // The title takes the room between the controls, so a long one ends
+      // in an ellipsis instead of running under them.
+      child: Row(
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: BayaSurface(
-              role: BayaSurfaceRole.control,
-              radius: 25,
-              padding: EdgeInsets.zero,
-              child: SizedBox.square(
-                dimension: 48,
-                child: IconButton(
-                  tooltip: menu != null
-                      ? context.l10n.sessions
-                      : context.l10n.back,
-                  onPressed: leadingAction,
-                  icon: Icon(
-                    menu != null ? LucideIcons.menu : LucideIcons.chevronLeft,
-                    size: 21,
-                    color: colors.text,
-                  ),
+          BayaSurface(
+            role: BayaSurfaceRole.control,
+            radius: 25,
+            child: SizedBox.square(
+              dimension: 48,
+              child: IconButton(
+                tooltip: menu != null
+                    ? context.l10n.sessions
+                    : context.l10n.back,
+                onPressed: leadingAction,
+                icon: Icon(
+                  menu != null ? LucideIcons.menu : LucideIcons.chevronLeft,
+                  size: 21,
+                  color: colors.text,
                 ),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 64),
+          const SizedBox(width: 10),
+          Expanded(
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -218,29 +222,26 @@ class ChatPage extends StatelessWidget {
               ),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: BayaSurface(
-              role: BayaSurfaceRole.control,
-              radius: 25,
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ContextUsageButton(enabled: session.online),
-                  IconButton(
-                    key: const Key('chat-actions'),
-                    tooltip: context.l10n.sessionActions,
-                    onPressed: () =>
-                        _openSessionActions(context, session, title),
-                    icon: Icon(
-                      LucideIcons.ellipsis,
-                      size: 21,
-                      color: colors.muted2,
-                    ),
+          const SizedBox(width: 10),
+          BayaSurface(
+            role: BayaSurfaceRole.control,
+            radius: 25,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ContextUsageButton(enabled: session.online),
+                IconButton(
+                  key: const Key('chat-actions'),
+                  tooltip: context.l10n.sessionActions,
+                  onPressed: () => _openSessionActions(context, session, title),
+                  icon: Icon(
+                    LucideIcons.ellipsis,
+                    size: 21,
+                    color: colors.muted2,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -462,6 +463,13 @@ class ChatPage extends StatelessWidget {
           ? () => _openAttach(context, context.read<AttachmentViewModel>())
           : null,
       drafts: session.drafts,
+      onMention: online
+          ? () async {
+              final before = session.attachedFiles.length;
+              await showFilePickerSheet(context, session);
+              return session.attachedFiles.length > before;
+            }
+          : null,
       onSend: (text) {
         final image = context.read<AttachmentViewModel>().takeImageForSend();
         session.prompt(text, image: image);
@@ -618,7 +626,7 @@ class _RevokedBanner extends StatelessWidget {
           Expanded(
             child: Text(
               context.l10n.pairingRevoked,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
                 color: Colors.white,
                 fontWeight: FontWeight.w500,
@@ -683,4 +691,86 @@ class _AttachedFiles extends StatelessWidget {
 
 extension on String {
   String ifEmpty(String fallback) => isEmpty ? fallback : this;
+}
+
+/// The chat being on screen: what it shows is read (the overview's unread
+/// dot goes), and a tap is felt when the agent finishes or starts waiting
+/// for an answer, so a glance away from it is enough.
+class _TurnHaptics extends StatefulWidget {
+  const _TurnHaptics({required this.session, required this.child});
+
+  final SessionController session;
+  final Widget child;
+
+  @override
+  State<_TurnHaptics> createState() => _TurnHapticsState();
+}
+
+class _TurnHapticsState extends State<_TurnHaptics>
+    with WidgetsBindingObserver {
+  late bool _working = widget.session.working;
+  late bool _asking = _asks(widget.session);
+
+  static bool _asks(SessionController s) =>
+      s.permission != null || s.elicitation != null;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.session.addListener(_changed);
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _seen());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _seen();
+  }
+
+  bool get _inFront =>
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+
+  /// Only while the app is in front: a chat left open in the background
+  /// has not been read.
+  void _seen() {
+    final summary = widget.session.summary;
+    if (!mounted || !_inFront || summary == null) return;
+    context.read<Preferences?>()?.markSeen(widget.session.host.key, summary);
+  }
+
+  @override
+  void didUpdateWidget(_TurnHaptics old) {
+    super.didUpdateWidget(old);
+    if (identical(old.session, widget.session)) return;
+    old.session.removeListener(_changed);
+    widget.session.addListener(_changed);
+    _working = widget.session.working;
+    _asking = _asks(widget.session);
+  }
+
+  void _changed() {
+    final session = widget.session;
+    final asking = _asks(session);
+    final finished = _working && !session.working;
+    final asked = asking && !_asking;
+    _working = session.working;
+    _asking = asking;
+    _seen();
+    if (!_inFront || !session.loaded) return;
+    if (asked) {
+      unawaited(HapticFeedback.mediumImpact());
+    } else if (finished) {
+      unawaited(HapticFeedback.lightImpact());
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_changed);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

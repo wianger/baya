@@ -1,18 +1,17 @@
 import 'dart:async';
 
-import 'package:app/l10n/l10n.dart';
-
 import 'package:app/data/images/image_picker_service.dart';
 import 'package:app/domain/entities/agent_command.dart';
+import 'package:app/domain/session_state.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/voice/states/voice_input_state.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/chat/voice/widgets/recording_strip.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/domain/session_state.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -45,7 +44,7 @@ class InputBar extends StatefulWidget {
   final VoidCallback? onCancel;
   final VoidCallback? onOpenQuickActions;
 
-  /// Slash-command palette selection. [id] is a built-in action; [raw] keeps
+  /// Slash-command palette selection. `id` is a built-in action; `raw` keeps
   /// the full `/text` so the host can forward unknown commands to the agent.
   final void Function(String id, String raw)? onSlashCommand;
   final VoidCallback? onSlashOpen;
@@ -80,6 +79,10 @@ class InputBar extends StatefulWidget {
   /// Sent messages that replace the draft, to edit and send again.
   final Stream<UserMsg>? drafts;
 
+  /// An `@` typed at the start of a word: picks files of the session to
+  /// send along. True when one was picked, and the `@` gives way to it.
+  final Future<bool> Function()? onMention;
+
   const InputBar({
     super.key,
     required this.onSend,
@@ -99,6 +102,7 @@ class InputBar extends StatefulWidget {
     this.attachment,
     this.onOpenAttach,
     this.drafts,
+    this.onMention,
     this.disabled = false,
     this.streaming = false,
   });
@@ -183,8 +187,40 @@ class _InputBarState extends State<InputBar> {
     _controller.selection = TextSelection.collapsed(offset: next.length);
   }
 
+  String _lastText = '';
+
+  /// Whether the edit just made typed one `@` that starts a word.
+  bool _typedMention(TextEditingValue value) {
+    final before = _lastText;
+    _lastText = value.text;
+    final at = value.selection.baseOffset;
+    if (!value.selection.isCollapsed || !value.composing.isCollapsed) {
+      return false;
+    }
+    return value.text.length == before.length + 1 &&
+        at >= 1 &&
+        value.text[at - 1] == '@' &&
+        (at == 1 || RegExp(r'\s').hasMatch(value.text[at - 2]));
+  }
+
+  Future<void> _mention(int at) async {
+    final picked = await widget.onMention?.call() ?? false;
+    if (!mounted) return;
+    final text = _controller.text;
+    if (picked && at < text.length && text[at] == '@') {
+      _controller.value = TextEditingValue(
+        text: text.replaceRange(at, at + 1, ''),
+        selection: TextSelection.collapsed(offset: at),
+      );
+    }
+    _focusNode.requestFocus();
+  }
+
   void _onTextChange() {
     final text = _controller.text;
+    if (widget.onMention != null && _typedMention(_controller.value)) {
+      unawaited(_mention(_controller.selection.baseOffset - 1));
+    }
     final next = text.trim().isEmpty;
     final trimmed = text.trimLeft();
     final slash = trimmed.startsWith('/') && !trimmed.contains(' ')
@@ -218,6 +254,7 @@ class _InputBarState extends State<InputBar> {
     final hasImage = widget.attachment?.hasImage ?? false;
     if (text.isEmpty && !hasImage) return;
     _controller.clear();
+    unawaited(HapticFeedback.lightImpact());
     widget.onSend(text);
   }
 
@@ -774,8 +811,6 @@ class _QuickActionsButtonState extends State<_QuickActionsButton>
               child: Center(
                 widthFactor: 1,
                 child: BayaSurface(
-                  role: BayaSurfaceRole.card,
-                  radius: 20,
                   elevated: false,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 7, 9, 7),
@@ -963,7 +998,6 @@ class _ComposerActionButton extends StatelessWidget {
                   : colors.border,
               width: 0.5,
             ),
-            boxShadow: null,
           ),
           child: AnimatedSwitcher(
             duration: reduceMotion ? Duration.zero : BayaMotion.fast,

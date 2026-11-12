@@ -3,7 +3,6 @@
 // Skipped otherwise.
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -14,56 +13,42 @@ import 'package:app/domain/contracts/dismissed_update_store.dart';
 import 'package:app/domain/contracts/update_checker.dart';
 import 'package:app/domain/contracts/url_opener.dart';
 import 'package:app/domain/entities/update_info.dart';
+import 'package:app/domain/runs/parallel_run.dart';
+import 'package:app/domain/session_state.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/routing/adaptive.dart';
+import 'package:app/ui/about/about_page.dart';
+import 'package:app/ui/chat/chat_message_list.dart';
+import 'package:app/ui/chat/widgets/attach_sheet.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/onboarding/onboarding_page.dart';
 import 'package:app/ui/onboarding/viewmodels/onboarding_viewmodel.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
-import 'package:app/domain/runs/parallel_run.dart';
-import 'package:app/ui/about/about_page.dart';
 import 'package:app/ui/preview/preview_page.dart';
-import 'package:app/ui/chat/widgets/attach_sheet.dart';
-import 'package:app/ui/chat/chat_message_list.dart';
-import 'package:app/domain/session_state.dart';
-import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/settings/settings_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
+import 'package:app/ui/transfer/transfer_flow.dart';
+import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:app/ui/workspaces/new_session_page.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
 import 'package:baya_identity/baya_identity.dart';
-import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
 import '../support/acp_harness.dart';
+import '../support/fonts.dart';
 import 'workspaces/new_session_viewmodel_test.dart' show FakeWorkspaces, codex;
-
-Future<void> _fonts(WidgetTester tester) async {
-  await tester.runAsync(() async {
-    final manifest =
-        jsonDecode(await rootBundle.loadString('FontManifest.json')) as List;
-    for (final entry in manifest) {
-      final loader = FontLoader(entry['family'] as String);
-      for (final face in entry['fonts'] as List) {
-        loader.addFont(rootBundle.load(face['asset'] as String));
-      }
-      await loader.load();
-    }
-  });
-}
 
 class _Updates extends UpdateBannerViewModel {
   _Updates()
@@ -163,7 +148,7 @@ void main() {
   testWidgets('design gallery', (tester) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await _fonts(tester);
+    await loadAppFonts(tester);
     FlutterSecureStorage.setMockInitialValues({});
     final prefs = Preferences();
     await prefs.load();

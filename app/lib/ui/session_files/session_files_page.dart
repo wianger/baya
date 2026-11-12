@@ -1,17 +1,17 @@
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/domain/session_files/session_files_repository.dart';
-import 'package:app/routing/adaptive.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/core/code/code_view.dart';
-import 'package:app/ui/core/widgets/copy_button.dart';
 import 'package:app/ui/core/code/highlighter.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/ui/session_files/states/session_files_state.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/widgets/copy_button.dart';
 import 'package:app/ui/session_files/file_preview.dart';
+import 'package:app/ui/session_files/states/session_files_state.dart';
 import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
 import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:flutter/material.dart';
@@ -211,7 +211,6 @@ class _FilesHeader extends StatelessWidget {
         children: [
           BayaSurface(
             radius: 24,
-            padding: EdgeInsets.zero,
             child: SizedBox.square(
               dimension: 46,
               child: IconButton(

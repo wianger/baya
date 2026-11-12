@@ -2,9 +2,9 @@ import 'package:app/acp/acp.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
-import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
 import 'package:app/ui/workspaces/widgets/agent_picker.dart';
@@ -237,7 +237,7 @@ class _NewSessionPageState extends State<NewSessionPage> {
             enabled: !locked,
             decoration: InputDecoration(
               hintText: context.l10n.filterFolders,
-              prefixIcon: Icon(LucideIcons.search, size: 18),
+              prefixIcon: const Icon(LucideIcons.search, size: 18),
               isDense: true,
             ),
             onChanged: vm.setQuery,

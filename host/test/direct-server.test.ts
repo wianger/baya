@@ -209,6 +209,8 @@ describe("ACP over the direct connection", () => {
     await hub.refreshPeers();
     await a.call("initialize", { protocolVersion: 1 });
     await b.call("initialize", { protocolVersion: 1 });
+    // Two phones, each counted once.
+    expect(hub.connectedPhones).toBe(2);
 
     const created = await a.call("session/new", {
       cwd: tmpdir(),
@@ -277,6 +279,114 @@ describe("ACP over the direct connection", () => {
         f["params"]?.update?.sessionUpdate === "config_option_update" &&
         f["params"].update.configOptions[0].currentValue === "smart",
     );
+  });
+
+  test("a phone that comes back gets only what it missed", async () => {
+    const { host, port, storage, hub } = await setup();
+    const a = await phone(port, host.publicKey);
+    const b = await phone(port, host.publicKey);
+    for (const p of [a, b])
+      await storage.addPeer({ name: "P", remote_epk: p.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const { sessionId } = (await a.call("session/new", { cwd: tmpdir(), mcpServers: [] })) as {
+      sessionId: string;
+    };
+    await a.call("session/prompt", { sessionId, prompt: [{ type: "text", text: "first" }] });
+    const loaded = await b.call("session/load", { sessionId, cwd: tmpdir(), mcpServers: [] });
+    const { cursor, resumed } = loaded["_meta"].baya;
+    expect(resumed).toBe(false);
+    expect(cursor).toMatchObject({ epoch: expect.any(String), seq: expect.any(Number) });
+    b.socket.terminate();
+
+    // While b is away, the conversation goes on; live updates are numbered.
+    await a.call("session/prompt", { sessionId, prompt: [{ type: "text", text: "second" }] });
+    const live = a.frames.filter(
+      (f) => f["method"] === "session/update" && f["params"].sessionId === sessionId,
+    );
+    expect(live.at(-1)?.["params"]._meta.baya.seq).toBeGreaterThan(cursor.seq);
+
+    const back = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "Q", remote_epk: back.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const again = await back.call("session/load", {
+      sessionId,
+      cwd: tmpdir(),
+      mcpServers: [],
+      _meta: { baya: { resume: cursor } },
+    });
+    expect(again["_meta"].baya.resumed).toBe(true);
+    expect(again["_meta"].baya.cursor.seq).toBe(live.at(-1)?.["params"]._meta.baya.seq);
+    const caughtUp = back.updates(sessionId);
+    expect(caughtUp).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "second" },
+      }),
+    );
+    expect(caughtUp).not.toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "first" },
+      }),
+    );
+
+    // A cursor from another run of the host gets the whole history instead.
+    const stranger = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "R", remote_epk: stranger.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const full = await stranger.call("session/load", {
+      sessionId,
+      cwd: tmpdir(),
+      mcpServers: [],
+      _meta: { baya: { resume: { epoch: "gone", seq: cursor.seq } } },
+    });
+    expect(full["_meta"].baya.resumed).toBe(false);
+    expect(stranger.updates(sessionId)).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "first" },
+      }),
+    );
+  });
+
+  test("a session Baya holds opens at once, the agent starting behind it", async () => {
+    const { host, port, storage, hub } = await setup();
+    const a = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "P", remote_epk: a.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const { sessionId } = (await a.call("session/new", { cwd: tmpdir(), mcpServers: [] })) as {
+      sessionId: string;
+    };
+    await a.call("session/prompt", { sessionId, prompt: [{ type: "text", text: "first" }] });
+    await a.call("session/close", { sessionId });
+    hub.get(sessionId)!.stop();
+    // The agent now never answers: a load that waited for it would hang.
+    writeFileSync(
+      join(process.env["BAYA_HOME"]!, "config.json"),
+      JSON.stringify({
+        agents: [
+          {
+            id: "fake",
+            name: "Fake",
+            command: [process.execPath, "-e", "setInterval(() => {}, 1000)"],
+          },
+        ],
+      }),
+    );
+    const b = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "Q", remote_epk: b.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const started = Date.now();
+    const loaded = await b.call("session/load", { sessionId, cwd: tmpdir(), mcpServers: [] });
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(loaded["configOptions"]?.[0]).toMatchObject({ id: "model" });
+    expect(b.updates(sessionId)).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "first" },
+      }),
+    );
+    hub.get(sessionId)!.stop();
   });
 
   test("the first phone to answer a permission request wins", async () => {

@@ -121,6 +121,129 @@ void main() {
     conn.dispose();
   });
 
+  group('coming back after a drop', () {
+    tearDown(SessionController.forgetKept);
+
+    Json chunk(String text, {int? seq, String role = 'agent'}) => {
+      'sessionId': 's1',
+      'update': {
+        'sessionUpdate': '${role}_message_chunk',
+        'content': {'type': 'text', 'text': text},
+        if (role == 'user') 'messageId': 'm-$text',
+      },
+      if (seq != null)
+        '_meta': {
+          'baya': {'seq': seq},
+        },
+    };
+    Json loaded({required int seq, bool resumed = false}) => {
+      '_meta': {
+        'baya': {
+          'cursor': {'epoch': 'e1', 'seq': seq},
+          'resumed': resumed,
+        },
+      },
+    };
+
+    Future<(FakeHost, HostConnection, SessionController)> opened() async {
+      final (host, conn) = await online(FakeHost(sessions: [testSession()]));
+      host.handlers['session/load'] = (_) {
+        host.push('session/update', chunk('Hi', role: 'user'));
+        host.push('session/update', chunk('Hello'));
+        return loaded(seq: 4);
+      };
+      final session = SessionController(conn, 's1');
+      await settle();
+      host.push('session/update', chunk(' there', seq: 5));
+      await settle();
+      host.socket!.drop();
+      await settle();
+      return (host, conn, session);
+    }
+
+    String texts(SessionController session) => session.messages
+        .map(
+          (m) => switch (m) {
+            UserMsg(:final text) => 'user:$text',
+            AssistantMsg(:final text) => 'agent:$text',
+            _ => '?',
+          },
+        )
+        .join(' | ');
+
+    test('it asks for what it missed and keeps what it has', () async {
+      final (host, conn, session) = await opened();
+      host.handlers['session/load'] = (params) {
+        expect(bayaMeta(params)['resume'], {'epoch': 'e1', 'seq': 5});
+        host.push('session/update', chunk('!', seq: 6));
+        return loaded(seq: 6, resumed: true);
+      };
+      conn.reconnectNow();
+      await settle();
+      expect(texts(session), 'user:Hi | agent:Hello there!');
+      expect(session.loading, isFalse);
+
+      // The next drop resumes from the newest number seen.
+      host.socket!.drop();
+      await settle();
+      host.handlers['session/load'] = (params) {
+        expect(bayaMeta(params)['resume'], {'epoch': 'e1', 'seq': 6});
+        return loaded(seq: 6, resumed: true);
+      };
+      conn.reconnectNow();
+      await settle();
+      expect(texts(session), 'user:Hi | agent:Hello there!');
+      session.dispose();
+      conn.dispose();
+    });
+
+    test('a conversation opened again shows at once and catches up', () async {
+      final (host, conn, session) = await opened();
+      conn.reconnectNow();
+      host.handlers['session/load'] = (_) => loaded(seq: 5, resumed: true);
+      await settle();
+      session.dispose();
+
+      host.handlers['session/load'] = (params) {
+        expect(bayaMeta(params)['resume'], {'epoch': 'e1', 'seq': 5});
+        host.push('session/update', chunk(' again', seq: 6));
+        return loaded(seq: 6, resumed: true);
+      };
+      final again = SessionController(conn, 's1');
+      // Before the computer answers, the conversation is there.
+      expect(texts(again), 'user:Hi | agent:Hello there');
+      expect(again.loaded, isTrue);
+      await settle();
+      expect(texts(again), 'user:Hi | agent:Hello there again');
+      again.dispose();
+      conn.dispose();
+    });
+
+    test(
+      'a computer that cannot catch it up sends the history instead',
+      () async {
+        final (host, conn, session) = await opened();
+        host.handlers['session/load'] = (_) {
+          host.push('session/update', chunk('Hi', role: 'user'));
+          host.push('session/update', chunk('Hello there, again'));
+          return {
+            '_meta': {
+              'baya': {
+                'cursor': {'epoch': 'e2', 'seq': 0},
+                'resumed': false,
+              },
+            },
+          };
+        };
+        conn.reconnectNow();
+        await settle();
+        expect(texts(session), 'user:Hi | agent:Hello there, again');
+        session.dispose();
+        conn.dispose();
+      },
+    );
+  });
+
   test('a send lost with the connection leaves a notice', () async {
     final (host, conn) = await online(FakeHost(sessions: [testSession()]));
     host.handlers['session/prompt'] = (_) async {

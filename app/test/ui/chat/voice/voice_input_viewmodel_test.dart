@@ -166,7 +166,6 @@ void main() {
         final vm = VoiceInputViewModel(
           svc,
           maxDuration: const Duration(milliseconds: 600),
-          tickInterval: const Duration(milliseconds: 200),
         );
         final got = <String>[];
         vm.transcripts.listen(got.add);

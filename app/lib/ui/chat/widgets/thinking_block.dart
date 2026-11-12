@@ -1,10 +1,10 @@
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/chat/hold_in_place.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/chat/widgets/shimmer_text.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/copy_button.dart';
-import 'package:app/ui/chat/hold_in_place.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 

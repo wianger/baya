@@ -142,7 +142,6 @@ class PlatformImagePickerBackend implements ImagePickerBackend {
       minWidth: maxSide,
       minHeight: maxSide,
       quality: quality,
-      format: CompressFormat.jpeg,
     );
     // Fallback: if the platform compressor returns null (unsupported source
     // format), surface an empty result so the caller can no-op gracefully.

@@ -1,4 +1,5 @@
 import 'package:app/data/images/image_picker_service.dart';
+import 'package:app/ui/chat/widgets/input_bar.dart' show VoiceHint;
 
 /// Composer attachment state.
 ///

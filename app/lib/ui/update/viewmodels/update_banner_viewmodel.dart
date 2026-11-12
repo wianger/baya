@@ -1,9 +1,9 @@
 import 'package:app/domain/contracts/dismissed_update_store.dart';
-import 'package:app/l10n/l10n.dart';
 import 'package:app/domain/contracts/update_checker.dart';
 import 'package:app/domain/contracts/url_opener.dart';
 import 'package:app/domain/entities/update_info.dart';
 import 'package:app/domain/value_objects/semver.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/viewmodel/viewmodel.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
 

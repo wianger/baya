@@ -1,8 +1,8 @@
-import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
+import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -36,7 +36,7 @@ class WelcomeStep extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  context.l10n.welcomeTagline,
+                  context.l10n.aboutTagline,
                   textAlign: TextAlign.center,
                   style: context.typo.sansBody.copyWith(
                     fontSize: 16,

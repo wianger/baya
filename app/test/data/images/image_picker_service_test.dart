@@ -75,9 +75,6 @@ void main() {
   test('denied camera permission propagates as a typed exception', () async {
     final backend = _FakeBackend()..denied = true;
     final svc = ImagePickerService(backend);
-    expect(
-      () => svc.pickFromCamera(),
-      throwsA(isA<ImagePermissionDeniedException>()),
-    );
+    expect(svc.pickFromCamera, throwsA(isA<ImagePermissionDeniedException>()));
   });
 }

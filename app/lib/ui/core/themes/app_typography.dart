@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
-
 import 'package:app/ui/core/themes/app_colors.dart';
+import 'package:flutter/material.dart';
 
 /// Geist for the interface and Geist Mono for code; scripts Geist lacks
 /// (Chinese among them) fall back to the system face.
@@ -29,7 +28,6 @@ TextStyle brandDisplayTextStyle({
 }) {
   return TextStyle(
     fontFamily: kWordmarkFamily,
-    fontFamilyFallback: kFontFallback,
     fontSize: fontSize,
     fontWeight: fontWeight,
     color: color,
@@ -67,7 +65,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
   /// Long responses: the sans face with a looser reading rhythm.
   TextStyle get reading => sansBody.copyWith(
     fontFamily: kSansFamily,
-    fontFamilyFallback: kFontFallback,
     fontSize: 16,
     height: 1.58,
     letterSpacing: -0.15,
@@ -86,7 +83,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
     return AppTypography(
       mono: TextStyle(
         fontFamily: kMonoFamily,
-        fontFamilyFallback: kFontFallback,
         fontSize: 12.5,
         color: monoColor,
         height: 1.5,
@@ -95,7 +91,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
       ),
       monoSmall: TextStyle(
         fontFamily: kMonoFamily,
-        fontFamilyFallback: kFontFallback,
         fontSize: 12.0,
         color: c.muted2,
         height: 1.4,
@@ -103,7 +98,6 @@ class AppTypography extends ThemeExtension<AppTypography> {
       ),
       sansBody: TextStyle(
         fontFamily: kSansFamily,
-        fontFamilyFallback: kFontFallback,
         fontSize: 15.0,
         color: c.text,
         height: 1.5,

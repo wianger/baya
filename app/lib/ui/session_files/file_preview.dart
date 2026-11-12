@@ -1,17 +1,16 @@
 import 'dart:async';
-import 'dart:io';
-
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/preview/pdf_document.dart';
 import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/chat/widgets/agent_markdown.dart';
+import 'package:app/ui/core/code/code_view.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:flutter/foundation.dart';
-import 'package:app/ui/chat/widgets/agent_markdown.dart';
-import 'package:app/ui/core/code/code_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -215,7 +214,6 @@ class _FilePreviewState extends State<FilePreview> {
             child: Center(
               child: SvgPicture.file(
                 file,
-                fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => _Message(
                   icon: LucideIcons.imageOff,
                   text: context.l10n.previewFailed,

@@ -9,6 +9,7 @@ import 'dart:async';
 
 import 'package:app/acp/acp.dart';
 import 'package:app/acp/json_rpc.dart';
+import 'package:app/data/device/device_name.dart';
 import 'package:app/data/transport/host_socket.dart';
 import 'package:app/data/transport/noise.dart' show DataFrame;
 import 'package:app/l10n/l10n.dart';
@@ -34,7 +35,10 @@ enum HostStatus {
 class SessionEvent {
   final String sessionId;
   final SessionUpdate update;
-  const SessionEvent(this.sessionId, this.update);
+
+  /// Its number among the session's live notifications; null in a replay.
+  final int? seq;
+  const SessionEvent(this.sessionId, this.update, [this.seq]);
 }
 
 /// A question from an agent (permission or elicitation) arrived, was
@@ -48,7 +52,8 @@ class QuestionEvent {
 class TerminalEvent {
   final String sessionId;
   final TerminalSnapshot snapshot;
-  const TerminalEvent(this.sessionId, this.snapshot);
+  final int? seq;
+  const TerminalEvent(this.sessionId, this.snapshot, [this.seq]);
 }
 
 typedef IdentityLoader = Future<SimpleKeyPair> Function();
@@ -118,6 +123,11 @@ class HostConnection extends ChangeNotifier {
   HostIntro? get intro => _intro;
   List<AgentInfo> get agents => _intro?.agents ?? const [];
   List<SessionSummary> get sessions => _sessions;
+
+  /// [sessions] is the computer's current list: listed since it last
+  /// connected, and kept up to date since. Cached or stale otherwise.
+  bool get sessionsLive => _sessionsLive;
+  bool _sessionsLive = false;
 
   Stream<SessionEvent> get updates => _updates.stream;
   Stream<QuestionEvent> get questions => _questionEvents.stream;
@@ -263,6 +273,7 @@ class HostConnection extends ChangeNotifier {
       }),
     );
     try {
+      final device = knownDeviceName;
       final intro = await peer
           .call('initialize', {
             'protocolVersion': protocolVersion,
@@ -271,6 +282,10 @@ class HostConnection extends ChangeNotifier {
               'terminal': false,
             },
             'clientInfo': {'name': 'baya-android', 'title': 'Baya'},
+            if (device != null)
+              '_meta': {
+                'baya': {'device': device},
+              },
           })
           .timeout(_callTimeout);
       _intro = HostIntro.fromJson(intro);
@@ -278,6 +293,8 @@ class HostConnection extends ChangeNotifier {
       _error = null;
       _setStatus(HostStatus.online);
       await refreshSessions();
+      _sessionsLive = true;
+      notifyListeners();
       if (!_online.isClosed) _online.add(null);
     } on RpcError catch (error) {
       if (error.code == RpcError.notPaired) {
@@ -294,6 +311,7 @@ class HostConnection extends ChangeNotifier {
   void _closed(HostSocket socket, SocketClosed closed) {
     if (_socket != socket) return;
     _socket = null;
+    _sessionsLive = false;
     _peer?.close(RpcClosed(_offlineMessage));
     _peer = null;
     for (final id in _questions.keys.toList()) {
@@ -371,6 +389,7 @@ class HostConnection extends ChangeNotifier {
             SessionEvent(
               sessionId,
               SessionUpdate.fromJson(update.cast<String, dynamic>()),
+              _seq(params),
             ),
           );
         }
@@ -406,11 +425,20 @@ class HostConnection extends ChangeNotifier {
         final sessionId = params['sessionId'];
         if (sessionId is String && !_terminals.isClosed) {
           _terminals.add(
-            TerminalEvent(sessionId, TerminalSnapshot.fromJson(params)),
+            TerminalEvent(
+              sessionId,
+              TerminalSnapshot.fromJson(params),
+              _seq(params),
+            ),
           );
         }
     }
   }
+
+  static int? _seq(Json params) => switch (bayaMeta(params)['seq']) {
+    final int seq => seq,
+    _ => null,
+  };
 
   void _withdraw(Object requestId) {
     final known = _questions.remove(requestId) != null;

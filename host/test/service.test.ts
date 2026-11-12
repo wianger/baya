@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { BAYA_RUN_KEY, BAYA_RUN_VALUE, buildWindowsStartupCommand } from "../src/service.ts";
+import {
+  BAYA_RUN_KEY,
+  BAYA_RUN_VALUE,
+  buildWindowsLauncher,
+  buildWindowsStartupCommand,
+  windowsArgument,
+} from "../src/service.ts";
 
 describe("per-user Windows startup", () => {
   test("uses the current-user Run key", () => {
@@ -7,22 +13,38 @@ describe("per-user Windows startup", () => {
     expect(BAYA_RUN_VALUE).toBe("BayaHost");
   });
 
-  test("builds a hidden command that preserves spaces and apostrophes", () => {
+  test("the Run key starts wscript, which never opens a console", () => {
     const command = buildWindowsStartupCommand({
-      command: ["C:\\Program Files\\node.exe", "C:\\Users\\O'Brien\\baya\\dist\\cli.js"],
-      cwd: "C:\\Users\\O'Brien\\project space",
+      launcher: "C:\\Users\\O'Brien\\.baya\\runtime\\autostart.js",
       systemRoot: "C:\\Windows",
     });
+    expect(command).toBe(
+      '"C:\\Windows\\System32\\wscript.exe" //B //Nologo //E:JScript "C:\\Users\\O\'Brien\\.baya\\runtime\\autostart.js"',
+    );
+  });
 
-    expect(command).toContain('"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"');
-    expect(command).toContain("-WindowStyle Hidden");
-    expect(command).toContain("-EncodedCommand ");
+  test("the launcher starts the host hidden, its arguments quoted for CreateProcess", () => {
+    const script = buildWindowsLauncher({
+      command: ["C:\\Program Files\\node.exe", "C:\\Users\\O'Brien\\baya\\dist\\cli.js"],
+      cwd: "C:\\Users\\O'Brien\\project space\\",
+      logDir: "C:\\Users\\O'Brien\\.baya\\logs",
+    });
+    expect(script).toContain(
+      'shell.CurrentDirectory = "C:\\\\Users\\\\O\'Brien\\\\project space\\\\";',
+    );
+    const run = /shell\.Run\((".*"), 0, false\);/u.exec(script)!;
+    expect(JSON.parse(run[1]!)).toBe(
+      '"C:\\Program Files\\node.exe" C:\\Users\\O\'Brien\\baya\\dist\\cli.js serve --cwd ' +
+        "\"C:\\Users\\O'Brien\\project space\\\\\" --log C:\\Users\\O'Brien\\.baya\\logs\\host.log",
+    );
+  });
 
-    const encoded = command.split("-EncodedCommand ")[1]!;
-    const script = Buffer.from(encoded, "base64").toString("utf16le");
-    expect(script).toContain("'C:\\Program Files\\node.exe'");
-    expect(script).toContain("'C:\\Users\\O''Brien\\baya\\dist\\cli.js'");
-    expect(script).toContain("'C:\\Users\\O''Brien\\project space'");
+  test("arguments round-trip through Windows command-line parsing", () => {
+    expect(windowsArgument("plain")).toBe("plain");
+    expect(windowsArgument("")).toBe('""');
+    expect(windowsArgument('say "hi"')).toBe('"say \\"hi\\""');
+    expect(windowsArgument('a\\"b')).toBe('"a\\\\\\"b"');
+    expect(windowsArgument("dir with space\\")).toBe('"dir with space\\\\"');
   });
 });
 
@@ -31,6 +53,7 @@ const target = {
   cwd: '/home/a b/100% "done"',
   path: "/usr/local/bin:/usr/bin",
   logDir: "/home/a b/.baya/logs",
+  launcher: "/home/a b/.baya/runtime/autostart.js",
 };
 
 describe("systemd and launchd startup", () => {

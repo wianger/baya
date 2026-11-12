@@ -5,9 +5,9 @@ import 'dart:async';
 
 import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
+import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
-import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';

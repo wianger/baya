@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
-
 import 'package:app/ui/core/themes/app_colors.dart';
 import 'package:app/ui/core/themes/app_typography.dart';
+import 'package:flutter/material.dart';
 
 /// The theme from Baya's palette. Framework widgets read the derived
 /// [ColorScheme]; app widgets read [AppColors] and [AppTypography].

@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { type AgentDefinition, defaultAgentId, loadConfig } from "../config.ts";
-import { isPairedKey, listPeers, type PeerRecord } from "../pairing/storage.ts";
+import { isPairedKey, listPeers, markSeen, type PeerRecord } from "../pairing/storage.ts";
 import {
   addSession,
   listSessions,
@@ -243,12 +243,29 @@ export class SessionHub {
   disconnect(phone: HubPhone): void {
     this.phones.delete(phone);
     for (const session of this.sessions.values()) session.detach(phone);
+    this.seen(phone.key);
+  }
+
+  /** A paired phone said hello (with the name it goes by) or left. */
+  seen(key: string, name?: string): void {
+    if (key === LOCAL_CLIENT || !this.isPaired(key)) return;
+    markSeen(key, name).catch(() => {});
+  }
+
+  /**
+   * Keys of the paired phones connected now. A phone counts once, even while
+   * a reconnect briefly overlaps the socket it replaces.
+   */
+  connectedKeys(): Set<string> {
+    const keys = new Set<string>();
+    for (const phone of this.phones) {
+      if (phone.key !== LOCAL_CLIENT && this.isPaired(phone.key)) keys.add(phone.key);
+    }
+    return keys;
   }
 
   get connectedPhones(): number {
-    return [...this.phones].filter(
-      (phone) => phone.key !== LOCAL_CLIENT && this.isPaired(phone.key),
-    ).length;
+    return this.connectedKeys().size;
   }
 
   /** A paired phone, or `baya attach` on this computer (the control socket). */

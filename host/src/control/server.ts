@@ -6,7 +6,7 @@ import type { HostedSession } from "../acp/hosted_session.ts";
 import { LOCAL_CLIENT, type SessionHub } from "../acp/hub.ts";
 import { PhoneConnection } from "../acp/phone.ts";
 import { BAYA_HOME } from "../config.ts";
-import { removePeers } from "../pairing/storage.ts";
+import { isPairedKey, listPeers, removePeers } from "../pairing/storage.ts";
 import { issuePendingPairToken } from "../pairing/token_store.ts";
 import { packageVersion } from "../runtime/version.ts";
 import { resolveDirectory } from "../workspace/directories.ts";
@@ -216,6 +216,15 @@ export class ControlServer {
         const removed = await removePeers(params["query"]);
         await this.hub.refreshPeers();
         return { removed };
+      }
+      case "devices": {
+        const online = [...this.hub.connectedKeys()];
+        return {
+          devices: (await listPeers()).map((peer) => ({
+            ...peer,
+            connected: online.some((key) => isPairedKey(key, [peer])),
+          })),
+        };
       }
       case "stop":
         return { stopping: true };

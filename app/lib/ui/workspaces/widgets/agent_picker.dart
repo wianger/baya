@@ -1,6 +1,5 @@
-import 'package:app/l10n/l10n.dart';
-
 import 'package:app/domain/workspaces/workspace_repository.dart';
+import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/workspaces/widgets/workspace_scope_field.dart';

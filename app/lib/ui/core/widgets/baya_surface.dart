@@ -65,7 +65,7 @@ class BayaSurface extends StatelessWidget {
         : highContrast
         ? BorderSide(color: colors.muted2, width: 1.2)
         : hairline
-        ? BorderSide(color: colors.border, width: 1)
+        ? BorderSide(color: colors.border)
         : BorderSide.none;
     final shadow = elevated && !highContrast && role == BayaSurfaceRole.overlay;
     final content = Padding(padding: padding, child: child);
@@ -136,7 +136,7 @@ class BayaButton extends StatelessWidget {
                 child: icon!,
               ),
               const SizedBox(width: 8),
-              Flexible(fit: FlexFit.loose, child: label),
+              Flexible(child: label),
             ],
           );
     return prominent

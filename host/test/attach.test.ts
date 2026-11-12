@@ -3,9 +3,19 @@ import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripVTControlCharacters as strip } from "node:util";
 import { afterEach, expect, test, vi } from "vitest";
-import { pickSession } from "../src/cli/attach.ts";
-import { box, hang, MarkdownLines, textWidth, wrap } from "../src/cli/tui.ts";
+import { pickerRows, pickSession } from "../src/cli/attach.ts";
+import {
+  box,
+  clip,
+  hang,
+  MarkdownLines,
+  TaskbarState,
+  taskbar,
+  textWidth,
+  wrap,
+} from "../src/cli/tui.ts";
 
 const FAKE_AGENT = fileURLToPath(new URL("./fixtures/fake-agent.mjs", import.meta.url));
 const cleanup: Array<() => void | Promise<void>> = [];
@@ -45,8 +55,16 @@ test("Chinese and emoji take two columns; colours take none", () => {
 
 test("text wraps at spaces, between wide characters, with a hanging indent", () => {
   expect(wrap("the quick brown fox jumps", 10)).toEqual(["the quick", "brown fox", "jumps"]);
+  // A row that fills up right at a space does not start the next with it.
+  expect(wrap("abcde fgh", 5)).toEqual(["abcde", "fgh"]);
   expect(wrap("登录后跳回登录页", 6)).toEqual(["登录后", "跳回登", "录页"]);
   expect(hang("one two three four", "• ", "  ", 10)).toEqual(["• one two", "  three", "  four"]);
+});
+
+test("a row cut to the width keeps whole wide characters", () => {
+  expect(clip("short", 10)).toBe("short");
+  expect(clip("a long footer row", 10)).toBe("a long fo…");
+  expect(textWidth(clip("登录跳转回到登录页", 9))).toBeLessThanOrEqual(9);
 });
 
 test("a box fits its lines, wrapped, inside its edges", () => {
@@ -61,13 +79,38 @@ test("markdown renders a line at a time, the line being written changing nothing
   expect(md.line("## 修好了")).toEqual(["  修好了"]);
   expect(md.line("- 改了 `login.ts`")).toEqual(["  • 改了 login.ts"]);
   // Previewing an opening fence, again and again, does not open it.
-  expect(md.preview("```ts")).toEqual(["  ╭─ ts"]);
-  expect(md.preview("```ts")).toEqual(["  ╭─ ts"]);
-  expect(md.line("```ts")).toEqual(["  ╭─ ts"]);
-  expect(md.line("await x()")).toEqual(["  │ await x()"]);
-  expect(md.preview("- not a list in code")).toEqual(["  │ - not a list in code"]);
-  expect(md.line("```")).toEqual(["  ╰─"]);
+  expect(md.preview("```ts")).toEqual(["  ts"]);
+  expect(md.preview("```ts")).toEqual(["  ts"]);
+  expect(md.line("```ts")).toEqual(["  ts"]);
+  expect(md.line("await x()")).toEqual(["   await x()"]);
+  expect(md.preview("- not a list in code")).toEqual(["   - not a list in code"]);
+  expect(md.line("```")).toEqual([]);
   expect(md.line("**done**")).toEqual(["  done"]);
+});
+
+test("a table lines up its columns once it ends", () => {
+  const md = new MarkdownLines("  ", () => 60);
+  expect(md.line("| attempt | before |")).toEqual([]);
+  expect(md.line("|---|--:|")).toEqual([]);
+  // While it streams, the rows so far show lined up.
+  expect(md.preview("| 3 | 8 s |")).toEqual([
+    "  attempt │ before",
+    "  ────────┼───────",
+    "  3       │    8 s",
+  ]);
+  expect(md.line("| 3 | 8 s |")).toEqual([]);
+  expect(md.line("")).toEqual([
+    "  attempt │ before",
+    "  ────────┼───────",
+    "  3       │    8 s",
+    "",
+  ]);
+  // A table too wide for the screen lists each row instead.
+  const narrow = new MarkdownLines("  ", () => 20);
+  narrow.line("| name | what it does |");
+  narrow.line("|---|---|");
+  narrow.line("| /model | choose the model |");
+  expect(narrow.flush()).toEqual(["  name: /model", "  what it does:", "    choose the model"]);
 });
 
 test("the control socket attaches a terminal that shares the session live", async () => {
@@ -157,4 +200,33 @@ test("the control socket attaches a terminal that shares the session live", asyn
   expect(kinds).toEqual(expect.arrayContaining(["user_message_chunk", "agent_message_chunk"]));
   // A terminal is not counted as a phone.
   expect(hub.connectedPhones).toBe(0);
+});
+
+test("the taskbar shows a turn, and rings when the agent waits for an answer", () => {
+  expect(taskbar(TaskbarState.Busy)).toBe("\x1b]9;4;3;0\x07");
+  expect(taskbar(TaskbarState.Waiting)).toBe("\x1b]9;4;4;0\x07\x07");
+  expect(taskbar(TaskbarState.None)).toBe("\x1b]9;4;0;0\x07");
+});
+
+test("the session picker lists each with its agent, folder and age", () => {
+  const now = Date.parse("2026-11-05T12:00:00Z");
+  const rows = pickerRows(
+    [
+      { ...session("a1b2", "Fix the login redirect", "2026-11-05T09:00:00Z"), cwd: "/code/web" },
+      { ...session("c3d4", "Add dark mode", "2026-11-05T11:00:00Z"), working: true },
+    ],
+    1,
+    60,
+    now,
+  ).map(strip);
+  expect(rows[0]).toBe("  1 ○ Fix the login redirect  Pi · web · 3h 0m ago");
+  expect(rows[1]).toBe("❯ 2 ◐ Add dark mode  Pi · w · working");
+  // Narrow: each row still fits.
+  for (const row of pickerRows(
+    [session("e5", "A very long title that goes on and on", "x")],
+    0,
+    30,
+  )) {
+    expect(textWidth(strip(row))).toBeLessThanOrEqual(30);
+  }
 });

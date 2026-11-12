@@ -3,8 +3,8 @@ import 'package:app/domain/contracts/update_checker.dart';
 import 'package:app/domain/contracts/url_opener.dart';
 import 'package:app/domain/entities/update_info.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
-import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:app/ui/update/update_prompt.dart';
+import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -177,13 +177,13 @@ void main() {
     });
 
     test('equal version → Hidden', () async {
-      final vm = _vm(_FakeChecker(_info('1.1.0')), current: '1.1.0');
+      final vm = _vm(_FakeChecker(_info('1.1.0')));
       await vm.check();
       expect(vm.state, isA<UpdateBannerHidden>());
     });
 
     test('lower version → Hidden', () async {
-      final vm = _vm(_FakeChecker(_info('1.0.0')), current: '1.1.0');
+      final vm = _vm(_FakeChecker(_info('1.0.0')));
       await vm.check();
       expect(vm.state, isA<UpdateBannerHidden>());
     });
@@ -243,7 +243,7 @@ void main() {
     test(
       'build code detects a newer rebuild with the same visible version',
       () async {
-        final info = UpdateInfo(
+        final info = const UpdateInfo(
           version: '1.2.1',
           date: '',
           notes: '',
@@ -261,7 +261,7 @@ void main() {
         );
         await vm.checkManually();
         expect(vm.state, isA<UpdateBannerVisible>());
-        checker.result = UpdateInfo(
+        checker.result = const UpdateInfo(
           version: '1.2.1',
           date: '',
           notes: '',
@@ -290,7 +290,7 @@ void main() {
       () async {
         final vm = UpdateBannerViewModel(
           _FakeChecker(
-            UpdateInfo(
+            const UpdateInfo(
               version: '2.0.0',
               date: '',
               notes: '',

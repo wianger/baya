@@ -6,26 +6,32 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:app/acp/acp.dart';
-import 'package:cryptography/cryptography.dart';
 import 'package:app/acp/json_rpc.dart';
-import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/data/hosts/host_connection.dart';
+import 'package:app/data/launcher/launcher.dart';
+import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/domain/transcript.dart';
 import 'package:app/protocol/uuid7.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 
 class SessionController extends ChangeNotifier {
-  SessionController(this.host, this.sessionId) {
+  /// `shared` is text shared from another app, for the composer of the
+  /// first session opened after it.
+  SessionController(this.host, this.sessionId, {this._shared}) {
     _updates = host.updates.listen(_onUpdate);
     _questions = host.questions.listen((_) => _syncPermissions());
     _terminals = host.terminals.listen((event) {
       if (event.sessionId != sessionId) return;
+      if (_held case final held?) return held.add(event);
+      _seen(event.seq);
       _transcript.terminal(event.snapshot);
-      if (!_replaying) _changed();
+      if (!_loading) _changed();
     });
     _online = host.onOnline.listen((_) => unawaited(_load()));
     host.addListener(_onHostChanged);
+    _restore();
     _syncPermissions();
     unawaited(_load());
   }
@@ -33,7 +39,7 @@ class SessionController extends ChangeNotifier {
   final HostConnection host;
   final String sessionId;
 
-  final _transcript = Transcript();
+  late final Transcript _transcript;
   late final StreamSubscription<SessionEvent> _updates;
   late final StreamSubscription<QuestionEvent> _questions;
   late final StreamSubscription<TerminalEvent> _terminals;
@@ -41,7 +47,15 @@ class SessionController extends ChangeNotifier {
 
   bool _loading = false;
   bool _loaded = false;
-  bool _replaying = false;
+
+  /// What arrives while a load is out, applied once its answer says whether
+  /// it is a catch-up (on top of what is here) or the whole history.
+  List<Object>? _held;
+
+  /// Where this phone is in the session's live notifications, so coming
+  /// back (screen on, new network) fetches only what it missed.
+  String? _epoch;
+  int _seq = 0;
   bool _disposed = false;
   String? _error;
   bool _localWorking = false;
@@ -105,6 +119,8 @@ class SessionController extends ChangeNotifier {
     _changed();
   }
 
+  final SharedDraft? _shared;
+
   final _drafts = StreamController<UserMsg>.broadcast();
 
   /// Sent messages to put back in the composer, to edit and send again.
@@ -116,6 +132,53 @@ class SessionController extends ChangeNotifier {
 
   /// Messages waiting for the composer of a branch that is opening.
   static final _handoff = <String, UserMsg>{};
+
+  /// Conversations left most recently, newest last, with where each was in
+  /// its live notifications: opening one again shows it at once and only
+  /// catches up, instead of replaying it.
+  static final _kept = <String, _Kept>{};
+  static const _keep = 6;
+
+  void _restore() {
+    final kept = _kept.remove('${host.key}/$sessionId');
+    if (kept == null) {
+      _transcript = Transcript();
+      return;
+    }
+    _transcript = kept.transcript;
+    _epoch = kept.epoch;
+    _seq = kept.seq;
+    _setup = kept.setup;
+    _config = kept.config;
+    _modes = kept.modes;
+    _commands = kept.commands;
+    _usage = kept.usage;
+    _loaded = true;
+  }
+
+  void _keepForLater() {
+    final epoch = _epoch;
+    if (!_loaded || epoch == null || _error != null) return;
+    final key = '${host.key}/$sessionId';
+    _kept.remove(key);
+    _kept[key] = _Kept(
+      transcript: _transcript,
+      epoch: epoch,
+      seq: _seq,
+      setup: _setup,
+      config: _config,
+      modes: _modes,
+      commands: _commands,
+      usage: _usage,
+    );
+    while (_kept.length > _keep) {
+      _kept.remove(_kept.keys.first);
+    }
+  }
+
+  /// Forgets kept conversations (tests start clean).
+  @visibleForTesting
+  static void forgetKept() => _kept.clear();
 
   bool get canFork => _setup.canFork;
 
@@ -338,36 +401,85 @@ class SessionController extends ChangeNotifier {
       _changed();
       return;
     }
+    final resume = _loaded && _epoch != null
+        ? {'epoch': _epoch, 'seq': _seq}
+        : null;
     _loading = true;
     _error = null;
     _changed();
-    // The replay rebuilds the history from scratch.
-    _transcript.clear();
-    _replaying = true;
+    // A first load shows the history as it streams in. A catch-up holds
+    // what comes until the answer says it is one, or the whole history.
+    final held = <Object>[];
+    if (resume != null) {
+      _held = held;
+    } else {
+      _transcript.clear();
+    }
+    var replaced = false;
     try {
       final result = await host.call('session/load', {
         'sessionId': sessionId,
         'cwd': summary?.cwd ?? '',
         'mcpServers': const <Object>[],
+        if (resume != null)
+          '_meta': {
+            'baya': {'resume': resume},
+          },
       }, const Duration(minutes: 3));
+      final meta = bayaMeta(result);
+      replaced = resume != null && meta['resumed'] != true;
+      final cursor = meta['cursor'];
+      if (cursor is Map && cursor['epoch'] is String && cursor['seq'] is int) {
+        _epoch = cursor['epoch'] as String;
+        _seq = cursor['seq'] as int;
+      } else {
+        _epoch = null;
+      }
       _setup = SessionSetup.fromJson(result);
       _config = _setup.configOptions;
       _modes = _setup.modes;
       _loaded = true;
-      final waiting = _handoff.remove('${host.key}/$sessionId');
+      final shared = _shared?.take();
+      final waiting =
+          _handoff.remove('${host.key}/$sessionId') ??
+          (shared == null ? null : UserMsg(id: 'shared', text: shared));
       if (waiting != null) scheduleMicrotask(() => editAgain(waiting));
     } catch (error) {
       _error = _describe(error);
+      // A failed catch-up keeps what is shown.
+      held.clear();
     } finally {
-      _replaying = false;
+      _held = null;
+      if (replaced) _transcript.clear();
+      for (final event in held) {
+        switch (event) {
+          case SessionEvent():
+            _apply(event);
+          case TerminalEvent(:final snapshot, :final seq):
+            _seen(seq);
+            _transcript.terminal(snapshot);
+        }
+      }
       _loading = false;
       if (summary?.working != true) _transcript.settle();
       _changed();
     }
   }
 
+  void _seen(int? seq) {
+    if (seq != null && seq > _seq) _seq = seq;
+  }
+
   void _onUpdate(SessionEvent event) {
     if (event.sessionId != sessionId) return;
+    if (_held case final held?) return held.add(event);
+    _apply(event);
+    // A replay is drawn once, when it is done.
+    if (!_loading) _changed();
+  }
+
+  void _apply(SessionEvent event) {
+    _seen(event.seq);
     final update = event.update;
     switch (update) {
       case ConfigUpdate(:final options):
@@ -381,11 +493,13 @@ class SessionController extends ChangeNotifier {
       default:
         _transcript.apply(update);
     }
-    if (!_replaying) _changed();
   }
 
   void _onHostChanged() {
-    if (summary?.working == false && !_localWorking) _transcript.settle();
+    // Offline, nothing is known to have finished: a catch-up may continue it.
+    if (host.isOnline && summary?.working == false && !_localWorking) {
+      _transcript.settle();
+    }
     _changed();
   }
 
@@ -435,6 +549,7 @@ class SessionController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _keepForLater();
     _disposed = true;
     _handoff.remove('${host.key}/$sessionId');
     _throttle?.cancel();
@@ -454,4 +569,26 @@ class SessionController extends ChangeNotifier {
     }
     super.dispose();
   }
+}
+
+class _Kept {
+  _Kept({
+    required this.transcript,
+    required this.epoch,
+    required this.seq,
+    required this.setup,
+    required this.config,
+    required this.modes,
+    required this.commands,
+    required this.usage,
+  });
+
+  final Transcript transcript;
+  final String epoch;
+  final int seq;
+  final SessionSetup setup;
+  final List<ConfigOption> config;
+  final SessionModes? modes;
+  final List<AgentCommandInfo> commands;
+  final Usage? usage;
 }

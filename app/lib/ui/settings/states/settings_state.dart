@@ -1,3 +1,4 @@
+import 'package:app/data/preferences/preferences.dart' show Preferences;
 import 'package:app/pairing/storage.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 

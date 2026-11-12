@@ -257,7 +257,6 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: InputBar(
-            disabled: false,
             streaming: true,
             onSend: (text) => sent = text,
             onCancel: () {},
@@ -285,7 +284,6 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: InputBar(
-            disabled: false,
             streaming: true,
             onSend: (text) => sent = text,
             onCancel: () {},
@@ -341,12 +339,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: InputBar(
-            disabled: false,
-            streaming: false,
-            onSend: sent.add,
-            onCancel: () {},
-          ),
+          body: InputBar(onSend: sent.add, onCancel: () {}),
         ),
       ),
     );
@@ -387,17 +380,53 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: InputBar(
-            disabled: false,
-            streaming: true,
-            onSend: sent.add,
-            onCancel: () {},
-          ),
+          body: InputBar(streaming: true, onSend: sent.add, onCancel: () {}),
         ),
       ),
     );
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
     expect(sent, isEmpty);
+  });
+
+  testWidgets('an @ starting a word picks files, and gives way to them', (
+    tester,
+  ) async {
+    var picks = 0;
+    var picked = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: InputBar(
+            onSend: (_) {},
+            onMention: () async {
+              picks++;
+              return picked;
+            },
+          ),
+        ),
+      ),
+    );
+    final field = find.byType(TextField);
+
+    // Typed a key at a time, as a keyboard does.
+    await tester.enterText(field, 'explain ');
+    await tester.enterText(field, 'explain @');
+    await tester.pump();
+    expect(picks, 1);
+    expect(tester.widget<TextField>(field).controller!.text, 'explain ');
+
+    // Nothing picked: the @ stays as typed.
+    picked = false;
+    await tester.enterText(field, 'explain @');
+    await tester.pump();
+    expect(picks, 2);
+    expect(tester.widget<TextField>(field).controller!.text, 'explain @');
+
+    // Not at the start of a word: an address, not a mention.
+    await tester.enterText(field, 'mail me');
+    await tester.enterText(field, 'mail me@');
+    await tester.pump();
+    expect(picks, 2);
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:app/acp/acp.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/domain/value_objects/workspace.dart';
 import 'package:app/ui/core/themes/app_font_scale.dart';
@@ -271,6 +272,47 @@ void main() {
         inboxWorkspaceKey(device),
       );
       p.dispose();
+    });
+
+    test('a session is unread once the agent did something not seen', () async {
+      final store = _FakeSecureStorage();
+      final p = Preferences(store);
+      await p.load();
+      final now = DateTime.now();
+      SessionSummary session(DateTime at, {bool working = false}) =>
+          SessionSummary(
+            sessionId: 's1',
+            cwd: '/w',
+            title: 'Fix login',
+            agent: 'claude',
+            agentName: 'Claude Code',
+            updatedAt: at,
+            working: working,
+          );
+      const host = 'AAAA';
+
+      // What happened before the phone kept track is not new.
+      expect(
+        p.isUnread(host, session(now.subtract(const Duration(days: 1)))),
+        isFalse,
+      );
+      final later = now.add(const Duration(minutes: 5));
+      expect(p.isUnread(host, session(later)), isTrue);
+      // Still working: the spinner says so, not the dot.
+      expect(p.isUnread(host, session(later, working: true)), isFalse);
+
+      p.markSeen(host, session(later));
+      expect(p.isUnread(host, session(later)), isFalse);
+      final again = later.add(const Duration(minutes: 1));
+      expect(p.isUnread(host, session(again)), isTrue);
+
+      // Kept across launches.
+      final reloaded = Preferences(store);
+      await reloaded.load();
+      expect(reloaded.isUnread(host, session(later)), isFalse);
+      expect(reloaded.isUnread(host, session(again)), isTrue);
+      p.dispose();
+      reloaded.dispose();
     });
   });
 }

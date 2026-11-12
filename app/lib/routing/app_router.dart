@@ -1,33 +1,34 @@
 import 'package:app/config/dependencies.dart';
-import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/hosts/session_controller.dart';
+import 'package:app/data/launcher/launcher.dart';
+import 'package:app/data/preferences/preferences.dart';
+import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/storage.dart';
 import 'package:app/routing/adaptive.dart';
+import 'package:app/ui/about/about_page.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
 import 'package:app/ui/chat/chat_page.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/domain/runs/parallel_run.dart';
-import 'package:app/ui/runs/run_page.dart';
-import 'package:app/ui/workspaces/session_shell.dart';
-import 'package:app/ui/workspaces/new_session_page.dart';
-import 'package:app/ui/about/about_page.dart';
-import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
-import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/onboarding/onboarding_page.dart';
 import 'package:app/ui/onboarding/viewmodels/onboarding_viewmodel.dart';
 import 'package:app/ui/pairing/pairing_page.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
-import 'package:app/ui/settings/settings_page.dart';
-import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
+import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/session_files/session_files_page.dart';
 import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
-import 'package:flutter/material.dart';
+import 'package:app/ui/settings/settings_page.dart';
+import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
+import 'package:app/ui/workspaces/new_session_page.dart';
+import 'package:app/ui/workspaces/session_shell.dart';
+import 'package:app/ui/workspaces/states/new_session_state.dart';
+import 'package:app/ui/workspaces/viewmodels/new_session_viewmodel.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -256,8 +257,11 @@ GoRouter buildRouter(
                 MultiProvider(
                   providers: [
                     ChangeNotifierProvider<SessionController>(
-                      create: (_) =>
-                          SessionController(host, selection.sessionId),
+                      create: (_) => SessionController(
+                        host,
+                        selection.sessionId,
+                        shared: ctx.read<SharedDraft?>(),
+                      ),
                     ),
                     ViewmodelProvider<VoiceInputViewModel>(),
                     ViewmodelProvider<AttachmentViewModel>(),
