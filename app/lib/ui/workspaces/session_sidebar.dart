@@ -182,9 +182,11 @@ class _SessionSidebarState extends State<SessionSidebar> {
     final selection = context.watch<SessionSelection>();
     final workspaces = vm.workspaces;
     final query = _query.trim().toLowerCase();
-    final items = vm.workspaceItems
-        .where((item) => vm.displayNameOf(item).toLowerCase().contains(query))
-        .toList();
+    final items = vm.pinnedFirst(
+      vm.workspaceItems.where(
+        (item) => vm.displayNameOf(item).toLowerCase().contains(query),
+      ),
+    );
     return BayaSurface(
       radius: widget.close == null ? 0 : 28,
       elevated: false,

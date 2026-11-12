@@ -52,6 +52,8 @@ end-to-end encrypted.
 - **Quick replies**: once the agent answers, what you send most (or
   "Continue", "Run the tests") waits over the composer: tap to send, hold
   to edit first. Learned on the phone, never uploaded.
+- **Pin sessions**: hold any session (or use its ⋯) to pin it; pinned
+  ones lead the overview and the session list, on this phone only.
 - **Find in a chat**: search a long session from the ⋯ menu; step through
   the hits and each one is scrolled to and marked. In `baya attach`, ↑
   brings back earlier prompts of the session, the phone's included.

@@ -345,5 +345,29 @@ void main() {
       p.dispose();
       reloaded.dispose();
     });
+
+    test('pinned sessions stay pinned, the latest pin first', () async {
+      final store = _FakeSecureStorage();
+      final p = Preferences(store);
+      await p.load();
+      p
+        ..setPinned('aGVsbG8=', 's1', pinned: true)
+        ..setPinned('aGVsbG8=', 's2', pinned: true);
+      expect(p.isPinned('aGVsbG8=', 's1'), isTrue);
+      expect(p.pinRank('aGVsbG8=', 's2'), 0);
+      expect(p.pinRank('aGVsbG8=', 's1'), 1);
+      expect(p.pinRank('aGVsbG8=', 's3'), isNull);
+      // The same computer however its key is written.
+      expect(p.isPinned('aGVsbG8', 's1'), isTrue);
+
+      p.setPinned('aGVsbG8=', 's1', pinned: false);
+      await Future<void>.delayed(Duration.zero);
+      final reloaded = Preferences(store);
+      await reloaded.load();
+      expect(reloaded.isPinned('aGVsbG8=', 's1'), isFalse);
+      expect(reloaded.isPinned('aGVsbG8=', 's2'), isTrue);
+      p.dispose();
+      reloaded.dispose();
+    });
   });
 }

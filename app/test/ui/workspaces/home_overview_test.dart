@@ -178,4 +178,72 @@ void main() {
     hosts.dispose();
     prefs.dispose();
   });
+
+  testWidgets('holding a session pins it above the recent ones', (
+    tester,
+  ) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    final prefs = Preferences();
+    await prefs.load();
+    final peer = testPeer();
+    final storage = MemoryStorage([peer]);
+    final host = FakeHost(
+      sessions: [
+        testSession(
+          id: 'alpha',
+          cwd: '/code/project',
+          title: 'Alpha task',
+          updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+        ),
+        testSession(
+          id: 'beta',
+          cwd: '/code/project',
+          title: 'Beta task',
+          updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 2),
+        ),
+      ],
+    );
+    final hosts = testHosts(storage, host);
+    await hosts.start();
+    final vm = HomeViewModel(hosts, storage, prefs);
+    final selection = SessionSelection();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: vm),
+          ChangeNotifierProvider<Preferences>.value(value: prefs),
+          ChangeNotifierProvider.value(value: selection),
+        ],
+        child: MaterialApp(
+          theme: buildLightTheme(),
+          home: const SessionWelcome(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.longPress(
+      find.byKey(const ValueKey('overview-session-alpha')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('session-action-pin')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PINNED'), findsOneWidget);
+    final alpha = tester.getTopLeft(
+      find.byKey(const ValueKey('overview-session-alpha')),
+    );
+    final beta = tester.getTopLeft(
+      find.byKey(const ValueKey('overview-session-beta')),
+    );
+    expect(alpha.dy, lessThan(beta.dy));
+    expect(prefs.isPinned(peer.remoteEpk, 'alpha'), isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    vm.dispose();
+    hosts.dispose();
+    prefs.dispose();
+    selection.dispose();
+  });
 }

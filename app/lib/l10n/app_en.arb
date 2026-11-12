@@ -1019,5 +1019,8 @@
   "findInChatHint": "Find in this chat",
   "findNoMatches": "None",
   "findOlder": "Earlier match",
-  "findNewer": "Later match"
+  "findNewer": "Later match",
+  "pinSession": "Pin to top",
+  "unpinSession": "Unpin",
+  "pinned": "Pinned"
 }
