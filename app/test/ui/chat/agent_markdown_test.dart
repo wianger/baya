@@ -85,4 +85,34 @@ void main() {
     expect(tester.getSize(find.byType(Table)).width, lessThanOrEqualTo(760));
     expect(tester.takeException(), isNull);
   });
+
+  test('a bare localhost URL becomes a link, outside code', () {
+    expect(
+      linkLocalhost('Open http://localhost:5173/login.'),
+      'Open <http://localhost:5173/login>.',
+    );
+    expect(
+      linkLocalhost('(at http://localhost:3000)'),
+      '(at <http://localhost:3000>)',
+    );
+    // Already a link, or code: as written.
+    const kept = [
+      '<http://localhost:5173>',
+      '[app](http://localhost:5173)',
+      'run `curl http://localhost:8080/health`',
+      '```\ncurl http://localhost:8080\n```',
+      'see https://example.com',
+    ];
+    for (final md in kept) {
+      expect(linkLocalhost(md), md);
+    }
+  });
+
+  testWidgets('GitHub alerts render titled, without their marker', (
+    tester,
+  ) async {
+    await pump(tester, '> [!WARNING]\n> Run the tests first.');
+    expect(find.textContaining('[!WARNING]'), findsNothing);
+    expect(find.textContaining('Run the tests first.'), findsOneWidget);
+  });
 }

@@ -9,7 +9,6 @@ import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/preview/preview_page.dart';
 import 'package:flutter/material.dart';
-import 'package:gpt_markdown/custom_widgets/markdown_config.dart';
 import 'package:gpt_markdown/custom_widgets/unordered_ordered_list.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:provider/provider.dart';
@@ -97,25 +96,69 @@ class AgentMarkdown extends StatelessWidget {
       ),
     );
     final markdown = GptMarkdown(
-      data,
+      linkLocalhost(data),
       style: base,
       onLinkTap: (url, _) => _openLink(context, url),
-      highlightBuilder: (context, text, style) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.selection,
-          borderRadius: BorderRadius.circular(5),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-          child: Text(
-            text,
-            style: typo.mono.copyWith(
-              fontSize: 12.5,
-              height: 1.35,
-              color: colors.accent,
-              letterSpacing: -0.1,
+      // A chip that takes its own room in the line, so the words around
+      // it keep their spaces.
+      inlineCodeBuilder: (context, code, style, codeStyle) =>
+          baselineWidgetSpan(
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.selection,
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 1.5,
+                ),
+                child: Text(
+                  code,
+                  style: typo.mono.copyWith(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: colors.accent,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+              ),
             ),
           ),
+      blockQuoteBuilder: (context, content, style) =>
+          _QuoteCard(edge: colors.accent, child: content),
+      // GitHub's `> [!WARNING]`: the same card, titled, its edge in the
+      // colour of what it says.
+      alertBuilder: (context, alert) => _QuoteCard(
+        edge: switch (alert.type) {
+          MarkdownAlertType.note => colors.accent,
+          MarkdownAlertType.tip => colors.success,
+          MarkdownAlertType.important => colors.working,
+          MarkdownAlertType.warning => colors.warning,
+          MarkdownAlertType.caution => colors.error,
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DefaultTextStyle.merge(
+              style: const TextStyle(fontWeight: FontWeight.w600),
+              child: IconTheme.merge(
+                data: IconThemeData(
+                  size: 16,
+                  color: switch (alert.type) {
+                    MarkdownAlertType.note => colors.accent,
+                    MarkdownAlertType.tip => colors.success,
+                    MarkdownAlertType.important => colors.working,
+                    MarkdownAlertType.warning => colors.warning,
+                    MarkdownAlertType.caution => colors.error,
+                  },
+                ),
+                child: alert.title,
+              ),
+            ),
+            const SizedBox(height: 4),
+            alert.content,
+          ],
         ),
       ),
       // Fenced ``` blocks — dark card + copy button.
@@ -146,12 +189,6 @@ class AgentMarkdown extends StatelessWidget {
       ),
       tableBuilder: (context, rows, style, config) =>
           _MarkdownTable(rows: rows, style: style),
-      components: MarkdownComponent.globalComponents
-          .map<MarkdownComponent>(
-            (component) =>
-                component is BlockQuote ? _QuietBlockQuote() : component,
-          )
-          .toList(growable: false),
     );
     final themed = GptMarkdownTheme(gptThemeData: mdTheme, child: markdown);
     return selectable ? SelectionArea(child: themed) : themed;
@@ -194,60 +231,74 @@ class AgentMarkdown extends StatelessWidget {
   }
 }
 
-class _QuietBlockQuote extends BlockQuote {
-  _QuietBlockQuote();
+final _bareLocal = RegExp(
+  r'(^|\s|(?<!\])\()(https?://(?:localhost|\[::1\])(?::\d+)?(?:[/?#][^\s<>`]*)?)',
+  multiLine: true,
+);
+
+/// GFM links bare URLs only on a domain with a dot, so the agent's
+/// `http://localhost:5173` would stay text: put it in `<>`, outside code.
+@visibleForTesting
+String linkLocalhost(String markdown) {
+  if (!markdown.contains('://localhost') && !markdown.contains('://[::1]')) {
+    return markdown;
+  }
+  final out = StringBuffer();
+  var fence = false;
+  for (final (i, line) in markdown.split('\n').indexed) {
+    if (i > 0) out.write('\n');
+    if (RegExp(r'^\s{0,3}(```|~~~)').hasMatch(line)) fence = !fence;
+    if (fence || line.startsWith('    ')) {
+      out.write(line);
+      continue;
+    }
+    // Odd parts sit between backticks: code, left alone.
+    for (final (j, part) in line.split('`').indexed) {
+      if (j > 0) out.write('`');
+      out.write(
+        j.isOdd
+            ? part
+            : part.replaceAllMapped(_bareLocal, (m) {
+                var url = m[2]!;
+                // Sentence punctuation after a URL is not part of it.
+                final tail = RegExp(r'[.,;:!?)]+$').firstMatch(url)?[0] ?? '';
+                url = url.substring(0, url.length - tail.length);
+                return '${m[1]}<$url>$tail';
+              }),
+      );
+    }
+  }
+  return out.toString();
+}
+
+/// A quote: a quiet card with an edge in [edge], as the transcript's other
+/// surfaces.
+class _QuoteCard extends StatelessWidget {
+  const _QuoteCard({required this.edge, required this.child});
+
+  final Color edge;
+  final Widget child;
 
   @override
-  InlineSpan span(BuildContext context, String text, GptMarkdownConfig config) {
-    final match = exp.firstMatch(text);
-    final lines = <String>[];
-    for (final line in (match?[0] ?? '').split('\n')) {
-      if (line.startsWith(RegExp(r'\s*>'))) {
-        var content = line.trimLeft().substring(1);
-        if (content.startsWith(' ')) content = content.substring(1);
-        lines.add(content);
-      } else {
-        lines.add(line);
-      }
-    }
-    final colors = context.colors;
-    final data = lines.join('\n').trim();
-    final child = TextSpan(
-      children: MarkdownComponent.generate(context, data, config, true),
-    );
-    return TextSpan(
-      children: [
-        WidgetSpan(
-          alignment: PlaceholderAlignment.baseline,
-          baseline: TextBaseline.alphabetic,
-          child: Directionality(
-            textDirection: config.textDirection,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: BayaSurface(
-                role: BayaSurfaceRole.content,
-                radius: 13,
-                elevated: false,
-                emphasized: true,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(13, 10, 13, 10),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      left: BorderSide(
-                        color: colors.accent.withValues(alpha: 0.55),
-                        width: 2.5,
-                      ),
-                    ),
-                  ),
-                  child: config.getRich(child),
-                ),
-              ),
-            ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: BayaSurface(
+      role: BayaSurfaceRole.content,
+      radius: 13,
+      elevated: false,
+      emphasized: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(13, 10, 13, 10),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: edge.withValues(alpha: 0.55), width: 2.5),
           ),
         ),
-      ],
-    );
-  }
+        child: child,
+      ),
+    ),
+  );
 }
 
 class _MarkdownTable extends StatelessWidget {

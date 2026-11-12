@@ -15,6 +15,7 @@ import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons_300.dart';
 
 // InputBar — bottom message composer.
 // - Disabled (grayed) when offline.
@@ -893,11 +894,11 @@ class _ComposerActionButton extends StatelessWidget {
   IconData get _icon {
     switch (_mode) {
       case _ComposerMode.cancel:
-        return LucideIcons.square300;
+        return LucideIcons300.square;
       case _ComposerMode.sendText:
-        return LucideIcons.arrowUp300;
+        return LucideIcons300.arrowUp;
       case _ComposerMode.sendAudio:
-        return LucideIcons.mic300;
+        return LucideIcons300.mic;
     }
   }
 
