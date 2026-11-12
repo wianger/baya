@@ -463,6 +463,13 @@ class ChatPage extends StatelessWidget {
           ? () => _openAttach(context, context.read<AttachmentViewModel>())
           : null,
       drafts: session.drafts,
+      onMention: online
+          ? () async {
+              final before = session.attachedFiles.length;
+              await showFilePickerSheet(context, session);
+              return session.attachedFiles.length > before;
+            }
+          : null,
       onSend: (text) {
         final image = context.read<AttachmentViewModel>().takeImageForSend();
         session.prompt(text, image: image);

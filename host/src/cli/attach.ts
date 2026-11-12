@@ -16,6 +16,7 @@ import { createInterface, emitKeypressEvents } from "node:readline";
 import { isObject, type Json, JsonRpcPeer, type RpcId } from "../acp/jsonrpc.ts";
 import { readControlInfo } from "../control/client.ts";
 import { Editor } from "./editor.ts";
+import { type FileEntry, type Listing, Mentions, mentionAt } from "./mentions.ts";
 import {
   band,
   c,
@@ -430,10 +431,25 @@ export async function attach(query: string | undefined): Promise<void> {
   let thought = "";
   let lastUser: string | null = null;
   const tools = new Map<string, { kind: string; title: string; since: number }>();
+  /** A row of the menu under the input: a command, or a file to mention. */
+  type MenuItem = {
+    label: string;
+    what: string;
+    note: string;
+    /** Tab: puts it in the input. */
+    complete: () => void;
+    /** A command's name, which enter runs; a file is only put in. */
+    command?: string;
+  };
   /** The agent's own slash commands, from `available_commands_update`. */
   let agentCommands: Array<[string, string]> = [];
-  /** The highlighted row of the command menu under the input. */
+  /** The highlighted row of the menu under the input. */
   let commandIndex = 0;
+  const mentions = new Mentions(
+    async (path) =>
+      (await peer.request("_baya/files", { sessionId, ...(path ? { path } : {}) })) as Listing,
+    () => screen.draw(),
+  );
 
   /** A menu waiting for a pick: permission, or the model. */
   let choice: Choice | null = null;
@@ -518,23 +534,26 @@ export async function attach(query: string | undefined): Promise<void> {
     const layout = editor.layout(inside);
     const box = layout.rows.map((row, i) => `${i === 0 ? c.accent("›") : " "} ${row}`);
     if (editor.empty) {
-      box[0] = `${c.accent("›")} ${c.faint(`Message ${agentName}…  / for commands`)}`;
+      box[0] = `${c.accent("›")} ${c.faint(`Message ${agentName}…  / commands · @ files`)}`;
     }
     const top = rows.length;
     rows.push(...frame(box, w, { paint: c.faint }));
 
-    // Commands matching what is typed, under the box, in place of the footer.
-    const menu = commandMenu();
+    // Commands or files matching what is typed, under the box, in place of the footer.
+    const menu = inputMenu();
     if (menu.length) {
-      const pad = Math.max(...menu.map(([name]) => textWidth(name))) + 2;
-      menu.forEach(([name, what, mine], i) => {
+      const pad = Math.max(...menu.map((item) => textWidth(item.label))) + 2;
+      menu.forEach((item, i) => {
         const selected = i === commandIndex % menu.length;
-        const label = name.padEnd(pad);
-        const note = mine ? "" : c.faint(`  ${agentName}`);
+        const label = item.label.padEnd(pad);
+        const note = item.note ? c.faint(`  ${item.note}`) : "";
         rows.push(
-          selected
-            ? ` ${c.accent("❯")} ${c.bold(c.accent(label))}${c.text(what)}${note}`
-            : `   ${c.muted(label)}${c.faint(what)}${note}`,
+          clip(
+            selected
+              ? ` ${c.accent("❯")} ${c.bold(c.accent(label))}${c.text(item.what)}${note}`
+              : `   ${c.muted(label)}${c.faint(item.what)}${note}`,
+            w,
+          ),
         );
       });
       return { rows, caret: { row: top + 1 + layout.row, column: 4 + layout.column } };
@@ -559,18 +578,39 @@ export async function attach(query: string | undefined): Promise<void> {
     return { rows, caret: { row: top + 1 + layout.row, column: 4 + layout.column } };
   };
 
-  /** Commands matching what is typed: [name, what it does, Baya's own]. */
-  const commandMenu = (): Array<[string, string, boolean]> => {
+  /**
+   * What fits what is typed, under the input: the commands a `/` starts, or
+   * the files of the session an `@` starts.
+   */
+  const inputMenu = (): MenuItem[] => {
     const typed = editor.value;
+    const mention = mentionAt(editor.beforeCaret);
+    if (mention !== null) {
+      return (mentions.options(mention) ?? []).map((entry: FileEntry) => ({
+        label: entry.type === "directory" ? `${entry.name}/` : entry.name,
+        what: "",
+        note: "",
+        complete: () => {
+          editor.replaceBefore([...mention].length + 1, mentions.complete(mention, entry));
+        },
+      }));
+    }
     if (!typed.startsWith("/") || typed.includes(" ") || typed.includes("\n")) return [];
     return [
-      ...COMMANDS.map(([n, w]): [string, string, boolean] => [n, w, true]),
+      ...COMMANDS.map(([n, w]) => ({ n, w, note: "" })),
       ...agentCommands
         .filter(([n]) => !COMMANDS.some(([own]) => own === n))
-        .map(([n, w]): [string, string, boolean] => [n, w, false]),
+        .map(([n, w]) => ({ n, w, note: agentName })),
     ]
-      .filter(([n]) => n.startsWith(typed))
-      .slice(0, 8);
+      .filter(({ n }) => n.startsWith(typed))
+      .slice(0, 8)
+      .map(({ n, w, note }) => ({
+        label: n,
+        what: w,
+        note,
+        complete: () => editor.set(`${n} `),
+        command: n,
+      }));
   };
 
   /** Ends the reply line and the thought shown, before something else. */
@@ -1072,6 +1112,7 @@ export async function attach(query: string | undefined): Promise<void> {
             c.bold("Keys"),
             `  ${c.accent("enter".padEnd(8))} ${c.muted("send — the phone sees it too")}`,
             `  ${c.accent("ctrl+j".padEnd(8))} ${c.muted("new line")}`,
+            `  ${c.accent("@".padEnd(8))} ${c.muted("mention a file — tab completes")}`,
             `  ${c.accent("esc".padEnd(8))} ${c.muted("interrupt the agent")}`,
             `  ${c.accent("↑ ↓".padEnd(8))} ${c.muted("earlier messages")}`,
             `  ${c.accent("ctrl+d".padEnd(8))} ${c.muted("leave")}`,
@@ -1112,10 +1153,11 @@ export async function attach(query: string | undefined): Promise<void> {
         );
         return screen.draw();
       }
+      mentions.forget();
       peer
         .request("session/prompt", {
           sessionId,
-          prompt: [{ type: "text", text: trimmed }],
+          prompt: [{ type: "text", text: trimmed }, ...mentions.links(trimmed)],
           _meta: { baya: { messageId: randomUUID() } },
         })
         .then(
@@ -1196,7 +1238,7 @@ export async function attach(query: string | undefined): Promise<void> {
           return screen.draw();
         }
 
-        const menu = commandMenu();
+        const menu = inputMenu();
         if (key.ctrl && name === "c") {
           const now = Date.now();
           if (!editor.empty) editor.take();
@@ -1217,11 +1259,14 @@ export async function attach(query: string | undefined): Promise<void> {
         }
         if ((key.ctrl && name === "j") || (name === "return" && key.meta)) editor.insert("\n");
         else if (name === "return" || name === "enter") {
-          // Enter on a part of a command runs the one highlighted.
-          if (menu.length && !menu.some(([n]) => n === editor.value)) {
-            editor.set(menu[commandIndex % menu.length]![0]);
-          }
+          // Enter on a part of a command runs the one highlighted; on a file, takes it.
+          const item = menu.length ? menu[commandIndex % menu.length]! : null;
           commandIndex = 0;
+          if (item && item.command === undefined) {
+            item.complete();
+            return screen.draw();
+          }
+          if (item && !menu.some((m) => m.command === editor.value)) editor.set(item.command!);
           return send(editor.take());
         } else if (name === "backspace") editor.backspace();
         else if (name === "delete") editor.delete();
@@ -1239,9 +1284,8 @@ export async function attach(query: string | undefined): Promise<void> {
           return screen.draw();
         } else if (name === "up" && editor.onFirstLine) editor.previous();
         else if (name === "down" && editor.onLastLine) editor.next();
-        else if (name === "tab" && menu.length) {
-          editor.set(`${menu[commandIndex % menu.length]![0]} `);
-        } else if (str && !key.ctrl && !key.meta) editor.insert(str);
+        else if (name === "tab" && menu.length) menu[commandIndex % menu.length]!.complete();
+        else if (str && !key.ctrl && !key.meta) editor.insert(str);
         // What is typed changed: the menu starts at its top again.
         commandIndex = 0;
         screen.draw();
