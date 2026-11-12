@@ -722,6 +722,7 @@ export async function attach(query: string | undefined): Promise<void> {
         if (lastUser === id) return;
         settle(`user:${id}`);
         lastUser = id;
+        editor.remember(text);
         if (!replay && !working) {
           working = true;
           turnStarted = Date.now();

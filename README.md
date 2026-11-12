@@ -52,6 +52,9 @@ end-to-end encrypted.
 - **Quick replies**: once the agent answers, what you send most (or
   "Continue", "Run the tests") waits over the composer: tap to send, hold
   to edit first. Learned on the phone, never uploaded.
+- **Find in a chat**: search a long session from the ⋯ menu; step through
+  the hits and each one is scrolled to and marked. In `baya attach`, ↑
+  brings back earlier prompts of the session, the phone's included.
 - **Mention files**: type `@` in the composer or in `baya attach` to pick
   files of the session (tab completes the path in the terminal); they go
   with the message as links the agent opens.

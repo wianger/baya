@@ -2,6 +2,8 @@
 /// the scrolling message list.
 library;
 
+import 'dart:math' as math;
+
 import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/hold_in_place.dart';
@@ -217,12 +219,16 @@ class ChatMessageList extends StatefulWidget {
   /// Puts a sent message back in the composer; null hides the edit button.
   final ValueChanged<UserMsg>? onEdit;
 
+  /// The message a search shows: scrolled to and outlined.
+  final String? focus;
+
   const ChatMessageList({
     super.key,
     required this.messages,
     required this.working,
     this.live = true,
     this.onEdit,
+    this.focus,
   });
 
   @override
@@ -245,6 +251,52 @@ class _ChatMessageListState extends State<ChatMessageList> {
     super.initState();
     _controller.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _onScroll());
+  }
+
+  @override
+  void didUpdateWidget(ChatMessageList old) {
+    super.didUpdateWidget(old);
+    if (widget.focus case final focus? when focus != old.focus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _reveal(focus));
+    }
+  }
+
+  /// Rows on screen (or in the cache extent) now, by [_rowKey].
+  final _mounted = <Object, BuildContext>{};
+  int _revealing = 0;
+
+  /// Scrolls [id]'s row into the middle of the screen. Rows off screen are
+  /// not built, so this pages toward it until it is, then settles on it.
+  Future<void> _reveal(Object id) async {
+    final ticket = ++_revealing;
+    for (var tries = 0; tries < 60; tries++) {
+      if (!mounted || ticket != _revealing || !_controller.hasClients) return;
+      final target = _rowIndex[id];
+      if (target == null) return;
+      final row = _mounted[id];
+      if (row != null && row.mounted) {
+        await Scrollable.ensureVisible(
+          row,
+          alignment: .5,
+          duration: BayaMotion.scroll,
+          curve: BayaMotion.enter,
+        );
+        return;
+      }
+      // `reverse: true`: further back in time is further down the list.
+      final shown = [for (final key in _mounted.keys) ?_rowIndex[key]];
+      if (shown.isEmpty) return;
+      final older = target < shown.reduce(math.min);
+      final position = _controller.position;
+      final step = position.viewportDimension * .9;
+      final to = (position.pixels + (older ? step : -step)).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      if (to == position.pixels) return;
+      _controller.jumpTo(to);
+      await WidgetsBinding.instance.endOfFrame;
+    }
   }
 
   void _onScroll() {
@@ -463,14 +515,19 @@ class _ChatMessageListState extends State<ChatMessageList> {
                   // opened thinking block or tool card to another row.
                   Widget constrain(Widget child) => KeyedSubtree(
                     key: ValueKey<Object>(('row', rowId)),
-                    child: HoldInPlace(
-                      child: RevealGate(
-                        animate: fresh,
-                        child: Align(
-                          alignment: Alignment.topCenter,
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 760),
-                            child: child,
+                    child: _Row(
+                      id: rowId,
+                      rows: _mounted,
+                      found: rowId == widget.focus,
+                      child: HoldInPlace(
+                        child: RevealGate(
+                          animate: fresh,
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 760),
+                              child: child,
+                            ),
                           ),
                         ),
                       ),
@@ -615,5 +672,83 @@ class _ChatMessageListState extends State<ChatMessageList> {
       ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
+  }
+}
+
+/// A row of the list: known to [rows] while it is built, so a search can
+/// find it, and outlined while it is the hit shown.
+class _Row extends StatefulWidget {
+  const _Row({
+    required this.id,
+    required this.rows,
+    required this.found,
+    required this.child,
+  });
+
+  final Object id;
+  final Map<Object, BuildContext> rows;
+  final bool found;
+  final Widget child;
+
+  @override
+  State<_Row> createState() => _RowState();
+}
+
+class _RowState extends State<_Row> {
+  @override
+  void initState() {
+    super.initState();
+    widget.rows[widget.id] = context;
+  }
+
+  @override
+  void didUpdateWidget(_Row old) {
+    super.didUpdateWidget(old);
+    if (old.id != widget.id && identical(old.rows[old.id], context)) {
+      old.rows.remove(old.id);
+    }
+    widget.rows[widget.id] = context;
+  }
+
+  @override
+  void dispose() {
+    if (identical(widget.rows[widget.id], context)) {
+      widget.rows.remove(widget.id);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = context.colors.accent;
+    // A soft band a little larger than the row, behind it, so the bubble
+    // itself stays as it is.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: -8,
+          right: -8,
+          top: -8,
+          bottom: -8,
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: widget.found ? 1 : 0,
+              duration: BayaMotion.standard,
+              curve: BayaMotion.enter,
+              child: DecoratedBox(
+                key: widget.found ? const Key('chat-find-hit') : null,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: .08),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: accent.withValues(alpha: .3)),
+                ),
+              ),
+            ),
+          ),
+        ),
+        widget.child,
+      ],
+    );
   }
 }
