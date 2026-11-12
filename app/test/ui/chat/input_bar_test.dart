@@ -6,7 +6,7 @@ import 'package:app/ui/chat/widgets/input_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons_300.dart';
 
 void main() {
   Future<void> pumpBar(
@@ -244,9 +244,9 @@ void main() {
     expect(field.decoration?.hintText, 'Queue a follow-up…');
     // The composer action button uses the lighter `300` weight variants
     // (see _ComposerActionButton._icon) — match those, not the plain glyphs.
-    expect(find.byIcon(LucideIcons.square300), findsOneWidget); // stop
-    expect(find.byIcon(LucideIcons.arrowUp300), findsNothing);
-    expect(find.byIcon(LucideIcons.mic300), findsNothing);
+    expect(find.byIcon(LucideIcons300.square), findsOneWidget); // stop
+    expect(find.byIcon(LucideIcons300.arrowUp), findsNothing);
+    expect(find.byIcon(LucideIcons300.mic), findsNothing);
   });
 
   testWidgets('streaming + text sends a follow-up with the send button', (
@@ -294,7 +294,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'quick follow-up');
     await tester.pump();
-    expect(find.byIcon(LucideIcons.arrowUp300), findsOneWidget);
+    expect(find.byIcon(LucideIcons300.arrowUp), findsOneWidget);
     expect(
       find.byKey(const Key('input-bar-inline-stop')),
       findsOneWidget,

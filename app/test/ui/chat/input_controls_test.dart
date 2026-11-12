@@ -1,7 +1,7 @@
 import 'package:app/ui/chat/widgets/input_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons_300.dart';
 
 void main() {
   testWidgets('send arrow is always visible and distinct from voice input', (
@@ -15,8 +15,8 @@ void main() {
         ),
       ),
     );
-    expect(find.byIcon(LucideIcons.arrowUp300), findsOneWidget);
-    expect(find.byIcon(LucideIcons.mic300), findsOneWidget);
+    expect(find.byIcon(LucideIcons300.arrowUp), findsOneWidget);
+    expect(find.byIcon(LucideIcons300.mic), findsOneWidget);
     await tester.tap(find.byKey(const Key('input-bar-action')));
     await tester.pumpAndSettle();
     expect(sent, isEmpty);
@@ -29,6 +29,6 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).controller!.text,
       isEmpty,
     );
-    expect(find.byIcon(LucideIcons.arrowUp300), findsOneWidget);
+    expect(find.byIcon(LucideIcons300.arrowUp), findsOneWidget);
   });
 }
