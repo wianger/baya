@@ -130,7 +130,11 @@ void main() {
       find.byKey(const ValueKey(r'session-file-C:\code\remote_pi\README.md')),
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('session-file-content')), findsOneWidget);
+    // Markdown shows rendered.
+    expect(
+      find.textContaining('Preview text files', findRichText: true),
+      findsWidgets,
+    );
     await _save(tester, key, '$output/session-file-preview.png');
     await tester.pumpWidget(const SizedBox.shrink());
     vm.dispose();

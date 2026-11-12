@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agents_live_channel">Agents at work</string>
+    <string name="agents_live_channel_about">While an agent works on one of your computers</string>
+    <string name="agents_alert_channel">Agent finished or waiting</string>
+    <string name="agents_alert_channel_about">An agent finished, or needs your approval or an answer</string>
+</resources>

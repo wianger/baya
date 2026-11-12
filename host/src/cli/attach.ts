@@ -16,6 +16,7 @@ import { createInterface, emitKeypressEvents } from "node:readline";
 import { isObject, type Json, JsonRpcPeer, type RpcId } from "../acp/jsonrpc.ts";
 import { readControlInfo } from "../control/client.ts";
 import { Editor } from "./editor.ts";
+import { type FileEntry, type Listing, Mentions, mentionAt } from "./mentions.ts";
 import {
   band,
   c,
@@ -27,9 +28,12 @@ import {
   MarkdownLines,
   meter,
   shimmer,
+  TaskbarState,
+  taskbar,
   textWidth,
   wrap,
 } from "./tui.ts";
+import { duration } from "./ui.ts";
 
 const ESC = "\x1b[";
 // Geometric shapes, which every terminal font has (braille is not a given).
@@ -70,6 +74,91 @@ export function pickSession(sessions: SessionInfo[], query: string | undefined):
   );
   if (matches.length === 0) throw new Error(`No session matches "${query}". See: baya status`);
   return matches[0]!;
+}
+
+/** The sessions offered when none is named: the most recent ones. */
+const PICKER_ROWS = 9;
+
+/** The picker's rows, [index] highlighted, each within [w] columns. */
+export function pickerRows(
+  sessions: SessionInfo[],
+  index: number,
+  w: number,
+  now = Date.now(),
+): string[] {
+  return sessions.map((s, i) => {
+    const selected = i === index;
+    const mark = s.working ? c.accent("◐") : c.faint("○");
+    const title = s.title || s.agentName || s.sessionId.slice(0, 8);
+    const when = Date.parse(s.updatedAt);
+    const about = [
+      s.agentName,
+      folder(s.cwd).split(/[/\\]/u).filter(Boolean).pop() ?? "",
+      s.working
+        ? "working"
+        : Number.isNaN(when)
+          ? ""
+          : now - when < 60_000
+            ? "just now"
+            : `${duration(now - when)} ago`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const head = `${selected ? c.accent("❯") : " "} ${c.faint(`${i + 1}`)} ${mark} `;
+    const room = Math.max(8, w - textWidth(head) - 1);
+    const name = clip(title, Math.max(8, room - textWidth(about) - 2));
+    const rest = clip(about, Math.max(0, room - textWidth(name) - 2));
+    return `${head}${selected ? c.bold(name) : name}  ${c.faint(rest)}`;
+  });
+}
+
+/** Asks which session to join, with arrows or its number; null to leave. */
+async function chooseSession(sessions: SessionInfo[]): Promise<SessionInfo | null> {
+  const shown = [...sessions]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, PICKER_ROWS);
+  if (shown.length <= 1) return shown[0] ?? null;
+  let index = 0;
+  const out = process.stdout;
+  out.write(
+    `\n  ${c.bold("Which session?")}  ${c.faint("↑↓ choose · enter joins · esc leaves")}\n\n`,
+  );
+  const draw = (again: boolean) => {
+    const rows = pickerRows(shown, index, out.columns || 80);
+    if (again) out.write(`${ESC}${rows.length}A`);
+    for (const row of rows) out.write(`${ESC}2K\r${row}\n`);
+  };
+  out.write(`${ESC}?25l`);
+  draw(false);
+  emitKeypressEvents(process.stdin);
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+  return new Promise((resolve) => {
+    const done = (picked: SessionInfo | null) => {
+      process.stdin.off("keypress", onKey);
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+      // The question goes once answered: the session takes its place.
+      out.write(`${ESC}${shown.length + 3}A\r${ESC}0J${ESC}?25h`);
+      resolve(picked);
+    };
+    const onKey = (text: string | undefined, key: { name?: string; ctrl?: boolean } = {}) => {
+      if (key.name === "up" || key.name === "k") index = (index + shown.length - 1) % shown.length;
+      else if (key.name === "down" || key.name === "j") index = (index + 1) % shown.length;
+      else if (key.name === "return") return done(shown[index]!);
+      else if (
+        key.name === "escape" ||
+        key.name === "q" ||
+        (key.ctrl && (key.name === "c" || key.name === "d"))
+      ) {
+        return done(null);
+      } else if (text && /^[1-9]$/u.test(text) && Number(text) <= shown.length) {
+        return done(shown[Number(text) - 1]!);
+      } else return;
+      draw(true);
+    };
+    process.stdin.on("keypress", onKey);
+  });
 }
 
 // ── the socket ───────────────────────────────────────────────────────────────
@@ -342,10 +431,25 @@ export async function attach(query: string | undefined): Promise<void> {
   let thought = "";
   let lastUser: string | null = null;
   const tools = new Map<string, { kind: string; title: string; since: number }>();
+  /** A row of the menu under the input: a command, or a file to mention. */
+  type MenuItem = {
+    label: string;
+    what: string;
+    note: string;
+    /** Tab: puts it in the input. */
+    complete: () => void;
+    /** A command's name, which enter runs; a file is only put in. */
+    command?: string;
+  };
   /** The agent's own slash commands, from `available_commands_update`. */
   let agentCommands: Array<[string, string]> = [];
-  /** The highlighted row of the command menu under the input. */
+  /** The highlighted row of the menu under the input. */
   let commandIndex = 0;
+  const mentions = new Mentions(
+    async (path) =>
+      (await peer.request("_baya/files", { sessionId, ...(path ? { path } : {}) })) as Listing,
+    () => screen.draw(),
+  );
 
   /** A menu waiting for a pick: permission, or the model. */
   let choice: Choice | null = null;
@@ -430,23 +534,26 @@ export async function attach(query: string | undefined): Promise<void> {
     const layout = editor.layout(inside);
     const box = layout.rows.map((row, i) => `${i === 0 ? c.accent("›") : " "} ${row}`);
     if (editor.empty) {
-      box[0] = `${c.accent("›")} ${c.faint(`Message ${agentName}…  / for commands`)}`;
+      box[0] = `${c.accent("›")} ${c.faint(`Message ${agentName}…  / commands · @ files`)}`;
     }
     const top = rows.length;
     rows.push(...frame(box, w, { paint: c.faint }));
 
-    // Commands matching what is typed, under the box, in place of the footer.
-    const menu = commandMenu();
+    // Commands or files matching what is typed, under the box, in place of the footer.
+    const menu = inputMenu();
     if (menu.length) {
-      const pad = Math.max(...menu.map(([name]) => textWidth(name))) + 2;
-      menu.forEach(([name, what, mine], i) => {
+      const pad = Math.max(...menu.map((item) => textWidth(item.label))) + 2;
+      menu.forEach((item, i) => {
         const selected = i === commandIndex % menu.length;
-        const label = name.padEnd(pad);
-        const note = mine ? "" : c.faint(`  ${agentName}`);
+        const label = item.label.padEnd(pad);
+        const note = item.note ? c.faint(`  ${item.note}`) : "";
         rows.push(
-          selected
-            ? ` ${c.accent("❯")} ${c.bold(c.accent(label))}${c.text(what)}${note}`
-            : `   ${c.muted(label)}${c.faint(what)}${note}`,
+          clip(
+            selected
+              ? ` ${c.accent("❯")} ${c.bold(c.accent(label))}${c.text(item.what)}${note}`
+              : `   ${c.muted(label)}${c.faint(item.what)}${note}`,
+            w,
+          ),
         );
       });
       return { rows, caret: { row: top + 1 + layout.row, column: 4 + layout.column } };
@@ -471,18 +578,39 @@ export async function attach(query: string | undefined): Promise<void> {
     return { rows, caret: { row: top + 1 + layout.row, column: 4 + layout.column } };
   };
 
-  /** Commands matching what is typed: [name, what it does, Baya's own]. */
-  const commandMenu = (): Array<[string, string, boolean]> => {
+  /**
+   * What fits what is typed, under the input: the commands a `/` starts, or
+   * the files of the session an `@` starts.
+   */
+  const inputMenu = (): MenuItem[] => {
     const typed = editor.value;
+    const mention = mentionAt(editor.beforeCaret);
+    if (mention !== null) {
+      return (mentions.options(mention) ?? []).map((entry: FileEntry) => ({
+        label: entry.type === "directory" ? `${entry.name}/` : entry.name,
+        what: "",
+        note: "",
+        complete: () => {
+          editor.replaceBefore([...mention].length + 1, mentions.complete(mention, entry));
+        },
+      }));
+    }
     if (!typed.startsWith("/") || typed.includes(" ") || typed.includes("\n")) return [];
     return [
-      ...COMMANDS.map(([n, w]): [string, string, boolean] => [n, w, true]),
+      ...COMMANDS.map(([n, w]) => ({ n, w, note: "" })),
       ...agentCommands
         .filter(([n]) => !COMMANDS.some(([own]) => own === n))
-        .map(([n, w]): [string, string, boolean] => [n, w, false]),
+        .map(([n, w]) => ({ n, w, note: agentName })),
     ]
-      .filter(([n]) => n.startsWith(typed))
-      .slice(0, 8);
+      .filter(({ n }) => n.startsWith(typed))
+      .slice(0, 8)
+      .map(({ n, w, note }) => ({
+        label: n,
+        what: w,
+        note,
+        complete: () => editor.set(`${n} `),
+        command: n,
+      }));
   };
 
   /** Ends the reply line and the thought shown, before something else. */
@@ -832,14 +960,32 @@ export async function attach(query: string | undefined): Promise<void> {
     clientInfo: { name: "baya-attach", title: "Baya terminal" },
   });
   const listed = await peer.request<{ sessions?: Json[] }>("session/list", {});
-  const session = pickSession((listed.sessions ?? []).map(sessionInfo), query);
+  const sessions = (listed.sessions ?? []).map(sessionInfo);
+  // Nothing named and a person at the terminal: let them choose.
+  const chosen =
+    !query && isTty() && process.stdin.isTTY && sessions.length > 1
+      ? await chooseSession(sessions)
+      : pickSession(sessions, query);
+  if (!chosen) {
+    socket.destroy();
+    return;
+  }
+  const session = chosen;
   sessionId = session.sessionId;
   agentName = session.agentName || "Agent";
-  const loaded = await peer.request<Json>("session/load", {
-    sessionId,
-    cwd: session.cwd,
-    mcpServers: [],
-  });
+  let loaded: Json;
+  try {
+    loaded = await peer.request<Json>("session/load", {
+      sessionId,
+      cwd: session.cwd,
+      mcpServers: [],
+    });
+  } catch (error) {
+    // Leave the terminal as it was before saying why.
+    screen.close();
+    socket.destroy();
+    throw error;
+  }
   replaying = false;
   config = configOptions(loaded["configOptions"]);
   settle(null);
@@ -864,8 +1010,24 @@ export async function attach(query: string | undefined): Promise<void> {
   working = session.working;
   if (working) turnStarted = Date.now();
 
+  // The terminal's tab and taskbar show the turn (OSC 9;4: Windows Terminal,
+  // Ghostty, WezTerm, iTerm2; others ignore it): busy while the agent works,
+  // paused with a bell while it waits for an answer.
+  let shown: TaskbarState = TaskbarState.None;
+  const showTurn = () => {
+    const state =
+      choice?.title === "Permission"
+        ? TaskbarState.Waiting
+        : working
+          ? TaskbarState.Busy
+          : TaskbarState.None;
+    if (state === shown || !isTty()) return;
+    shown = state;
+    process.stdout.write(taskbar(state));
+  };
   const ticker = setInterval(() => {
     frameNo++;
+    showTurn();
     if (working || tools.size) screen.draw();
   }, 80);
   const resize = () => screen.draw();
@@ -878,6 +1040,7 @@ export async function attach(query: string | undefined): Promise<void> {
       if (closed) return;
       closed = true;
       clearInterval(ticker);
+      if (shown !== TaskbarState.None && isTty()) process.stdout.write(taskbar(TaskbarState.None));
       process.stdout.off("resize", resize);
       settle(null);
       screen.close();
@@ -949,6 +1112,7 @@ export async function attach(query: string | undefined): Promise<void> {
             c.bold("Keys"),
             `  ${c.accent("enter".padEnd(8))} ${c.muted("send — the phone sees it too")}`,
             `  ${c.accent("ctrl+j".padEnd(8))} ${c.muted("new line")}`,
+            `  ${c.accent("@".padEnd(8))} ${c.muted("mention a file — tab completes")}`,
             `  ${c.accent("esc".padEnd(8))} ${c.muted("interrupt the agent")}`,
             `  ${c.accent("↑ ↓".padEnd(8))} ${c.muted("earlier messages")}`,
             `  ${c.accent("ctrl+d".padEnd(8))} ${c.muted("leave")}`,
@@ -989,10 +1153,11 @@ export async function attach(query: string | undefined): Promise<void> {
         );
         return screen.draw();
       }
+      mentions.forget();
       peer
         .request("session/prompt", {
           sessionId,
-          prompt: [{ type: "text", text: trimmed }],
+          prompt: [{ type: "text", text: trimmed }, ...mentions.links(trimmed)],
           _meta: { baya: { messageId: randomUUID() } },
         })
         .then(
@@ -1073,7 +1238,7 @@ export async function attach(query: string | undefined): Promise<void> {
           return screen.draw();
         }
 
-        const menu = commandMenu();
+        const menu = inputMenu();
         if (key.ctrl && name === "c") {
           const now = Date.now();
           if (!editor.empty) editor.take();
@@ -1094,11 +1259,14 @@ export async function attach(query: string | undefined): Promise<void> {
         }
         if ((key.ctrl && name === "j") || (name === "return" && key.meta)) editor.insert("\n");
         else if (name === "return" || name === "enter") {
-          // Enter on a part of a command runs the one highlighted.
-          if (menu.length && !menu.some(([n]) => n === editor.value)) {
-            editor.set(menu[commandIndex % menu.length]![0]);
-          }
+          // Enter on a part of a command runs the one highlighted; on a file, takes it.
+          const item = menu.length ? menu[commandIndex % menu.length]! : null;
           commandIndex = 0;
+          if (item && item.command === undefined) {
+            item.complete();
+            return screen.draw();
+          }
+          if (item && !menu.some((m) => m.command === editor.value)) editor.set(item.command!);
           return send(editor.take());
         } else if (name === "backspace") editor.backspace();
         else if (name === "delete") editor.delete();
@@ -1116,9 +1284,8 @@ export async function attach(query: string | undefined): Promise<void> {
           return screen.draw();
         } else if (name === "up" && editor.onFirstLine) editor.previous();
         else if (name === "down" && editor.onLastLine) editor.next();
-        else if (name === "tab" && menu.length) {
-          editor.set(`${menu[commandIndex % menu.length]![0]} `);
-        } else if (str && !key.ctrl && !key.meta) editor.insert(str);
+        else if (name === "tab" && menu.length) menu[commandIndex % menu.length]!.complete();
+        else if (str && !key.ctrl && !key.meta) editor.insert(str);
         // What is typed changed: the menu starts at its top again.
         commandIndex = 0;
         screen.draw();

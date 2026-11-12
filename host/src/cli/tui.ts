@@ -49,6 +49,15 @@ function bgCode(rgb: Rgb): string {
  * [text] on a soft band of colour to the edge of [width]: how a sent
  * message stands apart from the replies.
  */
+/** What the terminal's tab and taskbar show for a turn (OSC 9;4). */
+export const TaskbarState = { None: 0, Busy: 3, Waiting: 4 } as const;
+export type TaskbarState = (typeof TaskbarState)[keyof typeof TaskbarState];
+
+/** Sets the tab and taskbar progress; waiting also rings the bell. */
+export function taskbar(state: TaskbarState): string {
+  return `\x1b]9;4;${state};0\x07${state === TaskbarState.Waiting ? "\x07" : ""}`;
+}
+
 export function band(text: string, width: number): string {
   if (!isTty()) return text;
   const tone: Rgb = lightTerminal() ? [236, 236, 241] : [38, 38, 46];

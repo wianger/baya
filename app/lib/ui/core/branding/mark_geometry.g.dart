@@ -15,8 +15,9 @@ const kMarkLines = [
   'M40.6 66.2L27.6 75.6',
 ];
 const kMarkEye = (71.5, 40.2, 2.5, 1.3);
-const kMarkWingEdge = 1.5;
-const kMarkLineWidth = 1.3;
+const kMarkWingEdge = 1.9;
+const kMarkLineWidth = 1.8;
 const kMarkCenter = (56.0, 53.5);
 const kMarkScale = 1.12;
 const kMarkTile = (0xFFFAFAFA, 0xFFE6E6E6);
+const kMarkGold = 0xFFF2B33D;

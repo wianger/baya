@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 const kAppName = 'Baya';
 
 /// A perched baya weaver, drawn as magpie draws its icon: one ink
-/// silhouette with white cut in for the crown, breast, wing and tail. The
+/// silhouette with white cut in for the breast, wing and tail, and the
+/// weaver's golden crown. The
 /// paths come from branding/generate.py (108-unit grid).
 ///
 /// [tile] draws it on its grey tile, as on the launcher; without one the
@@ -67,7 +68,7 @@ class AppMarkPainter extends CustomPainter {
   final bool tile;
   final Color ink;
 
-  /// The white of the drawing: crown, breast, feather lines.
+  /// The white of the drawing: breast, feather lines, eye.
   final Color paper;
 
   static final _body = _parse(kMarkBody);
@@ -109,7 +110,7 @@ class AppMarkPainter extends CustomPainter {
     canvas
       ..drawPath(_body, fill)
       ..drawPath(_breast, white)
-      ..drawPath(_crown, white)
+      ..drawPath(_crown, Paint()..color = const Color(kMarkGold))
       ..drawPath(_wing, fill)
       ..drawPath(_wing, edge..strokeWidth = kMarkWingEdge);
     edge.strokeWidth = kMarkLineWidth;

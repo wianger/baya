@@ -1,3 +1,4 @@
+import 'package:app/data/preferences/preferences.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_group.dart';
@@ -6,9 +7,11 @@ import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:provider/provider.dart';
 
 /// One session wherever sessions are listed: title, then agent, folder and
-/// how long ago, with a dot for its state. [highlighted] marks the open one;
+/// how long ago, with a dot when the agent did something not yet seen
+/// here (or the computer is away). [highlighted] marks the open one;
 /// [onMore] adds the ⋯ that opens the session sheet.
 class SessionRow extends StatelessWidget {
   const SessionRow({
@@ -31,6 +34,13 @@ class SessionRow extends StatelessWidget {
     final colors = context.colors;
     final working = vm.isRoomWorking(item.peer.remoteEpk, item.sessionId);
     final online = vm.isRoomLive(item.peer.remoteEpk, item.sessionId);
+    final unread =
+        !working &&
+        (context.watch<Preferences?>()?.isUnread(
+              item.peer.remoteEpk,
+              item.session,
+            ) ??
+            false);
     final folder = item.session.cwd
         .split(RegExp(r'[/\\]'))
         .lastWhere((part) => part.isNotEmpty, orElse: () => item.session.cwd);
@@ -48,21 +58,28 @@ class SessionRow extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: EdgeInsets.only(left: 10, right: onMore == null ? 6 : 0),
-            child: Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: working
-                    ? colors.working
-                    : online
-                    ? colors.success
-                    : colors.muted.withValues(alpha: .5),
-                shape: BoxShape.circle,
+          // Working spins its icon; the dot says what is new, or that the
+          // computer is away.
+          if (unread || !online)
+            Padding(
+              padding: EdgeInsets.only(left: 10, right: onMore == null ? 6 : 0),
+              child: Semantics(
+                label: unread
+                    ? context.l10n.unread
+                    : context.l10n.statusOffline,
+                child: Container(
+                  key: unread ? const Key('session-unread') : null,
+                  width: unread ? 8 : 7,
+                  height: unread ? 8 : 7,
+                  decoration: BoxDecoration(
+                    color: unread
+                        ? colors.accent
+                        : colors.muted.withValues(alpha: .5),
+                    shape: BoxShape.circle,
+                  ),
+                ),
               ),
             ),
-          ),
           if (onMore != null)
             IconButton(
               key: ValueKey(

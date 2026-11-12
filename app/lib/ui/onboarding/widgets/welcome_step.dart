@@ -36,7 +36,7 @@ class WelcomeStep extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  context.l10n.welcomeTagline,
+                  context.l10n.aboutTagline,
                   textAlign: TextAlign.center,
                   style: context.typo.sansBody.copyWith(
                     fontSize: 16,

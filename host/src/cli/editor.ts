@@ -82,6 +82,19 @@ export class Editor {
     this.at = from;
   }
 
+  /** What is typed before the caret, on every line. */
+  get beforeCaret(): string {
+    return this.chars.slice(0, this.at).join("");
+  }
+
+  /** Puts [text] in place of the [count] characters before the caret. */
+  replaceBefore(count: number, text: string): void {
+    const from = Math.max(0, this.at - count);
+    const added = [...text];
+    this.chars.splice(from, this.at - from, ...added);
+    this.at = from + added.length;
+  }
+
   /** Whether the caret is on the first (or last) line, where ↑ (↓) leaves it. */
   get onFirstLine(): boolean {
     return !this.chars.slice(0, this.at).includes("\n");

@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:app/acp/acp.dart';
 import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/hosts/host_connection.dart';
+import 'package:app/data/launcher/launcher.dart';
 import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/domain/transcript.dart';
@@ -16,7 +17,9 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 
 class SessionController extends ChangeNotifier {
-  SessionController(this.host, this.sessionId) {
+  /// `shared` is text shared from another app, for the composer of the
+  /// first session opened after it.
+  SessionController(this.host, this.sessionId, {this._shared}) {
     _updates = host.updates.listen(_onUpdate);
     _questions = host.questions.listen((_) => _syncPermissions());
     _terminals = host.terminals.listen((event) {
@@ -115,6 +118,8 @@ class SessionController extends ChangeNotifier {
     _files = _files.where((f) => f.uri != file.uri).toList();
     _changed();
   }
+
+  final SharedDraft? _shared;
 
   final _drafts = StreamController<UserMsg>.broadcast();
 
@@ -434,7 +439,10 @@ class SessionController extends ChangeNotifier {
       _config = _setup.configOptions;
       _modes = _setup.modes;
       _loaded = true;
-      final waiting = _handoff.remove('${host.key}/$sessionId');
+      final shared = _shared?.take();
+      final waiting =
+          _handoff.remove('${host.key}/$sessionId') ??
+          (shared == null ? null : UserMsg(id: 'shared', text: shared));
       if (waiting != null) scheduleMicrotask(() => editAgain(waiting));
     } catch (error) {
       _error = _describe(error);

@@ -517,6 +517,12 @@ export class HostedSession {
       );
     } finally {
       this.current = null;
+      // Last activity is when the agent stopped: phones show the session as
+      // unread until they open it after this.
+      this.record = updateSession(this.id, { updatedAt: Date.now() }) ?? {
+        ...this.record,
+        updatedAt: Date.now(),
+      };
       this.events.changed(this);
       this.scheduleIdleStop();
       void this.drain();

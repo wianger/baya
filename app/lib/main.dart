@@ -1,9 +1,13 @@
 import 'dart:async';
 
 import 'package:app/config/dependencies.dart';
+import 'package:app/data/agents/agent_notifier.dart';
 import 'package:app/data/device/device_name.dart';
 import 'package:app/data/hosts/hosts.dart';
+import 'package:app/data/launcher/launcher.dart';
 import 'package:app/data/preferences/preferences.dart';
+import 'package:app/data/transport/epk_encoding.dart';
+import 'package:app/domain/value_objects/workspace.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/routing/adaptive.dart';
@@ -56,6 +60,76 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
     _links = AppLinks().uriLinkStream.listen(_openLink);
     _updates.addListener(_onUpdate);
     _router.routerDelegate.addListener(_checkWhenSettled);
+    services.agentWatch.start();
+    _opened = services.agentNotifier.opened.listen(_openSession);
+    unawaited(
+      services.agentNotifier.takeLaunch().then((ref) {
+        if (ref != null) _openSession(ref);
+      }),
+    );
+    services.shortcuts.start();
+    _shared = services.launcher.shared.listen(_receive);
+    unawaited(
+      services.launcher.takeLaunchText().then((text) {
+        if (text != null) _receive(text);
+      }),
+    );
+  }
+
+  StreamSubscription<SessionRef>? _opened;
+  StreamSubscription<String>? _shared;
+
+  /// Text shared from another app waits on the overview for a session.
+  void _receive(String text) {
+    services.sharedDraft.offer(text);
+    _whenReady(() {
+      services.selection.clear();
+      _router.go('/home');
+    });
+  }
+
+  /// Runs [action] once the app is past boot and knows its computers.
+  void _whenReady(VoidCallback action) {
+    if (!_busy && services.hosts.loaded) return action();
+    void check() {
+      if (_busy || !services.hosts.loaded) return;
+      _router.routerDelegate.removeListener(check);
+      services.hosts.removeListener(check);
+      action();
+    }
+
+    _router.routerDelegate.addListener(check);
+    services.hosts.addListener(check);
+  }
+
+  /// A notification was tapped: show its session once the app is past boot.
+  void _openSession(SessionRef ref) {
+    void open() {
+      final hosted = services.hosts.find(ref.host, ref.session);
+      if (hosted == null) return _router.go('/home');
+      final prefs = services.prefs;
+      unawaited(
+        prefs.setSelectedWorkspace(
+          prefs.workspaceForSession(ref.host, ref.session) ??
+              inboxWorkspaceKey(toStandardB64(ref.host)),
+        ),
+      );
+      final title = hosted.session.title;
+      final device = hosted.host.host.label;
+      services.selection.select(
+        ref.host,
+        ref.session,
+        title,
+        device,
+        hosted.live,
+      );
+      _router.go(
+        '/chat',
+        extra: {'title': title, 'device': device, 'online': hosted.live},
+      );
+    }
+
+    _whenReady(open);
   }
 
   String get _path => _router.routerDelegate.currentConfiguration.uri.path;
@@ -94,6 +168,10 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
   /// Back in the foreground: reconnect now instead of waiting out a backoff.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Inactive is the shade pulled down over the app: still in front.
+    services.agentWatch.foreground =
+        state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.inactive;
     if (state != AppLifecycleState.resumed) return;
     services.hosts.reconnectAll();
     // Android keeps the app alive in the background, so opening it is
@@ -121,6 +199,8 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _links?.cancel();
+    _opened?.cancel();
+    _shared?.cancel();
     _updates.removeListener(_onUpdate);
     _router.routerDelegate.removeListener(_checkWhenSettled);
     _updates.dispose();
@@ -140,6 +220,8 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
           value: services.identityStore,
         ),
         ChangeNotifierProvider<Hosts>.value(value: services.hosts),
+        Provider<AgentNotifier>.value(value: services.agentNotifier),
+        ChangeNotifierProvider<SharedDraft>.value(value: services.sharedDraft),
       ],
       // Theme is reactive: toggling the mode in Settings notifies
       // [Preferences] → this Consumer rebuilds → MaterialApp swaps theme.
