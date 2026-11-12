@@ -492,5 +492,8 @@
   "findInChatHint": "在这段对话里查找",
   "findNoMatches": "无结果",
   "findOlder": "上一个（更早）",
-  "findNewer": "下一个（更新）"
+  "findNewer": "下一个（更新）",
+  "pinSession": "置顶",
+  "unpinSession": "取消置顶",
+  "pinned": "已置顶"
 }

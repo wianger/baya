@@ -6,13 +6,15 @@ import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_actions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 /// One session wherever sessions are listed: title, then agent, folder and
 /// how long ago, with a dot when the agent did something not yet seen
 /// here (or the computer is away). [highlighted] marks the open one;
-/// [onMore] adds the ⋯ that opens the session sheet.
+/// [onMore] adds the ⋯ that opens the session sheet; holding the row opens
+/// it anywhere. A pin replaces the icon of a pinned session.
 class SessionRow extends StatelessWidget {
   const SessionRow({
     super.key,
@@ -45,8 +47,13 @@ class SessionRow extends StatelessWidget {
         .split(RegExp(r'[/\\]'))
         .lastWhere((part) => part.isNotEmpty, orElse: () => item.session.cwd);
     final when = item.session.updatedAt;
+    final pinned = vm.isPinned(item);
     return BayaRow(
-      icon: working ? LucideIcons.loaderCircle : LucideIcons.messageSquare,
+      icon: working
+          ? LucideIcons.loaderCircle
+          : pinned
+          ? LucideIcons.pin
+          : LucideIcons.messageSquare,
       spinning: working,
       label: vm.displayNameOf(item),
       subtitle: [
@@ -92,6 +99,10 @@ class SessionRow extends StatelessWidget {
         ],
       ),
       onTap: onOpen ?? () => openSession(context, item),
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        showSessionActions(context, item);
+      },
     );
   }
 }

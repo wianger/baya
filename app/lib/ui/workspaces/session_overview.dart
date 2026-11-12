@@ -147,7 +147,12 @@ class _WorkspaceOverview extends StatelessWidget {
     bool working(HomeItem item) =>
         vm.isRoomWorking(item.peer.remoteEpk, item.sessionId);
     final running = items.where(working).toList();
-    final recent = items.where((item) => !working(item)).toList();
+    final pinned = vm.pinnedFirst(
+      items.where((item) => !working(item) && vm.isPinned(item)),
+    );
+    final recent = items
+        .where((item) => !working(item) && !vm.isPinned(item))
+        .toList();
     final folders = items
         .map((item) => item.session.cwd)
         .where((folder) => folder.isNotEmpty)
@@ -229,6 +234,13 @@ class _WorkspaceOverview extends StatelessWidget {
                 child: _SessionRows(vm: vm, items: running),
               ),
             ],
+            if (pinned.isNotEmpty) ...[
+              BayaSectionLabel(context.l10n.pinned, top: 26),
+              BayaReveal(
+                delay: BayaReveal.stagger(1),
+                child: _SessionRows(vm: vm, items: pinned),
+              ),
+            ],
             if (runs.isNotEmpty) ...[
               BayaSectionLabel(context.l10n.parallelRuns, top: 26),
               BayaReveal(
@@ -239,20 +251,23 @@ class _WorkspaceOverview extends StatelessWidget {
                 ),
               ),
             ],
-            BayaSectionLabel(context.l10n.recent, top: 26),
-            if (items.isEmpty)
-              _EmptyWorkspaceCard(hasWorkspace: workspace != null)
-            else if (recent.isEmpty)
-              Text(
-                context.l10n.allSessionsRunning,
-                style: context.typo.sansBody.copyWith(color: colors.muted),
-              )
-            else
-              _SessionRows(
-                vm: vm,
-                items: recent.take(_recentShown).toList(),
-                more: recent.length > _recentShown ? recent : null,
-              ),
+            // With every other session pinned, Recent has nothing to say.
+            if (recent.isNotEmpty || pinned.isEmpty) ...[
+              BayaSectionLabel(context.l10n.recent, top: 26),
+              if (items.isEmpty)
+                _EmptyWorkspaceCard(hasWorkspace: workspace != null)
+              else if (recent.isEmpty)
+                Text(
+                  context.l10n.allSessionsRunning,
+                  style: context.typo.sansBody.copyWith(color: colors.muted),
+                )
+              else
+                _SessionRows(
+                  vm: vm,
+                  items: recent.take(_recentShown).toList(),
+                  more: recent.length > _recentShown ? recent : null,
+                ),
+            ],
           ],
         ),
       ),

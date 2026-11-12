@@ -13,6 +13,8 @@ Future<void> showSessionSheet(
   required String agent,
   required String computer,
   required String? folder,
+  bool pinned = false,
+  ValueChanged<bool>? onPin,
   VoidCallback? onFind,
   VoidCallback? onFiles,
   VoidCallback? onChanges,
@@ -30,6 +32,8 @@ Future<void> showSessionSheet(
       agent: agent,
       computer: computer,
       folder: folder,
+      pinned: pinned,
+      onPin: onPin,
       onFind: onFind,
       onFiles: onFiles,
       onChanges: onChanges,
@@ -46,6 +50,8 @@ class _SessionSheet extends StatefulWidget {
     required this.agent,
     required this.computer,
     required this.folder,
+    required this.pinned,
+    required this.onPin,
     required this.onFind,
     required this.onFiles,
     required this.onChanges,
@@ -58,6 +64,8 @@ class _SessionSheet extends StatefulWidget {
   final String agent;
   final String computer;
   final String? folder;
+  final bool pinned;
+  final ValueChanged<bool>? onPin;
   final VoidCallback? onFind;
   final VoidCallback? onFiles;
   final VoidCallback? onChanges;
@@ -150,6 +158,13 @@ class _SessionSheetState extends State<_SessionSheet> {
                 label: l10n.files,
                 chevron: true,
                 onTap: () => _then(files),
+              ),
+            if (widget.onPin case final pin?)
+              BayaRow(
+                key: const ValueKey('session-action-pin'),
+                icon: widget.pinned ? LucideIcons.pinOff : LucideIcons.pin,
+                label: widget.pinned ? l10n.unpinSession : l10n.pinSession,
+                onTap: () => _then(() => pin(!widget.pinned)),
               ),
             BayaRow(
               key: const ValueKey('session-action-rename'),

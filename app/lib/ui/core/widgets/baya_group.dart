@@ -78,6 +78,7 @@ class BayaRow extends StatelessWidget {
     this.monospaceSubtitle = false,
     this.spinning = false,
     this.onTap,
+    this.onLongPress,
   });
 
   final String label;
@@ -99,12 +100,16 @@ class BayaRow extends StatelessWidget {
   final bool spinning;
   final VoidCallback? onTap;
 
+  /// Holding the row: its actions, where it has some.
+  final VoidCallback? onLongPress;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final tint = destructive ? colors.error : colors.text;
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Ink(
         color: highlighted ? colors.selection : null,
         child: Padding(

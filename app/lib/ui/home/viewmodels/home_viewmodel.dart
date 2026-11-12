@@ -234,6 +234,30 @@ class HomeViewModel extends ViewModel<HomeState> {
     final host = _hosts.byKey(item.peer.remoteEpk);
     if (host == null) return;
     await host.call('session/delete', {'sessionId': item.sessionId});
+    setPinned(item, pinned: false);
+  }
+
+  bool isPinned(HomeItem item) =>
+      _prefs.isPinned(item.peer.remoteEpk, item.sessionId);
+
+  void setPinned(HomeItem item, {required bool pinned}) =>
+      _prefs.setPinned(item.peer.remoteEpk, item.sessionId, pinned: pinned);
+
+  /// [items] with the pinned ones first, the latest pin on top; the rest
+  /// keep their order.
+  List<HomeItem> pinnedFirst(Iterable<HomeItem> items) {
+    final pinned = <(int, HomeItem)>[];
+    final rest = <HomeItem>[];
+    for (final item in items) {
+      final rank = _prefs.pinRank(item.peer.remoteEpk, item.sessionId);
+      if (rank == null) {
+        rest.add(item);
+      } else {
+        pinned.add((rank, item));
+      }
+    }
+    pinned.sort((a, b) => a.$1.compareTo(b.$1));
+    return [for (final (_, item) in pinned) item, ...rest];
   }
 
   /// `true` when the session's agent is mid-turn: the blue dot.

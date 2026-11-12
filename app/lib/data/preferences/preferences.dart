@@ -24,6 +24,9 @@ class Preferences extends ChangeNotifier {
   /// Per session (`host:session`), the last activity seen on this phone,
   /// in the computer's clock; sessions without one compare to [_seenSince].
   Map<String, int> _seen = {};
+
+  /// Sessions kept at the top of the list, oldest pin first.
+  List<String> _pinned = [];
   int _seenSince = 0;
 
   /// Short messages sent, by text: how often, and when last.
@@ -50,6 +53,7 @@ class Preferences extends ChangeNotifier {
   static const _kNotifyAgentsKey = 'prefs.notify_agents';
   static const _kSeenKey = 'prefs.seen_sessions';
   static const _kPhrasesKey = 'prefs.phrases';
+  static const _kPinnedKey = 'prefs.pinned_sessions';
   static const _seenKept = 400;
   static const _kTailnetDomainKey = 'prefs.tailnet_domain';
   static const _kOnboardingCompletedKey = 'prefs.onboarding_completed';
@@ -117,6 +121,13 @@ class Preferences extends ChangeNotifier {
       // From now on: what happened before this phone kept track isn't new.
       _seenSince = DateTime.now().millisecondsSinceEpoch;
       _saveSeen();
+    }
+
+    try {
+      final pinned = jsonDecode(await _store.read(key: _kPinnedKey) ?? '[]');
+      if (pinned is List) _pinned = [...pinned.whereType<String>()];
+    } on FormatException {
+      /* Nothing pinned. */
     }
 
     try {
@@ -551,6 +562,33 @@ class Preferences extends ChangeNotifier {
         )
         .catchError((Object _) {}),
   );
+
+  /// The session is pinned to the top of the list.
+  bool isPinned(String hostEpk, String sessionId) =>
+      _pinned.contains(_conversationKey(hostEpk, sessionId));
+
+  /// Where a pinned session sits among the pins (the newest pin first), or
+  /// null when it is not pinned.
+  int? pinRank(String hostEpk, String sessionId) {
+    final at = _pinned.indexOf(_conversationKey(hostEpk, sessionId));
+    return at < 0 ? null : _pinned.length - 1 - at;
+  }
+
+  void setPinned(String hostEpk, String sessionId, {required bool pinned}) {
+    final key = _conversationKey(hostEpk, sessionId);
+    if (_pinned.contains(key) == pinned) return;
+    if (pinned) {
+      _pinned.add(key);
+    } else {
+      _pinned.remove(key);
+    }
+    notifyListeners();
+    unawaited(
+      _store
+          .write(key: _kPinnedKey, value: jsonEncode(_pinned))
+          .catchError((Object _) {}),
+    );
+  }
 
   /// Messages short enough to be a quick reply: one line, not a command.
   static bool _isPhrase(String text) =>

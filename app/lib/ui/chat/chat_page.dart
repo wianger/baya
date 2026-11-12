@@ -276,6 +276,7 @@ class ChatPage extends StatelessWidget {
     SessionController session,
     String displayName,
   ) {
+    final prefs = context.read<Preferences>();
     return showSessionSheet(
       context,
       title: displayName,
@@ -284,6 +285,9 @@ class ChatPage extends StatelessWidget {
           : session.agentName,
       computer: session.host.host.label,
       folder: session.summary?.cwd,
+      pinned: prefs.isPinned(session.host.key, session.sessionId),
+      onPin: (pinned) =>
+          prefs.setPinned(session.host.key, session.sessionId, pinned: pinned),
       onFind: context.read<ChatFind>().show,
       onFiles: () => context.push('/session-files'),
       onChanges: () => openChanges(context, session),
