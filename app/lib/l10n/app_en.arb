@@ -1009,5 +1009,10 @@
       }
     }
   },
-  "replyNotSent": "Your reply wasn't sent: the computer is offline"
+  "replyNotSent": "Your reply wasn't sent: the computer is offline",
+  "quickReplies": "Quick replies",
+  "quickReplyHint": "Tap to send, hold to edit first",
+  "quickContinue": "Continue",
+  "quickRunTests": "Run the tests",
+  "quickCommit": "Commit the changes"
 }

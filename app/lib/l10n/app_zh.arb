@@ -482,5 +482,10 @@
   "unread": "有你还没看过的新内容",
   "notifyReply": "回复",
   "replyTo": "回复 {agent}…",
-  "replyNotSent": "回复没发出去：电脑不在线"
+  "replyNotSent": "回复没发出去：电脑不在线",
+  "quickReplies": "快捷回复",
+  "quickReplyHint": "点按发送，长按先编辑",
+  "quickContinue": "继续",
+  "quickRunTests": "跑一下测试",
+  "quickCommit": "提交这些改动"
 }

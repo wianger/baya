@@ -314,5 +314,36 @@ void main() {
       p.dispose();
       reloaded.dispose();
     });
+
+    test('messages sent again and again become quick replies', () async {
+      final store = _FakeSecureStorage();
+      final p = Preferences(store);
+      await p.load();
+      final day = DateTime(2026, 11, 2);
+      for (var i = 0; i < 3; i++) {
+        p.rememberSent('run the tests', now: day);
+      }
+      p
+        ..rememberSent('ship it', now: day)
+        ..rememberSent('ship it', now: day)
+        ..rememberSent('once', now: day)
+        ..rememberSent('/compact', now: day)
+        ..rememberSent('two\nlines', now: day)
+        ..rememberSent('ship it', now: day);
+      expect(p.phrases(now: day), ['run the tests', 'ship it']);
+
+      // Unsent for weeks, a phrase fades behind one in use.
+      final later = day.add(const Duration(days: 30));
+      p
+        ..rememberSent('lgtm', now: later)
+        ..rememberSent('lgtm', now: later);
+      expect(p.phrases(now: later).first, 'lgtm');
+
+      final reloaded = Preferences(store);
+      await reloaded.load();
+      expect(reloaded.phrases(now: later), p.phrases(now: later));
+      p.dispose();
+      reloaded.dispose();
+    });
   });
 }

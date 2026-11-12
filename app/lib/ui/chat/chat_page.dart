@@ -470,11 +470,38 @@ class ChatPage extends StatelessWidget {
               return session.attachedFiles.length > before;
             }
           : null,
+      quickReplies: _quickReplies(context, session),
       onSend: (text) {
         final image = context.read<AttachmentViewModel>().takeImageForSend();
+        if (image == null) context.read<Preferences?>()?.rememberSent(text);
         session.prompt(text, image: image);
       },
     );
+  }
+
+  /// Once the agent has answered and waits for nothing: the replies this
+  /// phone sends most, then the ones every coding session needs.
+  static List<String> _quickReplies(
+    BuildContext context,
+    SessionController session,
+  ) {
+    final last = session.messages.lastOrNull;
+    if (!session.loaded ||
+        session.working ||
+        last == null ||
+        last is UserMsg ||
+        session.permission != null ||
+        session.elicitation != null) {
+      return const [];
+    }
+    final l10n = context.l10n;
+    final seen = <String>{};
+    return [
+      ...?context.read<Preferences?>()?.phrases(),
+      l10n.quickContinue,
+      l10n.quickRunTests,
+      l10n.quickCommit,
+    ].where((t) => seen.add(t.toLowerCase())).take(5).toList();
   }
 
   /// Open the Camera/Gallery sheet and drive the picker. Hints deep-link to
