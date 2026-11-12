@@ -83,6 +83,10 @@ class InputBar extends StatefulWidget {
   /// send along. True when one was picked, and the `@` gives way to it.
   final Future<bool> Function()? onMention;
 
+  /// Replies to send in one tap while the composer is empty: what the agent
+  /// is usually told next. Held, one goes into the composer to edit first.
+  final List<String> quickReplies;
+
   const InputBar({
     super.key,
     required this.onSend,
@@ -103,6 +107,7 @@ class InputBar extends StatefulWidget {
     this.onOpenAttach,
     this.drafts,
     this.onMention,
+    this.quickReplies = const [],
     this.disabled = false,
     this.streaming = false,
   });
@@ -416,7 +421,15 @@ class _InputBarState extends State<InputBar> {
         !showStrip &&
         widget.onCancel != null;
 
-    return Padding(
+    final showReplies =
+        widget.quickReplies.isNotEmpty &&
+        _empty &&
+        !hasImage &&
+        canInteract &&
+        !widget.streaming &&
+        !showStrip;
+
+    final surface = Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: BayaSurface(
         role: BayaSurfaceRole.overlay,
@@ -572,6 +585,36 @@ class _InputBarState extends State<InputBar> {
           ],
         ),
       ),
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AnimatedSize(
+          duration: BayaMotion.standard,
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.bottomCenter,
+          child: showReplies
+              ? _QuickReplies(
+                  replies: widget.quickReplies,
+                  onSend: (text) {
+                    unawaited(HapticFeedback.lightImpact());
+                    widget.onSend(text);
+                  },
+                  onEdit: (text) {
+                    unawaited(HapticFeedback.selectionClick());
+                    _controller.value = TextEditingValue(
+                      text: text,
+                      selection: TextSelection.collapsed(offset: text.length),
+                    );
+                    _focusNode.requestFocus();
+                  },
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+        surface,
+      ],
     );
   }
 }
@@ -1243,4 +1286,66 @@ class _SlashPalette extends StatelessWidget {
     'prompt' => appL10n.prompt,
     _ => appL10n.agentCommand,
   };
+}
+
+/// One row of replies over the composer, scrolling sideways when they
+/// don't fit.
+class _QuickReplies extends StatelessWidget {
+  const _QuickReplies({
+    required this.replies,
+    required this.onSend,
+    required this.onEdit,
+  });
+
+  final List<String> replies;
+  final void Function(String text) onSend;
+  final void Function(String text) onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Semantics(
+      container: true,
+      label: context.l10n.quickReplies,
+      hint: context.l10n.quickReplyHint,
+      child: SizedBox(
+        height: 40,
+        child: ListView.separated(
+          key: const Key('quick-replies'),
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          itemCount: replies.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final text = replies[i];
+            return BayaReveal(
+              delay: BayaReveal.stagger(i),
+              offset: 6,
+              child: Material(
+                color: colors.surface.withValues(alpha: 0.92),
+                shape: StadiumBorder(side: BorderSide(color: colors.border)),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => onSend(text),
+                  onLongPress: () => onEdit(text),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Center(
+                      child: Text(
+                        text,
+                        style: context.typo.sansBody.copyWith(
+                          fontSize: 14,
+                          color: colors.text,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 }

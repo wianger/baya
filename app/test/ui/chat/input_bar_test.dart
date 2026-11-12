@@ -429,4 +429,31 @@ void main() {
     await tester.pump();
     expect(picks, 2);
   });
+
+  testWidgets('a quick reply sends in a tap, or is edited when held', (
+    tester,
+  ) async {
+    final sent = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: InputBar(
+            onSend: sent.add,
+            quickReplies: const ['Continue', 'Run the tests'],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    expect(sent, ['Continue']);
+
+    await tester.longPress(find.text('Run the tests'));
+    await tester.pumpAndSettle();
+    final field = find.byType(TextField);
+    expect(tester.widget<TextField>(field).controller!.text, 'Run the tests');
+    // With a draft, they make room.
+    expect(find.byKey(const Key('quick-replies')), findsNothing);
+    expect(sent, ['Continue']);
+  });
 }

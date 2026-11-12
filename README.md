@@ -49,6 +49,9 @@ end-to-end encrypted.
   with the phone: what either sends, both see, and the agent keeps one
   conversation, whichever agent it is. The terminal's tab and taskbar show
   the turn, and ring when it waits for you.
+- **Quick replies**: once the agent answers, what you send most (or
+  "Continue", "Run the tests") waits over the composer: tap to send, hold
+  to edit first. Learned on the phone, never uploaded.
 - **Mention files**: type `@` in the composer or in `baya attach` to pick
   files of the session (tab completes the path in the terminal); they go
   with the message as links the agent opens.

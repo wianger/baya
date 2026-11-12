@@ -25,6 +25,9 @@ class Preferences extends ChangeNotifier {
   /// in the computer's clock; sessions without one compare to [_seenSince].
   Map<String, int> _seen = {};
   int _seenSince = 0;
+
+  /// Short messages sent, by text: how often, and when last.
+  Map<String, ({int count, int at})> _phrases = {};
   Map<String, String> _sessionWorkspaces = {};
   Map<String, String> _workspaceNames = {};
   String? _selectedWorkspace;
@@ -46,6 +49,7 @@ class Preferences extends ChangeNotifier {
   static const _kHideToolCallsKey = 'prefs.hide_tool_calls';
   static const _kNotifyAgentsKey = 'prefs.notify_agents';
   static const _kSeenKey = 'prefs.seen_sessions';
+  static const _kPhrasesKey = 'prefs.phrases';
   static const _seenKept = 400;
   static const _kTailnetDomainKey = 'prefs.tailnet_domain';
   static const _kOnboardingCompletedKey = 'prefs.onboarding_completed';
@@ -113,6 +117,23 @@ class Preferences extends ChangeNotifier {
       // From now on: what happened before this phone kept track isn't new.
       _seenSince = DateTime.now().millisecondsSinceEpoch;
       _saveSeen();
+    }
+
+    try {
+      final phrases = jsonDecode(await _store.read(key: _kPhrasesKey) ?? '[]');
+      if (phrases is List) {
+        _phrases = {
+          for (final p in phrases)
+            if (p case {
+              'text': final String text,
+              'count': final int count,
+              'at': final int at,
+            })
+              text: (count: count, at: at),
+        };
+      }
+    } on FormatException {
+      /* Learn them again. */
     }
 
     final notify = await _store.read(key: _kNotifyAgentsKey) != 'false';
@@ -530,6 +551,57 @@ class Preferences extends ChangeNotifier {
         )
         .catchError((Object _) {}),
   );
+
+  /// Messages short enough to be a quick reply: one line, not a command.
+  static bool _isPhrase(String text) =>
+      text.isNotEmpty &&
+      text.length <= 40 &&
+      !text.contains('\n') &&
+      !text.startsWith('/');
+
+  /// [text] was sent: the ones sent again and again become quick replies.
+  void rememberSent(String text, {DateTime? now}) {
+    text = text.trim();
+    if (!_isPhrase(text)) return;
+    final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    final known = _phrases.remove(text);
+    _phrases[text] = (count: (known?.count ?? 0) + 1, at: at);
+    while (_phrases.length > _phrasesKept) {
+      // Forget the one that matters least, keeping the one just sent.
+      final least = _phrases.keys
+          .where((t) => t != text)
+          .reduce((a, b) => _score(a, at) <= _score(b, at) ? a : b);
+      _phrases.remove(least);
+    }
+    unawaited(
+      _store
+          .write(
+            key: _kPhrasesKey,
+            value: jsonEncode([
+              for (final MapEntry(:key, :value) in _phrases.entries)
+                {'text': key, 'count': value.count, 'at': value.at},
+            ]),
+          )
+          .catchError((Object _) {}),
+    );
+  }
+
+  static const _phrasesKept = 40;
+
+  /// How often it is sent, fading by half every two weeks unsent.
+  double _score(String text, int now) {
+    final p = _phrases[text]!;
+    final weeks = (now - p.at) / const Duration(days: 14).inMilliseconds;
+    return p.count / (1 << weeks.clamp(0, 30).floor());
+  }
+
+  /// The messages sent most, at least twice, for quick replies.
+  List<String> phrases({int count = 4, DateTime? now}) {
+    final at = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    final sent = _phrases.keys.where((t) => _phrases[t]!.count >= 2).toList()
+      ..sort((a, b) => _score(b, at).compareTo(_score(a, at)));
+    return sent.take(count).toList();
+  }
 
   Future<void> setNotifyAgents(bool value) async {
     if (_notifyAgents == value) return;
