@@ -34,7 +34,7 @@ jobs:
       run:
         working-directory: host
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v5
         with:
           package_json_file: host/package.json
