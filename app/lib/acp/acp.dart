@@ -1008,11 +1008,28 @@ class AgentSessionInfo {
   final String sessionId;
   final String title;
   final DateTime? updatedAt;
-  const AgentSessionInfo(this.sessionId, this.title, [this.updatedAt]);
+
+  /// Where it ran, and which agent it belongs to: given when the computer
+  /// lists every agent's conversations at once.
+  final String cwd;
+  final String agent;
+  final String agentName;
+
+  const AgentSessionInfo(
+    this.sessionId,
+    this.title, [
+    this.updatedAt,
+    this.cwd = '',
+    this.agent = '',
+    this.agentName = '',
+  ]);
 
   factory AgentSessionInfo.fromJson(Json json) => AgentSessionInfo(
     _string(json['sessionId']) ?? '',
     _string(json['title']) ?? '',
     DateTime.tryParse(_string(json['updatedAt']) ?? ''),
+    _string(json['cwd']) ?? '',
+    _string(json['agent']) ?? '',
+    _string(json['agentName']) ?? '',
   );
 }

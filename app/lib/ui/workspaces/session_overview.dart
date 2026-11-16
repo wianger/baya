@@ -268,6 +268,22 @@ class _WorkspaceOverview extends StatelessWidget {
                   more: recent.length > _recentShown ? recent : null,
                 ),
             ],
+            // Conversations the agents had outside Baya, to continue here.
+            if (online) ...[
+              const SizedBox(height: 14),
+              BayaGroup(
+                children: [
+                  BayaRow(
+                    key: const Key('overview-computer-sessions'),
+                    icon: LucideIcons.squareTerminal,
+                    label: context.l10n.computerSessionsRow,
+                    subtitle: context.l10n.computerSessionsRowHint,
+                    chevron: true,
+                    onTap: () => openComputerSessions(context),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

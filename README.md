@@ -52,6 +52,10 @@ end-to-end encrypted.
 - **Quick replies**: once the agent answers, what you send most (or
   "Continue", "Run the tests") waits over the composer: tap to send, hold
   to edit first. Learned on the phone, never uploaded.
+- **Continue what started elsewhere**: "Conversations on this computer"
+  lists what Claude Code, Codex, Pi and other agents did outside Baya, in
+  a terminal or an editor, across every folder; pick one and it continues
+  here with its history (one still open somewhere is flagged first).
 - **Pin sessions**: hold any session (or use its ⋯) to pin it; pinned
   ones lead the overview and the session list, on this phone only.
 - **Find in a chat**: search a long session from the ⋯ menu; step through

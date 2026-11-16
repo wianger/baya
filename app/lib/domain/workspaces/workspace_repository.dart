@@ -109,6 +109,15 @@ class Worktree {
   final String branch;
 }
 
+/// The agents' own conversations on one computer.
+class ComputerSessions {
+  const ComputerSessions(this.sessions, {this.failed = const []});
+  final List<AgentSessionInfo> sessions;
+
+  /// The names of the agents that could not list theirs.
+  final List<String> failed;
+}
+
 class WorkspaceFailure implements Exception {
   const WorkspaceFailure(this.message);
   final String message;
@@ -135,11 +144,18 @@ abstract class IWorkspaceRepository extends Repository {
   /// null when [path] is not in a git repository.
   Future<Worktree?> createWorktree(String hostId, String path, String name);
 
-  /// Starts a session, or continues the agent's own [agentSessionId].
+  /// Every agent's own conversations on the computer, in any folder,
+  /// newest first; the agents that could not say are in
+  /// [ComputerSessions.failed].
+  Future<ComputerSessions> computerSessions(String hostId);
+
+  /// Starts a session, or continues the agent's own [agentSessionId]
+  /// (called [title]).
   Future<OpenedWorkspace> open(
     String hostId,
     String path,
     WorkspaceAgent agent, {
     String? agentSessionId,
+    String? title,
   });
 }

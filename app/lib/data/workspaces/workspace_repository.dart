@@ -103,11 +103,38 @@ class WorkspaceRepository extends IWorkspaceRepository {
   }
 
   @override
+  Future<ComputerSessions> computerSessions(String hostId) async {
+    final host = _host(hostId);
+    try {
+      // Every agent starts once to answer: a cold npx one can be slow.
+      final result = await host.call(
+        '_baya/computer_sessions',
+        const {},
+        const Duration(minutes: 2),
+      );
+      return ComputerSessions(
+        [
+          for (final item in (result['sessions'] as List? ?? const []))
+            if (item is Map)
+              AgentSessionInfo.fromJson(item.cast<String, dynamic>()),
+        ],
+        failed: [
+          for (final item in (result['failed'] as List? ?? const []))
+            if (item is Map) '${item['agentName'] ?? item['agent']}',
+        ],
+      );
+    } catch (error) {
+      throw WorkspaceFailure('$error');
+    }
+  }
+
+  @override
   Future<OpenedWorkspace> open(
     String hostId,
     String path,
     WorkspaceAgent agent, {
     String? agentSessionId,
+    String? title,
   }) async {
     final host = _host(hostId);
     final Map<String, dynamic> result;
@@ -117,7 +144,11 @@ class WorkspaceRepository extends IWorkspaceRepository {
         'cwd': path,
         'mcpServers': const <Object>[],
         '_meta': {
-          'baya': {'agent': agent.id, 'agentSessionId': ?agentSessionId},
+          'baya': {
+            'agent': agent.id,
+            'agentSessionId': ?agentSessionId,
+            'title': ?title,
+          },
         },
       }, const Duration(minutes: 3));
     } catch (error) {

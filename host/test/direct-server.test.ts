@@ -542,6 +542,32 @@ describe("ACP over the direct connection", () => {
     expect(again["sessions"].map((s: Frame) => s["sessionId"])).not.toContain("old-1");
   });
 
+  test("every agent's own conversations, in any folder, can be listed and adopted", async () => {
+    const { host, port, storage, hub } = await setup();
+    const a = await phone(port, host.publicKey);
+    await storage.addPeer({ name: "P", remote_epk: a.key, paired_at: "now" });
+    await hub.refreshPeers();
+    const listed = await a.call("_baya/computer_sessions");
+    expect(listed["failed"]).toEqual([]);
+    expect(listed["sessions"]).toContainEqual(
+      expect.objectContaining({
+        sessionId: "old-1",
+        title: "Earlier work",
+        agent: "fake",
+        cwd: "/",
+      }),
+    );
+    const { sessionId } = (await a.call("session/new", {
+      cwd: tmpdir(),
+      mcpServers: [],
+      _meta: { baya: { agent: "fake", agentSessionId: "old-1", title: "Earlier work" } },
+    })) as { sessionId: string };
+    const sessions = (await a.call("session/list"))["sessions"] as Frame[];
+    expect(sessions.find((s) => s["sessionId"] === sessionId)?.["title"]).toBe("Earlier work");
+    const again = await a.call("_baya/computer_sessions");
+    expect(again["sessions"].map((s: Frame) => s["sessionId"])).not.toContain("old-1");
+  });
+
   test("what an agent says before the first prompt is marked as startup", async () => {
     const { host, port, storage, hub } = await setup();
     const a = await phone(port, host.publicKey);

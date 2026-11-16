@@ -1022,5 +1022,33 @@
   "findNewer": "Later match",
   "pinSession": "Pin to top",
   "unpinSession": "Unpin",
-  "pinned": "Pinned"
+  "pinned": "Pinned",
+  "computerSessions": "On this computer",
+  "computerSessionsHint": "Conversations your agents had outside Baya — in a terminal, an editor, anywhere. Pick one to continue it here.",
+  "computerSessionsRow": "Conversations on this computer",
+  "computerSessionsRowHint": "Continue one started in a terminal or elsewhere",
+  "askingAgents": "Asking the agents…",
+  "allAgents": "All {count}",
+  "@allAgents": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentsCouldNotList": "Could not list: {names}",
+  "@agentsCouldNotList": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "noComputerSessions": "No conversations the agents can continue here.",
+  "noMatchingConversations": "Nothing matches.",
+  "activeNow": "Active",
+  "searchComputerSessions": "Search titles and folders",
+  "stillOpenTitle": "Still open somewhere?",
+  "stillOpenBody": "This conversation changed in the last few minutes, so it may still be open in a terminal. Two places writing to one conversation split it in two (Codex refuses). Quit it there first.",
+  "continueAnyway": "Continue anyway"
 }
