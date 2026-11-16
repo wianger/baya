@@ -24,6 +24,7 @@ import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
 import 'package:app/ui/settings/settings_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
+import 'package:app/ui/workspaces/computer_sessions_page.dart';
 import 'package:app/ui/workspaces/new_session_page.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
@@ -174,6 +175,13 @@ GoRouter buildRouter(
             child: const NewSessionPage(),
           );
         },
+      ),
+      GoRoute(
+        path: '/computer-sessions',
+        builder: (ctx, st) => ComputerSessionsPage(
+          launch: st.extra! as ComputerSessionsLaunch,
+          repository: services.workspaces,
+        ),
       ),
       // QR pairing flow
       GoRoute(

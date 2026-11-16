@@ -3,6 +3,7 @@ import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
+import 'package:app/ui/workspaces/computer_sessions_page.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
@@ -27,10 +28,39 @@ Future<OpenedWorkspace?> openNewSession(
     return null;
   }
   if (result is! OpenedWorkspace) return null;
-  final workspace = result;
+  if (!context.mounted) return result;
+  await _show(context, home, result, initialWorkspace);
+  return result;
+}
+
+/// The conversations the computer's agents had outside Baya; the one
+/// picked opens as a session in the current workspace.
+Future<void> openComputerSessions(BuildContext context) async {
+  final home = context.read<HomeViewModel>();
+  final hostId = home.selectedDevice;
+  if (hostId == null) return;
+  final initialWorkspace = home.selectedWorkspace;
+  final result = await context.push<Object>(
+    '/computer-sessions',
+    extra: ComputerSessionsLaunch(
+      hostId: hostId,
+      label: home.devices[hostId]?.label ?? '',
+    ),
+  );
+  if (result is! OpenedWorkspace || !context.mounted) return;
+  await _show(context, home, result, initialWorkspace);
+}
+
+/// Files [workspace]'s new session and shows it.
+Future<void> _show(
+  BuildContext context,
+  HomeViewModel home,
+  OpenedWorkspace workspace,
+  String? initialWorkspace,
+) async {
   final selectedWorkspace = workspace.workspaceKey ?? initialWorkspace;
   await home.selectDevice(workspace.hostId);
-  if (!context.mounted) return workspace;
+  if (!context.mounted) return;
   if (selectedWorkspace != null) {
     await home.assignSessionIdToWorkspace(
       workspace.hostId,
@@ -38,9 +68,8 @@ Future<OpenedWorkspace?> openNewSession(
       selectedWorkspace,
     );
     await home.selectWorkspace(selectedWorkspace);
-    if (!context.mounted) return workspace;
+    if (!context.mounted) return;
   }
-  if (!context.mounted) return workspace;
   context.read<SessionSelection>().select(
     workspace.hostId,
     workspace.sessionId,
@@ -56,7 +85,6 @@ Future<OpenedWorkspace?> openNewSession(
       'online': true,
     },
   );
-  return workspace;
 }
 
 /// Opens [sessionId], a branch of [fromSessionId] on the same computer, in

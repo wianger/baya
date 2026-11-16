@@ -156,7 +156,18 @@ export class PhoneConnection implements HubPhone {
         // Adopting one of the agent's own conversations replays it.
         const adopted =
           typeof meta["agentSessionId"] === "string" ? meta["agentSessionId"] : undefined;
-        const session = this.hub.create(cwd, agent, adopted ? { agentSessionId: adopted } : {});
+        // Its title comes along, as the agent named it.
+        const title = typeof meta["title"] === "string" ? meta["title"].trim() : "";
+        const session = this.hub.create(
+          cwd,
+          agent,
+          adopted
+            ? {
+                agentSessionId: adopted,
+                ...(title ? { title, titleSource: "agent" as const } : {}),
+              }
+            : {},
+        );
         const setup = await session.attach(this, Boolean(adopted));
         return { sessionId: session.id, ...setup };
       }
@@ -219,6 +230,8 @@ export class PhoneConnection implements HubPhone {
           params["agent"],
           await resolveDirectory(stringParam(params, "cwd")),
         );
+      case "_baya/computer_sessions":
+        return this.hub.computerSessions();
       case "_baya/read_file":
         return readSessionFile(this.session(params).record.cwd, stringParam(params, "path"));
       case "_baya/upload_begin": {

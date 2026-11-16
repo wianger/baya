@@ -495,5 +495,19 @@
   "findNewer": "下一个（更新）",
   "pinSession": "置顶",
   "unpinSession": "取消置顶",
-  "pinned": "已置顶"
+  "pinned": "已置顶",
+  "computerSessions": "电脑上的对话",
+  "computerSessionsHint": "智能体在 Baya 之外进行的对话——终端、编辑器或其他地方。选一个就在这里继续。",
+  "computerSessionsRow": "电脑上的其他对话",
+  "computerSessionsRowHint": "继续在终端或别处开始的对话",
+  "askingAgents": "正在询问各个智能体…",
+  "allAgents": "全部 {count}",
+  "agentsCouldNotList": "未能列出：{names}",
+  "noComputerSessions": "没有可以在这里继续的对话。",
+  "noMatchingConversations": "没有匹配的对话。",
+  "activeNow": "活跃中",
+  "searchComputerSessions": "搜索标题和文件夹",
+  "stillOpenTitle": "可能还开着？",
+  "stillOpenBody": "这段对话几分钟内还有更新，可能仍在终端里打开着。两处同时写同一段对话会让它分叉（Codex 会直接拒绝）。请先在那边退出。",
+  "continueAnyway": "仍然继续"
 }

@@ -84,6 +84,10 @@ class FakeWorkspaces extends IWorkspaceRepository {
     WorkspaceAgent agent,
   ) async => const [AgentSessionInfo('old-1', 'Earlier work')];
 
+  @override
+  Future<ComputerSessions> computerSessions(String hostId) async =>
+      const ComputerSessions([]);
+
   bool git = true;
   final failing = <String>{};
   final openedPaths = <String>[];
@@ -105,6 +109,7 @@ class FakeWorkspaces extends IWorkspaceRepository {
     String path,
     WorkspaceAgent agent, {
     String? agentSessionId,
+    String? title,
   }) async {
     if (failing.contains(agent.id)) {
       throw const WorkspaceFailure('npx failed');

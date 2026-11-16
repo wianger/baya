@@ -30,6 +30,20 @@ export interface HubPhone extends PhoneLink {
 
 const CLOSE_UNPAIRED = 4003;
 
+/** How many of the agents' own conversations the phone is shown, at most. */
+const COMPUTER_SESSIONS = 200;
+
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("did not answer in time")), ms);
+  });
+  return Promise.race([work, late]).finally(() => clearTimeout(timer));
+}
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 /**
  * Every session on this computer and every connected phone. Sessions load
  * from the registry at start; their agents start only when used.
@@ -179,6 +193,71 @@ export class SessionHub {
         ),
       };
     });
+  }
+
+  /**
+   * Every agent's own conversations on this computer, in any folder, that
+   * Baya has not adopted: started in a terminal, an editor or anywhere else.
+   * Newest first; an agent that cannot list, or fails to, is named in
+   * `failed` and the others still answer.
+   */
+  async computerSessions(): Promise<Json> {
+    const adopted = new Set(
+      [...this.sessions.values()].map(
+        (session) => `${session.record.agent}\n${session.record.agentSessionId}`,
+      ),
+    );
+    const agents = (await this.agents()).filter((agent) => agent.available);
+    const failed: Json[] = [];
+    const lists = await Promise.all(
+      agents.map(async (agent) => {
+        try {
+          return await withTimeout(
+            this.withAgent(agent.id, undefined, async (process, info) => {
+              if (!info.agentCapabilities?.sessionCapabilities?.list) return [];
+              const sessions: Json[] = [];
+              let cursor: unknown;
+              // A few pages are plenty to find a recent conversation.
+              for (let page = 0; page < 5 && sessions.length < COMPUTER_SESSIONS; page++) {
+                const listed = await process.request<{ sessions?: Json[]; nextCursor?: unknown }>(
+                  "session/list",
+                  cursor === undefined ? {} : { cursor },
+                );
+                sessions.push(...(listed.sessions ?? []));
+                cursor = listed.nextCursor;
+                if (typeof cursor !== "string" || !cursor) break;
+              }
+              return sessions.flatMap((session) => {
+                const id = session["sessionId"];
+                const cwd = session["cwd"];
+                if (typeof id !== "string" || typeof cwd !== "string") return [];
+                if (adopted.has(`${agent.id}\n${id}`)) return [];
+                return [
+                  {
+                    sessionId: id,
+                    cwd,
+                    title: typeof session["title"] === "string" ? session["title"] : "",
+                    updatedAt:
+                      typeof session["updatedAt"] === "string" ? session["updatedAt"] : null,
+                    agent: agent.id,
+                    agentName: agent.name,
+                  },
+                ];
+              });
+            }),
+            60_000,
+          );
+        } catch (error) {
+          failed.push({ agent: agent.id, agentName: agent.name, error: errorMessage(error) });
+          return [];
+        }
+      }),
+    );
+    const sessions = lists
+      .flat()
+      .toSorted((a, b) => String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? "")))
+      .slice(0, COMPUTER_SESSIONS);
+    return { sessions, failed };
   }
 
   /**
