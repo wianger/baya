@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { adbConnect, adbDisconnect, adbPair, adbStatus } from "../integrations/adb.ts";
+import { logOnce } from "../log_once.ts";
 import { pairPhone } from "../pairing/service.ts";
 import { PREVIEW_TOKEN_HEADER, previewPorts, previews } from "../preview/preview.ts";
 import { packageVersion } from "../runtime/version.ts";
@@ -132,6 +133,10 @@ export class PhoneConnection implements HubPhone {
       return result;
     }
     if (!this.hub.isPaired(this.key)) {
+      logOnce(
+        `unpaired:${this.key}`,
+        `A phone that is not paired here tried to connect (key ${this.key.slice(0, 8)}…); pair it with: baya pair`,
+      );
       throw new RpcError(NOT_PAIRED, "This phone is not paired with this computer.", {
         reason: "unpaired",
       });

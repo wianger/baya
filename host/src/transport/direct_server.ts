@@ -3,6 +3,7 @@ import type { Duplex } from "node:stream";
 import { type RawData, type WebSocket, WebSocketServer } from "ws";
 import type { SessionHub } from "../acp/hub.ts";
 import { PhoneConnection } from "../acp/phone.ts";
+import { logOnce } from "../log_once.ts";
 import type { Ed25519Keypair } from "../pairing/crypto.ts";
 import { getOrCreateEd25519Keypair } from "../pairing/storage.ts";
 import {
@@ -71,6 +72,12 @@ export class DirectServer {
           if (!isBinary) throw new NoiseError("Expected a handshake.");
           this.handshake(socket, noise, toBuffer(raw));
         } catch {
+          // Most often a phone that paired with an earlier key of this
+          // computer: say so, or the phone just never gets in.
+          logOnce(
+            "handshake",
+            "A phone reached this host but the encrypted handshake failed; if it keeps happening, the phone holds an old key of this computer: pair it again.",
+          );
           socket.close(CLOSE_NOISE, "handshake");
         }
       });
