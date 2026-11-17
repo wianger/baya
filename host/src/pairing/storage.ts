@@ -11,11 +11,15 @@ import {
 /**
  * Host identity and paired-device storage.
  *
- * The long-term Ed25519 identity lives in the OS keyring (Keychain, Windows
- * Credential Manager, libsecret). A file at `$BAYA_HOME/identity.json` (0600)
- * is used when the keyring is unavailable, and once such a file exists it
- * always wins: the phone paired against that key, so a keyring that comes
- * online later must never mask it.
+ * The long-term Ed25519 identity lives in the OS keyring on macOS and
+ * Windows (Keychain, Credential Manager). On Linux it lives in
+ * `$BAYA_HOME/identity.json` (0600), like an SSH key: without a Secret
+ * Service (WSL, servers) the keyring falls back to the kernel's, which a
+ * restart empties, and a fresh key there silently unpaired every phone. A
+ * Linux identity still in the keyring moves to the file. Once the file
+ * exists it always wins: the phones paired against that key.
+ *
+ * With phones paired, a missing identity is never replaced by a new one.
  */
 
 const SERVICE = "dev.wianger.baya";
@@ -132,7 +136,10 @@ function fileIdentity(): Promise<Ed25519Keypair | null> {
 async function keyringIdentity(): Promise<Ed25519Keypair> {
   const current = await keyringRead(SERVICE);
   if (current) return deserialize(current);
-  // Every read succeeded and found nothing: a genuine first run.
+  // Found nothing: a first run, unless phones are paired with a key that
+  // is gone (a new one would lock them all out without a word).
+  const paired = await listPeers();
+  if (paired.length > 0) throw new PairedIdentityMissingError(paired.length, null);
   const fresh = generateEd25519Keypair();
   await keyringWrite(SERVICE, serialize(fresh));
   return fresh;
@@ -156,6 +163,7 @@ export function getOrCreateEd25519Keypair(): Promise<Ed25519Keypair> {
 async function resolveIdentity(): Promise<Ed25519Keypair> {
   const file = await fileIdentity();
   if (file) return file;
+  if (process.platform === "linux") return linuxIdentity();
 
   const forceFile = fileIdentityForced();
   let keyringError: unknown = null;
@@ -183,6 +191,27 @@ async function resolveIdentity(): Promise<Ed25519Keypair> {
     );
   }
 
+  const fresh = generateEd25519Keypair();
+  await writePrivate(IDENTITY_FILE, serialize(fresh));
+  return fresh;
+}
+
+/** Linux: the file, taking over a key still in the keyring. */
+async function linuxIdentity(): Promise<Ed25519Keypair> {
+  let kept: string | undefined;
+  try {
+    kept = await keyringRead(SERVICE);
+  } catch {
+    /* No keyring: the file is where it goes anyway. */
+  }
+  if (kept) {
+    const keypair = deserialize(kept);
+    await writePrivate(IDENTITY_FILE, serialize(keypair));
+    process.stderr.write(`[baya] Moved this computer's identity to ${IDENTITY_FILE}.\n`);
+    return keypair;
+  }
+  const paired = await listPeers();
+  if (paired.length > 0) throw new PairedIdentityMissingError(paired.length, null);
   const fresh = generateEd25519Keypair();
   await writePrivate(IDENTITY_FILE, serialize(fresh));
   return fresh;

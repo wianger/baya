@@ -52,6 +52,54 @@ describe("host identity", () => {
   });
 });
 
+describe.runIf(process.platform === "linux")("Linux identity", () => {
+  /** A keyring holding [stored] (or nothing), as the kernel's after a restart. */
+  function keyring(stored: string | null): void {
+    vi.doMock("@napi-rs/keyring", () => ({
+      AsyncEntry: class {
+        getPassword = async () => stored;
+        setPassword = async () => {};
+      },
+    }));
+  }
+
+  afterEach(() => {
+    vi.doUnmock("@napi-rs/keyring");
+  });
+
+  test("a key still in the keyring moves to the file and stays", async () => {
+    const home = isolatedHome();
+    delete process.env["BAYA_ALLOW_FILE_IDENTITY"];
+    const pk = Buffer.alloc(32, 5).toString("base64");
+    keyring(JSON.stringify({ pk, sk: Buffer.alloc(64, 6).toString("base64") }));
+    const storage = await import("../src/pairing/storage.js");
+    const moved = await storage.getOrCreateEd25519Keypair();
+    expect(Buffer.from(moved.publicKey).toString("base64")).toBe(pk);
+    expect(JSON.parse(readFileSync(join(home, "identity.json"), "utf8")).pk).toBe(pk);
+
+    // The restart empties the keyring; the file keeps the key.
+    vi.resetModules();
+    keyring(null);
+    const later = await import("../src/pairing/storage.js");
+    const kept = await later.getOrCreateEd25519Keypair();
+    expect(Buffer.from(kept.publicKey).toString("base64")).toBe(pk);
+  });
+
+  test("with phones paired, a lost key is not replaced by a new one", async () => {
+    const home = isolatedHome();
+    delete process.env["BAYA_ALLOW_FILE_IDENTITY"];
+    keyring(null);
+    const storage = await import("../src/pairing/storage.js");
+    await storage.addPeer({
+      name: "Pixel",
+      remote_epk: PHONE_A.toString("base64"),
+      paired_at: "2026-01-01T00:00:00Z",
+    });
+    await expect(storage.getOrCreateEd25519Keypair()).rejects.toThrow(/1 device\(s\) are paired/);
+    expect(existsSync(join(home, "identity.json"))).toBe(false);
+  });
+});
+
 describe("paired devices", () => {
   test("re-pairing replaces the same key in any base64 spelling", async () => {
     isolatedHome();
