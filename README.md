@@ -181,12 +181,13 @@ baya agents add claude --name "Claude Code" -- CLAUDE_CODE_EXECUTABLE=$(which cl
 baya agents add codex --name Codex -- CODEX_PATH=$(which codex) codex-acp
 baya agents add pi --name Pi -- pi-acp
 baya agents add deepseek --name DeepSeek -- dsh --profile acp
+baya agents add agy --name Antigravity -- agy acp
 baya agents                  # list them; the first is the default
 baya agents default codex
 ```
 
 `claude`, `codex` and `pi` do not speak ACP themselves; each adapter
-translates. `NAME=value` words before the command become the agent's
+translates. `dsh` and Antigravity's `agy` speak it natively. `NAME=value` words before the command become the agent's
 environment: here they make the adapters run your installed CLIs, with your
 sign-in and settings, instead of the copies they bundle.
 
