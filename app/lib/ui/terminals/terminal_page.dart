@@ -1,10 +1,18 @@
-/// One of the computer's terminals, full screen: the program's own screen,
-/// live, with the keys a phone keyboard lacks over it. It outlives this
-/// page and every connection; coming back paints it as it is now.
+/// One of the computer's terminals, full screen, made for a phone.
+///
+/// It opens for reading: no keyboard over half the screen. Pinch to change
+/// the text size, which changes the terminal's columns too, so the program
+/// on the computer lays itself out for this screen. Typing goes through a
+/// composer by default (the phone's own keyboard, with autocorrect, voice
+/// and paste), sent as one line; "keys" mode types straight into the
+/// terminal. When the program waits for an answer, the answers are buttons.
+/// The terminal outlives this page and every connection; coming back paints
+/// it as it is now.
 library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/l10n/l10n.dart';
@@ -24,6 +32,8 @@ class TerminalPage extends StatefulWidget {
     required this.repository,
     required this.terminal,
     this.online,
+    this.fontSize = 13,
+    this.onFontSize,
   });
 
   final TerminalsRepository repository;
@@ -32,26 +42,46 @@ class TerminalPage extends StatefulWidget {
   /// Whether the computer is reachable now, for the reconnecting note.
   final ValueListenable<bool>? online;
 
+  /// The text size to start at, and where a pinch's result is kept.
+  final double fontSize;
+  final ValueChanged<double>? onFontSize;
+
   @override
   State<TerminalPage> createState() => _TerminalPageState();
 }
 
 /// Lines kept above the screen on the phone.
 const _scrollback = 10000;
+const _minFont = 7.0;
+const _maxFont = 24.0;
+
+enum _Input { compose, keys }
 
 class _TerminalPageState extends State<TerminalPage> {
   late Terminal _terminal = _newTerminal();
   final _controller = TerminalController();
   final _focus = FocusNode();
+  final _scroll = ScrollController();
+  final _line = TextEditingController();
+  final _lineFocus = FocusNode();
   late HerdrTerminal _info = widget.terminal;
   TerminalStream? _stream;
   StreamSubscription<void>? _bytes;
   StreamSubscription<void>? _resets;
+  StreamSubscription<void>? _changes;
   late ByteConversionSink _decoder = _newDecoder();
   bool _attaching = false;
   String? _ended;
   String? _error;
-  double _fontSize = 13;
+  late double _fontSize = widget.fontSize.clamp(_minFont, _maxFont);
+  _Input _input = _Input.compose;
+  bool _atBottom = true;
+  bool _copied = false;
+
+  /// While pinching: the size it started at, and the grid to show.
+  double? _pinchFrom;
+  String? _grid;
+  Timer? _gridHide;
 
   // One-shot modifiers from the key bar, for the next key typed.
   bool _ctrl = false;
@@ -59,30 +89,88 @@ class _TerminalPageState extends State<TerminalPage> {
 
   Terminal _newTerminal() => Terminal(maxLines: _scrollback)
     ..onOutput = _output
-    ..onResize = _resized;
+    ..onResize = _resized
+    ..onBell = () => unawaited(HapticFeedback.heavyImpact());
 
   ByteConversionSink _newDecoder() => const Utf8Decoder(allowMalformed: true)
       .startChunkedConversion(_TerminalSink((text) => _terminal.write(text)));
 
   @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_scrolled);
+    // Its status (waiting for an answer, working) as hc reports it.
+    _changes = widget.repository.changes.listen((_) => _refresh());
+  }
+
+  @override
   void dispose() {
     unawaited(_bytes?.cancel());
     unawaited(_resets?.cancel());
+    unawaited(_changes?.cancel());
     unawaited(_stream?.close());
+    _gridHide?.cancel();
     _decoder.close();
     _controller.dispose();
     _focus.dispose();
+    _scroll.dispose();
+    _line.dispose();
+    _lineFocus.dispose();
     super.dispose();
   }
 
-  /// The view laid out (or rotated): the first size attaches.
+  Future<void> _refresh() async {
+    try {
+      final list = await widget.repository.list();
+      final now = list.terminals.where(
+        (t) => t.address == widget.terminal.address,
+      );
+      if (mounted && now.isNotEmpty) setState(() => _info = now.first);
+    } catch (_) {
+      // Offline: the status shows again once it is back.
+    }
+  }
+
+  void _scrolled() {
+    if (!_scroll.hasClients) return;
+    final position = _scroll.position;
+    final atBottom = position.pixels >= position.maxScrollExtent - 4;
+    if (atBottom != _atBottom) setState(() => _atBottom = atBottom);
+  }
+
+  void _toBottom() {
+    if (!_scroll.hasClients) return;
+    unawaited(
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: BayaMotion.scroll,
+        curve: BayaMotion.enter,
+      ),
+    );
+  }
+
+  /// The view laid out, rotated or zoomed: the first size attaches.
   void _resized(int cols, int rows, int _, int _) {
+    // Called during layout: show the new grid once this frame is done.
+    if (_pinchFrom != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showGrid(cols, rows);
+      });
+    }
     final stream = _stream;
     if (stream != null) {
       stream.resize(cols, rows);
     } else {
       unawaited(_attach(cols, rows));
     }
+  }
+
+  void _showGrid(int cols, int rows) {
+    _gridHide?.cancel();
+    setState(() => _grid = '$cols × $rows');
+    _gridHide = Timer(const Duration(milliseconds: 900), () {
+      if (mounted) setState(() => _grid = null);
+    });
   }
 
   Future<void> _attach(int cols, int rows) async {
@@ -151,11 +239,111 @@ class _TerminalPageState extends State<TerminalPage> {
     if (ctrl || alt) setState(() => _ctrl = _alt = false);
     // The terminal encodes the modifiers itself (and the cursor mode).
     _terminal.keyInput(key, ctrl: ctrl, alt: alt);
+    _toBottom();
   }
 
   void _send(String text) {
     unawaited(HapticFeedback.selectionClick());
     _stream?.input(text);
+    _toBottom();
+  }
+
+  /// The composer's line, as the program would take a paste, then Enter.
+  void _submit() {
+    final text = _line.text;
+    unawaited(HapticFeedback.lightImpact());
+    if (text.isNotEmpty) _terminal.paste(text);
+    _stream?.input('\r');
+    _line.clear();
+    _toBottom();
+  }
+
+  void _toggleInput() {
+    unawaited(HapticFeedback.selectionClick());
+    setState(() {
+      _input = _input == _Input.compose ? _Input.keys : _Input.compose;
+    });
+    // Once the view has rebuilt for the new mode (the raw keyboard only
+    // attaches when the terminal takes soft input).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_input == _Input.keys) {
+        _focus.requestFocus();
+      } else {
+        _lineFocus.requestFocus();
+      }
+    });
+  }
+
+  // ── pinch ──────────────────────────────────────────────────────────────
+
+  final _pointers = <int, Offset>{};
+  double? _pinchStart;
+
+  double get _spread {
+    final points = _pointers.values.take(2).toList();
+    return (points[0] - points[1]).distance;
+  }
+
+  void _down(PointerDownEvent event) {
+    _pointers[event.pointer] = event.localPosition;
+    if (_pointers.length == 2) {
+      _pinchStart = _spread;
+      _pinchFrom = _fontSize;
+    }
+  }
+
+  void _move(PointerMoveEvent event) {
+    if (!_pointers.containsKey(event.pointer)) return;
+    _pointers[event.pointer] = event.localPosition;
+    final start = _pinchStart;
+    final from = _pinchFrom;
+    if (_pointers.length < 2 || start == null || from == null || start < 8) {
+      return;
+    }
+    final size = (from * _spread / start).clamp(_minFont, _maxFont);
+    // Half-point steps: each one changes the grid, so not every frame.
+    final stepped = (size * 2).roundToDouble() / 2;
+    if (stepped != _fontSize) setState(() => _fontSize = stepped);
+  }
+
+  void _up(PointerEvent event) {
+    _pointers.remove(event.pointer);
+    if (_pointers.length < 2 && _pinchFrom != null) {
+      if (_fontSize != _pinchFrom) {
+        unawaited(HapticFeedback.selectionClick());
+        widget.onFontSize?.call(_fontSize);
+      }
+      _pinchFrom = null;
+      _pinchStart = null;
+    }
+  }
+
+  // ── menu ───────────────────────────────────────────────────────────────
+
+  Future<void> _copy() async {
+    final selection = _controller.selection;
+    final text = selection != null
+        ? _terminal.buffer.getText(selection)
+        : _terminal.buffer.lines
+              .toList()
+              .skip(
+                math.max(
+                  0,
+                  _terminal.buffer.lines.length - _terminal.viewHeight,
+                ),
+              )
+              .map((line) => line.toString().trimRight())
+              .join('\n')
+              .trim();
+    await Clipboard.setData(ClipboardData(text: text));
+    _controller.clearSelection();
+    if (!mounted) return;
+    unawaited(HapticFeedback.selectionClick());
+    setState(() => _copied = true);
+    Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) setState(() => _copied = false);
+    });
   }
 
   Future<void> _paste() async {
@@ -199,8 +387,9 @@ class _TerminalPageState extends State<TerminalPage> {
   }
 
   TerminalTheme _theme(AppColors colors, Brightness brightness) {
-    final dark = brightness == Brightness.dark;
-    final base = dark ? TerminalThemes.defaultTheme : _lightAnsi;
+    final base = brightness == Brightness.dark
+        ? TerminalThemes.defaultTheme
+        : _lightAnsi;
     return TerminalTheme(
       cursor: colors.text,
       selection: colors.text.withValues(alpha: .22),
@@ -233,6 +422,8 @@ class _TerminalPageState extends State<TerminalPage> {
     final colors = context.colors;
     final l10n = context.l10n;
     final info = _info;
+    final brightness = Theme.of(context).brightness;
+    final live = _ended == null;
     return Scaffold(
       backgroundColor: colors.bg,
       appBar: AppBar(
@@ -260,24 +451,29 @@ class _TerminalPageState extends State<TerminalPage> {
           ],
         ),
         actions: [
+          IconButton(
+            key: const Key('terminal-copy'),
+            tooltip: _copied ? l10n.copied : l10n.copy,
+            onPressed: _copy,
+            icon: AnimatedSwitcher(
+              duration: BayaMotion.fast,
+              child: Icon(
+                _copied ? LucideIcons.check : LucideIcons.copy,
+                key: ValueKey(_copied),
+                size: 19,
+              ),
+            ),
+          ),
           PopupMenuButton<String>(
             key: const Key('terminal-menu'),
             icon: const Icon(LucideIcons.ellipsis, size: 20),
             onSelected: (choice) => switch (choice) {
-              'bigger' => setState(
-                () => _fontSize = (_fontSize + 1).clamp(8, 24),
-              ),
-              'smaller' => setState(
-                () => _fontSize = (_fontSize - 1).clamp(8, 24),
-              ),
               'paste' => unawaited(_paste()),
               _ => unawaited(_end()),
             },
             itemBuilder: (_) => [
               PopupMenuItem(value: 'paste', child: Text(l10n.paste)),
-              PopupMenuItem(value: 'bigger', child: Text(l10n.largerText)),
-              PopupMenuItem(value: 'smaller', child: Text(l10n.smallerText)),
-              if (_ended == null)
+              if (live)
                 PopupMenuItem(
                   value: 'end',
                   child: Text(
@@ -295,24 +491,81 @@ class _TerminalPageState extends State<TerminalPage> {
           children: [
             _Notice(online: widget.online, ended: _ended, error: _error),
             Expanded(
-              child: TerminalView(
-                _terminal,
-                key: ObjectKey(_terminal),
-                controller: _controller,
-                focusNode: _focus,
-                autofocus: true,
-                readOnly: _ended != null,
-                theme: _theme(colors, Theme.of(context).brightness),
-                keyboardAppearance: Theme.of(context).brightness,
-                keyboardType: TextInputType.visiblePassword,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                textStyle: TerminalStyle(
-                  fontSize: _fontSize,
-                  fontFamily: kMonoFamily,
-                ),
+              child: Stack(
+                children: [
+                  Listener(
+                    onPointerDown: _down,
+                    onPointerMove: _move,
+                    onPointerUp: _up,
+                    onPointerCancel: _up,
+                    child: TerminalView(
+                      _terminal,
+                      key: ObjectKey(_terminal),
+                      controller: _controller,
+                      scrollController: _scroll,
+                      focusNode: _focus,
+                      readOnly: !live,
+                      // Composing: a tap selects or scrolls, it does not
+                      // bring the raw keyboard up.
+                      hardwareKeyboardOnly: _input == _Input.compose,
+                      theme: _theme(colors, brightness),
+                      keyboardAppearance: brightness,
+                      keyboardType: TextInputType.visiblePassword,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      textStyle: TerminalStyle(
+                        fontSize: _fontSize,
+                        fontFamily: kMonoFamily,
+                      ),
+                    ),
+                  ),
+                  // The grid while pinching: the program's new size.
+                  Positioned(
+                    top: 12,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      child: Center(
+                        child: AnimatedOpacity(
+                          opacity: _grid == null ? 0 : 1,
+                          duration: BayaMotion.fast,
+                          child: _Pill(
+                            key: const Key('terminal-grid'),
+                            text: _grid ?? '',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 14,
+                    bottom: 12,
+                    child: AnimatedScale(
+                      scale: _atBottom ? 0 : 1,
+                      duration: BayaMotion.standard,
+                      curve: BayaMotion.spring,
+                      child: FloatingActionButton.small(
+                        key: const Key('terminal-to-bottom'),
+                        heroTag: null,
+                        tooltip: l10n.jumpToLatest,
+                        elevation: 0,
+                        backgroundColor: colors.text,
+                        foregroundColor: colors.bg,
+                        onPressed: _toBottom,
+                        child: const Icon(LucideIcons.arrowDown, size: 18),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (_ended == null)
+            if (live) ...[
+              AnimatedSize(
+                duration: BayaMotion.standard,
+                curve: BayaMotion.enter,
+                child: info.needsYou
+                    ? _Answers(status: info.status!, onAnswer: _send)
+                    : const SizedBox(width: double.infinity),
+              ),
               _KeyBar(
                 ctrl: _ctrl,
                 alt: _alt,
@@ -321,7 +574,224 @@ class _TerminalPageState extends State<TerminalPage> {
                 onKey: _key,
                 onText: _send,
               ),
+              _Composer(
+                mode: _input,
+                controller: _line,
+                focus: _lineFocus,
+                onSubmit: _submit,
+                onToggle: _toggleInput,
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// When the program waits: what it asks, and answers as buttons.
+class _Answers extends StatelessWidget {
+  const _Answers({required this.status, required this.onAnswer});
+
+  final TerminalStatus status;
+  final ValueChanged<String> onAnswer;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final l10n = context.l10n;
+    // Agents' prompts pick by number or y/n, confirm with Enter.
+    final answers = <(String, String, Key)>[
+      ('1', '1', const Key('terminal-answer-1')),
+      ('2', '2', const Key('terminal-answer-2')),
+      ('3', '3', const Key('terminal-answer-3')),
+      ('y', 'y', const Key('terminal-answer-y')),
+      ('n', 'n', const Key('terminal-answer-n')),
+      (l10n.enterKey, '\r', const Key('terminal-answer-enter')),
+    ];
+    return Container(
+      key: const Key('terminal-answers'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                LucideIcons.messageCircleQuestionMark,
+                size: 15,
+                color: colors.text,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  status.message ?? l10n.terminalStateBlocked,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.typo.sansBody.copyWith(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: colors.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final (label, keys, key) in answers)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: OutlinedButton(
+                      key: key,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(46, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        textStyle: context.typo.mono.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onPressed: () => onAnswer(keys),
+                      child: Text(label),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The phone's way to type: a line written with the phone's keyboard, sent
+/// with Enter; or, toggled, keys straight into the terminal.
+class _Composer extends StatelessWidget {
+  const _Composer({
+    required this.mode,
+    required this.controller,
+    required this.focus,
+    required this.onSubmit,
+    required this.onToggle,
+  });
+
+  final _Input mode;
+  final TextEditingController controller;
+  final FocusNode focus;
+  final VoidCallback onSubmit;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final l10n = context.l10n;
+    final composing = mode == _Input.compose;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      color: colors.bg,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          IconButton(
+            key: const Key('terminal-input-mode'),
+            tooltip: composing ? l10n.typeIntoTerminal : l10n.composeLine,
+            onPressed: onToggle,
+            icon: Icon(
+              composing ? LucideIcons.keyboard : LucideIcons.messageSquareText,
+              size: 20,
+            ),
+          ),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: BayaMotion.fast,
+              child: composing
+                  ? TextField(
+                      key: const Key('terminal-compose'),
+                      controller: controller,
+                      focusNode: focus,
+                      minLines: 1,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => onSubmit(),
+                      style: context.typo.sansBody.copyWith(fontSize: 15),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: l10n.terminalComposeHint,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 11,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(22),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: colors.inputFill,
+                      ),
+                    )
+                  : Padding(
+                      key: const Key('terminal-keys-mode'),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        l10n.typingIntoTerminal,
+                        style: context.typo.sansBody.copyWith(
+                          fontSize: 13,
+                          color: colors.muted,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+          if (composing)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: IconButton.filled(
+                key: const Key('terminal-send'),
+                tooltip: l10n.sendMessage,
+                style: IconButton.styleFrom(
+                  backgroundColor: colors.text,
+                  foregroundColor: colors.bg,
+                ),
+                onPressed: onSubmit,
+                icon: const Icon(LucideIcons.cornerDownLeft, size: 18),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({super.key, required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: colors.text,
+        shape: const StadiumBorder(),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Text(
+          text,
+          style: context.typo.monoSmall.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: colors.bg,
+          ),
         ),
       ),
     );

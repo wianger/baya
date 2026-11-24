@@ -530,11 +530,14 @@
   "endTerminalTitle": "结束这个终端？",
   "endTerminalBody": "它的程序会在电脑上停止，所有正在看它的手机和终端都会断开。",
   "paste": "粘贴",
-  "largerText": "放大字体",
-  "smallerText": "缩小字体",
   "terminalStateBlocked": "等你处理",
   "terminalStateWorking": "工作中",
   "terminalStateDone": "完成",
   "terminalStateError": "出错",
-  "terminalStateIdle": "空闲"
+  "terminalStateIdle": "空闲",
+  "enterKey": "回车",
+  "typeIntoTerminal": "直接在终端里打字",
+  "composeLine": "写好一整句再发送",
+  "typingIntoTerminal": "正在直接向终端输入",
+  "terminalComposeHint": "输入内容，发送到终端"
 }

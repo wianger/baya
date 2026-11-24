@@ -30,11 +30,17 @@ class TerminalsPage extends StatefulWidget {
     required this.launch,
     required this.repository,
     this.online,
+    this.fontSize = 13,
+    this.onFontSize,
   });
 
   final TerminalsLaunch launch;
   final TerminalsRepository repository;
   final ValueListenable<bool>? online;
+
+  /// The terminal text size, kept across terminals and visits.
+  final double fontSize;
+  final ValueChanged<double>? onFontSize;
 
   @override
   State<TerminalsPage> createState() => _TerminalsPageState();
@@ -44,6 +50,7 @@ class _TerminalsPageState extends State<TerminalsPage> {
   TerminalList? _list;
   Object? _error;
   bool _starting = false;
+  late double _fontSize = widget.fontSize;
   StreamSubscription<void>? _changes;
   Timer? _settle;
 
@@ -91,6 +98,11 @@ class _TerminalsPageState extends State<TerminalsPage> {
           repository: widget.repository,
           terminal: terminal,
           online: widget.online,
+          fontSize: _fontSize,
+          onFontSize: (size) {
+            _fontSize = size;
+            widget.onFontSize?.call(size);
+          },
         ),
       ),
     );

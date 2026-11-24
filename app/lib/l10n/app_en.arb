@@ -1078,11 +1078,14 @@
   "endTerminalTitle": "End this terminal?",
   "endTerminalBody": "Its program stops on the computer, for every phone and terminal watching it.",
   "paste": "Paste",
-  "largerText": "Larger text",
-  "smallerText": "Smaller text",
   "terminalStateBlocked": "Needs you",
   "terminalStateWorking": "Working",
   "terminalStateDone": "Done",
   "terminalStateError": "Error",
-  "terminalStateIdle": "Idle"
+  "terminalStateIdle": "Idle",
+  "enterKey": "Enter",
+  "typeIntoTerminal": "Type into the terminal directly",
+  "composeLine": "Write a line, then send",
+  "typingIntoTerminal": "Typing straight into the terminal",
+  "terminalComposeHint": "Type, then send to the terminal"
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app/config/dependencies.dart';
 import 'package:app/data/hosts/host_connection.dart';
 import 'package:app/data/hosts/hosts.dart';
@@ -376,9 +378,14 @@ class _HostTerminalsState extends State<_HostTerminals> {
   }
 
   @override
-  Widget build(BuildContext context) => TerminalsPage(
-    launch: widget.launch,
-    repository: _repository,
-    online: _online,
-  );
+  Widget build(BuildContext context) {
+    final prefs = context.read<Preferences>();
+    return TerminalsPage(
+      launch: widget.launch,
+      repository: _repository,
+      online: _online,
+      fontSize: prefs.terminalFontSize,
+      onFontSize: (size) => unawaited(prefs.setTerminalFontSize(size)),
+    );
+  }
 }
