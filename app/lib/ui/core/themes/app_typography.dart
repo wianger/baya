@@ -18,13 +18,13 @@ const _literal = [
 /// System fallback handles CJK and other scripts.
 const List<String>? kFontFallback = null;
 
-/// The Baya wordmark's face: Inter, semibold and set tight.
-const kWordmarkFamily = kSansFamily;
+/// The Baya wordmark's script face (OFL, bundled).
+const kWordmarkFamily = 'Pinyon Script';
 
-/// The Baya wordmark.
+/// The Baya wordmark, set in Pinyon Script.
 TextStyle brandDisplayTextStyle({
   required double fontSize,
-  FontWeight fontWeight = FontWeight.w600,
+  FontWeight fontWeight = FontWeight.w400,
   Color? color,
 }) {
   return TextStyle(
@@ -32,7 +32,7 @@ TextStyle brandDisplayTextStyle({
     fontSize: fontSize,
     fontWeight: fontWeight,
     color: color,
-    letterSpacing: -fontSize * .035,
+    letterSpacing: .2,
     height: 1.2,
   );
 }

@@ -38,5 +38,10 @@
     "file": "JetBrainsMono/JetBrainsMono-SemiBold.ttf",
     "source": "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip",
     "sha256": "1b3bfa1ed5665a4ce3f9feb68d2d4e40e70bf8b4b7d9a3edd418f321b4e166a0"
+  },
+  {
+    "file": "PinyonScript/PinyonScript-Regular.ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/pinyonscript/PinyonScript-Regular.ttf",
+    "sha256": "4aab130a6ed27f8b8117738c84a5602edf9300cdcc0651a9a65bf96f451ac29a"
   }
 ]

@@ -78,9 +78,13 @@ flutter:
   assets:
     - assets/fonts/Inter/OFL.txt
     - assets/fonts/JetBrainsMono/OFL.txt
+    - assets/fonts/PinyonScript/OFL.txt
 
   # Unmodified upstream static fonts; sources and checksums in assets/fonts.
   fonts:
+    - family: Pinyon Script
+      fonts:
+        - asset: assets/fonts/PinyonScript/PinyonScript-Regular.ttf
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter/Inter-Regular.ttf

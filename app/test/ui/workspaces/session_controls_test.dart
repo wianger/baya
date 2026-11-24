@@ -409,11 +409,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('All'), findsNothing);
       expect(find.textContaining('Working'), findsNothing);
-      // DeepSeek's drawer: no wordmark header, the account row (here
-      // settings, with the mark) at the foot, no new-session pill.
+      // The mark and the wordmark on top, settings and New session at the
+      // foot.
       expect(find.byType(AppMark), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('Baya')).style?.fontFamily,
+        'Pinyon Script',
+      );
       expect(find.byKey(const Key('sidebar-settings')), findsOneWidget);
-      expect(find.byKey(const Key('sidebar-new-session')), findsNothing);
+      expect(find.byKey(const Key('sidebar-new-session')), findsOneWidget);
       // Search opens from the capsule at the top.
       expect(find.byKey(const Key('sidebar-search-field')), findsNothing);
       await tester.tap(find.byKey(const Key('sidebar-search')));

@@ -1,337 +1,69 @@
 /// The workspace overview shown when no chat is open.
 library;
 
-import 'package:app/data/launcher/launcher.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
-import 'package:app/ui/home/states/home_state.dart';
-import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
-import 'package:app/ui/workspaces/workspace_navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:provider/provider.dart';
 
 class SessionWelcome extends StatelessWidget {
   const SessionWelcome({super.key});
 
+  /// The home: the menu icon in the corner, and the mark with "Baya" in
+  /// the middle. Everything else is in the drawer.
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final vm = context.watch<HomeViewModel>();
-    final state = vm.state;
     final menu = SessionShell.menuOf(context);
     return Scaffold(
       backgroundColor: colors.bg,
-      // DeepSeek's home: no title bar, a floating menu circle on the left
-      // and the new-chat action in a floating capsule on the right.
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(72),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Row(
-              children: [
-                if (menu != null)
-                  BayaSurface(
-                    role: BayaSurfaceRole.floating,
-                    radius: 26,
-                    child: SizedBox.square(
-                      dimension: 52,
-                      child: IconButton(
-                        key: const Key('overview-menu'),
-                        onPressed: menu,
-                        tooltip: context.l10n.openNavigation,
-                        icon: Icon(
-                          LucideIcons.textAlignStart,
-                          size: 21,
-                          color: colors.text,
-                        ),
-                      ),
-                    ),
-                  ),
-                const Spacer(),
-                if (vm.selectedWorkspace != null)
-                  BayaSurface(
-                    role: BayaSurfaceRole.floating,
-                    radius: 26,
-                    child: SizedBox.square(
-                      dimension: 52,
-                      child: IconButton(
-                        key: const Key('overview-new-chat'),
-                        onPressed: () => openNewSession(context),
-                        tooltip: context.l10n.newSession,
-                        icon: Icon(
-                          LucideIcons.messageCirclePlus,
-                          size: 21,
-                          color: colors.text,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
       body: SafeArea(
-        child: switch (state) {
-          HomeLoading() => const Center(child: CircularProgressIndicator()),
-          HomeNoPeer() => const _NoDeviceOverview(),
-          HomeList() => _WorkspaceOverview(vm: vm),
-        },
-      ),
-    );
-  }
-}
-
-class _NoDeviceOverview extends StatelessWidget {
-  const _NoDeviceOverview();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: BayaSurface(
-            radius: 32,
-            child: Padding(
-              padding: const EdgeInsets.all(30),
+        child: Stack(
+          children: [
+            Center(
               child: Column(
+                key: const Key('workspace-overview'),
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: colors.selection,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      LucideIcons.monitorSmartphone,
-                      color: colors.accent,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                  const AppMark(size: 88, tile: true),
+                  const SizedBox(height: 18),
                   Text(
-                    context.l10n.bringFirstComputerOnline,
-                    textAlign: TextAlign.center,
-                    style: context.typo.sansBody.copyWith(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.4,
+                    kAppName,
+                    key: const Key('overview-wordmark'),
+                    style: brandDisplayTextStyle(
+                      fontSize: 54,
+                      color: colors.text,
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    context.l10n.pairDeviceHint,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colors.muted2,
-                      fontSize: 14,
-                      height: 1.55,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  BayaButton(
-                    onPressed: () => context.push('/pair'),
-                    icon: const Icon(LucideIcons.scanLine, size: 18),
-                    label: Text(context.l10n.pairComputer),
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceOverview extends StatelessWidget {
-  const _WorkspaceOverview({required this.vm});
-
-  final HomeViewModel vm;
-
-  /// DeepSeek's home: only the mark and a greeting in the middle, and the
-  /// composer at the foot. Sessions live in the drawer.
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final workspace = vm.selectedWorkspace;
-    final deviceEpk = vm.selectedDevice;
-    final device = deviceEpk == null ? null : vm.devices[deviceEpk];
-    final online = deviceEpk != null && vm.isRoomLive(deviceEpk, '');
-    final deviceName =
-        device?.nickname ?? device?.name ?? context.l10n.noDeviceSelected;
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
-        child: Column(
-          key: const Key('workspace-overview'),
-          children: [
-            Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const AppMark(size: 40),
-                      const SizedBox(height: 14),
-                      Text(
-                        vm.workspaceLabel(workspace) ??
-                            context.l10n.noWorkspace,
-                        key: const Key('overview-greeting'),
-                        maxLines: 2,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.typo.greeting,
+            if (menu != null)
+              Positioned(
+                left: 16,
+                top: 8,
+                child: BayaSurface(
+                  role: BayaSurfaceRole.floating,
+                  radius: 26,
+                  child: SizedBox.square(
+                    dimension: 52,
+                    child: IconButton(
+                      key: const Key('overview-menu'),
+                      onPressed: menu,
+                      tooltip: context.l10n.openNavigation,
+                      icon: Icon(
+                        LucideIcons.textAlignStart,
+                        size: 21,
+                        color: colors.text,
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        [
-                          deviceName,
-                          online
-                              ? context.l10n.statusReady
-                              : context.l10n.statusOffline,
-                        ].join(' · '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 14,
-                          color: colors.muted,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: BayaReveal(
-                child: _StartCard(enabled: online && workspace != null),
-              ),
-            ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Where a new conversation starts: looks like the composer it leads to.
-class _StartCard extends StatelessWidget {
-  const _StartCard({required this.enabled});
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    // Text shared from another app waits here for the session it goes to.
-    final draft = context.watch<SharedDraft?>();
-    final shared = draft?.text;
-    return BayaSurface(
-      key: const Key('overview-new-session'),
-      role: BayaSurfaceRole.floating,
-      radius: 28,
-      elevated: false,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: enabled ? () => openNewSession(context) : null,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 14, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (shared == null)
-                  Text(
-                    context.l10n.whatShouldAgentDo,
-                    style: context.typo.sansBody.copyWith(
-                      fontSize: 16,
-                      color: colors.muted,
-                    ),
-                  )
-                else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          shared,
-                          key: const Key('overview-shared-text'),
-                          maxLines: 5,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.typo.sansBody.copyWith(
-                            fontSize: 15,
-                            height: 1.4,
-                            color: colors.text,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: context.l10n.discardShared,
-                        visualDensity: VisualDensity.compact,
-                        onPressed: draft!.clear,
-                        icon: Icon(
-                          LucideIcons.x,
-                          size: 18,
-                          color: colors.muted,
-                        ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Icon(
-                      shared == null
-                          ? LucideIcons.folderOpen
-                          : LucideIcons.share,
-                      size: 16,
-                      color: colors.muted,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        shared == null
-                            ? context.l10n.pickFolderAndAgent
-                            : context.l10n.sharedTextHint,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 13,
-                          color: colors.muted,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: enabled ? colors.text : colors.inputFill,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        LucideIcons.arrowUp,
-                        size: 18,
-                        color: enabled ? colors.bg : colors.muted,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
