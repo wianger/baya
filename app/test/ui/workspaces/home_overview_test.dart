@@ -12,66 +12,58 @@ import 'package:provider/provider.dart';
 import '../../support/acp_harness.dart';
 
 void main() {
-  testWidgets(
-    'home overview leads with a new session and lists recent ones, newest first',
-    (tester) async {
-      FlutterSecureStorage.setMockInitialValues({});
-      final prefs = Preferences();
-      await prefs.load();
-      final peer = testPeer();
-      final storage = MemoryStorage([peer]);
-      final host = FakeHost(
-        sessions: [
-          testSession(
-            id: 'alpha',
-            cwd: '/code/project',
-            title: 'Alpha task',
-            updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
-          ),
-          testSession(
-            id: 'beta',
-            cwd: '/code/project',
-            title: 'Beta task',
-            updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 2),
-          ),
-        ],
-      );
-      final hosts = testHosts(storage, host);
-      await hosts.start();
-      final vm = HomeViewModel(hosts, storage, prefs);
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider.value(value: vm),
-            ChangeNotifierProvider<Preferences>.value(value: prefs),
-          ],
-          child: MaterialApp(
-            theme: buildLightTheme(),
-            home: const SessionWelcome(),
-          ),
+  testWidgets('home shows only the greeting and the composer', (tester) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    final prefs = Preferences();
+    await prefs.load();
+    final peer = testPeer();
+    final storage = MemoryStorage([peer]);
+    final host = FakeHost(
+      sessions: [
+        testSession(
+          id: 'alpha',
+          cwd: '/code/project',
+          title: 'Alpha task',
+          updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
         ),
-      );
-      await tester.pumpAndSettle();
+        testSession(
+          id: 'beta',
+          cwd: '/code/project',
+          title: 'Beta task',
+          updatedAt: DateTime.utc(2026, 1, 1, 0, 0, 2),
+        ),
+      ],
+    );
+    final hosts = testHosts(storage, host);
+    await hosts.start();
+    final vm = HomeViewModel(hosts, storage, prefs);
 
-      expect(find.byKey(const Key('workspace-overview')), findsOneWidget);
-      expect(find.byKey(const Key('overview-new-session')), findsOneWidget);
-      final beta = tester.getTopLeft(
-        find.byKey(const ValueKey('overview-session-beta')),
-      );
-      final alpha = tester.getTopLeft(
-        find.byKey(const ValueKey('overview-session-alpha')),
-      );
-      expect(beta.dy, lessThan(alpha.dy));
-      expect(find.text('Beta task'), findsOneWidget);
-      expect(find.byKey(const Key('overview-previous-sessions')), findsNothing);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: vm),
+          ChangeNotifierProvider<Preferences>.value(value: prefs),
+        ],
+        child: MaterialApp(
+          theme: buildLightTheme(),
+          home: const SessionWelcome(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      vm.dispose();
-      hosts.dispose();
-      prefs.dispose();
-    },
-  );
+    // DeepSeek's home: the greeting and the composer, no session lists.
+    expect(find.byKey(const Key('workspace-overview')), findsOneWidget);
+    expect(find.byKey(const Key('overview-new-session')), findsOneWidget);
+    expect(find.byKey(const Key('overview-greeting')), findsOneWidget);
+    expect(find.text('Beta task'), findsNothing);
+    expect(find.text('Alpha task'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    vm.dispose();
+    hosts.dispose();
+    prefs.dispose();
+  });
 
   testWidgets(
     'home overview empty state names Inbox and points to the start card',
@@ -101,7 +93,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Inbox'), findsOneWidget);
-      expect(find.text('No sessions yet'), findsOneWidget);
       expect(find.byKey(const Key('overview-new-session')), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
@@ -111,7 +102,7 @@ void main() {
     },
   );
 
-  testWidgets('home overview opens a recent session', (tester) async {
+  testWidgets('the drawer opens a session', (tester) async {
     FlutterSecureStorage.setMockInitialValues({});
     final prefs = Preferences();
     await prefs.load();
@@ -140,7 +131,10 @@ void main() {
     final router = GoRouter(
       initialLocation: '/home',
       routes: [
-        GoRoute(path: '/home', builder: (_, _) => const SessionWelcome()),
+        GoRoute(
+          path: '/home',
+          builder: (_, _) => const Scaffold(body: SessionSidebar()),
+        ),
         GoRoute(
           path: '/chat',
           builder: (_, _) => const Scaffold(body: Text('Opened chat route')),
@@ -165,7 +159,9 @@ void main() {
     final alpha = vm.allItems.firstWhere((item) => item.sessionId == 'alpha');
 
     expect(find.text('Latest task'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('overview-session-alpha')));
+    await tester.tap(
+      find.byKey(ValueKey('session-row-${peer.remoteEpk}-alpha')),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Opened chat route'), findsOneWidget);
@@ -179,9 +175,7 @@ void main() {
     prefs.dispose();
   });
 
-  testWidgets('holding a session pins it above the recent ones', (
-    tester,
-  ) async {
+  testWidgets('holding a session in the drawer pins it first', (tester) async {
     FlutterSecureStorage.setMockInitialValues({});
     final prefs = Preferences();
     await prefs.load();
@@ -217,14 +211,14 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildLightTheme(),
-          home: const SessionWelcome(),
+          home: const Scaffold(body: SessionSidebar()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     await tester.longPress(
-      find.byKey(const ValueKey('overview-session-alpha')),
+      find.byKey(ValueKey('session-row-${peer.remoteEpk}-alpha')),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('session-action-pin')));
@@ -232,10 +226,10 @@ void main() {
 
     expect(find.text('Pinned'), findsOneWidget);
     final alpha = tester.getTopLeft(
-      find.byKey(const ValueKey('overview-session-alpha')),
+      find.byKey(ValueKey('session-row-${peer.remoteEpk}-alpha')),
     );
     final beta = tester.getTopLeft(
-      find.byKey(const ValueKey('overview-session-beta')),
+      find.byKey(ValueKey('session-row-${peer.remoteEpk}-beta')),
     );
     expect(alpha.dy, lessThan(beta.dy));
     expect(prefs.isPinned(peer.remoteEpk, 'alpha'), isTrue);
@@ -262,16 +256,17 @@ void main() {
           providers: [
             ChangeNotifierProvider.value(value: vm),
             ChangeNotifierProvider<Preferences>.value(value: prefs),
+            ChangeNotifierProvider.value(value: SessionSelection()),
           ],
           child: MaterialApp(
             theme: buildLightTheme(),
-            home: const SessionWelcome(),
+            home: const Scaffold(body: SessionSidebar()),
           ),
         ),
       );
       await tester.pumpAndSettle();
       expect(
-        find.byKey(const Key('overview-remote-control')),
+        find.byKey(const Key('drawer-remote-control')),
         screen ? findsOneWidget : findsNothing,
       );
       expect(find.byKey(const Key('overview-terminals')), findsNothing);
