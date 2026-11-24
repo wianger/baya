@@ -71,7 +71,9 @@ object Moonlight {
         )
     }
 
-    private fun emit(event: Map<String, Any?>) = main.post { events?.success(event) }
+    private fun emit(event: Map<String, Any?>) {
+        main.post { events?.success(event) }
+    }
 
     /** This phone to Sunshine: one random id per install, as Moonlight keeps it. */
     private fun uniqueId(context: Context): String {
