@@ -281,14 +281,15 @@ class _WorkspaceOverview extends StatelessWidget {
                     chevron: true,
                     onTap: () => openComputerSessions(context),
                   ),
-                  BayaRow(
-                    key: const Key('overview-terminals'),
-                    icon: LucideIcons.terminal,
-                    label: context.l10n.terminalsRow,
-                    subtitle: context.l10n.terminalsRowHint,
-                    chevron: true,
-                    onTap: () => openTerminals(context),
-                  ),
+                  if (vm.canControlScreen)
+                    BayaRow(
+                      key: const Key('overview-remote-control'),
+                      icon: LucideIcons.monitorSmartphone,
+                      label: context.l10n.remoteControl,
+                      subtitle: context.l10n.remoteControlHint,
+                      chevron: true,
+                      onTap: () => openRemoteControl(context),
+                    ),
                 ],
               ),
             ],

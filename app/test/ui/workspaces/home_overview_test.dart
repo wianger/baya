@@ -246,4 +246,39 @@ void main() {
     prefs.dispose();
     selection.dispose();
   });
+
+  for (final screen in [true, false]) {
+    testWidgets('remote control is offered only where the screen can be '
+        '(${screen ? 'Windows host' : 'other host'})', (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final prefs = Preferences();
+      await prefs.load();
+      final storage = MemoryStorage([testPeer()]);
+      final hosts = testHosts(storage, FakeHost(screen: screen));
+      await hosts.start();
+      final vm = HomeViewModel(hosts, storage, prefs);
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: vm),
+            ChangeNotifierProvider<Preferences>.value(value: prefs),
+          ],
+          child: MaterialApp(
+            theme: buildLightTheme(),
+            home: const SessionWelcome(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('overview-remote-control')),
+        screen ? findsOneWidget : findsNothing,
+      );
+      expect(find.byKey(const Key('overview-terminals')), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      vm.dispose();
+      hosts.dispose();
+      prefs.dispose();
+    });
+  }
 }

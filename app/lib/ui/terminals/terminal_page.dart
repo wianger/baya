@@ -34,6 +34,7 @@ class TerminalPage extends StatefulWidget {
     this.online,
     this.fontSize = 13,
     this.onFontSize,
+    this.onAllTerminals,
   });
 
   final TerminalsRepository repository;
@@ -45,6 +46,9 @@ class TerminalPage extends StatefulWidget {
   /// The text size to start at, and where a pinch's result is kept.
   final double fontSize;
   final ValueChanged<double>? onFontSize;
+
+  /// Shows every terminal on the computer, from a session's own.
+  final void Function(BuildContext context)? onAllTerminals;
 
   @override
   State<TerminalPage> createState() => _TerminalPageState();
@@ -469,10 +473,17 @@ class _TerminalPageState extends State<TerminalPage> {
             icon: const Icon(LucideIcons.ellipsis, size: 20),
             onSelected: (choice) => switch (choice) {
               'paste' => unawaited(_paste()),
+              'all' => widget.onAllTerminals?.call(context),
               _ => unawaited(_end()),
             },
             itemBuilder: (_) => [
               PopupMenuItem(value: 'paste', child: Text(l10n.paste)),
+              if (widget.onAllTerminals != null)
+                PopupMenuItem(
+                  key: const Key('terminal-all'),
+                  value: 'all',
+                  child: Text(l10n.allTerminals),
+                ),
               if (live)
                 PopupMenuItem(
                   value: 'end',

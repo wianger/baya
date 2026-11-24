@@ -48,6 +48,7 @@ import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/sto
 import { issuePendingPairToken, type PendingPairToken } from "./pairing/token_store.ts";
 import { packaged, selfCommand } from "./runtime/self.ts";
 import { packageVersion } from "./runtime/version.ts";
+import { sunshineLogin, sunshineState } from "./screen/sunshine.ts";
 import { installStartup, uninstallStartup } from "./service.ts";
 import { findSession, folderName, listSessions, removeSession } from "./session/registry.ts";
 import {
@@ -90,6 +91,11 @@ ${bold("Agents")} ${dim("— any command that speaks ACP (agentclientprotocol.co
   baya agents remove <id>
   baya agents default <id>
 
+${bold("Remote control")} ${dim("— Windows: Sunshine streams this screen to the phone")}
+  baya remote             Whether the phone can control this screen
+  baya remote install     Install Sunshine  ${dim("(Windows asks for admin rights once)")}
+  baya remote login <user> <password>  Use a Sunshine account set up by hand
+
 ${bold("Phones")}
   baya devices            List paired phones
   baya unpair <phone>     Revoke a phone  ${dim("(name or key prefix)")}
@@ -119,6 +125,7 @@ const COMMANDS = [
   "logs",
   "doctor",
   "agents",
+  "remote",
   "autostart",
   "update",
   "help",
@@ -510,7 +517,7 @@ async function logs(args: ParsedArgs): Promise<void> {
 }
 
 async function doctor(args: ParsedArgs): Promise<void> {
-  const [agentList, peers, host, self, identityError, hc] = await Promise.all([
+  const [agentList, peers, host, self, identityError, hc, sunshine] = await Promise.all([
     agentStatuses(),
     listPeers(),
     hostStatus(),
@@ -520,6 +527,7 @@ async function doctor(args: ParsedArgs): Promise<void> {
       (error: unknown) => (error instanceof Error ? error.message : String(error)),
     ),
     findExecutable("hc"),
+    sunshineState(),
   ]);
   const direct = self ? await directEndpoint(self) : null;
   if (json(args)) {
@@ -533,6 +541,7 @@ async function doctor(args: ParsedArgs): Promise<void> {
       host: host ? { online: true, pid: host.pid } : { online: false },
       paired_devices: peers.length,
       herdr: hc,
+      remote_control: sunshine,
       agents: agentList,
     });
   }
@@ -571,6 +580,14 @@ async function doctor(args: ParsedArgs): Promise<void> {
       ),
     );
   }
+  if (sunshine.ready) {
+    lines.push(ok("Remote control through Sunshine"));
+  } else if (sunshine.reason !== "not_windows") {
+    lines.push(warn(`Remote control: ${SUNSHINE_HINT[sunshine.reason]}`));
+    if (sunshine.reason === "not_installed") lines.push(hint("baya remote install"));
+    if (sunshine.reason === "foreign_account")
+      lines.push(hint("baya remote login <user> <password>"));
+  }
   for (const agent of agentList) {
     lines.push(
       agent.available
@@ -596,6 +613,60 @@ async function agentStatuses(): Promise<
       default: agent.id === fallback,
     })),
   );
+}
+
+const SUNSHINE_HINT: Record<string, string> = {
+  not_windows: "Remote control streams a Windows screen: run Baya on Windows",
+  not_installed: "Sunshine is not installed",
+  not_running: "Sunshine is installed but not running",
+  foreign_account: "Sunshine has an account Baya does not know",
+};
+
+async function remote(args: ParsedArgs): Promise<void> {
+  const [action, user, password] = args.positionals;
+  switch (action) {
+    case undefined: {
+      const state = await sunshineState();
+      if (json(args)) return printJson(state);
+      if (state.ready) return out(ok("The phone can control this screen through Sunshine"));
+      out(warn(SUNSHINE_HINT[state.reason] ?? state.reason));
+      if (state.reason === "not_installed") out(hint("baya remote install"));
+      if (state.reason === "foreign_account") out(hint("baya remote login <user> <password>"));
+      return;
+    }
+    case "install": {
+      if (process.platform !== "win32") throw new Error(SUNSHINE_HINT["not_windows"]);
+      const { spawnSync } = await import("node:child_process");
+      const run = spawnSync(
+        "winget",
+        [
+          "install",
+          "--source",
+          "winget",
+          "--id",
+          "LizardByte.Sunshine",
+          "--accept-package-agreements",
+          "--accept-source-agreements",
+        ],
+        { stdio: "inherit" },
+      );
+      if (run.status !== 0) throw new Error("winget could not install Sunshine.");
+      const state = await sunshineState();
+      return out(
+        state.ready
+          ? ok("Sunshine is ready: the phone can control this screen")
+          : warn(SUNSHINE_HINT[state.reason] ?? state.reason),
+      );
+    }
+    case "login": {
+      if (!user || !password) throw new Error("Use: baya remote login <user> <password>");
+      if (!(await sunshineLogin(user, password)))
+        throw new Error("Sunshine did not accept that account.");
+      return out(ok("Baya uses this Sunshine account now"));
+    }
+    default:
+      throw new Error("Use `baya remote`, `baya remote install` or `baya remote login`.");
+  }
 }
 
 async function agents(args: ParsedArgs): Promise<void> {
@@ -755,6 +826,8 @@ async function main(): Promise<void> {
       return doctor(args);
     case "agents":
       return agents(args);
+    case "remote":
+      return remote(args);
     case "autostart":
       return autostart(args);
     case "update":

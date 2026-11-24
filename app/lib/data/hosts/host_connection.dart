@@ -98,6 +98,7 @@ class HostConnection extends ChangeNotifier {
       StreamController<({String method, Json params})>.broadcast();
   final _terminalNews =
       StreamController<({String method, Json params})>.broadcast();
+  final _screenEnded = StreamController<Json>.broadcast();
 
   /// File bytes the computer streams to this phone.
   Stream<DataFrame> get data => _data.stream;
@@ -110,6 +111,9 @@ class HostConnection extends ChangeNotifier {
   /// computer's herdr-core terminals.
   Stream<({String method, Json params})> get terminalNews =>
       _terminalNews.stream;
+
+  /// `_baya/screen_ended`: a remote-control session the computer closed.
+  Stream<Json> get screenEnded => _screenEnded.stream;
 
   /// File bytes for the computer; fails when it is not connected.
   Future<void> sendData(int stream, int offset, List<int> bytes) {
@@ -388,6 +392,8 @@ class HostConnection extends ChangeNotifier {
         if (!_transfers.isClosed) {
           _transfers.add((method: method, params: params));
         }
+      case '_baya/screen_ended':
+        if (!_screenEnded.isClosed) _screenEnded.add(params);
       case '_baya/terminals_changed' || '_baya/terminal_closed':
         if (!_terminalNews.isClosed) {
           _terminalNews.add((method: method, params: params));
@@ -481,6 +487,7 @@ class HostConnection extends ChangeNotifier {
     unawaited(_data.close());
     unawaited(_transfers.close());
     unawaited(_terminalNews.close());
+    unawaited(_screenEnded.close());
     super.dispose();
   }
 }

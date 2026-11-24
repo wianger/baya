@@ -1,12 +1,13 @@
 import 'package:app/data/preferences/preferences.dart';
+import 'package:app/data/screen/remote_screen.dart';
 import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
-import 'package:app/ui/terminals/terminals_page.dart';
+import 'package:app/ui/screen/remote_screen_page.dart';
 import 'package:app/ui/workspaces/computer_sessions_page.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -52,16 +53,17 @@ Future<void> openComputerSessions(BuildContext context) async {
   await _show(context, home, result, initialWorkspace);
 }
 
-/// The selected computer's herdr-core terminals.
-Future<void> openTerminals(BuildContext context) async {
-  final home = context.read<HomeViewModel>();
-  final hostId = home.selectedDevice;
-  if (hostId == null) return;
-  await context.push<void>(
-    '/terminals',
-    extra: TerminalsLaunch(
-      hostId: hostId,
-      label: home.devices[hostId]?.label ?? '',
+/// The selected computer's screen, mouse and keyboard.
+Future<void> openRemoteControl(BuildContext context) async {
+  final host = context.read<HomeViewModel>().selectedHost;
+  if (host == null) return;
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => RemoteScreenPage(
+        label: host.host.label,
+        connect: () => RemoteScreenSession(host),
+      ),
     ),
   );
 }

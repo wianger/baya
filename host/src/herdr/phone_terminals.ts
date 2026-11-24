@@ -134,7 +134,13 @@ export class PhoneTerminals {
       // phone comes back to a shell in the same folder.
       keep: !line && argv.length === 0,
       no_parent: true,
-      labels: { "baya.from": "phone" },
+      labels: {
+        "baya.from": "phone",
+        // A session's own terminal, found again by its label.
+        ...(typeof params["session"] === "string" && params["session"]
+          ? { "baya.session": params["session"] }
+          : {}),
+      },
     });
   }
 

@@ -6,7 +6,8 @@ import { logOnce } from "../log_once.ts";
 import { pairPhone } from "../pairing/service.ts";
 import { PREVIEW_TOKEN_HEADER, previewPorts, previews } from "../preview/preview.ts";
 import { packageVersion } from "../runtime/version.ts";
-import { hostLabel, servePath, tailnetPairPort } from "../tailnet/pairing_server.ts";
+import { sunshinePin, sunshineState } from "../screen/sunshine.ts";
+import { hostLabel, servePath, tailnetPairPort, tailnetSelf } from "../tailnet/pairing_server.ts";
 import type { DataFrame } from "../transport/noise.ts";
 import { browseDirectory, resolveDirectory } from "../workspace/directories.ts";
 import { convertToPdf, extractEntry, listArchive } from "../workspace/file_views.ts";
@@ -362,6 +363,15 @@ export class PhoneConnection implements HubPhone {
         return this.terminals.kill(stringParam(params, "terminal"));
       case "_baya/terminal_remove":
         return this.terminals.remove(stringParam(params, "terminal"));
+      case "_baya/screen_info": {
+        // Where the phone's Moonlight core reaches Sunshine: this computer's
+        // tailnet name, and whether Sunshine is ready to stream.
+        const [state, self] = await Promise.all([sunshineState(), tailnetSelf()]);
+        return { ...state, address: self?.dnsName ?? null };
+      }
+      case "_baya/screen_pair":
+        await sunshinePin(stringParam(params, "pin"), optionalString(params, "name") ?? "Baya");
+        return {};
       case "_baya/worktree_remove":
         return removeWorktree(stringParam(params, "path"));
       default:
@@ -400,6 +410,8 @@ export class PhoneConnection implements HubPhone {
       _meta: {
         [BAYA_META]: {
           hostname: hostname(),
+          // Whether this computer's screen can be controlled from the phone.
+          screen: (await sunshineState()).ready,
           agents: (await this.hub.agents()).map(({ id, name, available }) => ({
             id,
             name,

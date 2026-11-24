@@ -1052,8 +1052,6 @@
   "stillOpenBody": "This conversation changed in the last few minutes, so it may still be open in a terminal. Two places writing to one conversation split it in two (Codex refuses). Quit it there first.",
   "continueAnyway": "Continue anyway",
   "terminals": "Terminals",
-  "terminalsRow": "Terminals on this computer",
-  "terminalsRowHint": "Shells and agents herdr keeps running",
   "terminalsHint": "Everything herdr-core keeps running here: agents in their own TUIs, shells, servers. They outlive the connection; on the computer, hc attach takes over the same one.",
   "terminalsNeedYou": "Waiting for you",
   "terminalsRunning": "Running",
@@ -1087,5 +1085,32 @@
   "typeIntoTerminal": "Type into the terminal directly",
   "composeLine": "Write a line, then send",
   "typingIntoTerminal": "Typing straight into the terminal",
-  "terminalComposeHint": "Type, then send to the terminal"
+  "terminalComposeHint": "Type, then send to the terminal",
+  "remoteControl": "Remote control",
+  "remoteControlHint": "This computer's screen, mouse and keyboard",
+  "remoteControlConnecting": "Connecting to {label}…",
+  "@remoteControlConnecting": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "remoteControlEnded": "Remote control ended",
+  "pointerTouchpad": "Touchpad: drag moves the pointer, tap clicks",
+  "pointerDirect": "Direct: tap where to click",
+  "keyboard": "Keyboard",
+  "fitScreen": "Fit the screen",
+  "quality": "Quality",
+  "qualityBalanced": "Balanced",
+  "qualitySaver": "Data saver",
+  "sessionTerminal": "Terminal",
+  "sessionTerminalHint": "A shell in this session's folder",
+  "allTerminals": "All terminals on this computer",
+  "qualityBest": "Best (1440p, up to 120 fps)",
+  "remoteControlPairing": "Pairing this phone with Sunshine on the computer…",
+  "remoteControlNotInstalled": "Sunshine is not installed on the computer. Run there: baya remote install",
+  "remoteControlNotRunning": "Sunshine is installed but not running on the computer.",
+  "remoteControlForeignAccount": "Sunshine on the computer has an account Baya does not know. Run there: baya remote login <user> <password>",
+  "remoteControlNotWindows": "Remote control streams a Windows screen: connect to Baya running on Windows."
 }

@@ -20,7 +20,8 @@ val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
 
 android {
     namespace = "dev.wianger.baya"
-    compileSdk = flutter.compileSdkVersion
+    // OkHttp 5 (Moonlight's HTTP to Sunshine) compiles against API 37.
+    compileSdk = maxOf(flutter.compileSdkVersion, 37)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -36,6 +37,28 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Moonlight's core is built for 64-bit ARM only: Baya's phones (API
+        // 34+) are, and its prebuilt OpenSSL and Opus are kept for it alone.
+        externalNativeBuild {
+            ndkBuild {
+                abiFilters += listOf("arm64-v8a")
+                arguments += listOf("APP_PLATFORM=android-34")
+            }
+        }
+    }
+
+    // BouncyCastle's jars each carry the same license files.
+    packaging {
+        resources {
+            excludes += listOf("/META-INF/*.md", "/META-INF/versions/9/OSGI-INF/MANIFEST.MF")
+        }
+    }
+
+    // Moonlight's streaming core (moonlight-common-c, GPL-3.0).
+    externalNativeBuild {
+        ndkBuild {
+            path = file("src/main/jni/Android.mk")
+        }
     }
 
     signingConfigs {
@@ -74,4 +97,13 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Moonlight's pairing (certificates, AES) and its HTTP to Sunshine.
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.85")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    // Rewrites H.264 SPS for Android decoders, as Moonlight does.
+    implementation("org.jcodec:jcodec:0.2.5")
 }

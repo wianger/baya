@@ -1,12 +1,8 @@
-import 'dart:async';
-
 import 'package:app/config/dependencies.dart';
-import 'package:app/data/hosts/host_connection.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/hosts/session_controller.dart';
 import 'package:app/data/launcher/launcher.dart';
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/pairing/owner_identity_bridge.dart';
 import 'package:app/pairing/storage.dart';
@@ -27,7 +23,6 @@ import 'package:app/ui/session_files/session_files_page.dart';
 import 'package:app/ui/session_files/viewmodels/session_files_viewmodel.dart';
 import 'package:app/ui/settings/settings_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
-import 'package:app/ui/terminals/terminals_page.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:app/ui/workspaces/computer_sessions_page.dart';
 import 'package:app/ui/workspaces/new_session_page.dart';
@@ -188,14 +183,6 @@ GoRouter buildRouter(
           repository: services.workspaces,
         ),
       ),
-      GoRoute(
-        path: '/terminals',
-        builder: (ctx, st) {
-          final launch = st.extra! as TerminalsLaunch;
-          final host = hosts.byKey(launch.hostId)!;
-          return _HostTerminals(host: host, launch: launch);
-        },
-      ),
       // QR pairing flow
       GoRoute(
         path: '/pair',
@@ -353,39 +340,6 @@ class _BootSplash extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The terminals page with a connection-state listenable it owns.
-class _HostTerminals extends StatefulWidget {
-  const _HostTerminals({required this.host, required this.launch});
-  final HostConnection host;
-  final TerminalsLaunch launch;
-
-  @override
-  State<_HostTerminals> createState() => _HostTerminalsState();
-}
-
-class _HostTerminalsState extends State<_HostTerminals> {
-  late final _online = HostOnline(widget.host);
-  late final _repository = TerminalsRepository(HostTerminalLink(widget.host));
-
-  @override
-  void dispose() {
-    _online.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final prefs = context.read<Preferences>();
-    return TerminalsPage(
-      launch: widget.launch,
-      repository: _repository,
-      online: _online,
-      fontSize: prefs.terminalFontSize,
-      onFontSize: (size) => unawaited(prefs.setTerminalFontSize(size)),
     );
   }
 }
