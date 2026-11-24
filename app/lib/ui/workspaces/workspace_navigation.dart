@@ -3,6 +3,7 @@ import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
+import 'package:app/ui/terminals/terminals_page.dart';
 import 'package:app/ui/workspaces/computer_sessions_page.dart';
 import 'package:app/ui/workspaces/states/new_session_state.dart';
 import 'package:flutter/widgets.dart';
@@ -49,6 +50,20 @@ Future<void> openComputerSessions(BuildContext context) async {
   );
   if (result is! OpenedWorkspace || !context.mounted) return;
   await _show(context, home, result, initialWorkspace);
+}
+
+/// The selected computer's herdr-core terminals.
+Future<void> openTerminals(BuildContext context) async {
+  final home = context.read<HomeViewModel>();
+  final hostId = home.selectedDevice;
+  if (hostId == null) return;
+  await context.push<void>(
+    '/terminals',
+    extra: TerminalsLaunch(
+      hostId: hostId,
+      label: home.devices[hostId]?.label ?? '',
+    ),
+  );
 }
 
 /// Files [workspace]'s new session and shows it.

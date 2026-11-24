@@ -1050,5 +1050,39 @@
   "searchComputerSessions": "Search titles and folders",
   "stillOpenTitle": "Still open somewhere?",
   "stillOpenBody": "This conversation changed in the last few minutes, so it may still be open in a terminal. Two places writing to one conversation split it in two (Codex refuses). Quit it there first.",
-  "continueAnyway": "Continue anyway"
+  "continueAnyway": "Continue anyway",
+  "terminals": "Terminals",
+  "terminalsRow": "Terminals on this computer",
+  "terminalsRowHint": "Shells and agents herdr keeps running",
+  "terminalsHint": "Everything herdr-core keeps running here: agents in their own TUIs, shells, servers. They outlive the connection; on the computer, hc attach takes over the same one.",
+  "terminalsNeedYou": "Waiting for you",
+  "terminalsRunning": "Running",
+  "terminalsEnded": "Ended",
+  "noTerminals": "No terminals yet. Start a shell, or an agent such as claude.",
+  "herdrMissing": "Terminals on the phone run through herdr-core. Install it on the computer, then refresh:",
+  "newTerminal": "New",
+  "newShell": "New shell",
+  "newShellHint": "The computer's own shell, in your home folder",
+  "runCommandHint": "Or run a command: claude, npm run dev…",
+  "run": "Run",
+  "terminalEnded": "Ended ({reason})",
+  "@terminalEnded": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "terminalReconnecting": "Reconnecting… the terminal keeps running on the computer.",
+  "endTerminal": "End terminal",
+  "endTerminalTitle": "End this terminal?",
+  "endTerminalBody": "Its program stops on the computer, for every phone and terminal watching it.",
+  "paste": "Paste",
+  "largerText": "Larger text",
+  "smallerText": "Smaller text",
+  "terminalStateBlocked": "Needs you",
+  "terminalStateWorking": "Working",
+  "terminalStateDone": "Done",
+  "terminalStateError": "Error",
+  "terminalStateIdle": "Idle"
 }

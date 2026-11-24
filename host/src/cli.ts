@@ -13,7 +13,6 @@ import { hostname } from "node:os";
 import { join, resolve } from "node:path";
 import { SessionHub } from "./acp/hub.ts";
 import { booleanFlag, type ParsedArgs, parseArgs, stringFlag } from "./cli/args.ts";
-import { attach } from "./cli/attach.ts";
 import {
   bold,
   cyan,
@@ -83,7 +82,6 @@ ${bold("Get started")}
 ${bold("Sessions")}
   baya status             Host, phones and sessions at a glance
   baya open [folder]      Add a session in a folder  ${dim("--agent <id>")}
-  baya attach [session]   Join a session in this terminal, live with the phone  ${dim("(id prefix or title; asks which when there are several)")}
   baya close <session>    Remove a session and its history  ${dim("(id prefix or title)")}
 
 ${bold("Agents")} ${dim("— any command that speaks ACP (agentclientprotocol.com)")}
@@ -114,7 +112,6 @@ const COMMANDS = [
   "restart",
   "status",
   "open",
-  "attach",
   "close",
   "pair",
   "devices",
@@ -513,7 +510,7 @@ async function logs(args: ParsedArgs): Promise<void> {
 }
 
 async function doctor(args: ParsedArgs): Promise<void> {
-  const [agentList, peers, host, self, identityError] = await Promise.all([
+  const [agentList, peers, host, self, identityError, hc] = await Promise.all([
     agentStatuses(),
     listPeers(),
     hostStatus(),
@@ -522,6 +519,7 @@ async function doctor(args: ParsedArgs): Promise<void> {
       () => null,
       (error: unknown) => (error instanceof Error ? error.message : String(error)),
     ),
+    findExecutable("hc"),
   ]);
   const direct = self ? await directEndpoint(self) : null;
   if (json(args)) {
@@ -534,6 +532,7 @@ async function doctor(args: ParsedArgs): Promise<void> {
       identity: identityError ? { ok: false, error: identityError } : { ok: true },
       host: host ? { online: true, pid: host.pid } : { online: false },
       paired_devices: peers.length,
+      herdr: hc,
       agents: agentList,
     });
   }
@@ -560,6 +559,18 @@ async function doctor(args: ParsedArgs): Promise<void> {
   }
   lines.push(peers.length ? ok(`${peers.length} phone(s) paired`) : warn("No phone paired"));
   if (!peers.length) lines.push(hint("baya pair"));
+  if (hc) {
+    lines.push(ok(`Terminals on the phone through herdr-core ${dim(hc)}`));
+  } else {
+    lines.push(
+      warn("herdr-core is not installed: phones cannot open terminals here"),
+      hint(
+        process.platform === "win32"
+          ? 'powershell -c "irm https://releases.herdr.dev/core/install.ps1 | iex"'
+          : "curl -fsSL https://releases.herdr.dev/core/install.sh | sh",
+      ),
+    );
+  }
   for (const agent of agentList) {
     lines.push(
       agent.available
@@ -730,11 +741,6 @@ async function main(): Promise<void> {
       return status(args);
     case "open":
       return open(args);
-    case "attach":
-      await attach(args.positionals[0]);
-      // Nothing of the terminal session should keep the process: stdin on
-      // Windows can hold it open after readline lets go.
-      return process.exit(0);
     case "close":
       return close(args);
     case "pair":

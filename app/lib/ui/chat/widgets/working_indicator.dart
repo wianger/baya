@@ -59,15 +59,15 @@ class _AgentWorkingIndicatorState extends State<AgentWorkingIndicator>
                     return Transform.translate(
                       key: ValueKey('agent-working-dot-$index'),
                       offset: Offset(0, -2.4 * lift),
-                      child: Opacity(
-                        opacity: .42 + .58 * lift,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: colors.working,
-                            shape: BoxShape.circle,
+                      // The shade, not an opacity layer, breathes.
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.working.withValues(
+                            alpha: .42 + .58 * lift,
                           ),
-                          child: const SizedBox.square(dimension: 6),
+                          shape: BoxShape.circle,
                         ),
+                        child: const SizedBox.square(dimension: 6),
                       ),
                     );
                   }),

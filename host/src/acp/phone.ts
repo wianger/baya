@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
+import { PhoneTerminals } from "../herdr/phone_terminals.ts";
 import { adbConnect, adbDisconnect, adbPair, adbStatus } from "../integrations/adb.ts";
 import { logOnce } from "../log_once.ts";
 import { pairPhone } from "../pairing/service.ts";
@@ -45,6 +46,8 @@ export class PhoneConnection implements HubPhone {
   private readonly downloads = new Set<number>();
   /** Owns this connection's half-sent uploads. */
   private readonly id = randomUUID();
+  /** herdr-core's terminals, as this phone watches them. */
+  private readonly terminals: PhoneTerminals;
 
   constructor(options: {
     key: string;
@@ -63,6 +66,10 @@ export class PhoneConnection implements HubPhone {
       write: options.send,
       onRequest: (method, params) => this.handle(method, params),
       onNotification: (method, params) => this.handleNotification(method, params),
+    });
+    this.terminals = new PhoneTerminals({
+      notify: (method, params) => this.notify(method, params as Json),
+      sendData: (stream, offset, bytes) => this.sendData(stream, offset, bytes),
     });
     this.hub.connect(this);
   }
@@ -124,6 +131,7 @@ export class PhoneConnection implements HubPhone {
     this.hub.disconnect(this);
     this.downloads.clear();
     uploads.detach(this.id);
+    this.terminals.close();
   }
 
   private async handle(method: string, params: Json): Promise<unknown> {
@@ -336,6 +344,24 @@ export class PhoneConnection implements HubPhone {
           await resolveDirectory(stringParam(params, "cwd")),
           stringParam(params, "name"),
         );
+      case "_baya/terminal_list":
+        return this.terminals.list();
+      case "_baya/terminal_run": {
+        const cwd = optionalString(params, "cwd");
+        return this.terminals.run({
+          ...params,
+          ...(cwd ? { cwd: await resolveDirectory(cwd) } : {}),
+        });
+      }
+      case "_baya/terminal_attach":
+        return this.terminals.attach(params);
+      case "_baya/terminal_detach":
+        this.terminals.detach(numberParam(params, "stream"));
+        return {};
+      case "_baya/terminal_kill":
+        return this.terminals.kill(stringParam(params, "terminal"));
+      case "_baya/terminal_remove":
+        return this.terminals.remove(stringParam(params, "terminal"));
       case "_baya/worktree_remove":
         return removeWorktree(stringParam(params, "path"));
       default:
@@ -345,6 +371,15 @@ export class PhoneConnection implements HubPhone {
 
   private handleNotification(method: string, params: Json): void {
     if (!this.hub.isPaired(this.key)) return;
+    // Keys and sizes: nothing waits on a reply.
+    if (method === "_baya/terminal_input") {
+      this.terminals.input(params["stream"], params["data"]);
+      return;
+    }
+    if (method === "_baya/terminal_resize") {
+      this.terminals.resize(params["stream"], params["cols"], params["rows"]);
+      return;
+    }
     if (method === "session/cancel") {
       const id = params["sessionId"];
       if (typeof id === "string") this.hub.get(id)?.cancel();

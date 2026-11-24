@@ -96,6 +96,8 @@ class HostConnection extends ChangeNotifier {
   final _data = StreamController<DataFrame>.broadcast();
   final _transfers =
       StreamController<({String method, Json params})>.broadcast();
+  final _terminalNews =
+      StreamController<({String method, Json params})>.broadcast();
 
   /// File bytes the computer streams to this phone.
   Stream<DataFrame> get data => _data.stream;
@@ -103,6 +105,11 @@ class HostConnection extends ChangeNotifier {
   /// `_baya/stream_end` and `_baya/upload_progress`, for file transfers.
   Stream<({String method, Json params})> get transferEvents =>
       _transfers.stream;
+
+  /// `_baya/terminals_changed` and `_baya/terminal_closed`: news of the
+  /// computer's herdr-core terminals.
+  Stream<({String method, Json params})> get terminalNews =>
+      _terminalNews.stream;
 
   /// File bytes for the computer; fails when it is not connected.
   Future<void> sendData(int stream, int offset, List<int> bytes) {
@@ -381,6 +388,10 @@ class HostConnection extends ChangeNotifier {
         if (!_transfers.isClosed) {
           _transfers.add((method: method, params: params));
         }
+      case '_baya/terminals_changed' || '_baya/terminal_closed':
+        if (!_terminalNews.isClosed) {
+          _terminalNews.add((method: method, params: params));
+        }
       case 'session/update':
         final sessionId = params['sessionId'];
         final update = params['update'];
@@ -469,6 +480,7 @@ class HostConnection extends ChangeNotifier {
     unawaited(_online.close());
     unawaited(_data.close());
     unawaited(_transfers.close());
+    unawaited(_terminalNews.close());
     super.dispose();
   }
 }

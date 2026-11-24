@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Baya's palette: graphite and paper neutrals with one straw-gold accent,
-/// taken from the woven-nest mark. The palette is the brand's own (it does
-/// not follow the wallpaper), so every screen reads as one product.
+/// Baya's palette: black and white. Ink on paper by day, paper on ink
+/// (true black, kind to OLED) by night, with greys between; no hue anywhere
+/// but red, kept for what fails or is destroyed. The palette is the brand's
+/// own (it does not follow the wallpaper), so every screen reads as one
+/// product.
 ///
 /// Widgets read `context.colors.<token>` and never hardcode colors.
 @immutable
@@ -30,52 +32,52 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.inputFill,
   });
 
-  /// Graphite: the default.
+  /// Ink: the default.
   static const dark = AppColors(
-    bg: Color(0xFF0E0E10),
-    surface: Color(0xFF161618),
-    border: Color(0xFF26262A),
-    text: Color(0xFFEDEDEF),
-    muted: Color(0xFF8A8A93),
-    muted2: Color(0xFFB8B8BF),
-    accent: Color(0xFFF2CF7E),
-    onAccent: Color(0xFF1C1405),
-    highlight: Color(0xFFE9C27A),
-    success: Color(0xFF5CD69B),
-    error: Color(0xFFFF6B6B),
-    warning: Color(0xFFF5B94A),
-    working: Color(0xFFF2CF7E),
-    codeBg: Color(0xFF121214),
-    userBubble: Color(0xFF222226),
-    onUserBubble: Color(0xFFEDEDEF),
-    modelBadgeBg: Color(0xFF1E1E22),
-    modelBadgeBorder: Color(0xFF2E2E33),
-    denyBorder: Color(0x66FF6B6B),
-    inputFill: Color(0xFF1B1B1E),
+    bg: Color(0xFF000000),
+    surface: Color(0xFF0E0E0E),
+    border: Color(0xFF242424),
+    text: Color(0xFFF5F5F5),
+    muted: Color(0xFF8E8E8E),
+    muted2: Color(0xFFBDBDBD),
+    accent: Color(0xFFFFFFFF),
+    onAccent: Color(0xFF000000),
+    highlight: Color(0xFFE6E6E6),
+    success: Color(0xFFDADADA),
+    error: Color(0xFFFF5A52),
+    warning: Color(0xFFC9C9C9),
+    working: Color(0xFFFFFFFF),
+    codeBg: Color(0xFF0B0B0B),
+    userBubble: Color(0xFF1C1C1C),
+    onUserBubble: Color(0xFFF5F5F5),
+    modelBadgeBg: Color(0xFF151515),
+    modelBadgeBorder: Color(0xFF2A2A2A),
+    denyBorder: Color(0x66FF5A52),
+    inputFill: Color(0xFF161616),
   );
 
   /// Paper. Text colours meet WCAG AA (4.5:1) on every light surface.
   static const light = AppColors(
-    bg: Color(0xFFFAF9F6),
-    surface: Color(0xFFF3F1EC),
-    border: Color(0xFFE3E0D8),
-    text: Color(0xFF17171A),
-    muted: Color(0xFF63615B),
-    muted2: Color(0xFF45433E),
-    accent: Color(0xFF935F0F),
+    bg: Color(0xFFFFFFFF),
+    surface: Color(0xFFF6F6F6),
+    border: Color(0xFFE5E5E5),
+    text: Color(0xFF0A0A0A),
+    muted: Color(0xFF5F5F5F),
+    muted2: Color(0xFF383838),
+    accent: Color(0xFF000000),
     onAccent: Color(0xFFFFFFFF),
-    highlight: Color(0xFF8E5A10),
-    success: Color(0xFF157A4B),
-    error: Color(0xFFB03229),
-    warning: Color(0xFF8A5A10),
-    working: Color(0xFF935F0F),
-    codeBg: Color(0xFFF1EEE7),
-    userBubble: Color(0xFFECE9E2),
-    onUserBubble: Color(0xFF17171A),
-    modelBadgeBg: Color(0xFFEDEAE3),
-    modelBadgeBorder: Color(0xFFDDD9CF),
-    denyBorder: Color(0x66B03229),
-    inputFill: Color(0xFFF0EDE6),
+    highlight: Color(0xFF1A1A1A),
+    success: Color(0xFF2E2E2E),
+    error: Color(0xFFC62A22),
+    warning: Color(0xFF474747),
+    working: Color(0xFF000000),
+    codeBg: Color(0xFFF5F5F5),
+    userBubble: Color(0xFFF0F0F0),
+    onUserBubble: Color(0xFF0A0A0A),
+    modelBadgeBg: Color(0xFFF2F2F2),
+    modelBadgeBorder: Color(0xFFE0E0E0),
+    denyBorder: Color(0x66C62A22),
+    inputFill: Color(0xFFF3F3F3),
   );
 
   /// The Material scheme framework widgets read, from the same tokens.
@@ -132,7 +134,7 @@ class AppColors extends ThemeExtension<AppColors> {
   /// Tonal layers. Material 3 expresses elevation through tone, not
   /// translucency or heavy shadows.
   Color get glassFill => inputFill;
-  Color get selection => accent.withValues(alpha: .12);
+  Color get selection => accent.withValues(alpha: .10);
 
   @override
   AppColors copyWith({

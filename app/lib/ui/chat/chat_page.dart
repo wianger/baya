@@ -673,7 +673,7 @@ class _RevokedBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: Colors.red.shade900.withValues(alpha: 0.85),
+      color: context.colors.error,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
