@@ -44,11 +44,15 @@ end-to-end encrypted.
 - **Edit and branch**: put a sent message back in the composer to change
   and resend; with Claude Code and Codex, branch from it instead, into a new
   session that holds only the conversation before it.
-- **One session, phone and terminal**: `baya attach` (it asks which when
-  there are several) opens a session in a terminal on the computer, live
-  with the phone: what either sends, both see, and the agent keeps one
-  conversation, whichever agent it is. The terminal's tab and taskbar show
-  the turn, and ring when it waits for you.
+- **The computer's terminals**: every terminal that
+  [herdr-core](https://github.com/herdrdev/herdr-core) keeps on the
+  computer (an agent's own TUI, a shell, a dev server) opens on the phone,
+  live, with Esc, Ctrl, Tab and arrows over the keyboard. Start a shell or
+  an agent there from the phone. Terminals outlive every connection: drop
+  off the train's Wi-Fi, come back on 5G, and the screen is as it is now,
+  not a replay; on the computer, `hc attach` takes over the same one. The
+  ones waiting for you (an agent asking, through herdr's status protocol)
+  come first.
 - **Quick replies**: once the agent answers, what you send most (or
   "Continue", "Run the tests") waits over the composer: tap to send, hold
   to edit first. Learned on the phone, never uploaded.
@@ -59,11 +63,9 @@ end-to-end encrypted.
 - **Pin sessions**: hold any session (or use its ⋯) to pin it; pinned
   ones lead the overview and the session list, on this phone only.
 - **Find in a chat**: search a long session from the ⋯ menu; step through
-  the hits and each one is scrolled to and marked. In `baya attach`, ↑
-  brings back earlier prompts of the session, the phone's included.
-- **Mention files**: type `@` in the composer or in `baya attach` to pick
-  files of the session (tab completes the path in the terminal); they go
-  with the message as links the agent opens.
+  the hits and each one is scrolled to and marked.
+- **Mention files**: type `@` in the composer to pick files of the
+  session; they go with the message as links the agent opens.
 - **Parallel runs**: give the same task to Claude Code, Codex and Pi at
   once, each in its own git worktree and branch, then compare their replies
   and changes on one board and send follow-ups to all of them.
@@ -102,6 +104,8 @@ Requirements:
 - An agent that speaks ACP (see [Agents](#agents))
 - [Tailscale](https://tailscale.com/download) on the computer and the phone,
   signed in to the same account
+- For terminals on the phone: [herdr-core](https://github.com/herdrdev/herdr-core)
+  (`hc`) on the computer
 
 Download `baya` for your computer from the latest `host-v…`
 [release](https://github.com/wianger/baya/releases) (one file, Node

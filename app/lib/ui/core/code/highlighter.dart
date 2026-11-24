@@ -297,7 +297,7 @@ abstract final class CodeHighlighter {
   }) {
     TextStyle c(Color color) => TextStyle(color: color);
     return {
-      'keyword': c(keyword),
+      'keyword': c(keyword).copyWith(fontWeight: FontWeight.w600),
       'meta-keyword': c(keyword),
       'selector-tag': c(keyword),
       'template-tag': c(keyword),
@@ -315,7 +315,7 @@ abstract final class CodeHighlighter {
       'regexp': c(string),
       'char.escape_': c(string),
       'title': c(title),
-      'title.function_': c(title),
+      'title.function_': c(title).copyWith(fontWeight: FontWeight.w500),
       'function': c(title),
       'section': c(title),
       'name': c(keyword),
@@ -343,26 +343,28 @@ abstract final class CodeHighlighter {
     };
   }
 
+  // Black and white like the rest: code reads by weight and shade, keywords
+  // strongest, comments faintest.
   static final _dark = _theme(
-    keyword: const Color(0xFFE9B96E),
-    string: const Color(0xFFA5D6A7),
-    number: const Color(0xFFF2A07B),
-    comment: const Color(0xFF6E6E78),
-    title: const Color(0xFF8AB4F8),
-    type: const Color(0xFF7FD1C7),
-    attr: const Color(0xFFD7BA7D),
-    meta: const Color(0xFFB39DDB),
+    keyword: const Color(0xFFFFFFFF),
+    string: const Color(0xFFB4B4B4),
+    number: const Color(0xFFD6D6D6),
+    comment: const Color(0xFF6E6E6E),
+    title: const Color(0xFFF0F0F0),
+    type: const Color(0xFFDCDCDC),
+    attr: const Color(0xFFC4C4C4),
+    meta: const Color(0xFF9A9A9A),
   );
 
   static final _light = _theme(
-    keyword: const Color(0xFF9A5B00),
-    string: const Color(0xFF2E7D32),
-    number: const Color(0xFFB0521E),
-    comment: const Color(0xFF8E8E93),
-    title: const Color(0xFF1F5FBF),
-    type: const Color(0xFF0F766E),
-    attr: const Color(0xFF8A5A00),
-    meta: const Color(0xFF6A3FB5),
+    keyword: const Color(0xFF000000),
+    string: const Color(0xFF4F4F4F),
+    number: const Color(0xFF2B2B2B),
+    comment: const Color(0xFF8A8A8A),
+    title: const Color(0xFF111111),
+    type: const Color(0xFF262626),
+    attr: const Color(0xFF3D3D3D),
+    meta: const Color(0xFF6B6B6B),
   );
 }
 

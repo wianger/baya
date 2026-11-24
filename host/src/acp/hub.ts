@@ -48,13 +48,6 @@ const errorMessage = (error: unknown): string =>
  * Every session on this computer and every connected phone. Sessions load
  * from the registry at start; their agents start only when used.
  */
-/**
- * The key of a terminal on this computer (`baya attach`), which reaches the
- * host through the control socket. Phone keys are base64 public keys, so
- * none can be this.
- */
-export const LOCAL_CLIENT = "local";
-
 export class SessionHub {
   private readonly sessions = new Map<string, HostedSession>();
   private readonly phones = new Set<HubPhone>();
@@ -327,7 +320,7 @@ export class SessionHub {
 
   /** A paired phone said hello (with the name it goes by) or left. */
   seen(key: string, name?: string): void {
-    if (key === LOCAL_CLIENT || !this.isPaired(key)) return;
+    if (!this.isPaired(key)) return;
     markSeen(key, name).catch(() => {});
   }
 
@@ -338,7 +331,7 @@ export class SessionHub {
   connectedKeys(): Set<string> {
     const keys = new Set<string>();
     for (const phone of this.phones) {
-      if (phone.key !== LOCAL_CLIENT && this.isPaired(phone.key)) keys.add(phone.key);
+      if (this.isPaired(phone.key)) keys.add(phone.key);
     }
     return keys;
   }
@@ -347,9 +340,8 @@ export class SessionHub {
     return this.connectedKeys().size;
   }
 
-  /** A paired phone, or `baya attach` on this computer (the control socket). */
   isPaired(key: string): boolean {
-    return key === LOCAL_CLIENT || isPairedKey(key, this.peers);
+    return isPairedKey(key, this.peers);
   }
 
   /** Re-reads pairings after one was added or revoked; revoked phones are cut off. */

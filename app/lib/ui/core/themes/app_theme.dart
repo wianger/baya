@@ -13,7 +13,8 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
     colorScheme: scheme,
     fontFamily: kSansFamily,
     scaffoldBackgroundColor: colors.bg,
-    splashFactory: InkSparkle.splashFactory,
+    // A plain ripple: quiet, like the palette.
+    splashFactory: InkRipple.splashFactory,
     highlightColor: Colors.transparent,
     visualDensity: VisualDensity.standard,
     extensions: <ThemeExtension<dynamic>>[colors, typo],

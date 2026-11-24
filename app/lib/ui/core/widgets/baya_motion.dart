@@ -3,13 +3,14 @@ import 'dart:math' as math;
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:flutter/material.dart';
 
-/// Shared motion language for the app. Values follow a restrained
-/// Motion rhythm: quick feedback, calm settling, and decisive exits.
+/// Shared motion language for the app: quick feedback, short settling,
+/// decisive exits. Things fade and rise a few pixels; nothing scales text,
+/// which shimmers as it resamples.
 abstract final class BayaMotion {
-  static const fast = Duration(milliseconds: 140);
-  static const standard = Duration(milliseconds: 240);
-  static const emphasized = Duration(milliseconds: 380);
-  static const scroll = Duration(milliseconds: 420);
+  static const fast = Duration(milliseconds: 120);
+  static const standard = Duration(milliseconds: 220);
+  static const emphasized = Duration(milliseconds: 320);
+  static const scroll = Duration(milliseconds: 380);
 
   static const enter = Cubic(0.22, 1, 0.36, 1);
   static const exit = Cubic(0.4, 0, 1, 1);
@@ -32,62 +33,94 @@ class RevealGate extends InheritedWidget {
   bool updateShouldNotify(RevealGate oldWidget) => false;
 }
 
-/// A quiet content entrance for newly inserted messages and grouped surfaces.
-/// [delay] staggers the rows of a list.
+/// A quiet content entrance for newly inserted messages and grouped surfaces:
+/// a fade while rising [offset] pixels. [delay] staggers the rows of a list.
 ///
-/// The platform Reduce Motion preference removes the animation completely.
-/// Either way the widget tree is the same, so turning an entrance off never
-/// rebuilds what it wraps.
-class BayaReveal extends StatelessWidget {
+/// It runs on the compositor (an opacity and a translation layer driven by
+/// one controller), so the child is built once, not every frame. The
+/// platform Reduce Motion preference removes it; either way the widget tree
+/// is the same, so turning an entrance off never rebuilds what it wraps.
+class BayaReveal extends StatefulWidget {
   const BayaReveal({
     super.key,
     required this.child,
     this.offset = 8,
-    this.scale = 0.99,
     this.delay = Duration.zero,
   });
 
   final Widget child;
   final double offset;
-  final double scale;
   final Duration delay;
 
   /// The delay of row [index] in a staggered list; rows past the first
   /// screenful start together.
   static Duration stagger(int index) =>
-      Duration(milliseconds: 36 * math.min(index, 8));
+      Duration(milliseconds: 30 * math.min(index, 8));
 
   @override
-  Widget build(BuildContext context) {
+  State<BayaReveal> createState() => _BayaRevealState();
+}
+
+class _BayaRevealState extends State<BayaReveal>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+  late final Animation<Offset> _rise;
+
+  @override
+  void initState() {
+    super.initState();
+    final total = BayaMotion.emphasized + widget.delay;
+    _controller = AnimationController(vsync: this, duration: total);
+    final start = widget.delay.inMicroseconds / total.inMicroseconds;
+    final curve = CurvedAnimation(
+      parent: _controller,
+      curve: Interval(start, 1, curve: BayaMotion.spring),
+    );
+    // The fade finishes early: what rises is readable while it settles.
+    _opacity = CurvedAnimation(
+      parent: _controller,
+      curve: Interval(start, start + (1 - start) * .6, curve: Curves.easeOut),
+    );
+    _rise = Tween(
+      begin: Offset(0, widget.offset),
+      end: Offset.zero,
+    ).animate(curve);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Decided once, on the first build: later changes must not replay it.
+    if (_controller.status != AnimationStatus.dismissed ||
+        _controller.isAnimating) {
+      return;
+    }
     final play =
         RevealGate.of(context) && !MediaQuery.disableAnimationsOf(context);
-    final total = BayaMotion.emphasized + delay;
-    return TweenAnimationBuilder<double>(
-      // [begin] is used only on the first build.
-      tween: Tween(begin: play ? 0 : 1, end: 1),
-      duration: total,
-      curve: delay == Duration.zero
-          ? BayaMotion.spring
-          : Interval(
-              delay.inMicroseconds / total.inMicroseconds,
-              1,
-              curve: BayaMotion.spring,
-            ),
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, offset * (1 - value)),
-            child: Transform.scale(
-              scale: scale + (1 - scale) * value,
-              child: child,
-            ),
-          ),
-        );
-      },
-      child: child,
-    );
+    if (play) {
+      _controller.forward();
+    } else {
+      _controller.value = 1;
+    }
   }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+    opacity: _opacity,
+    child: AnimatedBuilder(
+      animation: _rise,
+      builder: (context, child) =>
+          Transform.translate(offset: _rise.value, child: child),
+      child: widget.child,
+    ),
+  );
 }
 
 /// Material's fade-through: the outgoing screen fades away first, then the
@@ -114,7 +147,7 @@ Widget bayaFadeThrough(
         reverseCurve: const Interval(0, .3, curve: Curves.easeIn),
       ),
       child: ScaleTransition(
-        scale: Tween<double>(begin: .96, end: 1).animate(
+        scale: Tween<double>(begin: .98, end: 1).animate(
           CurvedAnimation(
             parent: animation,
             curve: const Interval(.3, 1, curve: BayaMotion.enter),
@@ -154,7 +187,7 @@ class _DialogRise extends StatelessWidget {
       return child;
     }
     return ScaleTransition(
-      scale: Tween<double>(begin: .92, end: 1).animate(
+      scale: Tween<double>(begin: .96, end: 1).animate(
         CurvedAnimation(
           parent: animation,
           curve: BayaMotion.spring,
