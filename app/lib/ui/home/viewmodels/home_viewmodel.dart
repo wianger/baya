@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app/data/hosts/host_connection.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/epk_encoding.dart';
@@ -47,6 +48,15 @@ class HomeViewModel extends ViewModel<HomeState> {
     if (choices.containsKey(remembered)) return remembered;
     return choices.keys.firstOrNull;
   }
+
+  /// The selected computer, connected now.
+  HostConnection? get selectedHost {
+    final host = _hosts.byKey(selectedDevice);
+    return (host?.isOnline ?? false) ? host : null;
+  }
+
+  /// The selected computer's screen can be controlled from here.
+  bool get canControlScreen => selectedHost?.intro?.screen ?? false;
 
   String workspaceKeyFor(HomeItem item) =>
       _prefs.workspaceForSession(item.peer.remoteEpk, item.sessionId) ??

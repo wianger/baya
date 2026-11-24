@@ -665,10 +665,14 @@ class HostIntro {
   final String hostname;
   final String version;
   final List<AgentInfo> agents;
+
+  /// Its screen can be controlled from the phone (a Windows host with ffmpeg).
+  final bool screen;
   const HostIntro({
     required this.hostname,
     required this.version,
     required this.agents,
+    this.screen = false,
   });
 
   factory HostIntro.fromJson(Json json) {
@@ -684,6 +688,7 @@ class HostIntro {
             available: agent['available'] != false,
           ),
       ],
+      screen: baya['screen'] == true,
     );
   }
 }

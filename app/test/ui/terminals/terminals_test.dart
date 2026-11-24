@@ -313,4 +313,27 @@ void main() {
     final resize = link.notes.lastWhere((n) => n.$1 == '_baya/terminal_resize');
     expect(resize.$2['cols'] as int, greaterThan(cols));
   });
+
+  test(
+    "a session's terminal is found again, else started in its folder",
+    () async {
+      final link = _Link()
+        ..terminals = [
+          {
+            ..._t('t5'),
+            'labels': {'baya.session': 's1'},
+          },
+        ];
+      final repository = TerminalsRepository(link);
+      expect((await repository.forSession('s1', '/w'))!.address, 't5');
+      expect(link.calls.where((c) => c.$1 == '_baya/terminal_run'), isEmpty);
+
+      await repository.forSession('s2', '/home/me/shop');
+      final run = link.calls.lastWhere((c) => c.$1 == '_baya/terminal_run');
+      expect(run.$2, {'cwd': '/home/me/shop', 'session': 's2'});
+
+      link.available = false;
+      expect(await repository.forSession('s3', '/w'), isNull);
+    },
+  );
 }

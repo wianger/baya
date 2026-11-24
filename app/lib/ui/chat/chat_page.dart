@@ -28,6 +28,7 @@ import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/preview/preview_page.dart';
+import 'package:app/ui/terminals/session_terminal.dart';
 import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
 import 'package:app/ui/workspaces/session_sheet.dart';
@@ -289,6 +290,15 @@ class ChatPage extends StatelessWidget {
       onPin: (pinned) =>
           prefs.setPinned(session.host.key, session.sessionId, pinned: pinned),
       onFind: context.read<ChatFind>().show,
+      onTerminal: switch (session.summary?.cwd) {
+        final cwd? when session.host.isOnline => () => openSessionTerminal(
+          context,
+          host: session.host,
+          sessionId: session.sessionId,
+          cwd: cwd,
+        ),
+        _ => null,
+      },
       onFiles: () => context.push('/session-files'),
       onChanges: () => openChanges(context, session),
       onPreview: () => showPreviewPicker(context, session.host),

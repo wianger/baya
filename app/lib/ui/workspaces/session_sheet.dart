@@ -16,6 +16,7 @@ Future<void> showSessionSheet(
   bool pinned = false,
   ValueChanged<bool>? onPin,
   VoidCallback? onFind,
+  VoidCallback? onTerminal,
   VoidCallback? onFiles,
   VoidCallback? onChanges,
   VoidCallback? onPreview,
@@ -35,6 +36,7 @@ Future<void> showSessionSheet(
       pinned: pinned,
       onPin: onPin,
       onFind: onFind,
+      onTerminal: onTerminal,
       onFiles: onFiles,
       onChanges: onChanges,
       onPreview: onPreview,
@@ -53,6 +55,7 @@ class _SessionSheet extends StatefulWidget {
     required this.pinned,
     required this.onPin,
     required this.onFind,
+    required this.onTerminal,
     required this.onFiles,
     required this.onChanges,
     required this.onPreview,
@@ -67,6 +70,7 @@ class _SessionSheet extends StatefulWidget {
   final bool pinned;
   final ValueChanged<bool>? onPin;
   final VoidCallback? onFind;
+  final VoidCallback? onTerminal;
   final VoidCallback? onFiles;
   final VoidCallback? onChanges;
   final VoidCallback? onPreview;
@@ -133,6 +137,15 @@ class _SessionSheetState extends State<_SessionSheet> {
                 icon: LucideIcons.search,
                 label: l10n.findInChat,
                 onTap: () => _then(find),
+              ),
+            if (widget.onTerminal case final terminal?)
+              BayaRow(
+                key: const ValueKey('session-action-terminal'),
+                icon: LucideIcons.squareTerminal,
+                label: l10n.sessionTerminal,
+                subtitle: l10n.sessionTerminalHint,
+                chevron: true,
+                onTap: () => _then(terminal),
               ),
             if (widget.onChanges case final changes?)
               BayaRow(

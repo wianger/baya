@@ -99,11 +99,15 @@ class FakeHost {
     List<SessionSummary>? sessions,
     this.agents = const [AgentInfo('claude', 'Claude Code')],
     this.hostname = 'studio',
+    this.screen = false,
   }) : sessions = [...?sessions];
 
   final List<SessionSummary> sessions;
   final List<AgentInfo> agents;
   final String hostname;
+
+  /// Its screen can be controlled (a Windows host with ffmpeg).
+  final bool screen;
 
   /// History `session/load` replays, per session.
   final history = <String, List<Json>>{};
@@ -183,6 +187,7 @@ class FakeHost {
           '_meta': {
             'baya': {
               'hostname': hostname,
+              'screen': screen,
               'agents': [
                 for (final a in agents)
                   {'id': a.id, 'name': a.name, 'available': a.available},

@@ -89,6 +89,7 @@ class HerdrTerminal {
     this.created,
     this.exitCode,
     this.reason,
+    this.labels = const {},
   });
 
   factory HerdrTerminal.fromJson(Map<String, dynamic> json) {
@@ -115,6 +116,11 @@ class HerdrTerminal {
           : null,
       exitCode: json['exit_code'] as int?,
       reason: _text(json['reason']),
+      labels: {
+        for (final MapEntry(:key, :value)
+            in (json['labels'] as Map? ?? const {}).entries)
+          if (key is String && value is String) key: value,
+      },
     );
   }
 
@@ -133,6 +139,9 @@ class HerdrTerminal {
   final DateTime? created;
   final int? exitCode;
   final String? reason;
+
+  /// hc's labels; Baya marks a session's own terminal `baya.session`.
+  final Map<String, String> labels;
 
   /// Its program asks for the user: a permission, a question, a sign-in.
   bool get needsYou => live && (status?.blocked ?? false);
@@ -311,20 +320,36 @@ class TerminalsRepository {
     );
   }
 
-  /// The computer's shell in [cwd], or a [line] such as `claude`.
+  /// The computer's shell in [cwd], or a [line] such as `claude`; [session]
+  /// makes it that session's own.
   Future<HerdrTerminal> run({
     String? cwd,
     String? line,
+    String? session,
     int? cols,
     int? rows,
   }) async {
     final result = await _link.call('_baya/terminal_run', {
       'cwd': ?cwd,
+      'session': ?session,
       if (line != null && line.trim().isNotEmpty) 'line': line.trim(),
       'cols': ?cols,
       'rows': ?rows,
     });
     return HerdrTerminal.fromJson(result.cast<String, dynamic>());
+  }
+
+  /// [sessionId]'s own terminal: the live one it has, or a new shell in
+  /// [cwd]. Null when herdr-core is not on the computer.
+  Future<HerdrTerminal?> forSession(String sessionId, String cwd) async {
+    final list = await this.list();
+    if (!list.available) return null;
+    for (final terminal in list.terminals) {
+      if (terminal.live && terminal.labels['baya.session'] == sessionId) {
+        return terminal;
+      }
+    }
+    return run(cwd: cwd, session: sessionId);
   }
 
   /// Starts watching [address] at [cols]×[rows].

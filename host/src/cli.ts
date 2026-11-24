@@ -48,6 +48,7 @@ import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/sto
 import { issuePendingPairToken, type PendingPairToken } from "./pairing/token_store.ts";
 import { packaged, selfCommand } from "./runtime/self.ts";
 import { packageVersion } from "./runtime/version.ts";
+import { remoteScreens } from "./screen/remote_screen.ts";
 import { installStartup, uninstallStartup } from "./service.ts";
 import { findSession, folderName, listSessions, removeSession } from "./session/registry.ts";
 import {
@@ -314,6 +315,7 @@ async function runForeground(): Promise<void> {
     if (stopping) return;
     stopping = true;
     await control?.close();
+    remoteScreens.stopAll();
     hub.stop();
     process.exit(0);
   };
