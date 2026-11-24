@@ -1102,10 +1102,15 @@
   "keyboard": "Keyboard",
   "fitScreen": "Fit the screen",
   "quality": "Quality",
-  "qualitySmooth": "Smooth (60 fps)",
   "qualityBalanced": "Balanced",
   "qualitySaver": "Data saver",
   "sessionTerminal": "Terminal",
   "sessionTerminalHint": "A shell in this session's folder",
-  "allTerminals": "All terminals on this computer"
+  "allTerminals": "All terminals on this computer",
+  "qualityBest": "Best (1440p, up to 120 fps)",
+  "remoteControlPairing": "Pairing this phone with Sunshine on the computer…",
+  "remoteControlNotInstalled": "Sunshine is not installed on the computer. Run there: baya remote install",
+  "remoteControlNotRunning": "Sunshine is installed but not running on the computer.",
+  "remoteControlForeignAccount": "Sunshine on the computer has an account Baya does not know. Run there: baya remote login <user> <password>",
+  "remoteControlNotWindows": "Remote control streams a Windows screen: connect to Baya running on Windows."
 }

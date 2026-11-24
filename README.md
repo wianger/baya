@@ -13,7 +13,7 @@ side, and open the site they are building on your phone.
 
 [![App](https://img.shields.io/github/v/release/wianger/baya?filter=app-v*&include_prereleases&label=app&color=111111)](https://github.com/wianger/baya/releases?q=app-v)
 [![Host](https://img.shields.io/github/v/release/wianger/baya?filter=host-v*&label=host&color=111111)](https://github.com/wianger/baya/releases?q=host-v)
-[![License](https://img.shields.io/badge/license-MIT-111111)](LICENSE)<br>
+[![License](https://img.shields.io/badge/license-MIT%20host%20%C2%B7%20GPL--3.0%20app-111111)](LICENSE)<br>
 ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)
@@ -210,6 +210,30 @@ Install `Baya-Android.apk` from the latest `app-v…`
 updates. The package ID is `dev.wianger.baya`. Building it yourself is
 described in [docs/development.md](docs/development.md), releasing in
 [docs/releasing.md](docs/releasing.md).
+
+## Remote control
+
+The phone controls a Windows computer's screen through Moonlight's
+streaming core, built into the app: the computer runs
+[Sunshine](https://github.com/LizardByte/Sunshine), which captures the
+screen and encodes it on the GPU; the stream comes over UDP with error
+correction and is decoded on the phone in low-latency mode, at 1440p and
+up to 120 fps over a direct Tailscale path.
+
+```powershell
+baya remote install    # Sunshine, once (Windows asks for admin rights)
+baya remote            # ready?
+```
+
+Baya sets Sunshine's account itself and pairs each phone without a PIN to
+type. On the phone, a computer's overview offers **Remote control**: drag
+as on a touchpad (or point directly), pinch to zoom, two fingers to scroll
+or right-click, and a keyboard with the keys a desktop needs.
+
+## License
+
+The host is MIT. The Android app is GPL-3.0, because it includes
+Moonlight's code (see `app/NOTICE`).
 
 ## Security
 

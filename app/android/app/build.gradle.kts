@@ -36,6 +36,21 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // 64-bit ARM only: every phone Baya runs on (API 34+) is one, and
+        // Moonlight's prebuilt OpenSSL and Opus are kept for it alone.
+        ndk { abiFilters += listOf("arm64-v8a") }
+        externalNativeBuild {
+            ndkBuild {
+                arguments += listOf("APP_PLATFORM=android-34")
+            }
+        }
+    }
+
+    // Moonlight's streaming core (moonlight-common-c, GPL-3.0).
+    externalNativeBuild {
+        ndkBuild {
+            path = file("src/main/jni/Android.mk")
+        }
     }
 
     signingConfigs {
@@ -74,4 +89,13 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Moonlight's pairing (certificates, AES) and its HTTP to Sunshine.
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.85")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    // Rewrites H.264 SPS for Android decoders, as Moonlight does.
+    implementation("org.jcodec:jcodec:0.2.5")
 }

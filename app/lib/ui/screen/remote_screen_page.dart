@@ -13,7 +13,6 @@ import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/screen/screen_gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class RemoteScreenPage extends StatefulWidget {
@@ -46,7 +45,7 @@ class _RemoteScreenPageState extends State<RemoteScreenPage> {
   );
   final _typing = TextEditingController(text: _blank);
   final _typingFocus = FocusNode();
-  ScreenQuality _quality = ScreenQuality.balanced;
+  ScreenQuality _quality = ScreenQuality.best;
   bool _keyboard = false;
   bool _ctrl = false;
   bool _alt = false;
@@ -70,7 +69,7 @@ class _RemoteScreenPageState extends State<RemoteScreenPage> {
     unawaited(
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
     );
-    unawaited(_session.start(quality: _quality));
+    unawaited(_session.start(quality: _quality, refresh: _refresh));
     _session.addListener(_changed);
   }
 
@@ -143,15 +142,20 @@ class _RemoteScreenPageState extends State<RemoteScreenPage> {
     );
   }
 
-  Size? get _videoSize {
-    final renderer = _session.renderer;
-    if (renderer.videoWidth > 0 && renderer.videoHeight > 0) {
-      return Size(
-        renderer.videoWidth.toDouble(),
-        renderer.videoHeight.toDouble(),
-      );
+  Size? get _videoSize => _session.screenSize;
+
+  /// The phone screen's refresh rate: the stream runs as fast as it shows.
+  double get _refresh {
+    try {
+      return WidgetsBinding
+          .instance
+          .platformDispatcher
+          .displays
+          .first
+          .refreshRate;
+    } catch (_) {
+      return 60;
     }
-    return _session.screenSize;
   }
 
   // ── keyboard ───────────────────────────────────────────────────────────
@@ -221,7 +225,7 @@ class _RemoteScreenPageState extends State<RemoteScreenPage> {
       _quality = quality;
       _session = widget.connect()..addListener(_changed);
     });
-    unawaited(_session.start(quality: quality));
+    unawaited(_session.start(quality: quality, refresh: _refresh));
   }
 
   @override
@@ -249,7 +253,12 @@ class _RemoteScreenPageState extends State<RemoteScreenPage> {
                       if (!picture.isEmpty)
                         Positioned.fromRect(
                           rect: picture,
-                          child: RTCVideoView(session.renderer),
+                          child: session.texture == null
+                              ? const SizedBox.shrink()
+                              : Texture(
+                                  textureId: session.texture!,
+                                  filterQuality: FilterQuality.medium,
+                                ),
                         ),
                     ],
                   ),
@@ -387,10 +396,25 @@ class _Status extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white, fontSize: 16),
               ),
+              if (!ended && session.stage == 'pair') ...[
+                const SizedBox(height: 8),
+                Text(
+                  l10n.remoteControlPairing,
+                  key: const Key('remote-screen-pairing'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white60, fontSize: 13),
+                ),
+              ],
               if (ended && session.reason != null) ...[
                 const SizedBox(height: 8),
                 Text(
-                  session.reason!,
+                  switch (session.reason) {
+                    'not_installed' => l10n.remoteControlNotInstalled,
+                    'not_running' => l10n.remoteControlNotRunning,
+                    'foreign_account' => l10n.remoteControlForeignAccount,
+                    'not_windows' => l10n.remoteControlNotWindows,
+                    final other => other!,
+                  },
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white60, fontSize: 13),
                 ),
@@ -463,7 +487,6 @@ class _Toolbar extends StatelessWidget {
       ),
       icon: Icon(icon, size: 19),
     );
-    final rtt = session.rtt;
     return DecoratedBox(
       decoration: ShapeDecoration(
         color: Colors.black.withValues(alpha: .62),
@@ -482,16 +505,14 @@ class _Toolbar extends StatelessWidget {
               onClose,
               key: const Key('remote-screen-close'),
             ),
-            if (rtt != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Text(
-                  '$rtt ms',
-                  key: const Key('remote-screen-rtt'),
-                  style: context.typo.monoSmall.copyWith(
-                    fontSize: 11.5,
-                    color: Colors.white70,
-                  ),
+            if (session.poor)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(
+                  LucideIcons.wifiLow,
+                  key: Key('remote-screen-poor'),
+                  size: 17,
+                  color: Colors.white70,
                 ),
               ),
             button(
@@ -528,8 +549,8 @@ class _Toolbar extends StatelessWidget {
               onSelected: onQuality,
               itemBuilder: (_) => [
                 PopupMenuItem(
-                  value: ScreenQuality.smooth,
-                  child: Text(l10n.qualitySmooth),
+                  value: ScreenQuality.best,
+                  child: Text(l10n.qualityBest),
                 ),
                 PopupMenuItem(
                   value: ScreenQuality.balanced,

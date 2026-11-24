@@ -547,10 +547,15 @@
   "keyboard": "键盘",
   "fitScreen": "适应屏幕",
   "quality": "画质",
-  "qualitySmooth": "流畅（60 帧）",
   "qualityBalanced": "均衡",
   "qualitySaver": "省流量",
   "sessionTerminal": "终端",
   "sessionTerminalHint": "在这个会话文件夹里的 shell",
-  "allTerminals": "这台电脑上的所有终端"
+  "allTerminals": "这台电脑上的所有终端",
+  "qualityBest": "最佳（1440p，最高 120 帧）",
+  "remoteControlPairing": "正在与电脑上的 Sunshine 配对…",
+  "remoteControlNotInstalled": "电脑上还没装 Sunshine。在电脑上运行：baya remote install",
+  "remoteControlNotRunning": "电脑上的 Sunshine 已安装但没有运行。",
+  "remoteControlForeignAccount": "电脑上的 Sunshine 已有 Baya 不知道的账号。在电脑上运行：baya remote login <用户名> <密码>",
+  "remoteControlNotWindows": "远程控制需要 Windows 上运行的 Baya：请连接 Windows 那台主机。"
 }

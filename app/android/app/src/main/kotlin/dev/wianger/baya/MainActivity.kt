@@ -38,6 +38,7 @@ class MainActivity : FlutterActivity() {
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
         Agents.attach(this, flutterEngine.dartExecutor.binaryMessenger)
         Launcher.attach(this, flutterEngine.dartExecutor.binaryMessenger)
+        Moonlight.attach(this, flutterEngine)
 
         textToSpeech = TextToSpeech(this) { status ->
             if (status != TextToSpeech.SUCCESS) return@TextToSpeech

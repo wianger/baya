@@ -6,8 +6,8 @@ import { logOnce } from "../log_once.ts";
 import { pairPhone } from "../pairing/service.ts";
 import { PREVIEW_TOKEN_HEADER, previewPorts, previews } from "../preview/preview.ts";
 import { packageVersion } from "../runtime/version.ts";
-import { remoteScreens, screenAvailable } from "../screen/remote_screen.ts";
-import { hostLabel, servePath, tailnetPairPort } from "../tailnet/pairing_server.ts";
+import { sunshinePin, sunshineState } from "../screen/sunshine.ts";
+import { hostLabel, servePath, tailnetPairPort, tailnetSelf } from "../tailnet/pairing_server.ts";
 import type { DataFrame } from "../transport/noise.ts";
 import { browseDirectory, resolveDirectory } from "../workspace/directories.ts";
 import { convertToPdf, extractEntry, listArchive } from "../workspace/file_views.ts";
@@ -133,7 +133,6 @@ export class PhoneConnection implements HubPhone {
     this.downloads.clear();
     uploads.detach(this.id);
     this.terminals.close();
-    remoteScreens.stop(this);
   }
 
   private async handle(method: string, params: Json): Promise<unknown> {
@@ -364,17 +363,14 @@ export class PhoneConnection implements HubPhone {
         return this.terminals.kill(stringParam(params, "terminal"));
       case "_baya/terminal_remove":
         return this.terminals.remove(stringParam(params, "terminal"));
-      case "_baya/screen_start":
-        return remoteScreens.start(this, params["quality"]);
-      case "_baya/screen_answer":
-        await remoteScreens.answer(
-          this,
-          stringParam(params, "screenId"),
-          stringParam(params, "sdp"),
-        );
-        return {};
-      case "_baya/screen_stop":
-        remoteScreens.stop(this, optionalString(params, "screenId"));
+      case "_baya/screen_info": {
+        // Where the phone's Moonlight core reaches Sunshine: this computer's
+        // tailnet name, and whether Sunshine is ready to stream.
+        const [state, self] = await Promise.all([sunshineState(), tailnetSelf()]);
+        return { ...state, address: self?.dnsName ?? null };
+      }
+      case "_baya/screen_pair":
+        await sunshinePin(stringParam(params, "pin"), optionalString(params, "name") ?? "Baya");
         return {};
       case "_baya/worktree_remove":
         return removeWorktree(stringParam(params, "path"));
@@ -392,11 +388,6 @@ export class PhoneConnection implements HubPhone {
     }
     if (method === "_baya/terminal_resize") {
       this.terminals.resize(params["stream"], params["cols"], params["rows"]);
-      return;
-    }
-    if (method === "_baya/screen_candidate") {
-      const candidate = params["candidate"];
-      if (isObject(candidate)) remoteScreens.candidate(this, params["screenId"], candidate);
       return;
     }
     if (method === "session/cancel") {
@@ -420,7 +411,7 @@ export class PhoneConnection implements HubPhone {
         [BAYA_META]: {
           hostname: hostname(),
           // Whether this computer's screen can be controlled from the phone.
-          screen: await screenAvailable(),
+          screen: (await sunshineState()).ready,
           agents: (await this.hub.agents()).map(({ id, name, available }) => ({
             id,
             name,
