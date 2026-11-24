@@ -20,7 +20,8 @@ val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
 
 android {
     namespace = "dev.wianger.baya"
-    compileSdk = flutter.compileSdkVersion
+    // OkHttp 5 (Moonlight's HTTP to Sunshine) compiles against API 37.
+    compileSdk = maxOf(flutter.compileSdkVersion, 37)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
