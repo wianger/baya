@@ -37,11 +37,11 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        // 64-bit ARM only: every phone Baya runs on (API 34+) is one, and
-        // Moonlight's prebuilt OpenSSL and Opus are kept for it alone.
-        ndk { abiFilters += listOf("arm64-v8a") }
+        // Moonlight's core is built for 64-bit ARM only: Baya's phones (API
+        // 34+) are, and its prebuilt OpenSSL and Opus are kept for it alone.
         externalNativeBuild {
             ndkBuild {
+                abiFilters += listOf("arm64-v8a")
                 arguments += listOf("APP_PLATFORM=android-34")
             }
         }
