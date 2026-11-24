@@ -136,7 +136,7 @@ void main() {
     );
     expect(waiting.dy, lessThan(running.dy));
     expect(running.dy, lessThan(ended.dy));
-    expect(find.text('WAITING FOR YOU'), findsOneWidget);
+    expect(find.text('Waiting for you'), findsOneWidget);
 
     // A change on the computer lists again.
     link.terminals = [_t('t1')];

@@ -76,30 +76,26 @@ flutter:
   generate: true
 
   assets:
-    - assets/fonts/GeistMono/OFL.txt
-    - assets/fonts/Geist/OFL.txt
-    - assets/fonts/PinyonScript/OFL.txt
+    - assets/fonts/Inter/OFL.txt
+    - assets/fonts/JetBrainsMono/OFL.txt
 
   # Unmodified upstream static fonts; sources and checksums in assets/fonts.
   fonts:
-    - family: Pinyon Script
+    - family: Inter
       fonts:
-        - asset: assets/fonts/PinyonScript/PinyonScript-Regular.ttf
-    - family: Geist
-      fonts:
-        - asset: assets/fonts/Geist/Geist-Regular.ttf
-        - asset: assets/fonts/Geist/Geist-Medium.ttf
+        - asset: assets/fonts/Inter/Inter-Regular.ttf
+        - asset: assets/fonts/Inter/Inter-Medium.ttf
           weight: 500
-        - asset: assets/fonts/Geist/Geist-SemiBold.ttf
+        - asset: assets/fonts/Inter/Inter-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/Geist/Geist-Bold.ttf
+        - asset: assets/fonts/Inter/Inter-Bold.ttf
           weight: 700
-    - family: Geist Mono
+    - family: JetBrains Mono
       fonts:
-        - asset: assets/fonts/GeistMono/GeistMono-Regular.ttf
-        - asset: assets/fonts/GeistMono/GeistMono-SemiBold.ttf
+        - asset: assets/fonts/JetBrainsMono/JetBrainsMono-Regular.ttf
+        - asset: assets/fonts/JetBrainsMono/JetBrainsMono-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/GeistMono/GeistMono-Bold.ttf
+        - asset: assets/fonts/JetBrainsMono/JetBrainsMono-Bold.ttf
           weight: 700
-        - asset: assets/fonts/GeistMono/GeistMono-Italic.ttf
+        - asset: assets/fonts/JetBrainsMono/JetBrainsMono-Italic.ttf
           style: italic

@@ -2,7 +2,22 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// A small-caps label over a group.
+/// A page of grouped settings on a tinted ground, as DeepSeek lays out its
+/// settings: groups under it are white cards with no edge.
+class BayaTintedPage extends InheritedWidget {
+  const BayaTintedPage({super.key, required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<BayaTintedPage>() != null;
+
+  /// The ground such a page is painted on.
+  static Color ground(BuildContext context) => context.colors.inputFill;
+
+  @override
+  bool updateShouldNotify(BayaTintedPage oldWidget) => false;
+}
+
+/// A label over a group, in DeepSeek's quiet sentence case.
 class BayaSectionLabel extends StatelessWidget {
   const BayaSectionLabel(this.label, {super.key, this.top = 0});
 
@@ -13,13 +28,12 @@ class BayaSectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(4, top, 4, 8),
+    padding: EdgeInsets.fromLTRB(16, top, 16, 8),
     child: Text(
-      label.toUpperCase(),
+      label,
       style: context.typo.sansBody.copyWith(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 1.3,
+        fontSize: 14,
+        height: 20 / 14,
         color: context.colors.muted,
       ),
     ),
@@ -39,13 +53,23 @@ class BayaGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final tinted = BayaTintedPage.of(context);
+    final card = Theme.of(context).brightness == Brightness.dark
+        ? colors.modelBadgeBg
+        : colors.bg;
     return Material(
-      color: danger ? colors.error.withValues(alpha: .08) : colors.inputFill,
+      color: danger
+          ? colors.error.withValues(alpha: .08)
+          : tinted
+          ? card
+          : colors.inputFill,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(
-          color: danger ? colors.error.withValues(alpha: .35) : colors.border,
-        ),
+        borderRadius: BorderRadius.circular(tinted ? 24 : 16),
+        side: danger
+            ? BorderSide(color: colors.error.withValues(alpha: .35))
+            : tinted
+            ? BorderSide.none
+            : BorderSide(color: colors.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(

@@ -1112,5 +1112,12 @@
   "remoteControlNotInstalled": "Sunshine is not installed on the computer. Run there: baya remote install",
   "remoteControlNotRunning": "Sunshine is installed but not running on the computer.",
   "remoteControlForeignAccount": "Sunshine on the computer has an account Baya does not know. Run there: baya remote login <user> <password>",
-  "remoteControlNotWindows": "Remote control streams a Windows screen: connect to Baya running on Windows."
+  "remoteControlNotWindows": "Remote control streams a Windows screen: connect to Baya running on Windows.",
+  "historyToday": "Today",
+  "historyYesterday": "Yesterday",
+  "historyWeek": "Previous 7 days",
+  "historyMonth": "Previous 30 days",
+  "historyEarlier": "Earlier",
+  "selectText": "Select text",
+  "share": "Share"
 }

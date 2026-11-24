@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 
 const kAppName = 'Baya';
 
-/// A perched baya weaver, drawn as magpie draws its icon: one ink
-/// silhouette with white cut in for the breast, wing and tail, and the
-/// weaver's golden crown. The
-/// paths come from branding/generate.py (108-unit grid).
+/// A perched baya weaver as one flat silhouette, drawn the way DeepSeek
+/// draws its whale: a few large curves, the wing and eye cut out, and the
+/// weaver's curled crest. The paths come from branding/generate.py
+/// (108-unit grid).
 ///
-/// [tile] draws it on its grey tile, as on the launcher; without one the
-/// bird takes the text colour and its white parts the page colour.
+/// [tile] draws it white on a black tile, as on the launcher; without one
+/// the bird takes the text colour and its cut-outs show the page.
 class AppMark extends StatelessWidget {
   const AppMark({super.key, this.size = 28, this.tile = false});
   final double size;
@@ -26,15 +26,14 @@ class AppMark extends StatelessWidget {
         size: Size.square(size),
         painter: AppMarkPainter(
           tile: tile,
-          ink: tile ? AppBrandColors.ink : colors.text,
-          paper: tile ? AppBrandColors.paper : colors.bg,
+          ink: tile ? AppBrandColors.paper : colors.text,
         ),
       ),
     );
   }
 }
 
-/// "Baya" in its script face, beside the mark.
+/// "Baya" in its wordmark face, beside the mark.
 class AppWordmark extends StatelessWidget {
   const AppWordmark({super.key, this.size = 22});
   final double size;
@@ -59,23 +58,19 @@ class AppWordmark extends StatelessWidget {
 }
 
 class AppMarkPainter extends CustomPainter {
-  const AppMarkPainter({
-    required this.tile,
-    required this.ink,
-    required this.paper,
-  });
+  const AppMarkPainter({required this.tile, required this.ink});
 
   final bool tile;
   final Color ink;
 
-  /// The white of the drawing: breast, feather lines, eye.
-  final Color paper;
-
-  static final _body = _parse(kMarkBody);
-  static final _breast = _parse(kMarkBreast);
-  static final _crown = _parse(kMarkCrown);
-  static final _wing = _parse(kMarkWing);
-  static final _lines = [for (final line in kMarkLines) _parse(line)];
+  static final _bird = () {
+    final (ex, ey, r) = kMarkEye;
+    return Path()
+      ..fillType = PathFillType.evenOdd
+      ..addPath(_parse(kMarkBird), Offset.zero)
+      ..addPath(_parse(kMarkWing), Offset.zero)
+      ..addOval(Rect.fromCircle(center: Offset(ex, ey), radius: r));
+  }();
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -87,39 +82,14 @@ class AppMarkPainter extends CustomPainter {
           const Rect.fromLTWH(0, 0, 108, 108),
           const Radius.circular(24),
         ),
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(kMarkTile.$1), Color(kMarkTile.$2)],
-          ).createShader(const Rect.fromLTWH(0, 0, 108, 108)),
+        Paint()..color = const Color(kMarkInk),
       );
     }
     canvas
       ..translate(54, 54)
       ..scale(kMarkScale)
-      ..translate(-kMarkCenter.$1, -kMarkCenter.$2);
-    final fill = Paint()..color = ink;
-    final white = Paint()..color = paper;
-    final edge = Paint()
-      ..color = paper
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final (ex, ey, ring, pupil) = kMarkEye;
-    canvas
-      ..drawPath(_body, fill)
-      ..drawPath(_breast, white)
-      ..drawPath(_crown, Paint()..color = const Color(kMarkGold))
-      ..drawPath(_wing, fill)
-      ..drawPath(_wing, edge..strokeWidth = kMarkWingEdge);
-    edge.strokeWidth = kMarkLineWidth;
-    for (final line in _lines) {
-      canvas.drawPath(line, edge);
-    }
-    canvas
-      ..drawCircle(Offset(ex, ey), ring, white)
-      ..drawCircle(Offset(ex + .3, ey), pupil, fill)
+      ..translate(-kMarkCenter.$1, -kMarkCenter.$2)
+      ..drawPath(_bird, Paint()..color = ink)
       ..restore();
   }
 
@@ -151,6 +121,5 @@ class AppMarkPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(AppMarkPainter old) =>
-      old.tile != tile || old.ink != ink || old.paper != paper;
+  bool shouldRepaint(AppMarkPainter old) => old.tile != tile || old.ink != ink;
 }

@@ -1,10 +1,11 @@
 import 'package:app/ui/core/themes/app_colors.dart';
 import 'package:flutter/material.dart';
 
-/// Geist for the interface and Geist Mono for code; scripts Geist lacks
-/// (Chinese among them) fall back to the system face.
-const String kSansFamily = 'Geist';
-const String kMonoFamily = 'Geist Mono';
+/// Inter for the interface (as DeepSeek uses it) and JetBrains Mono for
+/// code; scripts Inter lacks (Chinese among them) fall back to the system
+/// face.
+const String kSansFamily = 'Inter';
+const String kMonoFamily = 'JetBrains Mono';
 
 /// Code shows every character as typed: no ligatures or contextual
 /// alternates merging `--`, `->` or `!=`.
@@ -17,13 +18,13 @@ const _literal = [
 /// System fallback handles CJK and other scripts.
 const List<String>? kFontFallback = null;
 
-/// The Baya wordmark's script face (OFL, bundled).
-const kWordmarkFamily = 'Pinyon Script';
+/// The Baya wordmark's face: Inter, semibold and set tight.
+const kWordmarkFamily = kSansFamily;
 
-/// The Baya wordmark, set in Pinyon Script.
+/// The Baya wordmark.
 TextStyle brandDisplayTextStyle({
   required double fontSize,
-  FontWeight fontWeight = FontWeight.w400,
+  FontWeight fontWeight = FontWeight.w600,
   Color? color,
 }) {
   return TextStyle(
@@ -31,7 +32,7 @@ TextStyle brandDisplayTextStyle({
     fontSize: fontSize,
     fontWeight: fontWeight,
     color: color,
-    letterSpacing: .2,
+    letterSpacing: -fontSize * .035,
     height: 1.2,
   );
 }
@@ -62,18 +63,30 @@ class AppTypography extends ThemeExtension<AppTypography> {
   /// Sans body text. Was `kSansBody`.
   final TextStyle sansBody;
 
-  /// Long responses: the sans face with a looser reading rhythm.
+  /// Agent replies: 16 on 28, as DeepSeek sets its answers.
   TextStyle get reading => sansBody.copyWith(
     fontFamily: kSansFamily,
     fontSize: 16,
-    height: 1.58,
-    letterSpacing: -0.15,
+    height: 28 / 16,
+    letterSpacing: -0.1,
   );
 
+  /// Reasoning and other secondary prose: 14 on 24.
+  TextStyle get readingSmall => reading.copyWith(fontSize: 14, height: 24 / 14);
+
+  /// Top-bar titles: 17, semibold.
   TextStyle get title => sansBody.copyWith(
-    fontSize: 20,
-    height: 1.25,
+    fontSize: 17,
+    height: 24 / 17,
     fontWeight: FontWeight.w600,
+  );
+
+  /// The empty state's greeting: 22, semibold.
+  TextStyle get greeting => sansBody.copyWith(
+    fontSize: 22,
+    height: 30 / 22,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.3,
   );
 
   /// Build the style set for a given color palette so text colors track the
@@ -83,9 +96,9 @@ class AppTypography extends ThemeExtension<AppTypography> {
     return AppTypography(
       mono: TextStyle(
         fontFamily: kMonoFamily,
-        fontSize: 12.5,
+        fontSize: 13,
         color: monoColor,
-        height: 1.5,
+        height: 22 / 13,
         letterSpacing: 0,
         fontFeatures: _literal,
       ),
@@ -100,7 +113,7 @@ class AppTypography extends ThemeExtension<AppTypography> {
         fontFamily: kSansFamily,
         fontSize: 15.0,
         color: c.text,
-        height: 1.5,
+        height: 1.55,
         letterSpacing: -0.1,
       ),
     );

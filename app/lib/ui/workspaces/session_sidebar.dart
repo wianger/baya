@@ -4,6 +4,7 @@ library;
 
 import 'dart:async';
 
+import 'package:app/data/preferences/preferences.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
@@ -15,9 +16,10 @@ import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/workspaces/session_actions.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
 import 'package:app/ui/workspaces/widgets/scope_switchers.dart';
-import 'package:app/ui/workspaces/widgets/session_row.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -188,7 +190,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
       ),
     );
     return BayaSurface(
-      radius: widget.close == null ? 0 : 28,
+      radius: 0,
       elevated: false,
       child: Material(
         color: Colors.transparent,
@@ -203,7 +205,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                         padding: EdgeInsets.zero,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 14, 12, 16),
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                             child: _searching
                                 ? _SidebarSearchField(
                                     controller: _search,
@@ -212,30 +214,45 @@ class _SessionSidebarState extends State<SessionSidebar> {
                                         setState(() => _query = value),
                                     onClose: _closeSearch,
                                   )
-                                : Row(
-                                    children: [
-                                      const AppMark(size: 34, tile: true),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          kAppName,
-                                          style: brandDisplayTextStyle(
-                                            fontSize: 31,
-                                            color: colors.text,
-                                          ),
+                                // DeepSeek's drawer opens on a floating
+                                // search capsule.
+                                : BayaSurface(
+                                    role: BayaSurfaceRole.floating,
+                                    radius: 26,
+                                    child: InkWell(
+                                      key: const Key('sidebar-search'),
+                                      onTap: _openSearch,
+                                      child: SizedBox(
+                                        height: 52,
+                                        child: Row(
+                                          children: [
+                                            const SizedBox(width: 18),
+                                            Icon(
+                                              LucideIcons.search,
+                                              size: 20,
+                                              color: colors.muted,
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                context.l10n.searchSessions,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: context.typo.sansBody
+                                                    .copyWith(
+                                                      fontSize: 16,
+                                                      color: colors.muted,
+                                                    ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      _SidebarCircleAction(
-                                        key: const Key('sidebar-search'),
-                                        tooltip: context.l10n.searchSessions,
-                                        icon: LucideIcons.search,
-                                        onPressed: _openSearch,
-                                      ),
-                                    ],
+                                    ),
                                   ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
                             child: DeviceSwitcher(
                               key: const Key('device-selector'),
                               devices: {
@@ -255,9 +272,8 @@ class _SessionSidebarState extends State<SessionSidebar> {
                               onDelete: (epk) => _deleteDevice(vm, epk),
                             ),
                           ),
-                          const SizedBox(height: 14),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
                             child: WorkspaceSwitcher(
                               key: const Key('workspace-selector'),
                               workspaces: workspaces,
@@ -278,19 +294,6 @@ class _SessionSidebarState extends State<SessionSidebar> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-                            child: Text(
-                              context.l10n.sessionsCount(
-                                vm.workspaceItems.length,
-                              ),
-                              style: TextStyle(
-                                color: colors.muted,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
                           if (items.isEmpty)
                             SizedBox(
                               height: 200,
@@ -313,82 +316,103 @@ class _SessionSidebarState extends State<SessionSidebar> {
                                 ),
                               ),
                             )
-                          else ...[
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
+                          else
+                            for (final (label, group) in _byDay(
+                              context,
+                              vm,
+                              items,
+                            )) ...[
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  24,
+                                  18,
+                                  24,
+                                  4,
+                                ),
+                                child: Text(
+                                  label,
+                                  style: context.typo.sansBody.copyWith(
+                                    color: colors.muted,
+                                    fontSize: 14,
+                                    height: 25 / 14,
+                                  ),
+                                ),
                               ),
-                              child: Column(
-                                children: [
-                                  for (final item in items)
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 2),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(14),
-                                        child: SessionRow(
-                                          key: ValueKey(
-                                            'session-row-${item.peer.remoteEpk}-${item.sessionId}',
-                                          ),
-                                          vm: vm,
-                                          item: item,
-                                          highlighted: selection.matches(
-                                            item.peer.remoteEpk,
-                                            item.sessionId,
-                                          ),
-                                          onOpen: () {
-                                            if (!_opening) _open(item);
-                                          },
-                                          onMore: () =>
-                                              showSessionActions(context, item),
-                                        ),
-                                      ),
+                              for (final item in group)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  child: _DrawerRow(
+                                    key: ValueKey(
+                                      'session-row-${item.peer.remoteEpk}-${item.sessionId}',
                                     ),
-                                ],
-                              ),
-                            ),
-                          ],
+                                    vm: vm,
+                                    item: item,
+                                    highlighted: selection.matches(
+                                      item.peer.remoteEpk,
+                                      item.sessionId,
+                                    ),
+                                    onOpen: () {
+                                      if (!_opening) _open(item);
+                                    },
+                                    onMore: () =>
+                                        showSessionActions(context, item),
+                                  ),
+                                ),
+                            ],
                         ],
                       ),
               ),
-              // Footer: settings circle on the left, the primary New session
-              // pill bottom-right. No divider above it — the pill itself
-              // separates the footer from the session list.
+              // Footer: DeepSeek's account row, here the way to settings.
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-                child: Row(
-                  children: [
-                    _SidebarCircleAction(
-                      key: const Key('sidebar-settings'),
-                      tooltip: context.l10n.settings,
-                      icon: LucideIcons.settings2,
-                      onPressed: () {
-                        widget.close?.call();
-                        context.push('/settings');
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    // Takes the rest of the row and keeps the pill at its
-                    // right end; the pill shrinks rather than overflows with
-                    // large text or a long translation.
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: BayaButton(
-                          buttonKey: const Key('sidebar-new-session'),
-                          onPressed: vm.selectedWorkspace == null
-                              ? null
-                              : () =>
-                                    startSession(context, close: widget.close),
-                          icon: const Icon(LucideIcons.plus, size: 18),
-                          label: Text(
-                            context.l10n.newSession,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: const Key('sidebar-settings'),
+                    onTap: () {
+                      widget.close?.call();
+                      context.push('/settings');
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: colors.inputFill,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const AppMark(size: 26),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              context.l10n.settings,
+                              style: context.typo.sansBody.copyWith(
+                                fontSize: 16,
+                                color: colors.text,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            LucideIcons.ellipsis,
+                            size: 20,
+                            color: colors.muted,
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -399,43 +423,6 @@ class _SessionSidebarState extends State<SessionSidebar> {
   }
 }
 
-class _SidebarCircleAction extends StatelessWidget {
-  const _SidebarCircleAction({
-    super.key,
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return BayaSurface(
-      role: BayaSurfaceRole.control,
-      radius: 22,
-      elevated: false,
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: SizedBox.square(
-          dimension: 48,
-          child: IconButton(
-            tooltip: tooltip,
-            onPressed: onPressed,
-            icon: Icon(icon, size: 22, color: colors.muted2),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Header search that replaces the brand row once the search button is tapped.
 class _SidebarSearchField extends StatelessWidget {
   const _SidebarSearchField({
     required this.controller,
@@ -487,6 +474,136 @@ class _SidebarSearchField extends StatelessWidget {
           icon: Icon(LucideIcons.x, size: 19, color: colors.muted2),
         ),
       ],
+    );
+  }
+}
+
+/// The sessions under DeepSeek's history headings: pinned first, then today,
+/// yesterday, the last 7 and 30 days, then by month.
+List<(String, List<HomeItem>)> _byDay(
+  BuildContext context,
+  HomeViewModel vm,
+  List<HomeItem> items,
+) {
+  final l10n = context.l10n;
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final groups = <String, List<HomeItem>>{};
+  for (final item in items) {
+    final String label;
+    final at = item.session.updatedAt?.toLocal();
+    if (vm.isPinned(item)) {
+      label = l10n.pinned;
+    } else if (at == null) {
+      label = l10n.historyEarlier;
+    } else {
+      final day = DateTime(at.year, at.month, at.day);
+      final days = today.difference(day).inDays;
+      label = days <= 0
+          ? l10n.historyToday
+          : days == 1
+          ? l10n.historyYesterday
+          : days < 7
+          ? l10n.historyWeek
+          : days < 30
+          ? l10n.historyMonth
+          : DateFormat.yMMMM(Localizations.localeOf(context).toLanguageTag())
+                .format(at);
+    }
+    (groups[label] ??= []).add(item);
+  }
+  return [for (final MapEntry(:key, :value) in groups.entries) (key, value)];
+}
+
+/// One session in the drawer, as DeepSeek lists a chat: its title on one
+/// line, the open one filled; a spinner while it works, a dot for news.
+class _DrawerRow extends StatelessWidget {
+  const _DrawerRow({
+    super.key,
+    required this.vm,
+    required this.item,
+    required this.highlighted,
+    required this.onOpen,
+    required this.onMore,
+  });
+
+  final HomeViewModel vm;
+  final HomeItem item;
+  final bool highlighted;
+  final VoidCallback onOpen;
+  final VoidCallback onMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final working = vm.isRoomWorking(item.peer.remoteEpk, item.sessionId);
+    final unread =
+        !working &&
+        (context.watch<Preferences?>()?.isUnread(
+              item.peer.remoteEpk,
+              item.session,
+            ) ??
+            false);
+    return Material(
+      color: highlighted ? colors.inputFill : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        onLongPress: () {
+          unawaited(HapticFeedback.mediumImpact());
+          onMore();
+        },
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 50),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    vm.displayNameOf(item),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.typo.sansBody.copyWith(
+                      fontSize: 16,
+                      height: 24 / 16,
+                      color: colors.text,
+                      fontWeight: highlighted
+                          ? FontWeight.w500
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ),
+                if (working)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: SizedBox.square(
+                      dimension: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.4,
+                        color: colors.muted,
+                      ),
+                    ),
+                  )
+                else if (unread)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Container(
+                      key: const Key('session-unread'),
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: colors.text,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

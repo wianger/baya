@@ -5,6 +5,7 @@ import 'package:app/data/launcher/launcher.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/l10n/l10n.dart';
+import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
@@ -29,25 +30,60 @@ class SessionWelcome extends StatelessWidget {
     final colors = context.colors;
     final vm = context.watch<HomeViewModel>();
     final state = vm.state;
+    final menu = SessionShell.menuOf(context);
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(
-        backgroundColor: colors.bg.withValues(alpha: 0),
-        flexibleSpace: const BayaSurface(
-          role: BayaSurfaceRole.navigation,
-          radius: 0,
-          elevated: false,
-          child: SizedBox.expand(),
+      // DeepSeek's home: no title bar, a floating menu circle on the left
+      // and the new-chat action in a floating capsule on the right.
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(72),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Row(
+              children: [
+                if (menu != null)
+                  BayaSurface(
+                    role: BayaSurfaceRole.floating,
+                    radius: 26,
+                    child: SizedBox.square(
+                      dimension: 52,
+                      child: IconButton(
+                        key: const Key('overview-menu'),
+                        onPressed: menu,
+                        tooltip: context.l10n.openNavigation,
+                        icon: Icon(
+                          LucideIcons.textAlignStart,
+                          size: 21,
+                          color: colors.text,
+                        ),
+                      ),
+                    ),
+                  ),
+                const Spacer(),
+                if (vm.selectedWorkspace != null)
+                  BayaSurface(
+                    role: BayaSurfaceRole.floating,
+                    radius: 26,
+                    child: SizedBox.square(
+                      dimension: 52,
+                      child: IconButton(
+                        key: const Key('overview-new-chat'),
+                        onPressed: () => openNewSession(context),
+                        tooltip: context.l10n.newSession,
+                        icon: Icon(
+                          LucideIcons.messageCirclePlus,
+                          size: 21,
+                          color: colors.text,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
-        centerTitle: true,
-        title: Text(context.l10n.overview),
-        leading: SessionShell.menuOf(context) == null
-            ? null
-            : IconButton(
-                onPressed: SessionShell.menuOf(context),
-                tooltip: context.l10n.openNavigation,
-                icon: const Icon(LucideIcons.panelLeft, size: 21),
-              ),
       ),
       body: SafeArea(
         child: switch (state) {
@@ -183,19 +219,20 @@ class _WorkspaceOverview extends StatelessWidget {
           key: const Key('workspace-overview'),
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
           children: [
+            // DeepSeek's empty state: the mark, then a greeting, centred.
+            const SizedBox(height: 12),
+            const Center(child: AppMark(size: 40)),
+            const SizedBox(height: 14),
             Text(
               vm.workspaceLabel(workspace) ?? context.l10n.noWorkspace,
               maxLines: 2,
+              textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              style: context.typo.sansBody.copyWith(
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
-                height: 1.12,
-                letterSpacing: -0.9,
-              ),
+              style: context.typo.greeting,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
                   width: 7,
@@ -313,8 +350,8 @@ class _StartCard extends StatelessWidget {
     final shared = draft?.text;
     return BayaSurface(
       key: const Key('overview-new-session'),
-      role: BayaSurfaceRole.control,
-      radius: 22,
+      role: BayaSurfaceRole.floating,
+      radius: 28,
       elevated: false,
       child: Material(
         color: Colors.transparent,

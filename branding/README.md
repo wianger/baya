@@ -1,10 +1,11 @@
 # Baya artwork
 
-The mark is a perched baya weaver, drawn the way magpie draws its icon: one
-ink silhouette on a soft grey tile, with white cut in for the pale breast,
-wing and tail feathers, and the one colour of the mark: the golden crown of
-a breeding male, the same gold as the app's accent. In the app the bird
-takes the text colour, so it reads in both themes; the crown stays gold.
+The mark is a perched baya weaver, drawn the way DeepSeek draws its whale:
+one flat silhouette in a single colour, a few large rounded curves, the
+wing and eye cut out, a slight lean forward, and one playful detail — the
+weaver's curled crest. It is black and white only: white on a black tile
+for the launcher, and in the app the bird takes the text colour, so it
+reads in both themes.
 
 Everything comes from one geometry in `generate.py`. Run it from the
 repository root after any change:
@@ -25,7 +26,7 @@ It writes:
 - `app/lib/ui/core/branding/mark_geometry.g.dart`, the paths the app's
   `AppMarkPainter` draws.
 
-`banner.png` is `banner.svg` rendered at 1280×640 with the bundled Pinyon
-Script and Geist fonts (`app/assets/fonts`), for example with resvg
-(`resvg --use-fonts-dir app/assets/fonts/Geist --use-fonts-dir
-app/assets/fonts/PinyonScript -w 1280 branding/banner.svg branding/banner.png`).
+`banner.png` is `banner.svg` rendered at 1280×640 with the bundled Inter
+font (`app/assets/fonts`), for example with resvg
+(`resvg --use-fonts-dir app/assets/fonts/Inter -w 1280 branding/banner.svg
+branding/banner.png`).

@@ -409,23 +409,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('All'), findsNothing);
       expect(find.textContaining('Working'), findsNothing);
+      // DeepSeek's drawer: no wordmark header, the account row (here
+      // settings, with the mark) at the foot, no new-session pill.
       expect(find.byType(AppMark), findsOneWidget);
-      expect(
-        tester.widget<Text>(find.text('Baya')).style?.fontFamily,
-        'Pinyon Script',
-      );
-      // Claude-style footer: settings circle + primary New session pill.
-      final settings = find.byKey(const Key('sidebar-settings'));
-      expect(settings, findsOneWidget);
-      expect(tester.getSize(settings), const Size(48, 48));
-      expect(find.byKey(const Key('sidebar-new-session')), findsOneWidget);
-      expect(find.text('New session'), findsOneWidget);
-      // The pill keeps to the bottom-right corner, 16 from the edge.
-      expect(
-        tester.getRect(find.byKey(const Key('sidebar-new-session'))).right,
-        330 - 16,
-      );
-      // Search lives behind the header circle, not in an always-open field.
+      expect(find.byKey(const Key('sidebar-settings')), findsOneWidget);
+      expect(find.byKey(const Key('sidebar-new-session')), findsNothing);
+      // Search opens from the capsule at the top.
       expect(find.byKey(const Key('sidebar-search-field')), findsNothing);
       await tester.tap(find.byKey(const Key('sidebar-search')));
       await tester.pumpAndSettle();
@@ -447,13 +436,11 @@ void main() {
       expect(find.text('Beta task'), findsOneWidget);
       expect(find.text('Alpha task'), findsNothing);
       expect(prefs.selectedWorkspace, betaWorkspace);
-      // Each row's ⋯ opens the session sheet: rename, and delete confirmed
+      // Holding a row opens the session sheet: rename, and delete confirmed
       // inside the sheet.
-      final betaMore = find.byKey(
-        ValueKey('session-more-${peer.remoteEpk}-beta'),
-      );
-      await tester.ensureVisible(betaMore);
-      await tester.tap(betaMore);
+      final beta = find.byKey(ValueKey('session-row-${peer.remoteEpk}-beta'));
+      await tester.ensureVisible(beta);
+      await tester.longPress(beta);
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('session-sheet')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('session-action-delete')));
@@ -485,11 +472,11 @@ void main() {
       await tester.tap(find.byKey(const Key('sidebar-search-close')));
       await tester.pumpAndSettle();
 
-      final renamedMore = find.byKey(
-        ValueKey('session-more-${peer.remoteEpk}-beta'),
+      final renamed = find.byKey(
+        ValueKey('session-row-${peer.remoteEpk}-beta'),
       );
-      await tester.ensureVisible(renamedMore);
-      await tester.tap(renamedMore);
+      await tester.ensureVisible(renamed);
+      await tester.longPress(renamed);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('session-action-delete')));
       await tester.pumpAndSettle();

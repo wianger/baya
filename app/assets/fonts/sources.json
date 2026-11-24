@@ -1,62 +1,42 @@
 [
   {
-    "file": "GeistMono/GeistMono-Regular.ttf",
-    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/GeistMono/ttf/GeistMono-Regular.ttf",
-    "sha256": "5a0de4b3d54ab272f76a1d8c84b7fb24c67bbec6591d5300e61c7bc10094b6c8"
+    "file": "Inter/Inter-Bold.ttf",
+    "source": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+    "sha256": "288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f"
   },
   {
-    "file": "GeistMono/GeistMono-SemiBold.ttf",
-    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/GeistMono/ttf/GeistMono-SemiBold.ttf",
-    "sha256": "fd16d1b58c2178315d110eb399a92cb02bac80f8250e0b58a605fe96ee257364"
+    "file": "Inter/Inter-Medium.ttf",
+    "source": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+    "sha256": "97ad806f526e41546d46365bb3a393145f75b7b1568913db74549ad8b8dba872"
   },
   {
-    "file": "GeistMono/GeistMono-Bold.ttf",
-    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/GeistMono/ttf/GeistMono-Bold.ttf",
-    "sha256": "325de0913317e63c9b0084d3f571c6d1c9279e776e9260c62be19e1c12d1be3c"
+    "file": "Inter/Inter-Regular.ttf",
+    "source": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+    "sha256": "40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82"
   },
   {
-    "file": "GeistMono/GeistMono-Italic.ttf",
-    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/GeistMono/ttf/GeistMono-Italic.ttf",
-    "sha256": "c249093c0f30720afc801c9e8ca1e8c718809cf56860875a590ad69bc803dfbb"
+    "file": "Inter/Inter-SemiBold.ttf",
+    "source": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
+    "sha256": "78a843fade9d4612a5567302fb595b56976eb5fcebf4fea5a5912d638bafcde3"
   },
   {
-    "file": "GeistMono/OFL.txt",
-    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/OFL.txt",
-    "sha256": "c683bfbcc7e087f5d37a54ef628f10387c451a83ddc459b151403a164ac46c90"
+    "file": "JetBrainsMono/JetBrainsMono-Bold.ttf",
+    "source": "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip",
+    "sha256": "5590990c82e097397517f275f430af4546e1c45cff408bde4255dad142479dcb"
   },
   {
-    "file": "Geist/Geist-Regular.ttf",
-    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/Geist/ttf/Geist-Regular.ttf",
-    "sha256": "85a1c6b18a6b0a06dfe9fd4f6d6a5d4979f74ec861eaef4bc7868b5492b8a117"
+    "file": "JetBrainsMono/JetBrainsMono-Italic.ttf",
+    "source": "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip",
+    "sha256": "9d0a1f7a708e6af183f1193b7e81d40da294f5c67682c085d8401c60aac8ded4"
   },
   {
-    "file": "Geist/Geist-Medium.ttf",
-    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/Geist/ttf/Geist-Medium.ttf",
-    "sha256": "3a3b36f0d0b981f4857f7f00eeef4a5ee123605575d362ab31ee7c19e3d11f2f"
+    "file": "JetBrainsMono/JetBrainsMono-Regular.ttf",
+    "source": "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip",
+    "sha256": "a0bf60ef0f83c5ed4d7a75d45838548b1f6873372dfac88f71804491898d138f"
   },
   {
-    "file": "Geist/Geist-SemiBold.ttf",
-    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/Geist/ttf/Geist-SemiBold.ttf",
-    "sha256": "b9f52322d6d20a7ff1e7fe1310ff12ec851aebb83d24f8b4f1d4149298f489b2"
-  },
-  {
-    "file": "Geist/Geist-Bold.ttf",
-    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/fonts/Geist/ttf/Geist-Bold.ttf",
-    "sha256": "3f21f02b827228c3f0c5fb230d027b5a1a263013618e8052bc1b3c5692812c88"
-  },
-  {
-    "file": "Geist/OFL.txt",
-    "source": "https://raw.githubusercontent.com/vercel/geist-font/b5d164a0c066c2c9bfcd5ab65dd8244551f0ac06/OFL.txt",
-    "sha256": "942560b236adfa83745b2c64e5fc09ebaf91cb331751b1157eb92187e5d6e930"
-  },
-  {
-    "file": "PinyonScript/PinyonScript-Regular.ttf",
-    "source": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/pinyonscript/PinyonScript-Regular.ttf",
-    "sha256": "4aab130a6ed27f8b8117738c84a5602edf9300cdcc0651a9a65bf96f451ac29a"
-  },
-  {
-    "file": "PinyonScript/OFL.txt",
-    "source": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/pinyonscript/OFL.txt",
-    "sha256": "5b6456d2e1a11e06ba40ed52863a9de58eef6221c78005abba4182bb4810fc73"
+    "file": "JetBrainsMono/JetBrainsMono-SemiBold.ttf",
+    "source": "https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip",
+    "sha256": "1b3bfa1ed5665a4ce3f9feb68d2d4e40e70bf8b4b7d9a3edd418f321b4e166a0"
   }
 ]

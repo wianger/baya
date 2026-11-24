@@ -230,7 +230,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('session-action-pin')));
     await tester.pumpAndSettle();
 
-    expect(find.text('PINNED'), findsOneWidget);
+    expect(find.text('Pinned'), findsOneWidget);
     final alpha = tester.getTopLeft(
       find.byKey(const ValueKey('overview-session-alpha')),
     );

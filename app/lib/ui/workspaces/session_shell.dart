@@ -34,19 +34,16 @@ class _SessionShellState extends State<SessionShell> {
       child: Scaffold(
         key: _scaffold,
         backgroundColor: Colors.transparent,
-        drawerScrimColor: Colors.black.withValues(alpha: .28),
+        drawerScrimColor: Colors.black.withValues(alpha: .24),
         drawer: wide
             ? null
             : Drawer(
-                width: math.min(352, MediaQuery.sizeOf(context).width - 28),
+                // DeepSeek's drawer: most of the width, square-edged.
+                width: math.min(336, MediaQuery.sizeOf(context).width * .82),
                 backgroundColor: Colors.transparent,
                 elevation: 0,
                 clipBehavior: Clip.antiAlias,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.horizontal(
-                    right: Radius.circular(28),
-                  ),
-                ),
+                shape: const RoundedRectangleBorder(),
                 child: SessionSidebar(
                   close: () => _scaffold.currentState?.closeDrawer(),
                 ),

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Baya's palette: black and white. Ink on paper by day, paper on ink
-/// (true black, kind to OLED) by night, with greys between; no hue anywhere
-/// but red, kept for what fails or is destroyed. The palette is the brand's
-/// own (it does not follow the wallpaper), so every screen reads as one
-/// product.
+/// Baya's palette: DeepSeek's cool greys, with its brand blue swapped for
+/// ink (by day) and near-white (by night), so everything is black and
+/// white; red stays only for what fails or is destroyed. The palette is the
+/// brand's own (it does not follow the wallpaper), so every screen reads as
+/// one product.
 ///
 /// Widgets read `context.colors.<token>` and never hardcode colors.
 @immutable
@@ -32,52 +32,52 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.inputFill,
   });
 
-  /// Ink: the default.
+  /// Charcoal: the default (DeepSeek's dark surfaces).
   static const dark = AppColors(
-    bg: Color(0xFF000000),
-    surface: Color(0xFF0E0E0E),
-    border: Color(0xFF242424),
-    text: Color(0xFFF5F5F5),
-    muted: Color(0xFF8E8E8E),
-    muted2: Color(0xFFBDBDBD),
-    accent: Color(0xFFFFFFFF),
-    onAccent: Color(0xFF000000),
-    highlight: Color(0xFFE6E6E6),
-    success: Color(0xFFDADADA),
-    error: Color(0xFFFF5A52),
-    warning: Color(0xFFC9C9C9),
-    working: Color(0xFFFFFFFF),
-    codeBg: Color(0xFF0B0B0B),
-    userBubble: Color(0xFF1C1C1C),
-    onUserBubble: Color(0xFFF5F5F5),
-    modelBadgeBg: Color(0xFF151515),
-    modelBadgeBorder: Color(0xFF2A2A2A),
-    denyBorder: Color(0x66FF5A52),
-    inputFill: Color(0xFF161616),
+    bg: Color(0xFF151517),
+    surface: Color(0xFF1B1B1C),
+    border: Color(0x1FFFFFFF),
+    text: Color(0xFFF9FAFB),
+    muted: Color(0xFFADB2B8),
+    muted2: Color(0xFFCFD3D6),
+    accent: Color(0xFFF9FAFB),
+    onAccent: Color(0xFF0F1115),
+    highlight: Color(0xFFCFD3D6),
+    success: Color(0xFFCFD3D6),
+    error: Color(0xFFFF6B63),
+    warning: Color(0xFFADB2B8),
+    working: Color(0xFFF9FAFB),
+    codeBg: Color(0xFF1B1B1C),
+    userBubble: Color(0xFF2C2C2E),
+    onUserBubble: Color(0xFFF9FAFB),
+    modelBadgeBg: Color(0xFF232324),
+    modelBadgeBorder: Color(0x29FFFFFF),
+    denyBorder: Color(0x66FF6B63),
+    inputFill: Color(0xFF2C2C2E),
   );
 
   /// Paper. Text colours meet WCAG AA (4.5:1) on every light surface.
   static const light = AppColors(
     bg: Color(0xFFFFFFFF),
-    surface: Color(0xFFF6F6F6),
-    border: Color(0xFFE5E5E5),
-    text: Color(0xFF0A0A0A),
-    muted: Color(0xFF5F5F5F),
-    muted2: Color(0xFF383838),
-    accent: Color(0xFF000000),
+    surface: Color(0xFFF9FAFB),
+    border: Color(0x1A000000),
+    text: Color(0xFF0F1115),
+    muted: Color(0xFF61666B),
+    muted2: Color(0xFF43454A),
+    accent: Color(0xFF0F1115),
     onAccent: Color(0xFFFFFFFF),
-    highlight: Color(0xFF1A1A1A),
-    success: Color(0xFF2E2E2E),
+    highlight: Color(0xFF43454A),
+    success: Color(0xFF43454A),
     error: Color(0xFFC62A22),
-    warning: Color(0xFF474747),
-    working: Color(0xFF000000),
-    codeBg: Color(0xFFF5F5F5),
-    userBubble: Color(0xFFF0F0F0),
-    onUserBubble: Color(0xFF0A0A0A),
-    modelBadgeBg: Color(0xFFF2F2F2),
-    modelBadgeBorder: Color(0xFFE0E0E0),
+    warning: Color(0xFF61666B),
+    working: Color(0xFF0F1115),
+    codeBg: Color(0xFFF9FAFB),
+    userBubble: Color(0xFFF1F3F5),
+    onUserBubble: Color(0xFF0F1115),
+    modelBadgeBg: Color(0xFFF1F3F5),
+    modelBadgeBorder: Color(0x1F000000),
     denyBorder: Color(0x66C62A22),
-    inputFill: Color(0xFFF3F3F3),
+    inputFill: Color(0xFFF1F3F5),
   );
 
   /// The Material scheme framework widgets read, from the same tokens.
@@ -217,6 +217,6 @@ class AppColors extends ThemeExtension<AppColors> {
 
 /// The mark's colors, the same as branding/baya-mark.svg.
 abstract final class AppBrandColors {
-  static const ink = Color(0xFF141414);
+  static const ink = Color(0xFF0F1115);
   static const paper = Color(0xFFFFFFFF);
 }

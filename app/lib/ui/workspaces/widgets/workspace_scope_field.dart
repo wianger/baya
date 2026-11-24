@@ -1,5 +1,4 @@
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -40,78 +39,61 @@ class WorkspaceScopeField extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: '$label, $value$supportingLabel',
-      child: BayaSurface(
-        radius: 18,
-        elevated: false,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            key: interactionKey,
-            onTap: enabled ? onTap : null,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 72),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 11, 13, 11),
-                child: Row(
-                  children: [
-                    SizedBox.square(
-                      dimension: 38,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: enabled
-                              ? colors.selection
-                              : colors.inputFill.withValues(alpha: .62),
-                          borderRadius: BorderRadius.circular(12),
+      // A drawer row, as DeepSeek lists things: no card, an icon, the
+      // choice, what it is in grey, and a chevron.
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: interactionKey,
+          onTap: enabled ? onTap : null,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  IconTheme.merge(
+                    data: IconThemeData(
+                      color: enabled ? colors.text : colors.muted,
+                      size: 20,
+                    ),
+                    child: leading,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.typo.sansBody.copyWith(
+                            fontSize: 16,
+                            height: 24 / 16,
+                            fontWeight: FontWeight.w500,
+                            color: enabled ? colors.text : colors.muted,
+                          ),
                         ),
-                        child: Center(child: leading),
-                      ),
+                        ?supporting,
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            label,
-                            maxLines: 1,
-                            style: context.typo.sansBody.copyWith(
-                              fontSize: 11,
-                              height: 1.15,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: .15,
-                              color: colors.muted,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            value,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.typo.sansBody.copyWith(
-                              fontSize: 15,
-                              height: 1.2,
-                              fontWeight: FontWeight.w600,
-                              color: enabled ? colors.text : colors.muted,
-                            ),
-                          ),
-                          if (supporting case final widget?) ...[
-                            const SizedBox(height: 3),
-                            widget,
-                          ],
-                        ],
-                      ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    style: context.typo.sansBody.copyWith(
+                      fontSize: 13,
+                      color: colors.muted,
                     ),
-                    const SizedBox(width: 10),
-                    Icon(
-                      LucideIcons.chevronDown,
-                      size: 18,
-                      color: enabled ? colors.muted2 : colors.muted,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(LucideIcons.chevronDown, size: 16, color: colors.muted),
+                ],
               ),
             ),
           ),
