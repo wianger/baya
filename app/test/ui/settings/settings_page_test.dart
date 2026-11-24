@@ -101,9 +101,11 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byKey(const Key('settings-display')));
+    // The theme opens a small menu where its row is; picking sets it.
+    await tester.tap(find.byKey(const Key('settings-theme')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('theme-selector')), findsOneWidget);
+    expect(find.text('Dark'), findsOneWidget);
+    expect(find.text('Light'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await _disposeSettings(tester, fixture);
@@ -114,17 +116,15 @@ void main() {
 
     expect(find.text('Pairings'), findsNothing);
     expect(find.text('Add new pairing'), findsNothing);
-    expect(find.byKey(const Key('settings-display')), findsOneWidget);
-    expect(find.byKey(const Key('settings-about')), findsOneWidget);
-
-    expect(find.byKey(const Key('theme-selector')), findsNothing);
-    expect(find.byKey(const Key('font-scale-selector')), findsNothing);
-    expect(find.byKey(const Key('hide-tool-calls')), findsNothing);
+    expect(find.byKey(const Key('settings-language')), findsOneWidget);
+    expect(find.byKey(const Key('settings-theme')), findsOneWidget);
+    expect(find.byKey(const Key('settings-font-size')), findsOneWidget);
+    expect(find.byKey(const Key('hide-tool-calls')), findsOneWidget);
 
     await _disposeSettings(tester, fixture);
   });
 
-  testWidgets('display details open from the single display entry', (
+  testWidgets('text size has its own page: a preview and a slider', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(320, 640);
@@ -133,13 +133,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final fixture = await _pumpSettings(tester);
 
-    await tester.tap(find.byKey(const Key('settings-display')));
+    await tester.tap(find.byKey(const Key('settings-font-size')));
     await tester.pumpAndSettle();
-
-    expect(find.text('Display and conversation'), findsWidgets);
-    expect(find.byKey(const Key('theme-selector')), findsOneWidget);
     expect(find.byKey(const Key('font-scale-selector')), findsOneWidget);
-    expect(find.byKey(const Key('hide-tool-calls')), findsOneWidget);
+    expect(find.text('Preview the text size'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await _disposeSettings(tester, fixture);
