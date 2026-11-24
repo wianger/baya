@@ -309,7 +309,9 @@ class AgentService : Service() {
             startForeground(
                 Agents.LIVE_ID,
                 Agents.buildLive(this, content ?: emptyMap<String, Any>()),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+                // Messages from the agent on the computer, relayed here: the
+                // type Android names for exactly this, no Play review needed.
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING,
             )
         } catch (error: RuntimeException) {
             stopSelf()

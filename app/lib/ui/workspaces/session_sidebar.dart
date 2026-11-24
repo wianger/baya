@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 
 import 'package:app/data/preferences/preferences.dart';
+import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
@@ -13,9 +14,11 @@ import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
+import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/workspaces/session_actions.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
 import 'package:app/ui/workspaces/widgets/scope_switchers.dart';
+import 'package:app/ui/workspaces/workspace_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -184,6 +187,17 @@ class _SessionSidebarState extends State<SessionSidebar> {
     final selection = context.watch<SessionSelection>();
     final workspaces = vm.workspaces;
     final query = _query.trim().toLowerCase();
+    final deviceEpk = vm.selectedDevice;
+    final runs = (context.watch<Preferences?>()?.runs ?? const [])
+        .where(
+          (run) =>
+              deviceEpk != null &&
+              toStandardB64(run.hostId) == toStandardB64(deviceEpk) &&
+              (vm.selectedWorkspace == null ||
+                  run.workspaceKey == null ||
+                  run.workspaceKey == vm.selectedWorkspace),
+        )
+        .toList(growable: false);
     final items = vm.pinnedFirst(
       vm.workspaceItems.where(
         (item) => vm.displayNameOf(item).toLowerCase().contains(query),
@@ -294,6 +308,54 @@ class _SessionSidebarState extends State<SessionSidebar> {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          // What the home page no longer lists: the
+                          // computer's own conversations, its screen, and
+                          // parallel runs.
+                          if (vm.selectedHost != null) ...[
+                            _DrawerEntry(
+                              key: const Key('drawer-computer-sessions'),
+                              icon: LucideIcons.squareTerminal,
+                              label: context.l10n.computerSessionsRow,
+                              onTap: () {
+                                widget.close?.call();
+                                unawaited(openComputerSessions(context));
+                              },
+                            ),
+                            if (vm.canControlScreen)
+                              _DrawerEntry(
+                                key: const Key('drawer-remote-control'),
+                                icon: LucideIcons.monitorSmartphone,
+                                label: context.l10n.remoteControl,
+                                onTap: () {
+                                  widget.close?.call();
+                                  unawaited(openRemoteControl(context));
+                                },
+                              ),
+                          ],
+                          if (runs.isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(24, 18, 24, 4),
+                              child: Text(
+                                context.l10n.parallelRuns,
+                                style: context.typo.sansBody.copyWith(
+                                  color: colors.muted,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: RunRows(
+                                runs: runs.take(3).toList(growable: false),
+                                onOpen: (run) {
+                                  widget.close?.call();
+                                  openRun(context, run.id);
+                                },
+                              ),
+                            ),
+                          ],
                           if (items.isEmpty)
                             SizedBox(
                               height: 200,
@@ -600,6 +662,60 @@ class _DrawerRow extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A destination in the drawer: an icon and its name, as a plain row.
+class _DrawerEntry extends StatelessWidget {
+  const _DrawerEntry({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(icon, size: 20, color: colors.text),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.typo.sansBody.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: colors.text,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

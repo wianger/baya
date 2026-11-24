@@ -2,20 +2,14 @@
 library;
 
 import 'package:app/data/launcher/launcher.dart';
-import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
-import 'package:app/ui/runs/run_page.dart';
-import 'package:app/ui/workspaces/session_actions.dart';
 import 'package:app/ui/workspaces/session_shell.dart';
-import 'package:app/ui/workspaces/widgets/session_row.dart';
 import 'package:app/ui/workspaces/workspace_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -168,168 +162,67 @@ class _WorkspaceOverview extends StatelessWidget {
 
   final HomeViewModel vm;
 
-  static const _recentShown = 6;
-
+  /// DeepSeek's home: only the mark and a greeting in the middle, and the
+  /// composer at the foot. Sessions live in the drawer.
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final workspace = vm.selectedWorkspace;
-    final items = [...vm.workspaceItems]
-      ..sort(
-        (a, b) => (b.session.updatedAt ?? DateTime(0)).compareTo(
-          a.session.updatedAt ?? DateTime(0),
-        ),
-      );
-    bool working(HomeItem item) =>
-        vm.isRoomWorking(item.peer.remoteEpk, item.sessionId);
-    final running = items.where(working).toList();
-    final pinned = vm.pinnedFirst(
-      items.where((item) => !working(item) && vm.isPinned(item)),
-    );
-    final recent = items
-        .where((item) => !working(item) && !vm.isPinned(item))
-        .toList();
-    final folders = items
-        .map((item) => item.session.cwd)
-        .where((folder) => folder.isNotEmpty)
-        .toSet()
-        .length;
     final deviceEpk = vm.selectedDevice;
-    final runs = context
-        .watch<Preferences>()
-        .runs
-        .where(
-          (run) =>
-              deviceEpk != null &&
-              toStandardB64(run.hostId) == toStandardB64(deviceEpk) &&
-              (workspace == null ||
-                  run.workspaceKey == null ||
-                  run.workspaceKey == workspace),
-        )
-        .toList(growable: false);
     final device = deviceEpk == null ? null : vm.devices[deviceEpk];
     final online = deviceEpk != null && vm.isRoomLive(deviceEpk, '');
     final deviceName =
         device?.nickname ?? device?.name ?? context.l10n.noDeviceSelected;
-
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
-        child: ListView(
+        child: Column(
           key: const Key('workspace-overview'),
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
           children: [
-            // DeepSeek's empty state: the mark, then a greeting, centred.
-            const SizedBox(height: 12),
-            const Center(child: AppMark(size: 40)),
-            const SizedBox(height: 14),
-            Text(
-              vm.workspaceLabel(workspace) ?? context.l10n.noWorkspace,
-              maxLines: 2,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: context.typo.greeting,
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const AppMark(size: 40),
+                      const SizedBox(height: 14),
+                      Text(
+                        vm.workspaceLabel(workspace) ??
+                            context.l10n.noWorkspace,
+                        key: const Key('overview-greeting'),
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.typo.greeting,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        [
+                          deviceName,
+                          online
+                              ? context.l10n.statusReady
+                              : context.l10n.statusOffline,
+                        ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.typo.sansBody.copyWith(
+                          fontSize: 14,
+                          color: colors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: online ? colors.success : colors.muted,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    [
-                      deviceName,
-                      online
-                          ? context.l10n.statusReady
-                          : context.l10n.statusOffline,
-                      if (folders > 0) context.l10n.folderCount(folders),
-                    ].join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.typo.sansBody.copyWith(
-                      fontSize: 14,
-                      color: colors.muted2,
-                    ),
-                  ),
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: BayaReveal(
+                child: _StartCard(enabled: online && workspace != null),
+              ),
             ),
-            const SizedBox(height: 22),
-            BayaReveal(child: _StartCard(enabled: online && workspace != null)),
-            if (running.isNotEmpty) ...[
-              BayaSectionLabel(context.l10n.runningNow, top: 26),
-              BayaReveal(
-                delay: BayaReveal.stagger(1),
-                child: _SessionRows(vm: vm, items: running),
-              ),
-            ],
-            if (pinned.isNotEmpty) ...[
-              BayaSectionLabel(context.l10n.pinned, top: 26),
-              BayaReveal(
-                delay: BayaReveal.stagger(1),
-                child: _SessionRows(vm: vm, items: pinned),
-              ),
-            ],
-            if (runs.isNotEmpty) ...[
-              BayaSectionLabel(context.l10n.parallelRuns, top: 26),
-              BayaReveal(
-                delay: BayaReveal.stagger(2),
-                child: RunRows(
-                  runs: runs.take(3).toList(growable: false),
-                  onOpen: (run) => openRun(context, run.id),
-                ),
-              ),
-            ],
-            // With every other session pinned, Recent has nothing to say.
-            if (recent.isNotEmpty || pinned.isEmpty) ...[
-              BayaSectionLabel(context.l10n.recent, top: 26),
-              if (items.isEmpty)
-                _EmptyWorkspaceCard(hasWorkspace: workspace != null)
-              else if (recent.isEmpty)
-                Text(
-                  context.l10n.allSessionsRunning,
-                  style: context.typo.sansBody.copyWith(color: colors.muted),
-                )
-              else
-                _SessionRows(
-                  vm: vm,
-                  items: recent.take(_recentShown).toList(),
-                  more: recent.length > _recentShown ? recent : null,
-                ),
-            ],
-            // Conversations the agents had outside Baya, to continue here.
-            if (online) ...[
-              const SizedBox(height: 14),
-              BayaGroup(
-                children: [
-                  BayaRow(
-                    key: const Key('overview-computer-sessions'),
-                    icon: LucideIcons.squareTerminal,
-                    label: context.l10n.computerSessionsRow,
-                    subtitle: context.l10n.computerSessionsRowHint,
-                    chevron: true,
-                    onTap: () => openComputerSessions(context),
-                  ),
-                  if (vm.canControlScreen)
-                    BayaRow(
-                      key: const Key('overview-remote-control'),
-                      icon: LucideIcons.monitorSmartphone,
-                      label: context.l10n.remoteControl,
-                      subtitle: context.l10n.remoteControlHint,
-                      chevron: true,
-                      onTap: () => openRemoteControl(context),
-                    ),
-                ],
-              ),
-            ],
           ],
         ),
       ),
@@ -440,93 +333,6 @@ class _StartCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Sessions as one grouped card; [more] adds a "Show all" row.
-class _SessionRows extends StatelessWidget {
-  const _SessionRows({required this.vm, required this.items, this.more});
-
-  final HomeViewModel vm;
-  final List<HomeItem> items;
-  final List<HomeItem>? more;
-
-  @override
-  Widget build(BuildContext context) {
-    return BayaGroup(
-      children: [
-        for (final item in items)
-          SessionRow(
-            key: ValueKey('overview-session-${item.sessionId}'),
-            vm: vm,
-            item: item,
-          ),
-        if (more case final all?)
-          BayaRow(
-            key: const Key('overview-previous-sessions'),
-            icon: LucideIcons.history,
-            label: context.l10n.showAllSessions(all.length),
-            chevron: true,
-            onTap: () => showPreviousSessions(context, all),
-          ),
-      ],
-    );
-  }
-}
-
-class _EmptyWorkspaceCard extends StatelessWidget {
-  const _EmptyWorkspaceCard({required this.hasWorkspace});
-
-  final bool hasWorkspace;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            hasWorkspace
-                ? LucideIcons.messageSquareDashed
-                : LucideIcons.layoutDashboard,
-            color: colors.muted,
-            size: 20,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  hasWorkspace
-                      ? context.l10n.noSessionsYet
-                      : context.l10n.noWorkspaceSelected,
-                  style: context.typo.sansBody.copyWith(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  hasWorkspace
-                      ? context.l10n.startOneAbove
-                      : context.l10n.useSidebarToChooseWorkspace,
-                  style: context.typo.sansBody.copyWith(
-                    color: colors.muted,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

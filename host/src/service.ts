@@ -6,8 +6,9 @@ import { dirname, join, win32 } from "node:path";
 /**
  * Per-user login startup for the resident host. No platform needs admin
  * rights: Windows uses the HKCU Run key, Linux a systemd user unit, and macOS
- * a LaunchAgent. On Windows the Run key starts a launcher script, see
- * [buildWindowsStartupCommand]. systemd and launchd also restart the host if it crashes.
+ * a LaunchAgent. On Windows the Run key starts Baya in a headless console,
+ * see [buildWindowsStartupCommand]. systemd and launchd also restart the host
+ * if it crashes.
  */
 interface StartupTarget {
   /** Runs Baya: the executable, or Node and the script. */
@@ -16,8 +17,6 @@ interface StartupTarget {
   /** PATH for the service, so it finds the agents' commands. */
   path: string;
   logDir: string;
-  /** Windows: the script the Run key starts, which starts Baya hidden. */
-  launcher: string;
 }
 
 export const BAYA_RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
@@ -28,8 +27,6 @@ const LAUNCHD_LABEL = "dev.baya.host";
 export function installStartup(target: StartupTarget): string {
   switch (process.platform) {
     case "win32": {
-      mkdirSync(dirname(target.launcher), { recursive: true });
-      writeFileSync(target.launcher, buildWindowsLauncher(target));
       run("reg.exe", [
         "ADD",
         BAYA_RUN_KEY,
@@ -39,7 +36,7 @@ export function installStartup(target: StartupTarget): string {
         "REG_SZ",
         "/D",
         buildWindowsStartupCommand({
-          launcher: target.launcher,
+          ...target,
           systemRoot: process.env["SystemRoot"] || "C:\\Windows",
         }),
         "/F",
@@ -71,10 +68,9 @@ export function installStartup(target: StartupTarget): string {
   }
 }
 
-export function uninstallStartup(launcher: string): string {
+export function uninstallStartup(): string {
   switch (process.platform) {
     case "win32": {
-      rmSync(launcher, { force: true });
       const query = spawnSync("reg.exe", ["QUERY", BAYA_RUN_KEY, "/V", BAYA_RUN_VALUE], {
         windowsHide: true,
       });
@@ -103,44 +99,26 @@ export function uninstallStartup(launcher: string): string {
 }
 
 /**
- * The Run key starts wscript.exe, a windowed program, so no console opens
- * at login. A console program started there would get a visible window, and
- * with Windows Terminal as the default terminal it can't hide again.
+ * The Run key starts Baya in a headless console (`conhost.exe --headless`,
+ * Windows 10 1903 and later): no window at login, none that flashes for the
+ * agents and their tools, and no script host in between.
  */
-export function buildWindowsStartupCommand(input: {
-  launcher: string;
-  systemRoot: string;
-}): string {
-  const wscript = win32.join(input.systemRoot, "System32", "wscript.exe");
-  return `"${wscript}" //B //Nologo //E:JScript "${input.launcher}"`;
-}
-
-/**
- * JScript for wscript.exe: starts Baya with its window hidden (0) and
- * returns. A console started hidden stays in conhost, never in a terminal
- * window, and the agents and their tools share it, so none of them flash
- * a window either.
- */
-export function buildWindowsLauncher(
-  target: Pick<StartupTarget, "command" | "cwd" | "logDir">,
+export function buildWindowsStartupCommand(
+  input: Pick<StartupTarget, "command" | "cwd" | "logDir"> & { systemRoot: string },
 ): string {
-  const line = [
-    ...target.command,
+  const conhost = win32.join(input.systemRoot, "System32", "conhost.exe");
+  return [
+    conhost,
+    "--headless",
+    ...input.command,
     "serve",
     "--cwd",
-    target.cwd,
+    input.cwd,
     "--log",
-    win32.join(target.logDir, "host.log"),
+    win32.join(input.logDir, "host.log"),
   ]
     .map(windowsArgument)
     .join(" ");
-  return [
-    "// Starts the Baya host at login, hidden. Written by `baya autostart on`.",
-    'var shell = new ActiveXObject("WScript.Shell");',
-    `shell.CurrentDirectory = ${jscriptString(target.cwd)};`,
-    `shell.Run(${jscriptString(line)}, 0, false);`,
-    "",
-  ].join("\r\n");
 }
 
 /** One argument as CreateProcess's command-line parsing reads it back. */
@@ -157,13 +135,6 @@ export function windowsArgument(value: string): string {
     slashes = 0;
   }
   return `${quoted}${"\\".repeat(slashes * 2)}"`;
-}
-
-function jscriptString(value: string): string {
-  return JSON.stringify(value).replace(
-    /[\u2028\u2029]/gu,
-    (char) => `\\u${char.charCodeAt(0).toString(16)}`,
-  );
 }
 
 export function buildSystemdUnit(target: StartupTarget): string {

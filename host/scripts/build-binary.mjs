@@ -1,14 +1,15 @@
 // Builds the single-file `baya` executable for this platform with Node's
-// single executable applications: bundle, embed, inject.
+// single executable applications: bundle, then `node --build-sea` (Node 26),
+// which embeds and injects in one step, with V8's code cache for a faster
+// start (each platform builds its own binary, so the cache matches).
 //
 //   pnpm build:binary        → build/bin/baya-<platform>-<arch>[.exe]
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { inject } from "postject";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "build", "sea");
@@ -56,27 +57,21 @@ if (!triple) throw new Error(`No keyring build for ${target}.`);
 const addonDir = dirname(keyringRequire.resolve(`@napi-rs/keyring-${triple}/package.json`));
 const addon = join(addonDir, readdirSync(addonDir).find((name) => name.endsWith(".node")));
 
-// 3. The blob Node runs at startup.
+// 3. The executable: this Node, the bundle and the assets, in one step.
+const [major] = process.versions.node.split(".").map(Number);
+if (major < 26) throw new Error(`Building the binary needs Node 26 or newer (this is ${process.version}).`);
 const config = join(out, "sea-config.json");
 writeFileSync(
   config,
   JSON.stringify({
     main: join(out, "baya.cjs"),
-    output: join(out, "sea-prep.blob"),
+    output: exe,
     disableExperimentalSEAWarning: true,
-    useCodeCache: false,
+    useCodeCache: true,
     useSnapshot: false,
     assets: { "keyring.node": addon },
   }),
 );
-execFileSync(process.execPath, ["--experimental-sea-config", config], { stdio: "inherit" });
-
-// 4. A copy of this Node with the blob injected.
-copyFileSync(process.execPath, exe);
-if (process.platform === "darwin") execFileSync("codesign", ["--remove-signature", exe]);
-await inject(exe, "NODE_SEA_BLOB", readFileSync(join(out, "sea-prep.blob")), {
-  sentinelFuse: "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2",
-  ...(process.platform === "darwin" ? { machoSegmentName: "NODE_SEA" } : {}),
-});
-if (process.platform === "darwin") execFileSync("codesign", ["--sign", "-", exe]);
+execFileSync(process.execPath, ["--build-sea", config], { stdio: "inherit" });
+if (process.platform === "darwin") execFileSync("codesign", ["--force", "--sign", "-", exe]);
 console.log(exe);
