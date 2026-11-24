@@ -468,12 +468,7 @@ void main() {
       ],
     );
 
-    await shoot(
-      tester,
-      'display',
-      const DisplaySettingsPage(),
-      providers: common,
-    );
+    await shoot(tester, 'display', const FontSizePage(), providers: common);
     await shoot(
       tester,
       'about',

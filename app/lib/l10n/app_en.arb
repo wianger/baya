@@ -1119,5 +1119,7 @@
   "historyMonth": "Previous 30 days",
   "historyEarlier": "Earlier",
   "selectText": "Select text",
-  "share": "Share"
+  "share": "Share",
+  "fontPreviewQuestion": "Preview the text size",
+  "fontPreviewAnswer": "Drag the slider below to change the text size. Replies, code and lists all follow it."
 }

@@ -219,7 +219,25 @@ class _SessionSidebarState extends State<SessionSidebar> {
                         padding: EdgeInsets.zero,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                            child: Row(
+                              children: [
+                                const AppMark(size: 34, tile: true),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    kAppName,
+                                    style: brandDisplayTextStyle(
+                                      fontSize: 31,
+                                      color: colors.text,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
                             child: _searching
                                 ? _SidebarSearchField(
                                     controller: _search,
@@ -426,55 +444,45 @@ class _SessionSidebarState extends State<SessionSidebar> {
                         ],
                       ),
               ),
-              // Footer: DeepSeek's account row, here the way to settings.
+              // Footer: settings circle on the left, the primary New session
+              // pill bottom-right. No divider above it — the pill itself
+              // separates the footer from the session list.
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    key: const Key('sidebar-settings'),
-                    onTap: () {
-                      widget.close?.call();
-                      context.push('/settings');
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: colors.inputFill,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const AppMark(size: 26),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+                child: Row(
+                  children: [
+                    _SidebarCircleAction(
+                      key: const Key('sidebar-settings'),
+                      tooltip: context.l10n.settings,
+                      icon: LucideIcons.settings2,
+                      onPressed: () {
+                        widget.close?.call();
+                        context.push('/settings');
+                      },
+                    ),
+                    const SizedBox(width: 12),
+                    // Takes the rest of the row and keeps the pill at its
+                    // right end; the pill shrinks rather than overflows with
+                    // large text or a long translation.
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: BayaButton(
+                          buttonKey: const Key('sidebar-new-session'),
+                          onPressed: vm.selectedWorkspace == null
+                              ? null
+                              : () =>
+                                    startSession(context, close: widget.close),
+                          icon: const Icon(LucideIcons.plus, size: 18),
+                          label: Text(
+                            context.l10n.newSession,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              context.l10n.settings,
-                              style: context.typo.sansBody.copyWith(
-                                fontSize: 16,
-                                color: colors.text,
-                              ),
-                            ),
-                          ),
-                          Icon(
-                            LucideIcons.ellipsis,
-                            size: 20,
-                            color: colors.muted,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -485,6 +493,43 @@ class _SessionSidebarState extends State<SessionSidebar> {
   }
 }
 
+class _SidebarCircleAction extends StatelessWidget {
+  const _SidebarCircleAction({
+    super.key,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return BayaSurface(
+      role: BayaSurfaceRole.control,
+      radius: 22,
+      elevated: false,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox.square(
+          dimension: 48,
+          child: IconButton(
+            tooltip: tooltip,
+            onPressed: onPressed,
+            icon: Icon(icon, size: 22, color: colors.muted2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Header search that replaces the brand row once the search button is tapped.
 class _SidebarSearchField extends StatelessWidget {
   const _SidebarSearchField({
     required this.controller,

@@ -77,18 +77,59 @@ class SettingsPage extends StatelessWidget {
                     children: [
                       const _KeyBackupEntry(),
                       BayaSectionLabel(context.l10n.chatAndAppearance),
+                      // As DeepSeek lays these out: choices open a small
+                      // menu where they are, text size has its own page.
                       BayaGroup(
                         children: [
+                          _ChoiceRow<String>(
+                            key: const Key('settings-language'),
+                            icon: LucideIcons.globe,
+                            label: context.l10n.language,
+                            value: prefs.language ?? '',
+                            choices: {
+                              '': context.l10n.themeSystem,
+                              'en': 'English',
+                              'zh': '中文',
+                            },
+                            onChanged: (value) =>
+                                prefs.setLanguage(value.isEmpty ? null : value),
+                          ),
+                          _ChoiceRow<ThemeMode>(
+                            key: const Key('settings-theme'),
+                            icon: LucideIcons.sun,
+                            label: context.l10n.theme,
+                            value: prefs.themeMode,
+                            choices: {
+                              ThemeMode.system: context.l10n.themeSystem,
+                              ThemeMode.dark: context.l10n.themeDark,
+                              ThemeMode.light: context.l10n.themeLight,
+                            },
+                            onChanged: prefs.setThemeMode,
+                          ),
                           BayaRow(
-                            key: const Key('settings-display'),
-                            icon: LucideIcons.monitor,
-                            label: context.l10n.displayAndConversation,
-                            subtitle: _displaySummary(prefs),
+                            key: const Key('settings-font-size'),
+                            icon: LucideIcons.aLargeSmall,
+                            label: context.l10n.textSize,
+                            value: prefs.fontScale.localizedLabel(context.l10n),
                             chevron: true,
                             onTap: () => _openDetail(
                               context,
-                              () => const DisplaySettingsPage(),
+                              () => const FontSizePage(),
                             ),
+                          ),
+                          BayaRow(
+                            key: const Key('hide-tool-calls'),
+                            icon: LucideIcons.wrench,
+                            label: context.l10n.hideToolCalls,
+                            // The row is the control; the switch only shows it.
+                            trailing: ExcludeSemantics(
+                              child: Switch(
+                                value: prefs.hideToolCalls,
+                                onChanged: prefs.setHideToolCalls,
+                              ),
+                            ),
+                            onTap: () =>
+                                prefs.setHideToolCalls(!prefs.hideToolCalls),
                           ),
                         ],
                       ),
@@ -128,140 +169,6 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  String _displaySummary(Preferences prefs) {
-    final theme = switch (prefs.themeMode) {
-      ThemeMode.system => appL10n.themeSystem,
-      ThemeMode.light => appL10n.themeLight,
-      ThemeMode.dark => appL10n.themeDark,
-    };
-    final tools = prefs.hideToolCalls
-        ? appL10n.toolsHidden
-        : appL10n.toolsVisible;
-    return appL10n.displaySummary(
-      theme,
-      prefs.fontScale.localizedLabel(appL10n),
-      tools,
-    );
-  }
-}
-
-class DisplaySettingsPage extends StatelessWidget {
-  const DisplaySettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final prefs = context.watch<Preferences>();
-    final colors = context.colors;
-    return _SettingsDetailScaffold(
-      title: context.l10n.displayAndConversation,
-      child: BayaSurface(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _DetailControl(
-              title: context.l10n.theme,
-              description: context.l10n.themeHint,
-              child: SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<ThemeMode>(
-                  key: const Key('theme-selector'),
-                  showSelectedIcon: false,
-                  segments: [
-                    ButtonSegment(
-                      value: ThemeMode.system,
-                      label: Text(context.l10n.themeSystem),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      label: Text(context.l10n.themeLight),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      label: Text(context.l10n.themeDark),
-                    ),
-                  ],
-                  selected: {prefs.themeMode},
-                  onSelectionChanged: (selection) =>
-                      prefs.setThemeMode(selection.first),
-                ),
-              ),
-            ),
-            Divider(color: colors.border, height: 32),
-            _DetailControl(
-              title: context.l10n.language,
-              description: context.l10n.languageHint,
-              child: SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<String>(
-                  key: const Key('language-selector'),
-                  showSelectedIcon: false,
-                  segments: [
-                    ButtonSegment(
-                      value: '',
-                      label: Text(context.l10n.themeSystem),
-                    ),
-                    // Each language is named in itself.
-                    const ButtonSegment(value: 'en', label: Text('English')),
-                    const ButtonSegment(value: 'zh', label: Text('中文')),
-                  ],
-                  selected: {prefs.language ?? ''},
-                  onSelectionChanged: (selection) => prefs.setLanguage(
-                    selection.first.isEmpty ? null : selection.first,
-                  ),
-                ),
-              ),
-            ),
-            Divider(color: colors.border, height: 32),
-            _DetailControl(
-              title: context.l10n.textSize,
-              description: context.l10n.textSizeHint,
-              child: SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<AppFontScale>(
-                  key: const Key('font-scale-selector'),
-                  showSelectedIcon: false,
-                  segments: [
-                    for (final scale in AppFontScale.values)
-                      ButtonSegment(
-                        value: scale,
-                        label: Text(scale.localizedLabel(context.l10n)),
-                      ),
-                  ],
-                  selected: {prefs.fontScale},
-                  onSelectionChanged: (selection) =>
-                      prefs.setFontScale(selection.first),
-                ),
-              ),
-            ),
-            Divider(color: colors.border, height: 32),
-            SwitchListTile(
-              key: const Key('hide-tool-calls'),
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                context.l10n.hideToolCalls,
-                style: context.typo.sansBody.copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                context.l10n.hideToolCallsHint,
-                style: context.typo.sansBody.copyWith(
-                  color: colors.muted,
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-              ),
-              value: prefs.hideToolCalls,
-              onChanged: prefs.setHideToolCalls,
-            ),
-          ],
         ),
       ),
     );
@@ -318,49 +225,6 @@ class _SettingsDetailScaffold extends StatelessWidget {
   }
 }
 
-class _DetailControl extends StatelessWidget {
-  const _DetailControl({
-    required this.title,
-    required this.description,
-    required this.child,
-  });
-
-  final String title;
-  final String description;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          title,
-          style: context.typo.sansBody.copyWith(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          description,
-          style: context.typo.sansBody.copyWith(
-            color: colors.muted,
-            fontSize: 13,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 12),
-        child,
-      ],
-    );
-  }
-}
-
-/// Shows whether the owner key survives a phone change. Never blocks: without
-/// Google Backup the app works, the pairing just lives on this phone only.
-/// Agents in the status bar, and told when one finishes or needs you.
 class _NotificationsRow extends StatefulWidget {
   const _NotificationsRow();
 
@@ -610,4 +474,183 @@ class _FloatingCircle extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// A setting chosen from a few: the choice on the right, and a small menu
+/// with a check where the row is.
+class _ChoiceRow<T> extends StatelessWidget {
+  const _ChoiceRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.choices,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String label;
+  final T value;
+  final Map<T, String> choices;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Builder(
+      builder: (rowContext) => BayaRow(
+        icon: icon,
+        label: label,
+        value: choices[value],
+        trailing: Icon(
+          LucideIcons.chevronsUpDown,
+          size: 16,
+          color: colors.muted,
+        ),
+        onTap: () async {
+          final box = rowContext.findRenderObject()! as RenderBox;
+          final overlay =
+              Overlay.of(rowContext).context.findRenderObject()! as RenderBox;
+          final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+          final picked = await showMenu<T>(
+            context: rowContext,
+            position: RelativeRect.fromLTRB(
+              origin.dx + box.size.width * .3,
+              origin.dy + box.size.height * .5,
+              overlay.size.width - origin.dx - box.size.width + 16,
+              0,
+            ),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? colors.modelBadgeBg
+                : colors.bg,
+            elevation: 8,
+            shadowColor: Colors.black.withValues(alpha: .25),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(color: colors.border),
+            ),
+            items: [
+              for (final MapEntry(key: choice, value: name) in choices.entries)
+                PopupMenuItem<T>(
+                  value: choice,
+                  height: 52,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 28,
+                        child: choice == value
+                            ? Icon(
+                                LucideIcons.check,
+                                size: 18,
+                                color: colors.text,
+                              )
+                            : null,
+                      ),
+                      Text(
+                        name,
+                        style: context.typo.sansBody.copyWith(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+          if (picked != null) onChanged(picked);
+        },
+      ),
+    );
+  }
+}
+
+/// Text size, as DeepSeek sets it: a preview card, then a slider from small
+/// to large.
+class FontSizePage extends StatelessWidget {
+  const FontSizePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final prefs = context.watch<Preferences>();
+    final colors = context.colors;
+    const scales = AppFontScale.values;
+    final index = scales.indexOf(prefs.fontScale);
+    return _SettingsDetailScaffold(
+      title: context.l10n.textSize,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          BayaGroup(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+                child: MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(prefs.fontScale.factor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.userBubble,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(22),
+                              topRight: Radius.circular(22),
+                              bottomLeft: Radius.circular(22),
+                              bottomRight: Radius.circular(6),
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            child: Text(
+                              context.l10n.fontPreviewQuestion,
+                              style: context.typo.sansBody,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      Text(
+                        context.l10n.fontPreviewAnswer,
+                        style: context.typo.reading,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          Row(
+            children: [
+              Text('A', style: context.typo.sansBody.copyWith(fontSize: 15)),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    prefs.fontScale.localizedLabel(context.l10n),
+                    style: context.typo.sansBody.copyWith(
+                      fontSize: 14,
+                      color: colors.muted,
+                    ),
+                  ),
+                ),
+              ),
+              Text('A', style: context.typo.sansBody.copyWith(fontSize: 26)),
+            ],
+          ),
+          Slider(
+            key: const Key('font-scale-selector'),
+            value: index.toDouble(),
+            max: (scales.length - 1).toDouble(),
+            divisions: scales.length - 1,
+            onChanged: (value) => prefs.setFontScale(scales[value.round()]),
+          ),
+        ],
+      ),
+    );
+  }
 }

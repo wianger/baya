@@ -12,7 +12,7 @@ import 'package:provider/provider.dart';
 import '../../support/acp_harness.dart';
 
 void main() {
-  testWidgets('home shows only the greeting and the composer', (tester) async {
+  testWidgets('home shows only the mark and the wordmark', (tester) async {
     FlutterSecureStorage.setMockInitialValues({});
     final prefs = Preferences();
     await prefs.load();
@@ -54,8 +54,8 @@ void main() {
 
     // DeepSeek's home: the greeting and the composer, no session lists.
     expect(find.byKey(const Key('workspace-overview')), findsOneWidget);
-    expect(find.byKey(const Key('overview-new-session')), findsOneWidget);
-    expect(find.byKey(const Key('overview-greeting')), findsOneWidget);
+    expect(find.byKey(const Key('overview-wordmark')), findsOneWidget);
+    expect(find.byKey(const Key('overview-new-session')), findsNothing);
     expect(find.text('Beta task'), findsNothing);
     expect(find.text('Alpha task'), findsNothing);
 
@@ -64,43 +64,6 @@ void main() {
     hosts.dispose();
     prefs.dispose();
   });
-
-  testWidgets(
-    'home overview empty state names Inbox and points to the start card',
-    (tester) async {
-      FlutterSecureStorage.setMockInitialValues({});
-      final prefs = Preferences();
-      await prefs.load();
-      final peer = testPeer();
-      final storage = MemoryStorage([peer]);
-      final host = FakeHost(sessions: []);
-      final hosts = testHosts(storage, host);
-      await hosts.start();
-      final vm = HomeViewModel(hosts, storage, prefs);
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider.value(value: vm),
-            ChangeNotifierProvider<Preferences>.value(value: prefs),
-          ],
-          child: MaterialApp(
-            theme: buildLightTheme(),
-            home: const SessionWelcome(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Inbox'), findsOneWidget);
-      expect(find.byKey(const Key('overview-new-session')), findsOneWidget);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      vm.dispose();
-      hosts.dispose();
-      prefs.dispose();
-    },
-  );
 
   testWidgets('the drawer opens a session', (tester) async {
     FlutterSecureStorage.setMockInitialValues({});

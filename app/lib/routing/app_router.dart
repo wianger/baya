@@ -296,12 +296,16 @@ GoRouter buildRouter(
       // Settings (entered from /home menu)
       GoRoute(
         path: '/settings',
-        builder: (ctx, st) => MultiProvider(
-          providers: [
-            ViewmodelProvider<SettingsViewModel>(),
-            ViewmodelProvider<UpdateBannerViewModel>(),
-          ],
-          child: const SettingsPage(),
+        // A card that rises over the page, as DeepSeek shows its settings.
+        pageBuilder: (ctx, st) => _cardSheet(
+          st.pageKey,
+          MultiProvider(
+            providers: [
+              ViewmodelProvider<SettingsViewModel>(),
+              ViewmodelProvider<UpdateBannerViewModel>(),
+            ],
+            child: const SettingsPage(),
+          ),
         ),
       ),
       GoRoute(
@@ -343,3 +347,36 @@ class _BootSplash extends StatelessWidget {
     );
   }
 }
+
+/// A page shown as a card: it slides up over the dimmed page below and
+/// leaves a strip of it showing, its top corners round.
+Page<void> _cardSheet(LocalKey key, Widget child) => CustomTransitionPage(
+  key: key,
+  opaque: false,
+  barrierDismissible: true,
+  barrierColor: Colors.black.withValues(alpha: .28),
+  reverseTransitionDuration: BayaMotion.standard,
+  child: Builder(
+    builder: (context) => Padding(
+      padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top + 10),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: MediaQuery.removePadding(
+          context: context,
+          removeTop: true,
+          child: child,
+        ),
+      ),
+    ),
+  ),
+  transitionsBuilder: (context, animation, _, child) => SlideTransition(
+    position: Tween(begin: const Offset(0, 1), end: Offset.zero).animate(
+      CurvedAnimation(
+        parent: animation,
+        curve: BayaMotion.enter,
+        reverseCurve: BayaMotion.exit,
+      ),
+    ),
+    child: child,
+  ),
+);

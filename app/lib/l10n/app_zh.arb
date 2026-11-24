@@ -564,5 +564,7 @@
   "historyMonth": "30 天内",
   "historyEarlier": "更早",
   "selectText": "选择文本",
-  "share": "分享"
+  "share": "分享",
+  "fontPreviewQuestion": "预览文字大小",
+  "fontPreviewAnswer": "拖动下方的滑杆调整文字大小，回复、代码和列表都会随之变化。"
 }
