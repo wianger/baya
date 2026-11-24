@@ -6,6 +6,7 @@ import 'package:app/domain/session_state.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/chat/widgets/image_bubble.dart';
+import 'package:app/ui/chat/widgets/message_menu.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -38,7 +39,10 @@ class UserBubble extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerRight,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320),
+          // At most four fifths of the width, as DeepSeek sets its bubbles.
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.sizeOf(context).width * .8,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -50,16 +54,17 @@ class UserBubble extends StatelessWidget {
                     ? ImageBubble(image: image, caption: message.text)
                     : BayaSurface(
                         role: BayaSurfaceRole.user,
+                        // DeepSeek's bubble: round, its last corner tucked.
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(22),
                           topRight: Radius.circular(22),
                           bottomLeft: Radius.circular(22),
-                          bottomRight: Radius.circular(7),
+                          bottomRight: Radius.circular(6),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                            horizontal: 14,
+                            vertical: 10,
                           ),
                           // Selectable so the user can copy their own message.
                           child: SelectableText(
@@ -401,7 +406,14 @@ class AssistantBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AgentMarkdown(message.text, selectable: true),
+            // As in DeepSeek: holding the answer opens its menu (copy,
+            // select text, read aloud, share) rather than a selection.
+            GestureDetector(
+              key: const Key('assistant-hold'),
+              behavior: HitTestBehavior.translucent,
+              onLongPress: () => showMessageMenu(context, message.text),
+              child: AgentMarkdown(message.text),
+            ),
             if (showCopy) ...[
               const SizedBox(height: 8),
               _CopyRow(text: message.text),
@@ -498,12 +510,12 @@ class _ReadAloudButton extends StatefulWidget {
 
 class _ReadAloudButtonState extends State<_ReadAloudButton> {
   Future<void> _toggle() async {
-    final text = _speechText(widget.text);
+    final text = speechText(widget.text);
     if (text.isEmpty) return;
     await ReadAloudController.instance.toggle(
       owner: this,
       text: text,
-      language: _languageFor(text),
+      language: speechLanguage(text),
     );
   }
 
@@ -548,16 +560,5 @@ class _ReadAloudButtonState extends State<_ReadAloudButton> {
         );
       },
     );
-  }
-
-  static String _speechText(String markdown) => markdown
-      .replaceAll(RegExp(r'```[\s\S]*?```'), ' code block ')
-      .replaceAll(RegExp(r'[`*_>#~-]'), ' ')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-
-  static String _languageFor(String text) {
-    final hasCjk = RegExp(r'[\u3400-\u9fff]').hasMatch(text);
-    return hasCjk ? 'zh-CN' : 'en-US';
   }
 }

@@ -149,9 +149,6 @@ class ChatPage extends StatelessWidget {
     final title = session.title.isNotEmpty
         ? session.title
         : initialTitle ?? kAppName;
-    final device = session.host.host.label.isNotEmpty
-        ? session.host.host.label
-        : initialDevice ?? '—';
     final statusColor = working
         ? colors.working
         : online
@@ -176,17 +173,19 @@ class ChatPage extends StatelessWidget {
       child: Row(
         children: [
           BayaSurface(
-            role: BayaSurfaceRole.control,
-            radius: 25,
+            role: BayaSurfaceRole.floating,
+            radius: 26,
             child: SizedBox.square(
-              dimension: 48,
+              dimension: 52,
               child: IconButton(
                 tooltip: menu != null
                     ? context.l10n.sessions
                     : context.l10n.back,
                 onPressed: leadingAction,
                 icon: Icon(
-                  menu != null ? LucideIcons.menu : LucideIcons.chevronLeft,
+                  menu != null
+                      ? LucideIcons.textAlignStart
+                      : LucideIcons.chevronLeft,
                   size: 21,
                   color: colors.text,
                 ),
@@ -194,62 +193,47 @@ class ChatPage extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
+          // DeepSeek's header: the title beside the menu circle, alone;
+          // a dot after it only while the agent works or the link is down.
           Expanded(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: context.typo.sansBody.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.25,
-                      color: colors.text,
+            child: Row(
+              children: [
+                Flexible(
+                  child: Semantics(
+                    label: '$title, $status',
+                    excludeSemantics: true,
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.typo.sansBody.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: colors.text,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          session.agentName.isEmpty
-                              ? device
-                              : '${session.agentName} · $device',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 10.5, color: colors.muted),
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Container(
-                        width: 5,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: statusColor,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        status,
-                        style: TextStyle(fontSize: 10.5, color: statusColor),
-                      ),
-                    ],
+                ),
+                if (working || !online) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    key: const Key('chat-status-dot'),
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: statusColor,
+                    ),
                   ),
                 ],
-              ),
+              ],
             ),
           ),
           const SizedBox(width: 10),
           BayaSurface(
-            role: BayaSurfaceRole.control,
-            radius: 25,
-            padding: const EdgeInsets.symmetric(horizontal: 2),
+            role: BayaSurfaceRole.floating,
+            radius: 26,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

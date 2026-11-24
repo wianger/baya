@@ -557,5 +557,12 @@
   "remoteControlNotInstalled": "电脑上还没装 Sunshine。在电脑上运行：baya remote install",
   "remoteControlNotRunning": "电脑上的 Sunshine 已安装但没有运行。",
   "remoteControlForeignAccount": "电脑上的 Sunshine 已有 Baya 不知道的账号。在电脑上运行：baya remote login <用户名> <密码>",
-  "remoteControlNotWindows": "远程控制需要 Windows 上运行的 Baya：请连接 Windows 那台主机。"
+  "remoteControlNotWindows": "远程控制需要 Windows 上运行的 Baya：请连接 Windows 那台主机。",
+  "historyToday": "今天",
+  "historyYesterday": "昨天",
+  "historyWeek": "7 天内",
+  "historyMonth": "30 天内",
+  "historyEarlier": "更早",
+  "selectText": "选择文本",
+  "share": "分享"
 }

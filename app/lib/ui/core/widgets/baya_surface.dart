@@ -11,6 +11,10 @@ enum BayaSurfaceRole {
   user,
   overlay,
   brand,
+
+  /// DeepSeek's floating controls: the page's own colour, a hairline and
+  /// a soft shadow (the menu circle, the composer, the search capsule).
+  floating,
 }
 
 /// A rounded, flat surface with a hairline edge.
@@ -18,7 +22,7 @@ class BayaSurface extends StatelessWidget {
   const BayaSurface({
     super.key,
     required this.child,
-    this.radius = 20,
+    this.radius = 16,
     this.borderRadius,
     this.padding = EdgeInsets.zero,
     this.elevated = true,
@@ -51,12 +55,17 @@ class BayaSurface extends StatelessWidget {
       BayaSurfaceRole.user => colors.userBubble,
       BayaSurfaceRole.overlay => colors.surface,
       BayaSurfaceRole.brand => colors.surface,
+      BayaSurfaceRole.floating =>
+        Theme.of(context).brightness == Brightness.dark
+            ? colors.modelBadgeBg
+            : colors.bg,
     };
     final hairline = switch (role) {
       BayaSurfaceRole.card ||
       BayaSurfaceRole.content ||
       BayaSurfaceRole.overlay ||
       BayaSurfaceRole.brand ||
+      BayaSurfaceRole.floating ||
       BayaSurfaceRole.control => true,
       BayaSurfaceRole.navigation || BayaSurfaceRole.user => false,
     };
@@ -67,7 +76,10 @@ class BayaSurface extends StatelessWidget {
         : hairline
         ? BorderSide(color: colors.border)
         : BorderSide.none;
-    final shadow = elevated && !highContrast && role == BayaSurfaceRole.overlay;
+    final floating = role == BayaSurfaceRole.floating;
+    final shadow =
+        !highContrast &&
+        (floating || (elevated && role == BayaSurfaceRole.overlay));
     final content = Padding(padding: padding, child: child);
     final material = Material(
       color: fill,
@@ -82,15 +94,26 @@ class BayaSurface extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: corners,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(
-              alpha: Theme.of(context).brightness == Brightness.dark
-                  ? .45
-                  : .07,
+          if (floating)
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? .30
+                    : .06,
+              ),
+              blurRadius: 14,
+              offset: const Offset(0, 3),
+            )
+          else
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? .45
+                    : .07,
+              ),
+              blurRadius: 32,
+              offset: const Offset(0, 12),
             ),
-            blurRadius: 32,
-            offset: const Offset(0, 12),
-          ),
         ],
       ),
       child: material,

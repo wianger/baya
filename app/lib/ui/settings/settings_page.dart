@@ -40,94 +40,90 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final prefs = context.watch<Preferences>();
 
-    return Scaffold(
-      backgroundColor: embedded ? Colors.transparent : colors.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        flexibleSpace: const BayaSurface(
-          role: BayaSurfaceRole.navigation,
-          radius: 0,
-          elevated: false,
-          child: SizedBox.expand(),
+    // DeepSeek's settings: a tinted page, the title centred, a floating
+    // close circle on the right, white cards below.
+    return BayaTintedPage(
+      child: Scaffold(
+        backgroundColor: BayaTintedPage.ground(context),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          centerTitle: true,
+          toolbarHeight: 72,
+          title: Text(context.l10n.settings),
+          automaticallyImplyLeading: false,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: _FloatingCircle(
+                icon: LucideIcons.x,
+                tooltip: context.l10n.close,
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/home'),
+              ),
+            ),
+          ],
         ),
-        title: Text(context.l10n.settings),
-        automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: Icon(
-            embedded ? LucideIcons.x : LucideIcons.chevronLeft,
-            size: embedded ? 22 : 18,
-            color: colors.text,
-          ),
-          tooltip: embedded ? context.l10n.close : context.l10n.back,
-          onPressed: () =>
-              context.canPop() ? context.pop() : context.go('/home'),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(color: colors.border, height: 1),
-        ),
-      ),
-      body: BayaBackdrop(
-        translucent: embedded,
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620),
-              child: BayaReveal(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 36),
-                  children: [
-                    const _KeyBackupEntry(),
-                    BayaSectionLabel(context.l10n.chatAndAppearance),
-                    BayaGroup(
-                      children: [
-                        BayaRow(
-                          key: const Key('settings-display'),
-                          icon: LucideIcons.monitor,
-                          label: context.l10n.displayAndConversation,
-                          subtitle: _displaySummary(prefs),
-                          chevron: true,
-                          onTap: () => _openDetail(
-                            context,
-                            () => const DisplaySettingsPage(),
+        body: BayaBackdrop(
+          translucent: true,
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 620),
+                child: BayaReveal(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 36),
+                    children: [
+                      const _KeyBackupEntry(),
+                      BayaSectionLabel(context.l10n.chatAndAppearance),
+                      BayaGroup(
+                        children: [
+                          BayaRow(
+                            key: const Key('settings-display'),
+                            icon: LucideIcons.monitor,
+                            label: context.l10n.displayAndConversation,
+                            subtitle: _displaySummary(prefs),
+                            chevron: true,
+                            onTap: () => _openDetail(
+                              context,
+                              () => const DisplaySettingsPage(),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 22),
-                    BayaSectionLabel(context.l10n.phoneSection),
-                    BayaGroup(
-                      children: [
-                        const _NotificationsRow(),
-                        BayaRow(
-                          key: const Key('settings-adb'),
-                          icon: LucideIcons.smartphone,
-                          label: context.l10n.phoneForAgents,
-                          subtitle: context.l10n.phoneForAgentsSettingsHint,
-                          chevron: true,
-                          onTap: () =>
-                              _openDetail(context, () => const AdbPage()),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 22),
-                    BayaSectionLabel(context.l10n.information),
-                    BayaGroup(
-                      children: [
-                        BayaRow(
-                          key: const Key('settings-about'),
-                          icon: LucideIcons.info,
-                          label: context.l10n.about,
-                          subtitle: context.l10n.aboutHint,
-                          chevron: true,
-                          onTap: () => context.push('/about'),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      BayaSectionLabel(context.l10n.phoneSection),
+                      BayaGroup(
+                        children: [
+                          const _NotificationsRow(),
+                          BayaRow(
+                            key: const Key('settings-adb'),
+                            icon: LucideIcons.smartphone,
+                            label: context.l10n.phoneForAgents,
+                            subtitle: context.l10n.phoneForAgentsSettingsHint,
+                            chevron: true,
+                            onTap: () =>
+                                _openDetail(context, () => const AdbPage()),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 22),
+                      BayaSectionLabel(context.l10n.information),
+                      BayaGroup(
+                        children: [
+                          BayaRow(
+                            key: const Key('settings-about'),
+                            icon: LucideIcons.info,
+                            label: context.l10n.about,
+                            subtitle: context.l10n.aboutHint,
+                            chevron: true,
+                            onTap: () => context.push('/about'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -280,38 +276,38 @@ class _SettingsDetailScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Scaffold(
-      backgroundColor: colors.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        flexibleSpace: const BayaSurface(
-          role: BayaSurfaceRole.navigation,
-          radius: 0,
-          elevated: false,
-          child: SizedBox.expand(),
+    return BayaTintedPage(
+      child: Scaffold(
+        backgroundColor: BayaTintedPage.ground(context),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          centerTitle: true,
+          toolbarHeight: 72,
+          automaticallyImplyLeading: false,
+          leadingWidth: 84,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Center(
+              child: _FloatingCircle(
+                icon: LucideIcons.chevronLeft,
+                tooltip: context.l10n.back,
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+            ),
+          ),
+          title: Text(title),
         ),
-        automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: Icon(LucideIcons.chevronLeft, size: 20, color: colors.text),
-          tooltip: context.l10n.back,
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(title),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(color: colors.border, height: 1),
-        ),
-      ),
-      body: BayaBackdrop(
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620),
-              child: BayaReveal(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 36),
-                  children: [child],
+        body: BayaBackdrop(
+          translucent: true,
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 620),
+                child: BayaReveal(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 36),
+                    children: [child],
+                  ),
                 ),
               ),
             ),
@@ -587,4 +583,31 @@ class _KeyBackupPageState extends State<KeyBackupPage> {
       ),
     );
   }
+}
+
+/// DeepSeek's floating round button: close, back.
+class _FloatingCircle extends StatelessWidget {
+  const _FloatingCircle({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => BayaSurface(
+    role: BayaSurfaceRole.floating,
+    radius: 26,
+    child: SizedBox.square(
+      dimension: 52,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon, size: 22, color: context.colors.text),
+      ),
+    ),
+  );
 }

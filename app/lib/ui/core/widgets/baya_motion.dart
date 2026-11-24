@@ -7,14 +7,15 @@ import 'package:flutter/material.dart';
 /// decisive exits. Things fade and rise a few pixels; nothing scales text,
 /// which shimmers as it resamples.
 abstract final class BayaMotion {
-  static const fast = Duration(milliseconds: 120);
-  static const standard = Duration(milliseconds: 220);
-  static const emphasized = Duration(milliseconds: 320);
-  static const scroll = Duration(milliseconds: 380);
+  // DeepSeek's three durations and standard curves.
+  static const fast = Duration(milliseconds: 100);
+  static const standard = Duration(milliseconds: 200);
+  static const emphasized = Duration(milliseconds: 300);
+  static const scroll = Duration(milliseconds: 300);
 
-  static const enter = Cubic(0.22, 1, 0.36, 1);
-  static const exit = Cubic(0.4, 0, 1, 1);
-  static const spring = Cubic(0.16, 1, 0.3, 1);
+  static const enter = Cubic(0, 0, .2, 1);
+  static const exit = Cubic(.4, 0, 1, 1);
+  static const spring = Cubic(.4, 0, .2, 1);
 }
 
 /// Whether [BayaReveal]s below play their entrance. A list sets it per row

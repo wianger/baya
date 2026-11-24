@@ -318,7 +318,7 @@ GoRouter buildRouter(
 Page<void> _fadeThrough(LocalKey key, Widget child) => CustomTransitionPage(
   key: key,
   child: child,
-  transitionDuration: BayaMotion.emphasized,
+  // The default 300 ms: DeepSeek's slow step.
   reverseTransitionDuration: BayaMotion.standard,
   transitionsBuilder: bayaFadeThrough,
 );

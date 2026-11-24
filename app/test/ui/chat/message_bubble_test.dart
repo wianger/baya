@@ -3,6 +3,7 @@
 
 import 'package:app/acp/acp.dart';
 import 'package:app/domain/session_state.dart';
+import 'package:app/l10n/app_localizations.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/chat/widgets/message_bubble.dart';
 import 'package:flutter/material.dart';
@@ -38,16 +39,27 @@ void main() {
     );
   });
 
-  testWidgets('AssistantBubble is selectable (copyable)', (tester) async {
+  testWidgets('holding an answer opens its menu; select text opens a page', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: AssistantBubble(AssistantMsg(id: 'a1', text: 'reply')),
         ),
       ),
     );
     await tester.pump();
-    // AgentMarkdown wraps the reply in a SelectionArea when selectable.
+    // As in DeepSeek, the answer itself is not a selection area.
+    expect(find.byType(SelectionArea), findsNothing);
+    await tester.longPress(find.byKey(const Key('assistant-hold')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('message-menu')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('message-menu-select')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('select-text-page')), findsOneWidget);
     expect(find.byType(SelectionArea), findsOneWidget);
   });
 

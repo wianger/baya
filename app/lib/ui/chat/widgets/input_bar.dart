@@ -432,8 +432,9 @@ class _InputBarState extends State<InputBar> {
 
     final surface = Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      // DeepSeek's composer: floating, white, very round.
       child: BayaSurface(
-        role: BayaSurfaceRole.overlay,
+        role: BayaSurfaceRole.floating,
         radius: 28,
         emphasized: _focused,
         child: Stack(

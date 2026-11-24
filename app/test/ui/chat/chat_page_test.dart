@@ -134,8 +134,8 @@ void main() {
   ) async {
     final chat = await _pump(tester);
     expect(find.text('Fix login'), findsOneWidget);
-    expect(find.text('Claude Code · studio (WSL)'), findsOneWidget);
-    expect(find.text('Ready'), findsOneWidget);
+    // DeepSeek's header: the title alone; no status dot while ready.
+    expect(find.byKey(const Key('chat-status-dot')), findsNothing);
     expect(find.text('Why does login fail?'), findsOneWidget);
     expect(find.text('The token expired.'), findsOneWidget);
     // The context ring shows the agent's usage.
@@ -148,7 +148,7 @@ void main() {
   ) async {
     final chat = await _pump(tester, width: 320, textScale: 1.3);
     expect(tester.takeException(), isNull);
-    expect(find.text('Ready'), findsOneWidget);
+    expect(find.text('Fix login'), findsOneWidget);
     await _finish(tester, chat);
   });
 
