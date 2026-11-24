@@ -47,8 +47,12 @@ end-to-end encrypted.
 - **The computer's terminals**: every terminal that
   [herdr-core](https://github.com/herdrdev/herdr-core) keeps on the
   computer (an agent's own TUI, a shell, a dev server) opens on the phone,
-  live, with Esc, Ctrl, Tab and arrows over the keyboard. Start a shell or
-  an agent there from the phone. Terminals outlive every connection: drop
+  live, made for a phone: it opens to read, pinch sets the text size and
+  with it the columns the program lays out for, a line is written with
+  the phone's keyboard (autocorrect, voice, paste) and sent as one, Esc,
+  Ctrl, Tab and arrows sit over it, and when an agent asks, its answers
+  (1, 2, y, n, Enter) are buttons. Start a shell or an agent there from
+  the phone. Terminals outlive every connection: drop
   off the train's Wi-Fi, come back on 5G, and the screen is as it is now,
   not a replay; on the computer, `hc attach` takes over the same one. The
   ones waiting for you (an agent asking, through herdr's status protocol)

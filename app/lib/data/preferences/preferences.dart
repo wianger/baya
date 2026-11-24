@@ -59,6 +59,7 @@ class Preferences extends ChangeNotifier {
   static const _kOnboardingCompletedKey = 'prefs.onboarding_completed';
   static const _kThemeModeKey = 'prefs.theme_mode';
   static const _kFontScaleKey = 'prefs.font_scale';
+  static const _kTerminalFontKey = 'prefs.terminal_font_size';
   static const _kLanguageKey = 'prefs.language';
   static const _kRunsKey = 'prefs.parallel_runs';
 
@@ -90,6 +91,10 @@ class Preferences extends ChangeNotifier {
   /// router in `main.dart`, so it scales the whole UI — including the per-widget
   /// `copyWith(fontSize: …)` overrides that a typography-only change would miss.
   AppFontScale get fontScale => _fontScale;
+
+  /// The terminal's text size, as the last pinch left it.
+  double get terminalFontSize => _terminalFontSize;
+  double _terminalFontSize = 13;
 
   /// Hydrate from secure storage. Safe to call multiple times.
   Future<void> load() async {
@@ -177,6 +182,13 @@ class Preferences extends ChangeNotifier {
     if (language != _language) {
       _language = language;
       changed = true;
+    }
+
+    final terminalFont = double.tryParse(
+      await _store.read(key: _kTerminalFontKey) ?? '',
+    );
+    if (terminalFont != null && terminalFont >= 6 && terminalFont <= 28) {
+      _terminalFontSize = terminalFont;
     }
 
     final scale = AppFontScale.fromName(await _store.read(key: _kFontScaleKey));
@@ -690,6 +702,12 @@ class Preferences extends ChangeNotifier {
     _fontScale = value;
     await _store.write(key: _kFontScaleKey, value: value.name);
     notifyListeners();
+  }
+
+  Future<void> setTerminalFontSize(double value) async {
+    if (value == _terminalFontSize) return;
+    _terminalFontSize = value;
+    await _store.write(key: _kTerminalFontKey, value: value.toStringAsFixed(1));
   }
 
   static ThemeMode _themeModeFromString(String? raw) {

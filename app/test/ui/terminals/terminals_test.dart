@@ -62,7 +62,12 @@ class _Link implements TerminalLink {
         'available': available,
         'terminals': available ? terminals : <Object>[],
       },
-      '_baya/terminal_attach' => {'terminal': _t(params['terminal'] as String)},
+      '_baya/terminal_attach' => {
+        'terminal': terminals.firstWhere(
+          (t) => t['address'] == params['terminal'],
+          orElse: () => _t(params['terminal'] as String),
+        ),
+      },
       '_baya/terminal_run' => _t('t9'),
       _ => <String, dynamic>{},
     };
@@ -198,6 +203,9 @@ void main() {
     expect(screen().buffer.lines[1].toString().trim(), isEmpty);
 
     await tester.tap(find.byKey(const Key('terminal-key-interrupt')));
+    // Straight into the terminal: ctrl applies to the next key typed.
+    await tester.tap(find.byKey(const Key('terminal-input-mode')));
+    await tester.pump();
     await tester.tap(find.byKey(const Key('terminal-key-ctrl')));
     await tester.pump();
     tester.testTextInput.enterText('d');
@@ -223,5 +231,86 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('terminal-notice')), findsOneWidget);
     expect(find.byKey(const Key('terminal-keys')), findsNothing);
+  });
+
+  testWidgets('it opens to read; a line is composed, then sent', (
+    tester,
+  ) async {
+    final link = _Link();
+    await tester.pumpWidget(
+      _app(
+        TerminalPage(
+          repository: TerminalsRepository(link),
+          terminal: HerdrTerminal.fromJson(_t('t1')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // No keyboard until asked for.
+    expect(tester.testTextInput.isVisible, isFalse);
+    await tester.enterText(
+      find.byKey(const Key('terminal-compose')),
+      'git status',
+    );
+    await tester.tap(find.byKey(const Key('terminal-send')));
+    await tester.pump();
+    expect(link.typed, ['git status', '\r']);
+    expect(find.text('git status'), findsNothing);
+  });
+
+  testWidgets('a waiting agent is answered with a tap', (tester) async {
+    final link = _Link();
+    await tester.pumpWidget(
+      _app(
+        TerminalPage(
+          repository: TerminalsRepository(link),
+          terminal: HerdrTerminal.fromJson(
+            _t('t2', status: 'blocked', program: 'claude'),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('terminal-answers')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('terminal-answer-1')));
+    await tester.pump();
+    expect(link.typed, ['1']);
+
+    // Answered: hc says it works again, and the answers go.
+    link.terminals = [_t('t2', status: 'working', program: 'claude')];
+    link.events.add((method: '_baya/terminals_changed', params: const {}));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('terminal-answers')), findsNothing);
+  });
+
+  testWidgets('a pinch resizes the text and the terminal with it', (
+    tester,
+  ) async {
+    final link = _Link();
+    double? kept;
+    await tester.pumpWidget(
+      _app(
+        TerminalPage(
+          repository: TerminalsRepository(link),
+          terminal: HerdrTerminal.fromJson(_t('t1')),
+          onFontSize: (size) => kept = size,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final cols = link.attaches.single['cols'] as int;
+    final center = tester.getCenter(find.byType(TerminalView));
+    final a = await tester.startGesture(center - const Offset(40, 0));
+    final b = await tester.startGesture(center + const Offset(40, 0));
+    await a.moveTo(center - const Offset(20, 0));
+    await b.moveTo(center + const Offset(20, 0));
+    await tester.pump();
+    expect(find.byKey(const Key('terminal-grid')), findsOneWidget);
+    await a.up();
+    await b.up();
+    await tester.pumpAndSettle();
+    expect(kept, lessThan(13));
+    final resize = link.notes.lastWhere((n) => n.$1 == '_baya/terminal_resize');
+    expect(resize.$2['cols'] as int, greaterThan(cols));
   });
 }
