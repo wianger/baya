@@ -46,6 +46,13 @@ android {
         }
     }
 
+    // BouncyCastle's jars each carry the same license files.
+    packaging {
+        resources {
+            excludes += listOf("/META-INF/*.md", "/META-INF/versions/9/OSGI-INF/MANIFEST.MF")
+        }
+    }
+
     // Moonlight's streaming core (moonlight-common-c, GPL-3.0).
     externalNativeBuild {
         ndkBuild {
