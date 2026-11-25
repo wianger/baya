@@ -436,7 +436,9 @@ async function installIntegrations(app: HerdrApp): Promise<void> {
   const integrations = (list["integrations"] as Record<string, unknown>[] | undefined) ?? [];
   for (const target of ["claude", "codex", "pi"]) {
     const entry = integrations.find((i) => i["target"] === target);
-    if (entry?.["available"] !== true || entry["state"] === "installed") continue;
+    // Not listed (the CLI on Windows lists none): install anyway, it is
+    // idempotent; listed: only where the agent is there and it is missing.
+    if (entry && (entry["available"] !== true || entry["state"] !== "not_installed")) continue;
     await app.call("integration.install", { target }).catch(() => {});
   }
 }
