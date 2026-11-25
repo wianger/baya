@@ -502,5 +502,6 @@
   "fontPreviewAnswer": "拖动下方的滑杆调整文字大小，回复、代码和列表都会随之变化。",
   "recents": "最近",
   "viewAll": "查看全部",
-  "closeSearchSheet": "关闭"
+  "closeSearchSheet": "关闭",
+  "earlierOutput": "更早的输出"
 }

@@ -19,7 +19,7 @@ class AgentMarkdown extends StatelessWidget {
     this.data, {
     super.key,
     this.selectable = false,
-    this.fontSize = 15,
+    this.fontSize = 16,
     this.color,
   });
 
@@ -39,7 +39,8 @@ class AgentMarkdown extends StatelessWidget {
     final typo = context.typo;
     final base = typo.reading.copyWith(
       fontSize: fontSize,
-      height: 1.5,
+      // Room for Chinese, whose lines read best looser than Latin's.
+      height: 1.65,
       letterSpacing: -0.11,
       color: color,
     );
@@ -92,7 +93,7 @@ class AgentMarkdown extends StatelessWidget {
       ),
     );
     final markdown = GptMarkdown(
-      separateTables(linkLocalhost(data)),
+      spaceCjk(separateTables(linkLocalhost(data))),
       style: base,
       onLinkTap: (url, _) => _openLink(context, url),
       // A chip that takes its own room in the line, so the words around
@@ -160,7 +161,14 @@ class AgentMarkdown extends StatelessWidget {
       // Fenced ``` blocks — dark card + copy button.
       codeBuilder: (context, name, code, closed) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: CodeBlock(code: code, language: name, foldAfter: 40),
+        // Highlighted once the fence closes: while it streams it is plain,
+        // so each new token doesn't re-run the highlighter.
+        child: CodeBlock(
+          code: code,
+          language: closed ? name : null,
+          title: closed || name.isEmpty ? null : name,
+          foldAfter: 40,
+        ),
       ),
       // The package defaults to generous list indents. A transcript
       // style keeps bullets compact and aligns their text with the prose.
@@ -398,4 +406,39 @@ String separateTables(String markdown) {
     out.add(line);
   }
   return out.join('\n');
+}
+
+final _cjkThenLatin = RegExp(r'([㐀-䶿一-鿿豈-﫿])([A-Za-z0-9])');
+final _latinThenCjk = RegExp(r'([A-Za-z0-9%])([㐀-䶿一-鿿豈-﫿])');
+
+/// A quarter-em space (U+2005) between Chinese and Latin letters or
+/// digits, as Chinese typesetting asks (W3C clreq) and CSS `text-autospace`
+/// does on the web. Never inside code, nor where a space already is.
+String spaceCjk(String markdown) {
+  if (!RegExp(r'[㐀-鿿]').hasMatch(markdown)) return markdown;
+  final out = StringBuffer();
+  var inFence = false;
+  final lines = markdown.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i];
+    if (_fence.hasMatch(line)) inFence = !inFence;
+    if (inFence || _fence.hasMatch(line)) {
+      out.write(line);
+    } else {
+      // Odd pieces between backticks are inline code: left alone.
+      final pieces = line.split('`');
+      for (var j = 0; j < pieces.length; j++) {
+        if (j > 0) out.write('`');
+        out.write(
+          j.isOdd
+              ? pieces[j]
+              : pieces[j]
+                    .replaceAllMapped(_cjkThenLatin, (m) => '${m[1]} ${m[2]}')
+                    .replaceAllMapped(_latinThenCjk, (m) => '${m[1]} ${m[2]}'),
+        );
+      }
+    }
+    if (i < lines.length - 1) out.write('\n');
+  }
+  return out.toString();
 }

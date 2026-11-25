@@ -345,6 +345,8 @@ export class PhoneConnection implements HubPhone {
       case "_baya/terminal_detach":
         this.terminals.detach(numberParam(params, "stream"));
         return {};
+      case "_baya/terminal_read":
+        return this.terminals.read(stringParam(params, "terminal"), params["lines"]);
       case "_baya/terminal_kill":
         return this.terminals.kill(stringParam(params, "terminal"));
       case "_baya/terminal_remove":

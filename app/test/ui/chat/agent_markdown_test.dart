@@ -134,4 +134,11 @@ void main() {
     const code = '```\nText\n| A |\n| - |\n```';
     expect(separateTables(code), code);
   });
+
+  test('Chinese and Latin get a quarter-em apart, code is left alone', () {
+    expect(spaceCjk('用Flutter写3个页面'), '用 Flutter 写 3 个页面');
+    expect(spaceCjk('运行 `npm test`和`a中b`'), '运行 `npm test`和`a中b`');
+    expect(spaceCjk('```\n中a\n```'), '```\n中a\n```');
+    expect(spaceCjk('only latin'), 'only latin');
+  });
 }

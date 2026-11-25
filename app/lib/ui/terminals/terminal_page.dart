@@ -75,6 +75,10 @@ class _TerminalPageState extends State<TerminalPage> {
   _Input _input = _Input.compose;
   bool _atBottom = true;
 
+  /// Scrolled to the oldest line the phone holds: older ones are a read
+  /// away.
+  bool _atTop = false;
+
   /// While pinching: the size it started at, and the grid to show.
   double? _pinchFrom;
   String? _grid;
@@ -132,7 +136,15 @@ class _TerminalPageState extends State<TerminalPage> {
     if (!_scroll.hasClients) return;
     final position = _scroll.position;
     final atBottom = position.pixels >= position.maxScrollExtent - 4;
-    if (atBottom != _atBottom) setState(() => _atBottom = atBottom);
+    final atTop =
+        position.maxScrollExtent > 0 &&
+        position.pixels <= position.minScrollExtent + 4;
+    if (atBottom != _atBottom || atTop != _atTop) {
+      setState(() {
+        _atBottom = atBottom;
+        _atTop = atTop;
+      });
+    }
   }
 
   void _toBottom() {
@@ -316,6 +328,16 @@ class _TerminalPageState extends State<TerminalPage> {
     }
   }
 
+  Future<void> _openHistory() => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => TerminalHistoryPage(
+        title: _info.label,
+        load: () => widget.repository.read(widget.terminal.address),
+        fontSize: _fontSize,
+      ),
+    ),
+  );
+
   TerminalTheme _theme(AppColors colors, Brightness brightness) {
     final base = brightness == Brightness.dark
         ? TerminalThemes.defaultTheme
@@ -417,6 +439,27 @@ class _TerminalPageState extends State<TerminalPage> {
                             key: const Key('terminal-grid'),
                             text: _grid ?? '',
                           ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Further back than the attach sent: the whole history as
+                  // text, on its own page.
+                  Positioned(
+                    top: 10,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: AnimatedScale(
+                        scale: _atTop ? 1 : 0,
+                        duration: BayaMotion.standard,
+                        curve: BayaMotion.spring,
+                        child: ActionChip(
+                          key: const Key('terminal-earlier'),
+                          avatar: const Icon(LucideIcons.history, size: 16),
+                          label: Text(l10n.earlierOutput),
+                          onPressed: _openHistory,
+                          shape: const StadiumBorder(),
                         ),
                       ),
                     ),
@@ -894,3 +937,84 @@ const _lightAnsi = TerminalTheme(
   searchHitBackgroundCurrent: Color(0xFF000000),
   searchHitForeground: Color(0xFFFFFFFF),
 );
+
+/// A terminal's history as far back as the computer keeps it, as plain
+/// text: read-only, selectable, opening at the newest line.
+class TerminalHistoryPage extends StatefulWidget {
+  const TerminalHistoryPage({
+    super.key,
+    required this.title,
+    required this.load,
+    this.fontSize = 13,
+  });
+
+  final String title;
+  final Future<String> Function() load;
+  final double fontSize;
+
+  @override
+  State<TerminalHistoryPage> createState() => _TerminalHistoryPageState();
+}
+
+class _TerminalHistoryPageState extends State<TerminalHistoryPage> {
+  late final Future<List<String>> _lines = widget.load().then(
+    (text) => text.trimRight().split('\n'),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final l10n = context.l10n;
+    final style = context.typo.mono.copyWith(
+      fontSize: widget.fontSize,
+      height: 1.35,
+      color: colors.text,
+    );
+    return Scaffold(
+      backgroundColor: colors.bg,
+      appBar: BayaHeader(title: l10n.earlierOutput, subtitle: widget.title),
+      body: FutureBuilder<List<String>>(
+        future: _lines,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Text(
+                  '${snapshot.error}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.muted),
+                ),
+              ),
+            );
+          }
+          final lines = snapshot.data;
+          if (lines == null) {
+            return const Center(
+              child: SizedBox.square(
+                dimension: 22,
+                child: CircularProgressIndicator(strokeWidth: 1.8),
+              ),
+            );
+          }
+          // Newest at the bottom, where it opens; only the lines on screen
+          // are built, however long the history.
+          return SelectionArea(
+            child: ListView.builder(
+              key: const Key('terminal-history'),
+              reverse: true,
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
+              itemCount: lines.length,
+              itemBuilder: (_, i) => Text(
+                lines[lines.length - 1 - i],
+                style: style,
+                softWrap: false,
+                overflow: TextOverflow.clip,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}

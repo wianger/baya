@@ -393,6 +393,16 @@ class TerminalsRepository {
     }
   }
 
+  /// [address]'s screen and up to [lines] of history above it, as text:
+  /// further back than an attach sends.
+  Future<String> read(String address, {int lines = 10000}) async {
+    final result = await _link.call('_baya/terminal_read', {
+      'terminal': address,
+      'lines': lines,
+    });
+    return result['text'] as String? ?? '';
+  }
+
   Future<void> kill(String address) =>
       _link.call('_baya/terminal_kill', {'terminal': address});
 
