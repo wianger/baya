@@ -7,7 +7,9 @@
  * notifications. hc gets credit for bytes as the phone's link takes them,
  * so a slow link means a fresh paint later, not a pile-up.
  */
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
+import { join } from "node:path";
 import { FRAME, type HerdrCore, HerdrError, herdr } from "./core.ts";
 
 type Json = Record<string, unknown>;
@@ -299,31 +301,50 @@ function isDisplay(value: unknown): value is Json {
   return color(bg) && color(fg);
 }
 
-/** A command line's word, quoted for a POSIX shell or PowerShell alike. */
+/**
+ * A command line's word, quoted for cmd.exe (hc's shell on Windows),
+ * PowerShell and POSIX shells alike: double quotes.
+ */
 function quote(word: string): string {
-  return /^[\w@%+=:,./-]+$/u.test(word) ? word : `'${word.replaceAll("'", "''")}'`;
+  return /^[\w@%+=:,./\\-]+$/u.test(word) ? word : `"${word.replaceAll('"', '\\"')}"`;
 }
 
 /**
  * The command that reopens an agent's own conversation in its TUI, for the
  * agents whose CLI can: Claude Code, Codex, Pi. [env] is the agent's
- * configured environment, which may name the CLI's path.
+ * configured environment, which may name the CLI's path; [cwd] is the
+ * session's folder.
  */
 export function resumeCommand(
   agent: string,
   sessionId: string | null,
   env: Record<string, string> = {},
+  cwd = "",
 ): string | null {
   if (!sessionId) return null;
   const id = quote(sessionId);
   switch (agent) {
-    case "claude":
-      return `${quote(env["CLAUDE_CODE_EXECUTABLE"] ?? "claude")} --resume ${id}`;
+    case "claude": {
+      const claude = quote(env["CLAUDE_CODE_EXECUTABLE"] ?? "claude");
+      // A conversation with nothing said yet has no file: start it under
+      // the same id instead of failing to resume it.
+      return claudeConversationExists(cwd, sessionId)
+        ? `${claude} --resume ${id}`
+        : `${claude} --session-id ${id}`;
+    }
     case "codex":
       return `${quote(env["CODEX_PATH"] ?? "codex")} resume ${id}`;
     case "pi":
-      return `pi --session ${id}`;
+      // Opens the folder's session with this id, or starts it.
+      return `pi --session-id ${id}`;
     default:
       return null;
   }
+}
+
+/** Claude Code keeps a conversation in ~/.claude/projects/<folder>/<id>.jsonl. */
+function claudeConversationExists(cwd: string, sessionId: string): boolean {
+  if (!cwd) return true;
+  const folder = cwd.replace(/[^A-Za-z0-9]/gu, "-");
+  return existsSync(join(homedir(), ".claude", "projects", folder, `${sessionId}.jsonl`));
 }

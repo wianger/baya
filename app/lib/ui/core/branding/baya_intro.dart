@@ -38,18 +38,21 @@ class _BayaIntroState extends State<BayaIntro>
   /// The bird steps aside and the name writes in.
   late final _enter = AnimationController(
     vsync: this,
+    animationBehavior: AnimationBehavior.preserve,
     duration: const Duration(milliseconds: 520),
   );
 
   /// Row → column.
   late final _move = AnimationController(
     vsync: this,
+    animationBehavior: AnimationBehavior.preserve,
     duration: const Duration(milliseconds: 620),
   );
 
   /// The cover lifts off the home.
   late final _lift = AnimationController(
     vsync: this,
+    animationBehavior: AnimationBehavior.preserve,
     duration: const Duration(milliseconds: 320),
   );
   bool _done = false;
@@ -134,23 +137,26 @@ class _BayaIntroState extends State<BayaIntro>
                   text: TextSpan(text: kAppName, style: style),
                   textDirection: TextDirection.ltr,
                 )..layout();
+                // Measured, then let go: only the numbers are kept.
+                final wordWidth = text.width;
+                final wordHeight = text.height;
+                text.dispose();
                 final size = media.size;
                 // The row sits mid-screen; the column where the home has it:
-                // centred between its header (68) and composer (about 78).
+                // centred below its header (68).
                 final rowCenter = Offset(size.width / 2, size.height / 2);
                 final columnCenter = Offset(
                   size.width / 2,
                   (media.padding.top +
                           68 +
                           size.height -
-                          media.padding.bottom -
-                          78) /
+                          media.padding.bottom) /
                       2,
                 );
                 final center = Offset.lerp(rowCenter, columnCenter, move)!;
                 const rowGap = 14.0;
-                final rowWidth = mark + rowGap + text.width;
-                final columnHeight = mark + kHomeMarkGap + text.height;
+                final rowWidth = mark + rowGap + wordWidth;
+                final columnHeight = mark + kHomeMarkGap + wordHeight;
                 // Mark: left of the row → top of the column.
                 // Alone at first, where the launch screen drew it; then left,
                 // making room for the name.
@@ -169,42 +175,46 @@ class _BayaIntroState extends State<BayaIntro>
                 final markAt = Offset.lerp(markRow, markColumn, move)!;
                 // Name: right of the row → under the mark.
                 final wordRow = Offset(
-                  center.dx + rowWidth / 2 - text.width / 2,
+                  center.dx + rowWidth / 2 - wordWidth / 2,
                   center.dy,
                 );
                 final wordColumn = Offset(
                   center.dx,
-                  center.dy + columnHeight / 2 - text.height / 2,
+                  center.dy + columnHeight / 2 - wordHeight / 2,
                 );
                 final wordAt = Offset.lerp(wordRow, wordColumn, move)!;
-                text.dispose();
+                // Above the pages, so no Material of theirs: without one the
+                // name would wear Flutter's "missing Material" underline.
                 return Opacity(
                   opacity: 1 - lift,
-                  child: Stack(
-                    key: const Key('baya-intro'),
-                    children: [
-                      Positioned.fill(child: ColoredBox(color: colors.bg)),
-                      Positioned(
-                        left: markAt.dx - mark / 2,
-                        top: markAt.dy - mark / 2,
-                        child: AppMark(size: mark),
-                      ),
-                      Positioned(
-                        left: wordAt.dx - text.width / 2,
-                        top: wordAt.dy - text.height / 2,
-                        // Written in from the bird's side.
-                        child: ClipRect(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            widthFactor: Curves.easeOut.transform(enter),
-                            child: Opacity(
-                              opacity: enter,
-                              child: Text(kAppName, style: style),
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: Stack(
+                      key: const Key('baya-intro'),
+                      children: [
+                        Positioned.fill(child: ColoredBox(color: colors.bg)),
+                        Positioned(
+                          left: markAt.dx - mark / 2,
+                          top: markAt.dy - mark / 2,
+                          child: AppMark(size: mark),
+                        ),
+                        Positioned(
+                          left: wordAt.dx - wordWidth / 2,
+                          top: wordAt.dy - wordHeight / 2,
+                          // Written in from the bird's side.
+                          child: ClipRect(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: Curves.easeOut.transform(enter),
+                              child: Opacity(
+                                opacity: enter,
+                                child: Text(kAppName, style: style),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },

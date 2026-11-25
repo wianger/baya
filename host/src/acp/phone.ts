@@ -348,7 +348,7 @@ export class PhoneConnection implements HubPhone {
           session: record.id,
           cwd: record.cwd,
           agent: record.agent,
-          resume: resumeCommand(record.agent, record.agentSessionId, agent?.env),
+          resume: resumeCommand(record.agent, record.agentSessionId, agent?.env, record.cwd),
         });
       }
       case "_baya/terminal_attach":
