@@ -96,9 +96,7 @@ class _ToolRunGroupState extends State<ToolRunGroup> {
                   margin: const EdgeInsets.only(left: 9),
                   padding: const EdgeInsets.only(left: 8),
                   decoration: BoxDecoration(
-                    border: Border(
-                      left: BorderSide(color: colors.border, width: 1.5),
-                    ),
+                    border: Border(left: BorderSide(color: colors.border)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -314,7 +314,7 @@ class _MarkdownTable extends StatelessWidget {
                   defaultColumnWidth: const IntrinsicColumnWidth(),
                   border: TableBorder(
                     horizontalInside: BorderSide(
-                      color: colors.border.withValues(alpha: 0.55),
+                      color: colors.border,
                       width: 0.5,
                     ),
                   ),

@@ -65,8 +65,8 @@ class _CodeBlockState extends State<CodeBlock> {
           ? null
           : BoxDecoration(
               color: colors.codeBg,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colors.border.withValues(alpha: .7)),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.border),
             ),
       clipBehavior: widget.bare ? Clip.none : Clip.antiAlias,
       child: Column(
@@ -180,8 +180,8 @@ class DiffView extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: colors.codeBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.border.withValues(alpha: .7)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(

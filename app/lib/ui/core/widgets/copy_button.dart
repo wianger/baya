@@ -50,20 +50,18 @@ class _BayaCopyButtonState extends State<BayaCopyButton> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final tint = _copied ? colors.accent : (widget.color ?? colors.muted);
-    return TextButton.icon(
+    // An icon alone, as Claude's code blocks have it; a tick once copied.
+    return IconButton(
       onPressed: _copy,
-      icon: Icon(_copied ? LucideIcons.check : LucideIcons.copy, size: 13),
-      label: Text(_copied ? context.l10n.copied : widget.tooltip),
-      style: TextButton.styleFrom(
-        foregroundColor: tint,
-        minimumSize: const Size(0, 28),
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        visualDensity: VisualDensity.compact,
-        // Small to look at, a full 48 × 48 to tap.
-        tapTargetSize: MaterialTapTargetSize.padded,
-        textStyle: context.typo.sansBody.copyWith(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w500,
+      tooltip: _copied ? context.l10n.copied : widget.tooltip,
+      visualDensity: VisualDensity.compact,
+      iconSize: 15,
+      color: tint,
+      icon: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 150),
+        child: Icon(
+          _copied ? LucideIcons.check : LucideIcons.copy,
+          key: ValueKey(_copied),
         ),
       ),
     );
