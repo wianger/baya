@@ -10,6 +10,8 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/changes/changes_page.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_dialog.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -175,7 +177,7 @@ class _RunPageState extends State<RunPage> {
     if (action == 'delete') {
       final confirmed = await showBayaDialog<bool>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
+        builder: (dialogContext) => BayaDialog(
           title: Text(l10n.deleteRunAndWorktrees),
           content: Text(l10n.deleteRunConfirm(run.members.length)),
           actions: [
@@ -232,74 +234,23 @@ class _RunPageState extends State<RunPage> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
-              child: Row(
-                children: [
-                  if (menu != null)
-                    IconButton(
-                      tooltip: l10n.sessions,
-                      onPressed: menu,
-                      icon: Icon(
-                        LucideIcons.menu,
-                        size: 21,
-                        color: colors.text,
-                      ),
-                    )
-                  else
-                    const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.runTitle(run.members.length, run.name),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.typo.sansBody.copyWith(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        Text.rich(
-                          TextSpan(
-                            text: [
-                              run.hostLabel,
-                              run.usesWorktrees
-                                  ? l10n.ownWorktrees
-                                  : l10n.sharedFolder,
-                            ].join(' · '),
-                            children: [
-                              if (working > 0)
-                                TextSpan(
-                                  text: ' · ${l10n.agentsWorking(working)}',
-                                  style: TextStyle(color: colors.working),
-                                ),
-                            ],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.typo.sansBody.copyWith(
-                            fontSize: 12,
-                            color: colors.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    key: const Key('run-actions'),
-                    tooltip: l10n.sessionActions,
-                    onPressed: _showRunActions,
-                    icon: Icon(
-                      LucideIcons.ellipsis,
-                      size: 21,
-                      color: colors.muted2,
-                    ),
-                  ),
-                ],
-              ),
+            BayaHeader(
+              title: l10n.runTitle(run.members.length, run.name),
+              subtitle: [
+                run.hostLabel,
+                run.usesWorktrees ? l10n.ownWorktrees : l10n.sharedFolder,
+                if (working > 0) l10n.agentsWorking(working),
+              ].join(' · '),
+              leading: menu == null ? HeaderLeading.back : HeaderLeading.menu,
+              onLeading: menu,
+              actions: [
+                HeaderAction(
+                  key: const Key('run-actions'),
+                  icon: LucideIcons.ellipsis,
+                  tooltip: l10n.sessionActions,
+                  onPressed: _showRunActions,
+                ),
+              ],
             ),
             Expanded(
               child: LayoutBuilder(

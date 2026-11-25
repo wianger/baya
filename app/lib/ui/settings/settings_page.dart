@@ -6,6 +6,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_group.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/settings/adb_page.dart';
@@ -47,21 +48,15 @@ class SettingsPage extends StatelessWidget {
     return BayaTintedPage(
       child: Scaffold(
         backgroundColor: BayaTintedPage.ground(context),
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          centerTitle: true,
-          toolbarHeight: 72,
-          title: Text(context.l10n.settings),
-          automaticallyImplyLeading: false,
+        appBar: BayaHeader(
+          title: context.l10n.settings,
+          leading: HeaderLeading.none,
           actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: _FloatingCircle(
-                icon: LucideIcons.x,
-                tooltip: context.l10n.close,
-                onPressed: () =>
-                    context.canPop() ? context.pop() : context.go('/home'),
-              ),
+            HeaderAction(
+              icon: LucideIcons.x,
+              tooltip: context.l10n.close,
+              onPressed: () =>
+                  context.canPop() ? context.pop() : context.go('/home'),
             ),
           ],
         ),
@@ -186,24 +181,7 @@ class _SettingsDetailScaffold extends StatelessWidget {
     return BayaTintedPage(
       child: Scaffold(
         backgroundColor: BayaTintedPage.ground(context),
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          centerTitle: true,
-          toolbarHeight: 72,
-          automaticallyImplyLeading: false,
-          leadingWidth: 84,
-          leading: Padding(
-            padding: const EdgeInsets.only(left: 16),
-            child: Center(
-              child: _FloatingCircle(
-                icon: LucideIcons.chevronLeft,
-                tooltip: context.l10n.back,
-                onPressed: () => Navigator.of(context).maybePop(),
-              ),
-            ),
-          ),
-          title: Text(title),
-        ),
+        appBar: BayaHeader(title: title),
         body: BayaBackdrop(
           translucent: true,
           child: SafeArea(
@@ -447,33 +425,6 @@ class _KeyBackupPageState extends State<KeyBackupPage> {
       ),
     );
   }
-}
-
-/// DeepSeek's floating round button: close, back.
-class _FloatingCircle extends StatelessWidget {
-  const _FloatingCircle({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => BayaSurface(
-    role: BayaSurfaceRole.floating,
-    radius: 26,
-    child: SizedBox.square(
-      dimension: 52,
-      child: IconButton(
-        tooltip: tooltip,
-        onPressed: onPressed,
-        icon: Icon(icon, size: 22, color: context.colors.text),
-      ),
-    ),
-  );
 }
 
 /// A setting chosen from a few: the choice on the right, and a small menu

@@ -2,13 +2,13 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_group.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -95,36 +95,7 @@ class AboutPage extends StatelessWidget {
     return BayaTintedPage(
       child: Scaffold(
         backgroundColor: BayaTintedPage.ground(context),
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          toolbarHeight: 72,
-          automaticallyImplyLeading: false,
-          leadingWidth: 84,
-          titleSpacing: 0,
-          leading: Padding(
-            padding: const EdgeInsets.only(left: 16),
-            child: Center(
-              child: BayaSurface(
-                role: BayaSurfaceRole.floating,
-                radius: 26,
-                child: SizedBox.square(
-                  dimension: 52,
-                  child: IconButton(
-                    icon: Icon(
-                      LucideIcons.arrowLeft,
-                      size: 22,
-                      color: colors.text,
-                    ),
-                    tooltip: context.l10n.back,
-                    onPressed: () =>
-                        context.canPop() ? context.pop() : context.go('/home'),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          title: Text(context.l10n.about),
-        ),
+        appBar: BayaHeader(title: context.l10n.about),
         body: BayaBackdrop(
           translucent: true,
           child: SafeArea(

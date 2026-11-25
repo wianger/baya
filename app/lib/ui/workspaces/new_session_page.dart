@@ -2,6 +2,7 @@ import 'package:app/acp/acp.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -77,26 +78,15 @@ class _NewSessionPageState extends State<NewSessionPage> {
       },
       child: Scaffold(
         backgroundColor: colors.bg,
-        appBar: AppBar(
-          backgroundColor: colors.bg.withValues(alpha: 0),
-          flexibleSpace: const BayaSurface(
-            role: BayaSurfaceRole.navigation,
-            radius: 0,
-            elevated: false,
-            child: SizedBox.expand(),
-          ),
-          centerTitle: true,
-          leading: IconButton(
-            onPressed: ready?.opening == true ? null : _cancel,
-            icon: const Icon(LucideIcons.x),
-            tooltip: context.l10n.cancel,
-          ),
-          title: Text(context.l10n.newSession),
+        appBar: BayaHeader(
+          title: context.l10n.newSession,
+          leading: HeaderLeading.close,
+          onLeading: ready?.opening == true ? () {} : _cancel,
           actions: [
-            IconButton(
+            HeaderAction(
+              icon: LucideIcons.refreshCw,
               tooltip: context.l10n.refreshComputers,
               onPressed: ready?.opening == true ? null : vm.load,
-              icon: const Icon(LucideIcons.refreshCw, size: 19),
             ),
           ],
         ),

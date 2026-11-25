@@ -7,6 +7,7 @@ import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/core/code/code_view.dart';
 import 'package:app/ui/core/code/highlighter.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/copy_button.dart';
@@ -205,87 +206,43 @@ class _FilesHeader extends StatelessWidget {
             : _relativePath(previous.root, previous.path),
       ),
     };
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-      child: Row(
-        children: [
-          BayaSurface(
-            radius: 24,
-            child: SizedBox.square(
-              dimension: 46,
-              child: IconButton(
-                tooltip: state is SessionFilesFile
-                    ? context.l10n.backToDirectory
-                    : context.l10n.backToSession,
-                onPressed: onBack,
-                icon: Icon(
-                  LucideIcons.chevronLeft,
-                  size: 21,
-                  color: context.colors.text,
-                ),
-              ),
-            ),
+    return BayaHeader(
+      title: title,
+      subtitle: subtitle,
+      monoSubtitle: true,
+      onLeading: onBack,
+      leadingTooltip: state is SessionFilesFile
+          ? context.l10n.backToDirectory
+          : context.l10n.backToSession,
+      actions: [
+        if (onUpload != null)
+          HeaderAction(
+            key: const ValueKey('session-files-upload'),
+            icon: LucideIcons.upload,
+            tooltip: context.l10n.uploadFromPhone,
+            onPressed: state is SessionFilesLoading ? null : onUpload,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.typo.sansBody.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.35,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.typo.monoSmall.copyWith(
-                    color: context.colors.muted,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
+        if (onSave != null)
+          HeaderAction(
+            key: const ValueKey('session-files-save'),
+            icon: LucideIcons.download,
+            tooltip: context.l10n.saveToPhone,
+            onPressed: onSave,
           ),
-          if (onUpload != null)
-            IconButton(
-              key: const ValueKey('session-files-upload'),
-              tooltip: context.l10n.uploadFromPhone,
-              onPressed: state is SessionFilesLoading ? null : onUpload,
-              icon: const Icon(LucideIcons.upload, size: 19),
-            ),
-          if (onSave != null)
-            IconButton(
-              key: const ValueKey('session-files-save'),
-              tooltip: context.l10n.saveToPhone,
-              onPressed: onSave,
-              icon: const Icon(LucideIcons.download, size: 19),
-            ),
-          if (onToggleHidden != null)
-            IconButton(
-              tooltip: showHidden
-                  ? context.l10n.hideHiddenFiles
-                  : context.l10n.showHiddenFiles,
-              onPressed: onToggleHidden,
-              icon: Icon(
-                showHidden ? LucideIcons.eyeOff : LucideIcons.eye,
-                size: 19,
-              ),
-            ),
-          IconButton(
-            tooltip: context.l10n.refresh,
-            onPressed: state is SessionFilesLoading ? null : onRefresh,
-            icon: const Icon(LucideIcons.refreshCw, size: 19),
+        if (onToggleHidden != null)
+          HeaderAction(
+            icon: showHidden ? LucideIcons.eyeOff : LucideIcons.eye,
+            tooltip: showHidden
+                ? context.l10n.hideHiddenFiles
+                : context.l10n.showHiddenFiles,
+            onPressed: onToggleHidden,
           ),
-        ],
-      ),
+        HeaderAction(
+          icon: LucideIcons.refreshCw,
+          tooltip: context.l10n.refresh,
+          onPressed: state is SessionFilesLoading ? null : onRefresh,
+        ),
+      ],
     );
   }
 }

@@ -9,6 +9,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_dialog.dart';
 import 'package:app/ui/core/widgets/baya_group.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -133,32 +134,16 @@ class _ComputerSessionsPageState extends State<ComputerSessionsPage> {
     final l10n = context.l10n;
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(
-        backgroundColor: colors.bg.withValues(alpha: 0),
-        flexibleSpace: const BayaSurface(
-          role: BayaSurfaceRole.navigation,
-          radius: 0,
-          elevated: false,
-          child: SizedBox.expand(),
-        ),
-        centerTitle: true,
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l10n.computerSessions),
-            Text(
-              widget.launch.label,
-              style: TextStyle(fontSize: 11.5, color: colors.muted),
-            ),
-          ],
-        ),
+      appBar: BayaHeader(
+        title: l10n.computerSessions,
+        subtitle: widget.launch.label,
         actions: [
-          IconButton(
+          HeaderAction(
+            icon: LucideIcons.refreshCw,
             tooltip: l10n.refresh,
             onPressed: _opening != null
                 ? null
                 : () => setState(() => _sessions = _load()),
-            icon: const Icon(LucideIcons.refreshCw, size: 19),
           ),
         ],
       ),

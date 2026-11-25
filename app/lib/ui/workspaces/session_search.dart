@@ -5,11 +5,11 @@ library;
 
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/states/home_state.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
-import 'package:app/ui/workspaces/session_overview.dart';
 import 'package:app/ui/workspaces/widgets/session_list_row.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -109,7 +109,7 @@ class _SearchSheetState extends State<_SearchSheet> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    CircleAction(
+                    BayaCircleButton(
                       key: const Key('sidebar-search-close'),
                       icon: LucideIcons.x,
                       tooltip: l10n.closeSearch,

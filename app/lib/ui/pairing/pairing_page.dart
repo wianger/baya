@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/pairing/states/pairing_state.dart';
@@ -95,18 +96,7 @@ class _PairingPageState extends State<PairingPage> {
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        flexibleSpace: const BayaSurface(
-          role: BayaSurfaceRole.navigation,
-          radius: 0,
-          elevated: false,
-          child: SizedBox.expand(),
-        ),
-        scrolledUnderElevation: 0,
-        title: Text(context.l10n.pairDevice),
-      ),
+      appBar: BayaHeader(title: context.l10n.pairDevice),
       body: _buildBody(state, vm),
     );
   }

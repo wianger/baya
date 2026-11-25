@@ -165,32 +165,56 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
     ),
-    popupMenuTheme: const PopupMenuThemeData(
-      color: Colors.transparent,
+    // Menus float like the header's buttons: the page colour, very round.
+    popupMenuTheme: PopupMenuThemeData(
+      color: brightness == Brightness.dark ? colors.modelBadgeBg : colors.bg,
       surfaceTintColor: Colors.transparent,
-      elevation: 0,
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: .25),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: colors.border),
+      ),
+      textStyle: typo.sansBody.copyWith(fontSize: 16, color: colors.text),
     ),
+    // A short note at the foot: an ink pill.
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      backgroundColor: colors.text,
+      contentTextStyle: typo.sansBody.copyWith(fontSize: 14, color: colors.bg),
+      elevation: 0,
+      shape: const StadiumBorder(),
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
     ),
+    // One field everywhere: a filled, borderless rounded box that only
+    // outlines itself while typing.
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: colors.inputFill,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: colors.border),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: colors.border),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: colors.muted, width: 1.2),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: colors.text.withValues(alpha: .18)),
       ),
-      hintStyle: typo.sansBody.copyWith(color: colors.muted, fontSize: 14),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: colors.error),
+      ),
+      floatingLabelBehavior: FloatingLabelBehavior.never,
+      hintStyle: typo.sansBody.copyWith(color: colors.muted, fontSize: 15),
+      labelStyle: typo.sansBody.copyWith(color: colors.muted, fontSize: 15),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     ),
   );
 }
