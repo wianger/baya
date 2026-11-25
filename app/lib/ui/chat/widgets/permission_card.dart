@@ -65,9 +65,9 @@ class _PermissionCardState extends State<PermissionCard> {
           constraints: const BoxConstraints(maxWidth: 760),
           child: BayaSurface(
             key: const Key('permission-card'),
-            role: BayaSurfaceRole.overlay,
-            radius: 22,
-            emphasized: true,
+            // Floats over the chat like the composer under it.
+            role: BayaSurfaceRole.floating,
+            radius: 28,
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

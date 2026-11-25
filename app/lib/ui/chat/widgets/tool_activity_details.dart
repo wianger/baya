@@ -155,11 +155,13 @@ class _Terminal extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final style = codeTextStyle(context, size: 12).copyWith(color: colors.text);
+    // One card: the prompt line with its folder and how it ended, then the
+    // output in the same box.
     return Container(
       decoration: BoxDecoration(
         color: colors.codeBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.border.withValues(alpha: .7)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -167,37 +169,33 @@ class _Terminal extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 4, 0),
+            padding: const EdgeInsets.fromLTRB(12, 2, 2, 0),
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    workingDirectory ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.typo.monoSmall.copyWith(
-                      fontSize: 11,
-                      color: colors.muted,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SelectableText.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: r'$ ',
+                            style: style.copyWith(color: colors.muted),
+                          ),
+                          context.highlightCode(command, 'bash', style),
+                        ],
+                      ),
                     ),
                   ),
                 ),
                 if (exitLabel case final label?)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: (clean ? colors.success : colors.error).withValues(
-                        alpha: .12,
-                      ),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
                     child: Text(
                       label,
                       style: context.typo.monoSmall.copyWith(
-                        fontSize: 10.5,
-                        color: clean ? colors.success : colors.error,
+                        fontSize: 11,
+                        color: clean ? colors.muted : colors.error,
                       ),
                     ),
                   ),
@@ -205,25 +203,24 @@ class _Terminal extends StatelessWidget {
               ],
             ),
           ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(12, 0, 14, 10),
-            child: SelectableText.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: r'$ ',
-                    style: style.copyWith(color: colors.accent),
-                  ),
-                  context.highlightCode(command, 'bash', style),
-                ],
+          if (workingDirectory case final folder? when folder.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+              child: Text(
+                folder,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.typo.monoSmall.copyWith(
+                  fontSize: 11,
+                  color: colors.muted,
+                ),
               ),
             ),
-          ),
           if (output != null) ...[
-            Divider(height: 1, color: colors.border.withValues(alpha: .7)),
+            Divider(height: 1, thickness: .5, color: colors.border),
             CodeBlock(code: output!, header: false, foldAfter: 14, bare: true),
-          ],
+          ] else
+            const SizedBox(height: 4),
         ],
       ),
     );

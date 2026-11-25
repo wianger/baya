@@ -311,7 +311,7 @@ class _DirectoryView extends StatelessWidget {
                     Divider(
                       height: 1,
                       indent: 44,
-                      color: context.colors.border.withValues(alpha: .7),
+                      color: context.colors.border,
                     ),
                   _entryRow(context, directory.entries[i]),
                 ],
