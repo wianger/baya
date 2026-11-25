@@ -91,6 +91,19 @@ describe("herdr-core", () => {
     terminals.close();
   });
 
+  it("finds a session's agent running in its folder", async () => {
+    core = new HerdrCore(async () => [process.execPath, fake]);
+    const terminals = new PhoneTerminals(new Phone(), core);
+    const found = await terminals.forSession({
+      session: "s1",
+      cwd: "/w/",
+      agent: "claude",
+      resume: "claude --resume x",
+    });
+    expect(found).toMatchObject({ available: true, terminal: { address: "t1" } });
+    terminals.close();
+  });
+
   it("says when hc is not installed", async () => {
     const hc = new HerdrCore(async () => null);
     core = hc;

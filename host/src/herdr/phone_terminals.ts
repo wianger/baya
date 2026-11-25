@@ -244,17 +244,30 @@ export class PhoneTerminals {
     const terminals = (Array.isArray(listed) ? listed : []) as Json[];
     const live = terminals.filter((t) => t["state"] === "live");
     const labels = (t: Json) => (t["labels"] ?? {}) as Json;
-    const own = live.find((t) => labels(t)["baya.session"] === options.session);
-    if (own) return { available: true, terminal: own };
     const folder = (path: unknown) => String(path ?? "").replace(/[\\/]+$/u, "");
     const program = (t: Json) => {
       const status = t["status"] as Json | undefined;
       const foreground = t["foreground"] as Json | undefined;
       return String(status?.["app"] ?? foreground?.["name"] ?? t["agent"] ?? "").toLowerCase();
     };
+    const agent = options.agent.toLowerCase();
+    const own = live.filter((t) => labels(t)["baya.session"] === options.session);
+    // Its own terminal with the agent in it. One whose agent has exited is
+    // back at a shell: the agent is started again in it, not in another.
+    const ownAgent = own.find((t) => program(t) === agent);
+    if (ownAgent) return { available: true, terminal: ownAgent };
+    if (own[0]) {
+      if (options.resume) {
+        await this.core.call("terminal.send", {
+          terminal: String(own[0]["address"]),
+          text: options.resume,
+        });
+      }
+      return { available: true, terminal: own[0] };
+    }
     const running = live.find(
       (t) =>
-        program(t) === options.agent.toLowerCase() &&
+        program(t) === agent &&
         folder((t["foreground"] as Json | undefined)?.["cwd"] ?? t["cwd"]) === folder(options.cwd),
     );
     if (running) return { available: true, terminal: running };

@@ -138,6 +138,13 @@ export class HostedSession {
     this.resolveAgent = resolveAgent;
     this.events = events;
     this.transcript = new Transcript(persist ? transcriptPath(record.id) : null);
+    // Known from the last run: the conversation opens at once, even right
+    // after the host restarted; the agent starts behind it.
+    const known = this.transcript.agent;
+    if (isObject(known) && isObject(known["info"])) {
+      this.agentInfo = known["info"] as unknown as InitializeResponse;
+      this.setup = (isObject(known["setup"]) ? known["setup"] : {}) as SessionSetup;
+    }
   }
 
   get id(): string {
@@ -385,6 +392,7 @@ export class HostedSession {
     );
     this.setup = await this.openAgentSession(agent, info);
     this.agentInfo = info;
+    this.transcript.agent = { info: info as unknown as Json, setup: this.setup as unknown as Json };
     return agent;
   }
 
