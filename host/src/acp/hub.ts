@@ -1,5 +1,7 @@
 import { homedir } from "node:os";
 import { type AgentDefinition, defaultAgentId, loadConfig } from "../config.ts";
+import { type HerdrApp, herdrApp } from "../herdr/app.ts";
+import { PaneSession, paneSessionId } from "../herdr/pane_session.ts";
 import { isPairedKey, listPeers, markSeen, type PeerRecord } from "../pairing/storage.ts";
 import {
   addSession,
@@ -50,17 +52,69 @@ const errorMessage = (error: unknown): string =>
  */
 export class SessionHub {
   private readonly sessions = new Map<string, HostedSession>();
+  /** Agents running in herdr panes, each a conversation of its own. */
+  private readonly panes = new Map<string, PaneSession>();
+  private paneTimer: NodeJS.Timeout | undefined;
   private readonly phones = new Set<HubPhone>();
   private peers: PeerRecord[] = [];
   private readonly persist: boolean;
 
-  constructor(options: { persist?: boolean } = {}) {
+  /** Follows herdr's panes (the host does; tests don't). */
+  private readonly followPanes: boolean;
+
+  constructor(options: { persist?: boolean; panes?: boolean } = {}) {
     this.persist = options.persist ?? true;
+    this.followPanes = options.panes ?? false;
   }
 
   async start(): Promise<void> {
     this.peers = await listPeers();
     for (const record of listSessions()) this.adopt(record);
+    if (this.followPanes) void this.watchPanes(true);
+  }
+
+  // ── herdr panes ─────────────────────────────────────────────────────────
+
+  /**
+   * Follows the agents in herdr's panes: each is a conversation, appearing,
+   * changing and going away with its pane. herdr is asked every 2 s (every
+   * 10 s while it isn't running).
+   */
+  private async watchPanes(first = false): Promise<void> {
+    let running = true;
+    try {
+      if (first) await installIntegrations(herdrApp);
+      const agents = await herdrApp.agents();
+      const live = new Set<string>();
+      for (const pane of agents) {
+        const id = paneSessionId(pane.paneId);
+        live.add(id);
+        const known = this.panes.get(id);
+        if (known) {
+          known.update(pane);
+        } else {
+          const session = new PaneSession(pane, herdrApp, (changed) => this.paneChanged(changed));
+          this.panes.set(id, session);
+          this.paneChanged(session);
+        }
+      }
+      for (const [id, session] of this.panes) {
+        if (live.has(id)) continue;
+        this.panes.delete(id);
+        session.destroy();
+        this.push("_baya/session_removed", { sessionId: id });
+      }
+    } catch {
+      running = false;
+    }
+    clearTimeout(this.paneTimer);
+    this.paneTimer = setTimeout(() => void this.watchPanes(), running ? 2_000 : 10_000);
+    this.paneTimer.unref();
+  }
+
+  private paneChanged(session: PaneSession): void {
+    if (this.panes.get(session.id) !== session) return;
+    this.push("_baya/session_changed", { session: session.info() });
   }
 
   // ── agents ──────────────────────────────────────────────────────────────
@@ -80,13 +134,18 @@ export class SessionHub {
 
   // ── sessions ────────────────────────────────────────────────────────────
 
-  list(cwd?: string): HostedSession[] {
-    return [...this.sessions.values()]
+  list(cwd?: string): Conversation[] {
+    return [...this.sessions.values(), ...this.panes.values()]
       .filter((session) => !cwd || session.record.cwd === cwd)
       .toSorted((a, b) => b.record.updatedAt - a.record.updatedAt);
   }
 
-  get(id: string): HostedSession | undefined {
+  get(id: string): Conversation | undefined {
+    return this.sessions.get(id) ?? this.panes.get(id);
+  }
+
+  /** A conversation Baya runs itself (not one in a herdr pane). */
+  hosted(id: string): HostedSession | undefined {
     return this.sessions.get(id);
   }
 
@@ -114,7 +173,9 @@ export class SessionHub {
   }
 
   stop(): void {
+    clearTimeout(this.paneTimer);
     for (const session of this.sessions.values()) session.stop();
+    for (const session of this.panes.values()) session.stop();
   }
 
   // ── an agent outside any session: sign-in and its own sessions ──────────
@@ -315,6 +376,7 @@ export class SessionHub {
   disconnect(phone: HubPhone): void {
     this.phones.delete(phone);
     for (const session of this.sessions.values()) session.detach(phone);
+    for (const session of this.panes.values()) session.detach(phone);
     this.seen(phone.key);
   }
 
@@ -359,5 +421,22 @@ export class SessionHub {
     for (const phone of this.phones) {
       if (phone.ready && this.isPaired(phone.key)) phone.notify(method, params);
     }
+  }
+}
+
+/** A conversation the phone can open: Baya's own, or an agent in a herdr pane. */
+export type Conversation = HostedSession | PaneSession;
+
+/**
+ * herdr's integrations for the agents Baya reads (hooks that tell herdr
+ * which conversation each pane holds), installed once where missing.
+ */
+async function installIntegrations(app: HerdrApp): Promise<void> {
+  const list = await app.call("integration.list", {});
+  const integrations = (list["integrations"] as Record<string, unknown>[] | undefined) ?? [];
+  for (const target of ["claude", "codex", "pi"]) {
+    const entry = integrations.find((i) => i["target"] === target);
+    if (entry?.["available"] !== true || entry["state"] === "installed") continue;
+    await app.call("integration.install", { target }).catch(() => {});
   }
 }

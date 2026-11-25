@@ -2,8 +2,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { dirname, join } from "node:path";
-import type { HostedSession } from "../acp/hosted_session.ts";
-import type { SessionHub } from "../acp/hub.ts";
+import type { Conversation, SessionHub } from "../acp/hub.ts";
 import { BAYA_HOME } from "../config.ts";
 import { isPairedKey, listPeers, removePeers } from "../pairing/storage.ts";
 import { issuePendingPairToken } from "../pairing/token_store.ts";
@@ -17,14 +16,14 @@ import type {
   SessionStatus,
 } from "./protocol.ts";
 
-function sessionStatus(session: HostedSession): SessionStatus {
+function sessionStatus(session: Conversation): SessionStatus {
   const info = session.info()["_meta"] as { baya: { error?: string } };
   return {
     id: session.id,
     title: session.title,
     cwd: session.record.cwd,
     agent: session.record.agent,
-    running: session.running,
+    running: "running" in session ? session.running : true,
     working: session.working,
     error: info.baya.error ?? null,
   };

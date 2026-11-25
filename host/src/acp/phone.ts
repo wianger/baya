@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { loadConfig } from "../config.ts";
+import { PaneSession } from "../herdr/pane_session.ts";
 import { PhoneTerminals, resumeCommand } from "../herdr/phone_terminals.ts";
 import { adbConnect, adbDisconnect, adbPair, adbStatus } from "../integrations/adb.ts";
 import { logOnce } from "../log_once.ts";
@@ -24,8 +25,8 @@ import {
 } from "../workspace/git.ts";
 import { browseSessionFiles, readSessionFile } from "../workspace/session_files.ts";
 import { openDownload, uploads } from "../workspace/transfer.ts";
-import type { Cursor, HostedSession } from "./hosted_session.ts";
-import type { HubPhone, SessionHub } from "./hub.ts";
+import type { Cursor } from "./hosted_session.ts";
+import type { Conversation, HubPhone, SessionHub } from "./hub.ts";
 import { isObject, type Json, JsonRpcPeer, RpcError, type RpcId } from "./jsonrpc.ts";
 import { BAYA_META, PROTOCOL_VERSION } from "./schema.ts";
 
@@ -207,7 +208,10 @@ export class PhoneConnection implements HubPhone {
       case "_baya/fork": {
         // A new session holding [sessionId]'s conversation up to the agent
         // message [messageId], or none of it without one.
-        const source = this.session(params);
+        const source = this.hub.hosted(stringParam(params, "sessionId"));
+        if (!source) {
+          throw RpcError.invalidParams("This agent runs in herdr: branch it in its terminal.");
+        }
         const messageId = optionalString(params, "messageId");
         const fingerprint = optionalString(params, "messageFingerprint");
         const occurrence = params["messageOccurrence"];
@@ -342,6 +346,11 @@ export class PhoneConnection implements HubPhone {
         });
       }
       case "_baya/terminal_session": {
+        if (this.hub.get(stringParam(params, "sessionId")) instanceof PaneSession) {
+          throw RpcError.invalidParams(
+            "This conversation runs in a herdr pane on the computer; its chat is that agent.",
+          );
+        }
         const { record } = this.session(params);
         const agent = loadConfig().agents.find((a) => a.id === record.agent);
         return this.terminals.forSession({
@@ -421,7 +430,7 @@ export class PhoneConnection implements HubPhone {
     };
   }
 
-  private session(params: Json): HostedSession {
+  private session(params: Json): Conversation {
     const id = stringParam(params, "sessionId");
     const session = this.hub.get(id);
     if (!session) throw RpcError.notFound("This session no longer exists on the computer.");
