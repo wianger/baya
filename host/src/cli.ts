@@ -304,7 +304,7 @@ function logTo(path: string): void {
 
 async function runForeground(): Promise<void> {
   if (await hostStatus()) throw new Error("Baya is already running. See `baya status`.");
-  const hub = new SessionHub();
+  const hub = new SessionHub({ panes: true });
   // Every DeepSeek session shows in DeepSeek's desktop app too; sessions
   // already recorded there are left alone.
   const agents = loadConfig().agents;

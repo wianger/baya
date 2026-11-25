@@ -16,6 +16,7 @@ function phone() {
     disconnect() {},
     isPaired: () => true,
     get: (id: string) => (id === "s" ? source : undefined),
+    hosted: (id: string) => (id === "s" ? source : undefined),
     fork: async (from: unknown, point: Json) => {
       expect(from).toBe(source);
       forks.push(point);
