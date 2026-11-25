@@ -310,7 +310,7 @@ class _UsageBar extends StatelessWidget {
             Text(
               context.l10n.tokensOf(_count(usage.used), _count(usage.size)),
               style: context.typo.monoSmall.copyWith(
-                fontSize: 12,
+                fontSize: BayaType.caption,
                 color: colors.muted,
               ),
             ),
@@ -333,7 +333,7 @@ class _UsageBar extends StatelessWidget {
               '${cost.toStringAsFixed(2)} ${usage.currency ?? ''}'.trim(),
             ),
             style: context.typo.sansBody.copyWith(
-              fontSize: 12,
+              fontSize: BayaType.caption,
               color: colors.muted,
             ),
           ),
@@ -375,7 +375,7 @@ class _SheetTitle extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: context.typo.sansBody.copyWith(
-                  fontSize: 19,
+                  fontSize: BayaType.headline,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -.3,
                 ),

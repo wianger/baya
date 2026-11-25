@@ -66,7 +66,7 @@ class ToolActivityDetails extends StatelessWidget {
                   result,
                   key: const Key('tool-result'),
                   style: context.typo.sansBody.copyWith(
-                    fontSize: 13.5,
+                    fontSize: BayaType.footnote,
                     height: 1.5,
                     color: context.colors.muted2,
                   ),
@@ -100,7 +100,7 @@ class ToolActivityDetails extends StatelessWidget {
         Text(
           context.l10n.completedWithoutOutput,
           style: context.typo.sansBody.copyWith(
-            fontSize: 12.5,
+            fontSize: BayaType.caption,
             color: context.colors.muted,
           ),
         ),
@@ -194,7 +194,7 @@ class _Terminal extends StatelessWidget {
                     child: Text(
                       label,
                       style: context.typo.monoSmall.copyWith(
-                        fontSize: 11,
+                        fontSize: BayaType.caption,
                         color: clean ? colors.muted : colors.error,
                       ),
                     ),
@@ -211,7 +211,7 @@ class _Terminal extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: context.typo.monoSmall.copyWith(
-                  fontSize: 11,
+                  fontSize: BayaType.caption,
                   color: colors.muted,
                 ),
               ),
@@ -249,7 +249,7 @@ class _Problem extends StatelessWidget {
           Text(
             label,
             style: context.typo.sansBody.copyWith(
-              fontSize: 11,
+              fontSize: BayaType.caption,
               fontWeight: FontWeight.w600,
               color: colors.error,
             ),
@@ -302,7 +302,7 @@ class _InputFields extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.typo.sansBody.copyWith(
-                      fontSize: 12,
+                      fontSize: BayaType.caption,
                       color: colors.muted,
                     ),
                   ),
@@ -310,7 +310,9 @@ class _InputFields extends StatelessWidget {
                 Expanded(
                   child: SelectableText(
                     field.value,
-                    style: context.typo.mono.copyWith(fontSize: 12),
+                    style: context.typo.mono.copyWith(
+                      fontSize: BayaType.caption,
+                    ),
                   ),
                 ),
               ],

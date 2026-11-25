@@ -257,7 +257,7 @@ class _AdbPageState extends State<AdbPage> {
                         key: const Key('adb-message'),
                         style: context.typo.sansBody.copyWith(
                           color: _failed ? colors.error : colors.success,
-                          fontSize: 13,
+                          fontSize: BayaType.footnote,
                         ),
                       ),
                     ),
@@ -391,7 +391,7 @@ class _StatusCard extends StatelessWidget {
                 key: const Key('adb-tools'),
                 style: context.typo.sansBody.copyWith(
                   color: colors.muted2,
-                  fontSize: 13,
+                  fontSize: BayaType.footnote,
                   height: 1.5,
                 ),
               ),
@@ -462,7 +462,7 @@ class _Step extends StatelessWidget {
             body,
             style: context.typo.sansBody.copyWith(
               color: colors.muted2,
-              fontSize: 13,
+              fontSize: BayaType.footnote,
               height: 1.5,
             ),
           ),

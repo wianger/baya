@@ -37,12 +37,12 @@ class _StartupNoteRowState extends State<StartupNoteRow> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(LucideIcons.info, size: 15, color: colors.muted),
+                Icon(LucideIcons.info, size: 16, color: colors.muted),
                 const SizedBox(width: 8),
                 Text(
                   context.l10n.agentStartupNotes,
                   style: context.typo.sansBody.copyWith(
-                    fontSize: 14,
+                    fontSize: BayaType.subhead,
                     fontWeight: FontWeight.w500,
                     color: colors.muted2,
                   ),
@@ -53,7 +53,7 @@ class _StartupNoteRowState extends State<StartupNoteRow> {
                   duration: BayaMotion.fast,
                   child: Icon(
                     LucideIcons.chevronRight,
-                    size: 15,
+                    size: 16,
                     color: colors.muted,
                   ),
                 ),
@@ -76,7 +76,7 @@ class _StartupNoteRowState extends State<StartupNoteRow> {
                   child: AgentMarkdown(
                     widget.text,
                     selectable: true,
-                    fontSize: 13.5,
+                    fontSize: BayaType.footnote,
                     color: colors.muted2,
                   ),
                 ),

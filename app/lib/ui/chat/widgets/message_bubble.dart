@@ -98,7 +98,7 @@ class UserBubble extends StatelessWidget {
                         context.l10n.queued,
                         style: typo.sansBody.copyWith(
                           color: colors.muted,
-                          fontSize: 11,
+                          fontSize: BayaType.caption,
                         ),
                       ),
                     ],
@@ -158,7 +158,7 @@ class _UserActionsState extends State<_UserActions> {
       onPressed: onPressed,
       constraints: const BoxConstraints.tightFor(width: 40, height: 40),
       padding: EdgeInsets.zero,
-      icon: Icon(icon, size: 15, color: tint ?? colors.muted2),
+      icon: Icon(icon, size: 16, color: tint ?? colors.muted2),
     );
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -231,7 +231,7 @@ class CompactionBubble extends StatelessWidget {
                             ? context.l10n.contextCompacted
                             : context.l10n.compacting,
                         style: context.typo.sansBody.copyWith(
-                          fontSize: 13,
+                          fontSize: BayaType.footnote,
                           color: colors.text,
                           fontWeight: FontWeight.w600,
                         ),
@@ -244,7 +244,7 @@ class CompactionBubble extends StatelessWidget {
                   Text(
                     summary,
                     style: context.typo.sansBody.copyWith(
-                      fontSize: 13,
+                      fontSize: BayaType.footnote,
                       height: 1.45,
                       color: colors.muted2,
                     ),
@@ -295,7 +295,7 @@ class NoticeBubble extends StatelessWidget {
                   child: SelectableText(
                     message.text,
                     style: context.typo.sansBody.copyWith(
-                      fontSize: 13,
+                      fontSize: BayaType.footnote,
                       height: 1.4,
                       color: tint,
                     ),
@@ -330,7 +330,7 @@ class PlanCard extends StatelessWidget {
             Text(
               context.l10n.plan,
               style: context.typo.sansBody.copyWith(
-                fontSize: 13,
+                fontSize: BayaType.footnote,
                 fontWeight: FontWeight.w600,
                 color: colors.text,
               ),
@@ -363,7 +363,7 @@ class PlanCard extends StatelessWidget {
                       child: Text(
                         entry.content,
                         style: context.typo.sansBody.copyWith(
-                          fontSize: 13.5,
+                          fontSize: BayaType.footnote,
                           height: 1.4,
                           color: entry.status == PlanStatus.completed
                               ? colors.muted
@@ -487,7 +487,7 @@ class _CopyRowState extends State<_CopyRow> {
               child: Icon(
                 _copied ? LucideIcons.check : LucideIcons.copy,
                 key: ValueKey(_copied),
-                size: 15,
+                size: 16,
                 color: tint,
               ),
             ),
@@ -552,7 +552,7 @@ class _ReadAloudButtonState extends State<_ReadAloudButton> {
               child: Icon(
                 speaking ? LucideIcons.volumeX : LucideIcons.volume2,
                 key: ValueKey(speaking),
-                size: 15,
+                size: 16,
                 color: speaking ? colors.accent : colors.muted2,
               ),
             ),

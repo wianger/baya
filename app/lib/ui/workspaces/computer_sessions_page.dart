@@ -219,7 +219,10 @@ class _ComputerSessionsPageState extends State<ComputerSessionsPage> {
                     const SizedBox(height: 12),
                     Text(
                       l10n.agentsCouldNotList(result.failed.join(', ')),
-                      style: TextStyle(color: colors.warning, fontSize: 13),
+                      style: TextStyle(
+                        color: colors.warning,
+                        fontSize: BayaType.footnote,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 16),
@@ -293,7 +296,7 @@ class _SessionTile extends StatelessWidget {
                 context.l10n.activeNow,
                 key: const Key('computer-session-active'),
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: BayaType.caption,
                   fontWeight: FontWeight.w600,
                   color: colors.warning,
                 ),
@@ -321,7 +324,7 @@ class _SearchField extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       child: Row(
         children: [
-          Icon(LucideIcons.search, size: 17, color: colors.muted),
+          Icon(LucideIcons.search, size: 18, color: colors.muted),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
@@ -329,7 +332,7 @@ class _SearchField extends StatelessWidget {
               controller: controller,
               onChanged: onChanged,
               textInputAction: TextInputAction.search,
-              style: TextStyle(fontSize: 15, color: colors.text),
+              style: TextStyle(fontSize: BayaType.body, color: colors.text),
               decoration: InputDecoration(
                 isDense: true,
                 filled: false,
@@ -379,7 +382,7 @@ class _FilterChip extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: BayaType.footnote,
                   fontWeight: FontWeight.w500,
                   color: selected ? colors.bg : colors.text,
                 ),

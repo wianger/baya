@@ -175,7 +175,7 @@ class _NewSessionPageState extends State<NewSessionPage> {
           const SizedBox(height: 8),
           Text(
             context.l10n.chooseFolderHint,
-            style: TextStyle(color: colors.muted2, fontSize: 12),
+            style: TextStyle(color: colors.muted2, fontSize: BayaType.caption),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -183,7 +183,7 @@ class _NewSessionPageState extends State<NewSessionPage> {
             enabled: !locked,
             autocorrect: false,
             enableSuggestions: false,
-            style: context.typo.mono.copyWith(fontSize: 12),
+            style: context.typo.mono.copyWith(fontSize: BayaType.caption),
             decoration: InputDecoration(
               labelText: context.l10n.folderPath,
               hintText: context.l10n.absolutePathHint,
@@ -214,7 +214,10 @@ class _NewSessionPageState extends State<NewSessionPage> {
               const Spacer(),
               Text(
                 context.l10n.hiddenFolders,
-                style: TextStyle(color: colors.muted2, fontSize: 12),
+                style: TextStyle(
+                  color: colors.muted2,
+                  fontSize: BayaType.caption,
+                ),
               ),
               Switch(
                 value: state.showHidden,
@@ -268,7 +271,7 @@ class _NewSessionPageState extends State<NewSessionPage> {
                                 state.error!,
                                 style: TextStyle(
                                   color: colors.error,
-                                  fontSize: 13,
+                                  fontSize: BayaType.footnote,
                                 ),
                               ),
                             ),
@@ -323,7 +326,9 @@ class _NewSessionPageState extends State<NewSessionPage> {
                           folder.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: context.typo.mono.copyWith(fontSize: 13),
+                          style: context.typo.mono.copyWith(
+                            fontSize: BayaType.footnote,
+                          ),
                         ),
                         trailing: Icon(
                           LucideIcons.chevronRight,
@@ -343,7 +348,10 @@ class _NewSessionPageState extends State<NewSessionPage> {
                     padding: const EdgeInsets.all(20),
                     child: Text(
                       context.l10n.first300Folders,
-                      style: TextStyle(color: colors.muted, fontSize: 11),
+                      style: TextStyle(
+                        color: colors.muted,
+                        fontSize: BayaType.caption,
+                      ),
                     ),
                   ),
                 ),
@@ -548,7 +556,7 @@ class _AlsoRun extends StatelessWidget {
           Text(
             l10n.alsoRunWith,
             style: context.typo.sansBody.copyWith(
-              fontSize: 12,
+              fontSize: BayaType.caption,
               color: colors.muted2,
             ),
           ),

@@ -14,11 +14,21 @@ type Json = Record<string, unknown>;
 
 export interface TerminalPhone {
   notify(method: string, params: Json): void;
-  sendData(stream: number, offset: number, bytes: Buffer): Promise<void>;
+  sendData(stream: number, offset: number, bytes: Buffer, buffer?: number): Promise<void>;
 }
 
-/** Scrollback shown above the screen when a phone attaches. */
-const HISTORY = 2000;
+/**
+ * Scrollback sent above the screen when a phone attaches: a few screens, so
+ * the first paint is quick; the phone parses every byte of it.
+ */
+const HISTORY = 300;
+/**
+ * Terminal bytes the phone's socket may hold before hc is told to wait. Kept
+ * small so a keystroke's echo never queues behind seconds of output: past
+ * it hc falls behind, and a viewer far enough behind gets a fresh paint of
+ * the screen rather than the backlog.
+ */
+const SOCKET_BUFFER = 256 * 1024;
 /** Events that land within this long reach phones as one change. */
 const SETTLE_MS = 150;
 
@@ -169,7 +179,7 @@ export class PhoneTerminals {
           data: async (bytes) => {
             const offset = entry.offset;
             entry.offset += bytes.length;
-            await this.phone.sendData(stream, offset, bytes);
+            await this.phone.sendData(stream, offset, bytes, SOCKET_BUFFER);
           },
           close: (reason) => {
             if (this.streams.get(stream) !== entry) return;

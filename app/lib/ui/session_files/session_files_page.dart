@@ -325,7 +325,7 @@ class _DirectoryView extends StatelessWidget {
               context.l10n.first500Entries,
               style: context.typo.sansBody.copyWith(
                 color: context.colors.muted,
-                fontSize: 12,
+                fontSize: BayaType.caption,
               ),
             ),
           ),
@@ -405,7 +405,7 @@ class _Breadcrumbs extends StatelessWidget {
               child: Text(
                 crumbs[i].$1,
                 style: context.typo.sansBody.copyWith(
-                  fontSize: 14,
+                  fontSize: BayaType.subhead,
                   fontWeight: i == crumbs.length - 1
                       ? FontWeight.w600
                       : FontWeight.w500,
@@ -448,7 +448,7 @@ class _FileRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
           child: Row(
             children: [
-              Icon(icon, size: 19, color: iconColor ?? context.colors.muted2),
+              Icon(icon, size: 20, color: iconColor ?? context.colors.muted2),
               const SizedBox(width: 11),
               Expanded(
                 child: Column(
@@ -459,7 +459,7 @@ class _FileRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: context.typo.sansBody.copyWith(
-                        fontSize: 14.5,
+                        fontSize: BayaType.subhead,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -469,7 +469,7 @@ class _FileRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: context.typo.monoSmall.copyWith(
-                        fontSize: 10.5,
+                        fontSize: BayaType.caption,
                         color: context.colors.muted,
                       ),
                     ),
@@ -477,7 +477,7 @@ class _FileRow extends StatelessWidget {
                 ),
               ),
               if (trailing != null)
-                Icon(trailing, size: 17, color: context.colors.muted),
+                Icon(trailing, size: 18, color: context.colors.muted),
             ],
           ),
         ),
@@ -651,7 +651,7 @@ class _FileViewState extends State<_FileView> {
                 context.l10n.first256Kb,
                 style: context.typo.sansBody.copyWith(
                   color: context.colors.warning,
-                  fontSize: 12,
+                  fontSize: BayaType.caption,
                 ),
               ),
             ),
@@ -680,7 +680,7 @@ class _FileHeader extends StatelessWidget {
             children: [
               Icon(
                 _fileIcon(file.name),
-                size: 19,
+                size: 20,
                 color: context.colors.highlight,
               ),
               const SizedBox(width: 9),
@@ -809,7 +809,7 @@ class _MetadataChip extends StatelessWidget {
         label,
         style: context.typo.sansBody.copyWith(
           color: context.colors.muted2,
-          fontSize: 10.5,
+          fontSize: BayaType.caption,
         ),
       ),
     );
@@ -854,7 +854,7 @@ class _FileNotice extends StatelessWidget {
                   message,
                   style: context.typo.sansBody.copyWith(
                     color: context.colors.muted,
-                    fontSize: 12.5,
+                    fontSize: BayaType.caption,
                   ),
                 ),
               ],
@@ -886,13 +886,13 @@ class _ErrorView extends StatelessWidget {
               textAlign: TextAlign.center,
               style: context.typo.sansBody.copyWith(
                 color: context.colors.muted2,
-                fontSize: 13.5,
+                fontSize: BayaType.footnote,
               ),
             ),
             const SizedBox(height: 16),
             BayaButton(
               onPressed: onRetry,
-              icon: const Icon(LucideIcons.refreshCw, size: 17),
+              icon: const Icon(LucideIcons.refreshCw, size: 18),
               label: Text(context.l10n.tryAgain),
               prominent: false,
             ),

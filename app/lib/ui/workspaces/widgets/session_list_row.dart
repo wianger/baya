@@ -48,16 +48,16 @@ class DrawerLine extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                Icon(icon, size: 22, color: colors.text),
-                const SizedBox(width: 18),
+                Icon(icon, size: 20, color: colors.text),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.typo.sansBody.copyWith(
-                      fontSize: 17,
-                      height: 24 / 17,
+                      fontSize: BayaType.callout,
+                      height: 24 / 16,
                       color: colors.text,
                       fontWeight: highlighted
                           ? FontWeight.w500

@@ -651,7 +651,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                             onPressed: _jumpToLatest,
                             icon: const Icon(
                               LucideIcons.arrowDown,
-                              size: 19,
+                              size: 20,
                               color: Colors.white,
                             ),
                           ),

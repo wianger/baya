@@ -24,7 +24,8 @@ void main() {
   ) async {
     final colors = buildLightTheme().extension<AppColors>()!;
     final expected = {
-      BayaSurfaceRole.card: colors.surface,
+      // A card is filled like a group on a white page.
+      BayaSurfaceRole.card: colors.inputFill,
       BayaSurfaceRole.control: colors.inputFill,
       BayaSurfaceRole.content: colors.codeBg,
       BayaSurfaceRole.user: colors.userBubble,

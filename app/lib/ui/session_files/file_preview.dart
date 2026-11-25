@@ -444,7 +444,7 @@ class DelimitedTable extends StatelessWidget {
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
           style: context.typo.sansBody.copyWith(
-            fontSize: 13,
+            fontSize: BayaType.footnote,
             fontWeight: head ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
@@ -479,7 +479,7 @@ class DelimitedTable extends StatelessWidget {
               context.l10n.firstRows(_maxRows),
               style: context.typo.sansBody.copyWith(
                 color: colors.muted,
-                fontSize: 12,
+                fontSize: BayaType.caption,
               ),
             ),
           ),
@@ -570,7 +570,7 @@ class _ArchiveViewState extends State<_ArchiveView> {
                   context.l10n.archiveEntries(entries.length),
                   style: context.typo.sansBody.copyWith(
                     color: colors.muted,
-                    fontSize: 12.5,
+                    fontSize: BayaType.caption,
                   ),
                 ),
               );

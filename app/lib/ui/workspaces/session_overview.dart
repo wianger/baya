@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:app/data/launcher/launcher.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
+import 'package:app/ui/core/branding/baya_intro.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
@@ -53,13 +54,13 @@ class SessionWelcome extends StatelessWidget {
                   key: const Key('workspace-overview'),
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Hero(tag: 'baya-mark', child: AppMark(size: 64)),
-                    const SizedBox(height: 10),
+                    const AppMark(size: kHomeMarkSize),
+                    const SizedBox(height: kHomeMarkGap),
                     Text(
                       kAppName,
                       key: const Key('overview-wordmark'),
                       style: brandDisplayTextStyle(
-                        fontSize: 44,
+                        fontSize: kHomeWordmarkSize,
                         color: colors.text,
                       ),
                     ),
@@ -174,19 +175,16 @@ class _HomeComposerState extends State<HomeComposer> {
                   maxLines: 6,
                   keyboardType: TextInputType.multiline,
                   textInputAction: TextInputAction.newline,
-                  style: context.typo.sansBody.copyWith(fontSize: 16),
+                  style: context.typo.sansBody.copyWith(
+                    fontSize: BayaType.callout,
+                  ),
                   cursorColor: colors.accent,
-                  decoration: InputDecoration(
-                    hintText: l10n.homeComposerHint,
-                    hintStyle: context.typo.sansBody.copyWith(
-                      fontSize: 16,
-                      color: colors.muted,
-                    ),
+                  decoration: const InputDecoration(
                     filled: false,
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
+                    contentPadding: EdgeInsets.symmetric(
                       horizontal: 4,
                       vertical: 11,
                     ),

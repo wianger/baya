@@ -115,4 +115,23 @@ void main() {
     expect(find.textContaining('[!WARNING]'), findsNothing);
     expect(find.textContaining('Run the tests first.'), findsOneWidget);
   });
+
+  testWidgets('a table straight under text is still a table', (tester) async {
+    await pump(
+      tester,
+      'Intro line\n| A | B |\n| --- | --- |\n| 1 | 2 |\nAfter',
+    );
+    await tester.pump();
+    expect(find.byType(Table), findsOneWidget);
+    expect(find.textContaining('After'), findsOneWidget);
+  });
+
+  test('tables get their blank lines, code blocks are left alone', () {
+    expect(
+      separateTables('Text\n| A | B |\n| - | - |\n| 1 | 2 |\nMore'),
+      'Text\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\nMore',
+    );
+    const code = '```\nText\n| A |\n| - |\n```';
+    expect(separateTables(code), code);
+  });
 }

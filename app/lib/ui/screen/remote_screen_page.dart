@@ -394,7 +394,10 @@ class _Status extends StatelessWidget {
                     : l10n.remoteControlConnecting(label),
                 key: const Key('remote-screen-status'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: BayaType.callout,
+                ),
               ),
               if (!ended && session.stage == 'pair') ...[
                 const SizedBox(height: 8),
@@ -402,7 +405,10 @@ class _Status extends StatelessWidget {
                   l10n.remoteControlPairing,
                   key: const Key('remote-screen-pairing'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: BayaType.footnote,
+                  ),
                 ),
               ],
               if (ended && session.reason != null) ...[
@@ -416,7 +422,10 @@ class _Status extends StatelessWidget {
                     final other => other!,
                   },
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: BayaType.footnote,
+                  ),
                 ),
               ],
               if (ended) ...[
@@ -485,7 +494,7 @@ class _Toolbar extends StatelessWidget {
         foregroundColor: on ? Colors.black : Colors.white,
         minimumSize: const Size(40, 40),
       ),
-      icon: Icon(icon, size: 19),
+      icon: Icon(icon, size: 20),
     );
     return DecoratedBox(
       decoration: ShapeDecoration(
@@ -511,7 +520,7 @@ class _Toolbar extends StatelessWidget {
                 child: Icon(
                   LucideIcons.wifiLow,
                   key: Key('remote-screen-poor'),
-                  size: 17,
+                  size: 18,
                   color: Colors.white70,
                 ),
               ),
@@ -542,7 +551,7 @@ class _Toolbar extends StatelessWidget {
               tooltip: l10n.quality,
               icon: const Icon(
                 LucideIcons.gauge,
-                size: 19,
+                size: 20,
                 color: Colors.white,
               ),
               initialValue: quality,
@@ -609,7 +618,7 @@ class _Keys extends StatelessWidget {
                 child: Text(
                   label,
                   style: context.typo.monoSmall.copyWith(
-                    fontSize: 13,
+                    fontSize: BayaType.footnote,
                     fontWeight: FontWeight.w600,
                     color: on ? Colors.black : Colors.white,
                   ),

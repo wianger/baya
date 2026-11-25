@@ -1,4 +1,5 @@
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_group.dart';
 import 'package:flutter/material.dart';
 
 /// What a surface is for. Hierarchy comes from tone, a hairline edge and
@@ -49,7 +50,14 @@ class BayaSurface extends StatelessWidget {
     final corners = borderRadius ?? BorderRadius.circular(radius);
     final fill = switch (role) {
       BayaSurfaceRole.navigation => colors.codeBg,
-      BayaSurfaceRole.card => colors.surface,
+      // A card is the same as a group: white on a grey page, grey on a
+      // white one, never outlined.
+      BayaSurfaceRole.card =>
+        BayaTintedPage.of(context)
+            ? (Theme.of(context).brightness == Brightness.dark
+                  ? colors.modelBadgeBg
+                  : colors.bg)
+            : colors.inputFill,
       BayaSurfaceRole.control => colors.inputFill,
       BayaSurfaceRole.content => colors.codeBg,
       BayaSurfaceRole.user => colors.userBubble,
@@ -61,13 +69,14 @@ class BayaSurface extends StatelessWidget {
             : colors.bg,
     };
     final hairline = switch (role) {
-      BayaSurfaceRole.card ||
       BayaSurfaceRole.content ||
       BayaSurfaceRole.overlay ||
       BayaSurfaceRole.brand ||
       BayaSurfaceRole.floating ||
       BayaSurfaceRole.control => true,
-      BayaSurfaceRole.navigation || BayaSurfaceRole.user => false,
+      BayaSurfaceRole.card ||
+      BayaSurfaceRole.navigation ||
+      BayaSurfaceRole.user => false,
     };
     final outline = emphasized
         ? BorderSide(color: emphasisColor ?? colors.accent, width: 1.2)

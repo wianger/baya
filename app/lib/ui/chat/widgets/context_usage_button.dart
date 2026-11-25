@@ -57,7 +57,7 @@ class ContextUsageButton extends StatelessWidget {
                     child: Text(
                       fraction == null ? '—' : '${(fraction * 100).round()}%',
                       style: context.typo.sansBody.copyWith(
-                        fontSize: 11,
+                        fontSize: BayaType.caption,
                         fontWeight: FontWeight.w500,
                         color: enabled ? colors.text : colors.muted,
                       ),

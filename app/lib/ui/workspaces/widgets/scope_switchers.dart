@@ -193,7 +193,7 @@ class _EmptyWorkspaceList extends StatelessWidget {
           Text(
             context.l10n.noWorkspacesYet,
             style: context.typo.sansBody.copyWith(
-              fontSize: 15,
+              fontSize: BayaType.body,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -202,7 +202,7 @@ class _EmptyWorkspaceList extends StatelessWidget {
             context.l10n.createWorkspaceHint,
             style: context.typo.sansBody.copyWith(
               color: colors.muted,
-              fontSize: 13,
+              fontSize: BayaType.footnote,
             ),
           ),
         ],

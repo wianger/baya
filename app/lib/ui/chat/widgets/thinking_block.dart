@@ -64,7 +64,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
     final colors = context.colors;
     final text = widget.text.trim();
     final style = context.typo.sansBody.copyWith(
-      fontSize: 14,
+      fontSize: BayaType.subhead,
       color: colors.muted2,
       fontWeight: FontWeight.w500,
     );
@@ -91,7 +91,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(LucideIcons.sparkle, size: 15, color: colors.muted),
+                Icon(LucideIcons.sparkle, size: 16, color: colors.muted),
                 const SizedBox(width: 8),
                 Flexible(
                   child: widget.complete
@@ -105,7 +105,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                     duration: BayaMotion.fast,
                     child: Icon(
                       LucideIcons.chevronRight,
-                      size: 15,
+                      size: 16,
                       color: colors.muted,
                     ),
                   ),
@@ -137,7 +137,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                         child: AgentMarkdown(
                           text,
                           selectable: widget.complete,
-                          fontSize: 14,
+                          fontSize: BayaType.subhead,
                           color: colors.muted2,
                         ),
                       ),
@@ -217,7 +217,7 @@ class _ThoughtWindowState extends State<_ThoughtWindow> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final style = context.typo.sansBody.copyWith(
-      fontSize: 13.5,
+      fontSize: BayaType.footnote,
       height: 1.55,
       color: colors.muted2,
     );

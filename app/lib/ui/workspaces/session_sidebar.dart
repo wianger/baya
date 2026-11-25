@@ -228,7 +228,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: DeviceSwitcher(
                               key: const Key('device-selector'),
                               devices: {
@@ -249,7 +249,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: WorkspaceSwitcher(
                               key: const Key('workspace-selector'),
                               workspaces: workspaces,
@@ -301,7 +301,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                                 context.l10n.parallelRuns,
                                 style: context.typo.sansBody.copyWith(
                                   color: colors.muted,
-                                  fontSize: 14,
+                                  fontSize: BayaType.subhead,
                                 ),
                               ),
                             ),
@@ -324,7 +324,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                               context.l10n.recents,
                               style: context.typo.sansBody.copyWith(
                                 color: colors.muted,
-                                fontSize: 15,
+                                fontSize: BayaType.body,
                               ),
                             ),
                           ),
@@ -343,7 +343,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                                 style: TextStyle(
                                   color: colors.muted,
                                   height: 1.6,
-                                  fontSize: 14,
+                                  fontSize: BayaType.subhead,
                                 ),
                               ),
                             )
@@ -386,7 +386,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                                     style: TextButton.styleFrom(
                                       foregroundColor: colors.muted,
                                       textStyle: context.typo.sansBody.copyWith(
-                                        fontSize: 15,
+                                        fontSize: BayaType.body,
                                       ),
                                     ),
                                     child: Row(

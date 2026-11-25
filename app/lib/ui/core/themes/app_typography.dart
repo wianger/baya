@@ -152,3 +152,28 @@ class AppTypography extends ThemeExtension<AppTypography> {
     );
   }
 }
+
+/// The app's only text sizes. Every `fontSize` in the UI is one of these, so
+/// the same kind of text is the same size on every screen.
+abstract final class BayaType {
+  /// Badges, timestamps, small print.
+  static const double caption = 12;
+
+  /// Secondary lines: subtitles, hints, metadata, code.
+  static const double footnote = 13;
+
+  /// Labels and compact rows.
+  static const double subhead = 14;
+
+  /// Body text and list rows.
+  static const double body = 15;
+
+  /// Inputs, composer and menu items.
+  static const double callout = 16;
+
+  /// Page and sheet titles.
+  static const double title = 17;
+
+  /// Large headings.
+  static const double headline = 20;
+}

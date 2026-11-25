@@ -32,7 +32,7 @@ class BayaSectionLabel extends StatelessWidget {
     child: Text(
       label,
       style: context.typo.sansBody.copyWith(
-        fontSize: 14,
+        fontSize: BayaType.subhead,
         height: 20 / 14,
         color: context.colors.muted,
       ),
@@ -63,13 +63,10 @@ class BayaGroup extends StatelessWidget {
           : tinted
           ? card
           : colors.inputFill,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tinted ? 24 : 16),
-        side: danger
-            ? BorderSide(color: colors.error.withValues(alpha: .35))
-            : tinted
-            ? BorderSide.none
-            : BorderSide(color: colors.border),
+      // One card everywhere: the same corners and no edge; only its fill
+      // follows the ground (white on grey, grey on white).
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(22)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -77,7 +74,13 @@ class BayaGroup extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) Divider(height: 1, indent: 50, color: colors.border),
+            if (i > 0)
+              Divider(
+                height: .5,
+                thickness: .5,
+                indent: 52,
+                color: colors.border,
+              ),
             children[i],
           ],
         ],
@@ -136,103 +139,112 @@ class BayaRow extends StatelessWidget {
       onLongPress: onLongPress,
       child: Ink(
         color: highlighted ? colors.selection : null,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            13,
-            trailing == null || trailing is Icon ? 16 : 10,
-            13,
-          ),
-          child: Row(
-            children: [
-              if (icon != null) ...[
-                _Spin(
-                  spinning: spinning,
-                  child: Icon(
-                    icon,
-                    size: 18,
-                    color: destructive
-                        ? tint
-                        : spinning
-                        ? colors.working
-                        : selected
-                        ? colors.accent
-                        : colors.muted2,
-                  ),
-                ),
-                const SizedBox(width: 16),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.typo.sansBody.copyWith(
-                        fontSize: 15,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: onTap == null && !selected ? colors.muted : tint,
-                      ),
+        // One height for every row, with or without a switch.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 54),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              trailing == null || trailing is Icon ? 16 : 10,
+              8,
+            ),
+            child: Row(
+              children: [
+                if (icon != null) ...[
+                  _Spin(
+                    spinning: spinning,
+                    // The app's one row: a 20 icon in the text colour, a
+                    // 16 label, 54 tall (drawer, settings, sheets).
+                    child: Icon(
+                      icon,
+                      size: 20,
+                      color: destructive
+                          ? tint
+                          : spinning
+                          ? colors.working
+                          : colors.text,
                     ),
-                    if (subtitle case final text? when text.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          text,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              (monospaceSubtitle
-                                      ? context.typo.monoSmall
-                                      : context.typo.sansBody)
-                                  .copyWith(fontSize: 12, color: colors.muted),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.typo.sansBody.copyWith(
+                          fontSize: BayaType.callout,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: onTap == null && !selected
+                              ? colors.muted
+                              : tint,
                         ),
                       ),
-                  ],
+                      if (subtitle case final text? when text.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            text,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                (monospaceSubtitle
+                                        ? context.typo.monoSmall
+                                        : context.typo.sansBody)
+                                    .copyWith(
+                                      fontSize: BayaType.caption,
+                                      color: colors.muted,
+                                    ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              // The value sits against the row's end, beside its arrow.
-              if (value case final text?)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 150),
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 12),
-                    child: Text(
-                      text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.end,
-                      style: context.typo.sansBody.copyWith(
-                        fontSize: 14,
-                        color: colors.muted,
+                // The value sits against the row's end, beside its arrow.
+                if (value case final text?)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 150),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: Text(
+                        text,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: context.typo.sansBody.copyWith(
+                          fontSize: BayaType.subhead,
+                          color: colors.muted,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              if (selected)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Icon(
-                    LucideIcons.check,
-                    size: 17,
-                    color: colors.accent,
+                if (selected)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Icon(
+                      LucideIcons.check,
+                      size: 18,
+                      color: colors.accent,
+                    ),
                   ),
-                ),
-              ?trailing,
-              if (chevron)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Icon(
-                    LucideIcons.chevronRight,
-                    size: 16,
-                    color: colors.muted,
+                ?trailing,
+                if (chevron)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Icon(
+                      LucideIcons.chevronRight,
+                      size: 16,
+                      color: colors.muted,
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

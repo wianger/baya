@@ -289,7 +289,7 @@ class _Counts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final style = context.typo.monoSmall.copyWith(fontSize: 11.5);
+    final style = context.typo.monoSmall.copyWith(fontSize: BayaType.caption);
     return Padding(
       padding: const EdgeInsets.only(left: 8),
       child: fresh
@@ -499,7 +499,7 @@ class _FileChangesState extends State<_FileChanges> {
                                 first?.newNumber ?? first?.oldNumber ?? 1,
                               ),
                               style: context.typo.monoSmall.copyWith(
-                                fontSize: 11,
+                                fontSize: BayaType.caption,
                                 color: colors.muted,
                               ),
                             ),
@@ -517,12 +517,14 @@ class _FileChangesState extends State<_FileChanges> {
                                   : colors.muted2,
                               visualDensity: VisualDensity.compact,
                             ),
-                            icon: const Icon(LucideIcons.undo2, size: 15),
+                            icon: const Icon(LucideIcons.undo2, size: 16),
                             label: Text(
                               confirming
                                   ? context.l10n.confirmRevert
                                   : context.l10n.revert,
-                              style: const TextStyle(fontSize: 13),
+                              style: const TextStyle(
+                                fontSize: BayaType.footnote,
+                              ),
                             ),
                           ),
                         ],

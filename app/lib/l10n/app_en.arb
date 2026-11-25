@@ -143,7 +143,6 @@
   "couldNotReadFile": "Could not read file.",
   "chatAndAppearance": "Chat & appearance",
   "information": "Information",
-  "aboutHint": "Version, updates and project links",
   "themeSystem": "System",
   "themeLight": "Light",
   "themeDark": "Dark",
@@ -231,22 +230,6 @@
   },
   "aboutTagline": "Your coding agents, from your phone.",
   "updateKeepsDataAndroid": "Your pairings and settings are kept when Android installs the update.",
-  "replyToAgentOrTalk": "Reply to {agent} or hold to talk…",
-  "@replyToAgentOrTalk": {
-    "placeholders": {
-      "agent": {
-        "type": "String"
-      }
-    }
-  },
-  "replyToAgent": "Reply to {agent}…",
-  "@replyToAgent": {
-    "placeholders": {
-      "agent": {
-        "type": "String"
-      }
-    }
-  },
   "sendCommandToAgent": "Send /{command} to the agent",
   "@sendCommandToAgent": {
     "placeholders": {
@@ -431,7 +414,6 @@
   "details": "Details",
   "sessionOffline": "The computer is offline. The conversation appears when it reconnects.",
   "yourAgent": "your agent",
-  "queueFollowUp": "Queue a follow-up…",
   "sessionId": "Session",
   "hostUnreachable": "Can't reach {name}.",
   "@hostUnreachable": {
@@ -761,7 +743,6 @@
     }
   },
   "phoneForAgents": "Let agents use this phone",
-  "phoneForAgentsSettingsHint": "Wireless debugging: agents on the computer use adb",
   "phoneForAgentsHint": "The computer's agents can then work on this phone with adb: screenshots, taps and typing, logs, installing an APK. It goes over your tailnet, and stops when you turn Wireless debugging off.",
   "noComputerOnline": "No computer is online. Open Baya on a computer, then come back.",
   "adbChecking": "Asking {computer} for its adb…",
@@ -842,8 +823,6 @@
   },
   "sessionNameEverywhere": "Shown on every phone and terminal; nothing renames it after you.",
   "notifications": "Notifications",
-  "notificationsHint": "While an agent works it stays in the status bar; you're told when it finishes or needs you",
-  "notificationsOffInSystem": "Turned off in Android settings. Tap to turn them on",
   "agentNeedsApproval": "{agent} needs your approval",
   "@agentNeedsApproval": {
     "placeholders": {
@@ -1007,7 +986,6 @@
   "share": "Share",
   "fontPreviewQuestion": "Preview the text size",
   "fontPreviewAnswer": "Drag the slider below to change the text size. Replies, code and lists all follow it.",
-  "homeComposerHint": "Start a session",
   "recents": "Recents",
   "viewAll": "View all",
   "closeSearchSheet": "Close"

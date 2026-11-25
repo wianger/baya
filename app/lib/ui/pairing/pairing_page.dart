@@ -189,7 +189,10 @@ class _PairingPageState extends State<PairingPage> {
                     ? context.l10n.connectingTo(sessionName ?? '')
                     : context.l10n.pointCameraAtQr,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colors.text, fontSize: 14),
+                style: TextStyle(
+                  color: colors.text,
+                  fontSize: BayaType.subhead,
+                ),
               ),
             ),
           ),
@@ -330,7 +333,7 @@ class _ErrorView extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: context.typo.sansBody.copyWith(
                       color: colors.muted2,
-                      fontSize: 14,
+                      fontSize: BayaType.subhead,
                       height: 1.45,
                     ),
                   ),

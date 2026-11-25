@@ -123,7 +123,7 @@ class _RecordingStripState extends State<RecordingStrip>
           key: const Key('recording-strip-timer'),
           style: TextStyle(
             fontFamily: kMonoFamily,
-            fontSize: 13,
+            fontSize: BayaType.footnote,
             color: timerColor,
             fontWeight: FontWeight.w500,
           ),
@@ -218,7 +218,7 @@ class _SlideToCancelHint extends StatelessWidget {
           context.l10n.slideToCancel,
           style: TextStyle(
             fontFamily: kMonoFamily,
-            fontSize: 11,
+            fontSize: BayaType.caption,
             color: colors.muted,
           ),
         ),
@@ -240,7 +240,7 @@ class _CancelHint extends StatelessWidget {
           context.l10n.releaseToCancel,
           style: TextStyle(
             fontFamily: kMonoFamily,
-            fontSize: 12,
+            fontSize: BayaType.caption,
             color: colors.error,
             fontWeight: FontWeight.w500,
           ),

@@ -39,7 +39,7 @@ class WelcomeStep extends StatelessWidget {
                   context.l10n.aboutTagline,
                   textAlign: TextAlign.center,
                   style: context.typo.sansBody.copyWith(
-                    fontSize: 16,
+                    fontSize: BayaType.callout,
                     fontWeight: FontWeight.w500,
                     color: colors.muted2,
                   ),
@@ -110,7 +110,7 @@ class _FeatureRow extends StatelessWidget {
             color: colors.selection,
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Icon(icon, size: 19, color: colors.accent),
+          child: Icon(icon, size: 20, color: colors.accent),
         ),
         const SizedBox(width: 13),
         Expanded(
@@ -120,7 +120,7 @@ class _FeatureRow extends StatelessWidget {
               Text(
                 title,
                 style: context.typo.sansBody.copyWith(
-                  fontSize: 14.5,
+                  fontSize: BayaType.subhead,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -128,7 +128,7 @@ class _FeatureRow extends StatelessWidget {
               Text(
                 subtitle,
                 style: context.typo.sansBody.copyWith(
-                  fontSize: 12.5,
+                  fontSize: BayaType.caption,
                   height: 1.35,
                   color: colors.muted,
                 ),

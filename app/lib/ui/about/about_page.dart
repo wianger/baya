@@ -141,7 +141,7 @@ class AboutPage extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: context.typo.sansBody.copyWith(
                           color: colors.muted2,
-                          fontSize: 15,
+                          fontSize: BayaType.body,
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -211,7 +211,7 @@ class AboutPage extends StatelessWidget {
                                   context.l10n.updateKeepsDataAndroid,
                                   style: context.typo.sansBody.copyWith(
                                     color: colors.muted,
-                                    fontSize: 12,
+                                    fontSize: BayaType.caption,
                                   ),
                                 ),
                               ],
@@ -280,7 +280,7 @@ class _Chip extends StatelessWidget {
           child: Text(
             text,
             style: context.typo.sansBody.copyWith(
-              fontSize: 13,
+              fontSize: BayaType.footnote,
               fontWeight: FontWeight.w600,
               color: filled ? colors.onAccent : colors.text,
             ),

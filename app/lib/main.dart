@@ -17,6 +17,7 @@ import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/branding/baya_intro.dart';
 import 'package:app/ui/core/themes/app_font_licenses.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/liquid_morph.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
 import 'package:app/ui/update/update_prompt.dart';
 import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
@@ -252,9 +253,11 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
           builder: (context, child) => MediaQuery.withClampedTextScaling(
             minScaleFactor: prefs.fontScale.factor,
             maxScaleFactor: prefs.fontScale.factor,
-            child: BayaIntro(
-              enabled: !_underTest,
-              child: child ?? const SizedBox.shrink(),
+            child: BayaTapOrigin.track(
+              BayaIntro(
+                enabled: !_underTest,
+                child: child ?? const SizedBox.shrink(),
+              ),
             ),
           ),
         ),

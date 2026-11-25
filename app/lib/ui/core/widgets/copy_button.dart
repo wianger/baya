@@ -55,7 +55,7 @@ class _BayaCopyButtonState extends State<BayaCopyButton> {
       onPressed: _copy,
       tooltip: _copied ? context.l10n.copied : widget.tooltip,
       visualDensity: VisualDensity.compact,
-      iconSize: 15,
+      iconSize: 16,
       color: tint,
       icon: AnimatedSwitcher(
         duration: const Duration(milliseconds: 150),
