@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Everything stays HTTPS, except the web preview: the WebView loads the
-     app's own proxy on this phone's loopback, which forwards over
-     Tailscale's HTTPS to the computer. -->
+<!-- Everything stays HTTPS, except remote control: Moonlight speaks plain
+     HTTP to Sunshine (port 47989) for its pairing and server info. It only
+     ever goes to the computer's tailnet name, inside Tailscale's encrypted
+     WireGuard tunnel. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="true">ts.net</domain>
     </domain-config>
 </network-security-config>

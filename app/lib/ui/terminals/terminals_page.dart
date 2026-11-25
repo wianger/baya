@@ -321,7 +321,7 @@ class _TerminalRow extends StatelessWidget {
         trailing: Text(
           terminal.address,
           style: context.typo.monoSmall.copyWith(
-            fontSize: 11,
+            fontSize: BayaType.caption,
             color: colors.muted,
           ),
         ),
@@ -391,7 +391,9 @@ class _NewTerminalSheetState extends State<_NewTerminalSheet> {
                     autocorrect: false,
                     enableSuggestions: false,
                     textInputAction: TextInputAction.go,
-                    style: context.typo.mono.copyWith(fontSize: 14),
+                    style: context.typo.mono.copyWith(
+                      fontSize: BayaType.subhead,
+                    ),
                     decoration: InputDecoration(
                       isDense: true,
                       filled: false,
@@ -430,7 +432,7 @@ class _NewTerminalSheetState extends State<_NewTerminalSheet> {
                   label: Text(
                     suggestion,
                     style: context.typo.monoSmall.copyWith(
-                      fontSize: 13,
+                      fontSize: BayaType.footnote,
                       color: colors.text,
                     ),
                   ),
@@ -478,7 +480,7 @@ class _Message extends StatelessWidget {
             detail!,
             textAlign: TextAlign.center,
             style: context.typo.monoSmall.copyWith(
-              fontSize: 12,
+              fontSize: BayaType.caption,
               color: colors.text,
             ),
           ),

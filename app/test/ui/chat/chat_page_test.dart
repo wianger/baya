@@ -87,6 +87,10 @@ Future<_Chat> _pump(
   double width = 412,
   double textScale = 1,
 }) async {
+  // A phone's height: the composer's card needs the room.
+  tester.view.physicalSize = const Size(900, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   FlutterSecureStorage.setMockInitialValues({});
   final prefs = Preferences();
   await prefs.load();
@@ -204,6 +208,10 @@ void main() {
       },
     ];
     await tester.enterText(find.byType(TextField), 'Fix it');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
     await tester.tap(find.byKey(const Key('input-bar-action')));
     await tester.pumpAndSettle();
@@ -298,6 +306,10 @@ void main() {
     expect(tester.widget<FilledButton>(submit).onPressed, isNull);
 
     await tester.enterText(find.byKey(const ValueKey('field-branch')), 'main');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.tap(find.byKey(const ValueKey('field-push')));
     await tester.pump();
     await tester.tap(submit);
@@ -333,6 +345,10 @@ void main() {
     computer.handlers['_baya/authenticate'] = (_) => const <String, dynamic>{};
     final chat = await _pump(tester, computer: computer);
     await tester.enterText(find.byType(TextField), 'Fix it');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
     await tester.tap(find.byKey(const Key('input-bar-action')));
     await tester.pumpAndSettle();
@@ -376,6 +392,10 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), 'Look at this');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
     await tester.tap(find.byKey(const Key('input-bar-action')));
     await tester.pumpAndSettle();

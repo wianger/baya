@@ -50,7 +50,7 @@ class DevicePickerField extends StatelessWidget {
           Text(
             statusLabel,
             style: context.typo.sansBody.copyWith(
-              fontSize: 11.5,
+              fontSize: BayaType.caption,
               height: 1.15,
               color: statusColor,
             ),
@@ -60,7 +60,7 @@ class DevicePickerField extends StatelessWidget {
       supportingSemantics: statusLabel,
       leading: Icon(
         LucideIcons.monitor,
-        size: 19,
+        size: 20,
         color: active ? colors.accent : colors.muted,
       ),
       enabled: active,

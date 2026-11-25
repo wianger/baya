@@ -80,7 +80,7 @@ class _PermissionCardState extends State<PermissionCard> {
                       padding: const EdgeInsets.only(top: 2),
                       child: Icon(
                         LucideIcons.shieldQuestion,
-                        size: 17,
+                        size: 18,
                         color: colors.accent,
                       ),
                     ),
@@ -92,7 +92,7 @@ class _PermissionCardState extends State<PermissionCard> {
                           Text(
                             context.l10n.agentWaitingApproval,
                             style: context.typo.sansBody.copyWith(
-                              fontSize: 12,
+                              fontSize: BayaType.caption,
                               color: colors.muted,
                             ),
                           ),
@@ -102,7 +102,7 @@ class _PermissionCardState extends State<PermissionCard> {
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                             style: context.typo.sansBody.copyWith(
-                              fontSize: 15,
+                              fontSize: BayaType.body,
                               fontWeight: FontWeight.w600,
                               color: colors.text,
                             ),
@@ -119,7 +119,7 @@ class _PermissionCardState extends State<PermissionCard> {
                         _details
                             ? LucideIcons.chevronDown
                             : LucideIcons.chevronRight,
-                        size: 17,
+                        size: 18,
                         color: colors.muted,
                       ),
                     ),

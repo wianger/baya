@@ -45,7 +45,7 @@ Future<void> showUpdatePrompt(
               dialogContext.l10n.updateKeepsDataAndroid,
               style: dialogContext.typo.sansBody.copyWith(
                 color: colors.muted,
-                fontSize: 12,
+                fontSize: BayaType.caption,
               ),
             ),
           ],

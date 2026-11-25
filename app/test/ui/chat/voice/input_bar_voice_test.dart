@@ -110,6 +110,10 @@ void main() {
   ) async {
     await pumpBar(tester);
     await tester.enterText(find.byType(TextField), 'draft');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
     expect(find.byIcon(LucideIcons300.mic), findsOneWidget);
 

@@ -43,15 +43,15 @@ class WorkspaceScopeField extends StatelessWidget {
       // choice, what it is in grey, and a chevron.
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           key: interactionKey,
           onTap: enabled ? onTap : null,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
+            constraints: const BoxConstraints(minHeight: 54),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
                   IconTheme.merge(
@@ -61,7 +61,7 @@ class WorkspaceScopeField extends StatelessWidget {
                     ),
                     child: leading,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,7 +72,7 @@ class WorkspaceScopeField extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: context.typo.sansBody.copyWith(
-                            fontSize: 16,
+                            fontSize: BayaType.callout,
                             height: 24 / 16,
                             fontWeight: FontWeight.w500,
                             color: enabled ? colors.text : colors.muted,
@@ -87,7 +87,7 @@ class WorkspaceScopeField extends StatelessWidget {
                     label,
                     maxLines: 1,
                     style: context.typo.sansBody.copyWith(
-                      fontSize: 13,
+                      fontSize: BayaType.footnote,
                       color: colors.muted,
                     ),
                   ),

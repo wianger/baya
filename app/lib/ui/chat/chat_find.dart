@@ -146,7 +146,7 @@ class _ChatFindBarState extends State<ChatFindBar> {
                 // Enter keeps the keyboard up and goes one hit further back.
                 onSubmitted: (_) => _step(older: true),
                 style: context.typo.sansBody.copyWith(
-                  fontSize: 15,
+                  fontSize: BayaType.body,
                   color: colors.text,
                 ),
                 // Bare text in the capsule: none of the theme's field box.
@@ -169,7 +169,7 @@ class _ChatFindBarState extends State<ChatFindBar> {
                   count == 0 ? l10n.findNoMatches : '$at/$count',
                   key: const Key('chat-find-count'),
                   style: context.typo.monoSmall.copyWith(
-                    fontSize: 12,
+                    fontSize: BayaType.caption,
                     color: count == 0 ? colors.warning : colors.muted,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),

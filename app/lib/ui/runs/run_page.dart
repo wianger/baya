@@ -391,7 +391,7 @@ class _MemberCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: context.typo.sansBody.copyWith(
-                          fontSize: 16,
+                          fontSize: BayaType.callout,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -421,7 +421,7 @@ class _MemberCard extends StatelessWidget {
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                     style: context.typo.sansBody.copyWith(
-                      fontSize: 14,
+                      fontSize: BayaType.subhead,
                       height: 1.42,
                       color: reply == null ? colors.muted : colors.text,
                     ),
@@ -431,7 +431,7 @@ class _MemberCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(LucideIcons.wrench, size: 13, color: colors.muted),
+                      Icon(LucideIcons.wrench, size: 14, color: colors.muted),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -528,7 +528,10 @@ class _Status extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           label,
-          style: context.typo.sansBody.copyWith(fontSize: 12, color: color),
+          style: context.typo.sansBody.copyWith(
+            fontSize: BayaType.caption,
+            color: color,
+          ),
         ),
       ],
     );

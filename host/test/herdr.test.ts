@@ -51,18 +51,18 @@ describe("herdr-core", () => {
     const attached = await terminals.attach({ terminal: "t1", stream: 9, cols: 50, rows: 20 });
     expect(attached["terminal"]).toMatchObject({ address: "t1" });
     await until(() => phone.bytes.length === 1);
-    expect(phone.bytes[0]).toEqual({ stream: 9, offset: 0, text: "paint 50x20 history=2000" });
+    expect(phone.bytes[0]).toEqual({ stream: 9, offset: 0, text: "paint 50x20 history=300" });
 
     terminals.input(9, "ls\r");
     terminals.resize(9, 61, 17);
     await until(() => phone.bytes.length === 3);
     expect(phone.bytes.slice(1)).toEqual([
-      { stream: 9, offset: 24, text: "echo:ls\r" },
-      { stream: 9, offset: 32, text: "size:61x17" },
+      { stream: 9, offset: 23, text: "echo:ls\r" },
+      { stream: 9, offset: 31, text: "size:61x17" },
     ]);
     // Every byte the phone took went back to hc as credit.
     const { credit } = await hc.call("terminal.get", { terminal: "t1" });
-    expect(credit).toBe(42);
+    expect(credit).toBe(41);
 
     await terminals.kill("t1");
     await until(() => phone.notes.some((n) => n.method === "_baya/terminal_closed"));

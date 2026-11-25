@@ -30,7 +30,7 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
       scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
       toolbarHeight: 64,
-      titleTextStyle: typo.title.copyWith(fontSize: 18),
+      titleTextStyle: typo.title.copyWith(fontSize: BayaType.headline),
     ),
     dividerTheme: DividerThemeData(
       color: colors.border,
@@ -40,7 +40,7 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
     listTileTheme: ListTileThemeData(
       iconColor: colors.muted,
       subtitleTextStyle: typo.sansBody.copyWith(
-        fontSize: 13,
+        fontSize: BayaType.footnote,
         color: colors.muted,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -60,7 +60,10 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
               states.contains(WidgetState.disabled) ? colors.muted : colors.bg,
         ),
         textStyle: WidgetStatePropertyAll(
-          typo.sansBody.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+          typo.sansBody.copyWith(
+            fontSize: BayaType.body,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         shape: const WidgetStatePropertyAll(StadiumBorder()),
       ),
@@ -71,7 +74,10 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
         foregroundColor: WidgetStatePropertyAll(colors.text),
         side: WidgetStatePropertyAll(BorderSide(color: colors.border)),
         textStyle: WidgetStatePropertyAll(
-          typo.sansBody.copyWith(fontSize: 15, fontWeight: FontWeight.w500),
+          typo.sansBody.copyWith(
+            fontSize: BayaType.body,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         shape: const WidgetStatePropertyAll(StadiumBorder()),
       ),
@@ -81,7 +87,10 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
         minimumSize: const WidgetStatePropertyAll(Size(44, 44)),
         foregroundColor: WidgetStatePropertyAll(colors.text),
         textStyle: WidgetStatePropertyAll(
-          typo.sansBody.copyWith(fontSize: 15, fontWeight: FontWeight.w500),
+          typo.sansBody.copyWith(
+            fontSize: BayaType.body,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     ),
@@ -107,7 +116,10 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
           ),
         ),
         textStyle: WidgetStatePropertyAll(
-          typo.sansBody.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+          typo.sansBody.copyWith(
+            fontSize: BayaType.subhead,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     ),
@@ -118,14 +130,14 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
       side: BorderSide(color: colors.border),
       // A selected chip is filled with ink, so its label turns to paper.
       labelStyle: typo.sansBody.copyWith(
-        fontSize: 14,
+        fontSize: BayaType.subhead,
         color: WidgetStateColor.resolveWith(
           (states) =>
               states.contains(WidgetState.selected) ? colors.bg : colors.text,
         ),
       ),
       secondaryLabelStyle: typo.sansBody.copyWith(
-        fontSize: 14,
+        fontSize: BayaType.subhead,
         color: colors.bg,
         fontWeight: FontWeight.w600,
       ),
@@ -134,6 +146,7 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
     switchTheme: SwitchThemeData(
       // iOS's switch: a full white knob either way, on a grey or ink track.
       trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       thumbIcon: const WidgetStatePropertyAll(Icon(null)),
       thumbColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
@@ -175,13 +188,19 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
         borderRadius: BorderRadius.circular(24),
         side: BorderSide(color: colors.border),
       ),
-      textStyle: typo.sansBody.copyWith(fontSize: 16, color: colors.text),
+      textStyle: typo.sansBody.copyWith(
+        fontSize: BayaType.callout,
+        color: colors.text,
+      ),
     ),
     // A short note at the foot: an ink pill.
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       backgroundColor: colors.text,
-      contentTextStyle: typo.sansBody.copyWith(fontSize: 14, color: colors.bg),
+      contentTextStyle: typo.sansBody.copyWith(
+        fontSize: BayaType.subhead,
+        color: colors.bg,
+      ),
       elevation: 0,
       shape: const StadiumBorder(),
       insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -212,8 +231,14 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
         borderSide: BorderSide(color: colors.error),
       ),
       floatingLabelBehavior: FloatingLabelBehavior.never,
-      hintStyle: typo.sansBody.copyWith(color: colors.muted, fontSize: 15),
-      labelStyle: typo.sansBody.copyWith(color: colors.muted, fontSize: 15),
+      hintStyle: typo.sansBody.copyWith(
+        color: colors.muted,
+        fontSize: BayaType.body,
+      ),
+      labelStyle: typo.sansBody.copyWith(
+        color: colors.muted,
+        fontSize: BayaType.body,
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     ),
   );

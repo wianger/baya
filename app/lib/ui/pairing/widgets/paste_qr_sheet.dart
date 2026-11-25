@@ -68,7 +68,7 @@ class _PasteQrBodyState extends State<_PasteQrBody> {
           enableSuggestions: false,
           keyboardType: TextInputType.url,
           onChanged: (_) => setState(() {}),
-          style: context.typo.mono.copyWith(fontSize: 12.5),
+          style: context.typo.mono.copyWith(fontSize: BayaType.caption),
           decoration: const InputDecoration(hintText: 'baya://pair?t=…'),
         ),
         const SizedBox(height: 12),

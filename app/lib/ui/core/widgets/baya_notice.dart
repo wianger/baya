@@ -60,7 +60,7 @@ Future<void> showBayaNotice(
                     title,
                     textAlign: TextAlign.center,
                     style: dialogContext.typo.sansBody.copyWith(
-                      fontSize: 17,
+                      fontSize: BayaType.title,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -70,7 +70,7 @@ Future<void> showBayaNotice(
                       message,
                       textAlign: TextAlign.center,
                       style: dialogContext.typo.sansBody.copyWith(
-                        fontSize: 13.5,
+                        fontSize: BayaType.footnote,
                         height: 1.5,
                         color: colors.muted2,
                       ),

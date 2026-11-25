@@ -1,13 +1,20 @@
-/// The opening, as Claude's: the mark and the name, centred on the page
-/// colour where Android's launch screen left the bird, then the app comes
-/// up through them.
+/// The opening: the mark and the name side by side and large, as Claude's
+/// launch shows them; then they glide into the home's arrangement, the bird
+/// above and the name below, smaller, and the home comes up around them.
 library;
 
 import 'dart:async';
+import 'dart:ui' show lerpDouble;
 
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:flutter/material.dart';
+
+/// Where the home draws its mark and name (session_overview.dart): the
+/// sizes, and the gap between them.
+const kHomeMarkSize = 64.0;
+const kHomeWordmarkSize = 44.0;
+const kHomeMarkGap = 10.0;
 
 class BayaIntro extends StatefulWidget {
   const BayaIntro({super.key, required this.child, this.enabled = true});
@@ -21,13 +28,23 @@ class BayaIntro extends StatefulWidget {
   State<BayaIntro> createState() => _BayaIntroState();
 }
 
-class _BayaIntroState extends State<BayaIntro>
-    with SingleTickerProviderStateMixin {
-  /// 0 → 1: the name writes in beside the bird; 1 → 2: the page lifts away.
-  late final _controller = AnimationController(
+class _BayaIntroState extends State<BayaIntro> with TickerProviderStateMixin {
+  /// The row fades and settles in.
+  late final _enter = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1300),
-    upperBound: 2,
+    duration: const Duration(milliseconds: 420),
+  );
+
+  /// Row → column.
+  late final _move = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 620),
+  );
+
+  /// The cover lifts off the home.
+  late final _lift = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 320),
   );
   bool _done = false;
 
@@ -38,35 +55,30 @@ class _BayaIntroState extends State<BayaIntro>
       _done = true;
       return;
     }
-    unawaited(
-      _controller
-          .animateTo(1, duration: const Duration(milliseconds: 520))
-          .then((_) => Future<void>.delayed(const Duration(milliseconds: 260)))
-          .then((_) {
-            if (!mounted) return Future<void>.value();
-            return _controller.animateTo(
-              2,
-              duration: const Duration(milliseconds: 420),
-            );
-          })
-          .then((_) {
-            if (mounted) setState(() => _done = true);
-          }),
-    );
+    unawaited(_run());
+  }
+
+  Future<void> _run() async {
+    await _enter.forward();
+    await Future<void>.delayed(const Duration(milliseconds: 280));
+    if (!mounted) return;
+    await _move.forward();
+    if (!mounted) return;
+    await _lift.forward();
+    if (mounted) setState(() => _done = true);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_done && MediaQuery.disableAnimationsOf(context)) {
-      _controller.stop();
-      _done = true;
-    }
+    if (!_done && MediaQuery.disableAnimationsOf(context)) _done = true;
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _enter.dispose();
+    _move.dispose();
+    _lift.dispose();
     super.dispose();
   }
 
@@ -74,69 +86,98 @@ class _BayaIntroState extends State<BayaIntro>
   Widget build(BuildContext context) {
     if (_done) return widget.child;
     final colors = context.colors;
+    final media = MediaQuery.of(context);
     return Stack(
       children: [
-        // The app underneath settles in as the cover lifts.
-        AnimatedBuilder(
-          animation: _controller,
-          child: widget.child,
-          builder: (_, child) {
-            final t = Curves.easeOutCubic.transform(
-              (_controller.value - 1).clamp(0.0, 1.0),
-            );
-            return Transform.scale(scale: .97 + .03 * t, child: child);
-          },
-        ),
-        AnimatedBuilder(
-          animation: _controller,
-          builder: (_, _) {
-            final write = Curves.easeOutCubic.transform(
-              _controller.value.clamp(0.0, 1.0),
-            );
-            final lift = Curves.easeInCubic.transform(
-              (_controller.value - 1).clamp(0.0, 1.0),
-            );
-            return IgnorePointer(
-              child: Opacity(
-                opacity: 1 - lift,
-                child: ColoredBox(
-                  color: colors.bg,
-                  child: Center(
-                    child: Transform.scale(
-                      scale: 1 + .06 * lift,
-                      child: Row(
-                        key: const Key('baya-intro'),
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const AppMark(size: 52),
-                          // The name opens out from behind the bird.
-                          ClipRect(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              widthFactor: write,
-                              child: Opacity(
-                                opacity: write,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 10),
-                                  child: Text(
-                                    kAppName,
-                                    style: brandDisplayTextStyle(
-                                      fontSize: 46,
-                                      color: colors.text,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+        widget.child,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_enter, _move, _lift]),
+              builder: (context, _) {
+                final enter = Curves.easeOutCubic.transform(_enter.value);
+                final move = Curves.easeInOutCubic.transform(_move.value);
+                final lift = Curves.easeOut.transform(_lift.value);
+                // Sizes: large in the row, the home's in the column.
+                final mark = lerpDouble(80, kHomeMarkSize, move)!;
+                final word = lerpDouble(64, kHomeWordmarkSize, move)!;
+                final style = brandDisplayTextStyle(
+                  fontSize: word,
+                  color: colors.text,
+                );
+                final text = TextPainter(
+                  text: TextSpan(text: kAppName, style: style),
+                  textDirection: TextDirection.ltr,
+                )..layout();
+                final size = media.size;
+                // The row sits mid-screen; the column where the home has it:
+                // centred between its header (68) and composer (about 78).
+                final rowCenter = Offset(size.width / 2, size.height / 2);
+                final columnCenter = Offset(
+                  size.width / 2,
+                  (media.padding.top +
+                          68 +
+                          size.height -
+                          media.padding.bottom -
+                          78) /
+                      2,
+                );
+                final center = Offset.lerp(rowCenter, columnCenter, move)!;
+                const rowGap = 14.0;
+                final rowWidth = mark + rowGap + text.width;
+                final columnHeight = mark + kHomeMarkGap + text.height;
+                // Mark: left of the row → top of the column.
+                final markRow = Offset(
+                  center.dx - rowWidth / 2 + mark / 2,
+                  center.dy,
+                );
+                final markColumn = Offset(
+                  center.dx,
+                  center.dy - columnHeight / 2 + mark / 2,
+                );
+                final markAt = Offset.lerp(markRow, markColumn, move)!;
+                // Name: right of the row → under the mark.
+                final wordRow = Offset(
+                  center.dx + rowWidth / 2 - text.width / 2,
+                  center.dy,
+                );
+                final wordColumn = Offset(
+                  center.dx,
+                  center.dy + columnHeight / 2 - text.height / 2,
+                );
+                final wordAt = Offset.lerp(wordRow, wordColumn, move)!;
+                text.dispose();
+                return Opacity(
+                  opacity: 1 - lift,
+                  child: Stack(
+                    key: const Key('baya-intro'),
+                    children: [
+                      Positioned.fill(child: ColoredBox(color: colors.bg)),
+                      Positioned(
+                        left: markAt.dx - mark / 2,
+                        top: markAt.dy - mark / 2,
+                        child: Opacity(
+                          opacity: enter,
+                          child: Transform.scale(
+                            scale: .92 + .08 * enter,
+                            child: AppMark(size: mark),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                      Positioned(
+                        left: wordAt.dx - text.width / 2,
+                        top: wordAt.dy - text.height / 2,
+                        child: Opacity(
+                          opacity: enter,
+                          child: Text(kAppName, style: style),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         ),
       ],
     );

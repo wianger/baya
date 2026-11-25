@@ -12,6 +12,7 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/widgets/liquid_morph.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -36,6 +37,7 @@ Future<void> showMessageMenu(BuildContext context, String markdown) async {
     context: context,
     barrierLabel: l10n.close,
     barrierColor: Colors.transparent,
+    transitionDuration: kLiquidIn,
     pageBuilder: (dialogContext, _, _) => const SizedBox.shrink(),
     transitionBuilder: (dialogContext, animation, _, _) {
       final curved = CurvedAnimation(
@@ -54,7 +56,9 @@ Future<void> showMessageMenu(BuildContext context, String markdown) async {
               const SizedBox(width: 18),
               Text(
                 label,
-                style: dialogContext.typo.sansBody.copyWith(fontSize: 17),
+                style: dialogContext.typo.sansBody.copyWith(
+                  fontSize: BayaType.title,
+                ),
               ),
             ],
           ),
@@ -81,39 +85,36 @@ Future<void> showMessageMenu(BuildContext context, String markdown) async {
             ),
           ),
           Center(
-            child: FadeTransition(
-              opacity: curved,
-              child: ScaleTransition(
-                scale: Tween(begin: .94, end: 1.0).animate(curved),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 300),
-                  child: BayaSurface(
-                    key: const Key('message-menu'),
-                    role: BayaSurfaceRole.floating,
-                    radius: 32,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        row(_MessageAction.copy, LucideIcons.copy, l10n.copy),
-                        row(
-                          _MessageAction.select,
-                          LucideIcons.textSelect,
-                          l10n.selectText,
-                        ),
-                        row(
-                          _MessageAction.read,
-                          LucideIcons.volume2,
-                          l10n.readAloud,
-                        ),
-                        row(
-                          _MessageAction.share,
-                          LucideIcons.forward,
-                          l10n.share,
-                        ),
-                      ],
-                    ),
+            child: LiquidMorph(
+              borderRadius: BorderRadius.circular(32),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 300),
+                child: BayaSurface(
+                  key: const Key('message-menu'),
+                  role: BayaSurfaceRole.floating,
+                  radius: 32,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      row(_MessageAction.copy, LucideIcons.copy, l10n.copy),
+                      row(
+                        _MessageAction.select,
+                        LucideIcons.textSelect,
+                        l10n.selectText,
+                      ),
+                      row(
+                        _MessageAction.read,
+                        LucideIcons.volume2,
+                        l10n.readAloud,
+                      ),
+                      row(
+                        _MessageAction.share,
+                        LucideIcons.forward,
+                        l10n.share,
+                      ),
+                    ],
                   ),
                 ),
               ),

@@ -106,9 +106,9 @@ export class DirectServer {
         }
       },
       close: (code, reason) => socket.close(code, reason),
-      sendData: async (stream, offset, bytes) => {
+      sendData: async (stream, offset, bytes, buffer = SEND_BUFFER) => {
         // Let the socket drain rather than buffer a whole file.
-        while (socket.readyState === socket.OPEN && socket.bufferedAmount > SEND_BUFFER) {
+        while (socket.readyState === socket.OPEN && socket.bufferedAmount > buffer) {
           await new Promise((resolve) => setTimeout(resolve, 10));
         }
         if (socket.readyState !== socket.OPEN) throw new Error("The phone disconnected.");

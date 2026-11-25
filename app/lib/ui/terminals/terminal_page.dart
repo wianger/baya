@@ -509,7 +509,7 @@ class _Answers extends StatelessWidget {
             children: [
               Icon(
                 LucideIcons.messageCircleQuestionMark,
-                size: 15,
+                size: 16,
                 color: colors.text,
               ),
               const SizedBox(width: 8),
@@ -519,7 +519,7 @@ class _Answers extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: context.typo.sansBody.copyWith(
-                    fontSize: 13.5,
+                    fontSize: BayaType.footnote,
                     fontWeight: FontWeight.w600,
                     color: colors.text,
                   ),
@@ -541,7 +541,7 @@ class _Answers extends StatelessWidget {
                         minimumSize: const Size(46, 40),
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         textStyle: context.typo.mono.copyWith(
-                          fontSize: 14,
+                          fontSize: BayaType.subhead,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -607,7 +607,9 @@ class _Composer extends StatelessWidget {
                       maxLines: 4,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => onSubmit(),
-                      style: context.typo.sansBody.copyWith(fontSize: 15),
+                      style: context.typo.sansBody.copyWith(
+                        fontSize: BayaType.body,
+                      ),
                       decoration: InputDecoration(
                         isDense: true,
                         hintText: l10n.terminalComposeHint,
@@ -629,7 +631,7 @@ class _Composer extends StatelessWidget {
                       child: Text(
                         l10n.typingIntoTerminal,
                         style: context.typo.sansBody.copyWith(
-                          fontSize: 13,
+                          fontSize: BayaType.footnote,
                           color: colors.muted,
                         ),
                       ),
@@ -673,7 +675,7 @@ class _Pill extends StatelessWidget {
         child: Text(
           text,
           style: context.typo.monoSmall.copyWith(
-            fontSize: 12,
+            fontSize: BayaType.caption,
             fontWeight: FontWeight.w600,
             color: colors.bg,
           ),
@@ -719,7 +721,7 @@ class _Notice extends StatelessWidget {
                   child: Text(
                     text,
                     style: context.typo.sansBody.copyWith(
-                      fontSize: 13,
+                      fontSize: BayaType.footnote,
                       color: error != null
                           ? context.colors.error
                           : context.colors.muted2,
@@ -785,11 +787,11 @@ class _KeyBar extends StatelessWidget {
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: icon != null
-                ? Icon(icon, size: 17, color: on ? colors.bg : colors.text)
+                ? Icon(icon, size: 18, color: on ? colors.bg : colors.text)
                 : Text(
                     label,
                     style: context.typo.monoSmall.copyWith(
-                      fontSize: 13,
+                      fontSize: BayaType.footnote,
                       fontWeight: FontWeight.w600,
                       color: on ? colors.bg : colors.text,
                     ),

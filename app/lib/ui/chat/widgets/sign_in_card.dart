@@ -65,7 +65,7 @@ class _SignInCardState extends State<SignInCard> {
                     children: [
                       Icon(
                         LucideIcons.keyRound,
-                        size: 17,
+                        size: 18,
                         color: colors.accent,
                       ),
                       const SizedBox(width: 10),
@@ -73,7 +73,7 @@ class _SignInCardState extends State<SignInCard> {
                         child: Text(
                           context.l10n.signInTo(agent),
                           style: context.typo.sansBody.copyWith(
-                            fontSize: 15,
+                            fontSize: BayaType.body,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -91,7 +91,7 @@ class _SignInCardState extends State<SignInCard> {
                             '${snapshot.error}',
                             style: context.typo.sansBody.copyWith(
                               color: colors.error,
-                              fontSize: 13,
+                              fontSize: BayaType.footnote,
                             ),
                           ),
                         ),
@@ -137,7 +137,7 @@ class _SignInCardState extends State<SignInCard> {
                       _error!,
                       style: context.typo.sansBody.copyWith(
                         color: colors.error,
-                        fontSize: 13,
+                        fontSize: BayaType.footnote,
                       ),
                     ),
                   ],
@@ -169,7 +169,7 @@ class _OnComputer extends StatelessWidget {
         Text(
           context.l10n.runOnComputer,
           style: context.typo.sansBody.copyWith(
-            fontSize: 13,
+            fontSize: BayaType.footnote,
             color: colors.muted,
           ),
         ),

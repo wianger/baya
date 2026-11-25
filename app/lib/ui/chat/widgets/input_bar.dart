@@ -439,21 +439,15 @@ class _InputBarState extends State<InputBar> {
       maxLines: 6,
       keyboardType: TextInputType.multiline,
       textInputAction: TextInputAction.newline,
-      style: context.typo.sansBody.copyWith(fontSize: 16),
+      style: context.typo.sansBody.copyWith(fontSize: BayaType.callout),
       cursorColor: colors.accent,
-      decoration: InputDecoration(
-        hintText: widget.streaming
-            ? context.l10n.queueFollowUp
-            : (widget.voice != null || widget.onStartAudio != null)
-            ? context.l10n.replyToAgentOrTalk(widget.agentLabel)
-            : context.l10n.replyToAgent(widget.agentLabel),
-        hintStyle: context.typo.sansBody.copyWith(color: colors.muted),
+      decoration: const InputDecoration(
         filled: false,
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         disabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 10),
       ),
     );
     // The voice and send buttons end both forms of the composer.
@@ -478,7 +472,7 @@ class _InputBarState extends State<InputBar> {
           onVoiceLongPressEnd: _onVoiceEnd,
           onVoiceTap: _onVoiceTap,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
       ],
       _ComposerActionButton(
         key: const ValueKey('message-action'),
@@ -496,7 +490,7 @@ class _InputBarState extends State<InputBar> {
         onVoiceTap: _onVoiceTap,
       ),
       if (showInlineStop) ...[
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         _InlineStopButton(onTap: widget.onCancel!),
       ],
     ];
@@ -507,7 +501,7 @@ class _InputBarState extends State<InputBar> {
     final toolRow = Row(
       children: [
         attach,
-        const SizedBox(width: 6),
+        const SizedBox(width: 10),
         Expanded(
           child: Align(
             alignment: Alignment.centerLeft,
@@ -518,16 +512,59 @@ class _InputBarState extends State<InputBar> {
             ),
           ),
         ),
+        const SizedBox(width: 12),
         ...trailing,
       ],
     );
-    final pillRow = Row(
+    // The field never changes place in the tree: idle, the buttons sit at
+    // its sides; in use they fold away and the row under it grows in, so
+    // the field just widens.
+    const grow = Duration(milliseconds: 260);
+    const curve = Curves.easeOutCubic;
+    final fieldRow = Row(
       children: [
-        attach,
-        const SizedBox(width: 8),
+        AnimatedSize(
+          duration: grow,
+          curve: curve,
+          child: open
+              ? const SizedBox(height: 44)
+              : Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: attach,
+                ),
+        ),
         Expanded(child: textField),
-        ...trailing,
+        AnimatedSize(
+          duration: grow,
+          curve: curve,
+          child: open
+              ? const SizedBox.shrink()
+              : Row(mainAxisSize: MainAxisSize.min, children: trailing),
+        ),
       ],
+    );
+    final tools = AnimatedSize(
+      duration: grow,
+      curve: curve,
+      alignment: Alignment.topCenter,
+      child: open
+          ? Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: grow,
+                curve: curve,
+                builder: (_, t, child) => Opacity(
+                  opacity: t,
+                  child: Transform.translate(
+                    offset: Offset(0, 6 * (1 - t)),
+                    child: child,
+                  ),
+                ),
+                child: toolRow,
+              ),
+            )
+          : const SizedBox(width: double.infinity),
     );
 
     final surface = Padding(
@@ -540,8 +577,8 @@ class _InputBarState extends State<InputBar> {
         child: Stack(
           children: [
             AnimatedPadding(
-              duration: BayaMotion.fast,
-              curve: BayaMotion.enter,
+              duration: grow,
+              curve: curve,
               padding: open
                   ? const EdgeInsets.fromLTRB(14, 12, 10, 9)
                   : const EdgeInsets.fromLTRB(8, 7, 8, 7),
@@ -566,12 +603,8 @@ class _InputBarState extends State<InputBar> {
                       image: attachState.image,
                       onRemove: widget.attachment!.removeImage,
                     ),
-                  if (open) ...[
-                    textField,
-                    const SizedBox(height: 6),
-                    toolRow,
-                  ] else
-                    pillRow,
+                  fieldRow,
+                  tools,
                 ],
               ),
             ),
@@ -625,7 +658,7 @@ class _InlineStopButton extends StatelessWidget {
           color: colors.text,
           borderRadius: BorderRadius.circular(19),
         ),
-        child: Icon(LucideIcons.square, color: colors.bg, size: 13),
+        child: Icon(LucideIcons.square, color: colors.bg, size: 14),
       ),
     );
   }
@@ -712,7 +745,7 @@ class _AttachmentPreview extends StatelessWidget {
                   padding: const EdgeInsets.all(3),
                   child: Icon(
                     LucideIcons.x,
-                    size: 13,
+                    size: 14,
                     color: context.colors.text,
                   ),
                 ),
@@ -748,7 +781,7 @@ class _TranscribingStrip extends StatelessWidget {
           'transcribing…',
           style: TextStyle(
             fontFamily: kMonoFamily,
-            fontSize: 12,
+            fontSize: BayaType.caption,
             color: colors.muted2,
           ),
         ),
@@ -854,7 +887,7 @@ class _QuickActionsButtonState extends State<_QuickActionsButton>
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: context.typo.sansBody.copyWith(
-                        fontSize: 14,
+                        fontSize: BayaType.subhead,
                         color: context.colors.text,
                       ),
                     ),
@@ -1164,10 +1197,10 @@ class _SlashPalette extends StatelessWidget {
                 for (final command in matches)
                   ListTile(
                     dense: true,
-                    leading: Icon(command.icon, size: 17, color: colors.muted2),
+                    leading: Icon(command.icon, size: 18, color: colors.muted2),
                     title: Text(
                       command.label,
-                      style: const TextStyle(fontSize: 14),
+                      style: const TextStyle(fontSize: BayaType.subhead),
                     ),
                     subtitle: Text(
                       command.hint,
@@ -1184,7 +1217,7 @@ class _SlashPalette extends StatelessWidget {
                       context.l10n.agentCommandsSkills,
                       style: context.typo.sansBody.copyWith(
                         color: colors.muted,
-                        fontSize: 11,
+                        fontSize: BayaType.caption,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1196,12 +1229,12 @@ class _SlashPalette extends StatelessWidget {
                         command.source == 'skill'
                             ? LucideIcons.sparkles
                             : LucideIcons.terminal,
-                        size: 17,
+                        size: 18,
                         color: colors.accent,
                       ),
                       title: Text(
                         '/${command.name}',
-                        style: const TextStyle(fontSize: 14),
+                        style: const TextStyle(fontSize: BayaType.subhead),
                       ),
                       subtitle: Text(
                         command.description.isEmpty
@@ -1211,7 +1244,7 @@ class _SlashPalette extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: context.typo.sansBody.copyWith(
                           color: colors.muted,
-                          fontSize: 11,
+                          fontSize: BayaType.caption,
                         ),
                       ),
                       onTap: () => onSelected('agent', '/${command.name}'),
@@ -1233,7 +1266,7 @@ class _SlashPalette extends StatelessWidget {
                       error!,
                       style: context.typo.sansBody.copyWith(
                         color: colors.error,
-                        fontSize: 11,
+                        fontSize: BayaType.caption,
                       ),
                     ),
                   ),
@@ -1243,14 +1276,14 @@ class _SlashPalette extends StatelessWidget {
                     dense: true,
                     leading: Icon(
                       LucideIcons.terminal,
-                      size: 17,
+                      size: 18,
                       color: colors.accent,
                     ),
                     title: Text(
                       normalized.isEmpty
                           ? context.l10n.sendSlashCommand
                           : context.l10n.sendCommandToAgent(normalized),
-                      style: const TextStyle(fontSize: 13),
+                      style: const TextStyle(fontSize: BayaType.footnote),
                     ),
                     onTap: () => onSelected('agent', '/$normalized'),
                   ),

@@ -84,7 +84,7 @@ class _CodeBlockState extends State<CodeBlock> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: context.typo.monoSmall.copyWith(
-                        fontSize: 11,
+                        fontSize: BayaType.caption,
                         color: colors.muted,
                       ),
                     ),
@@ -141,7 +141,7 @@ class _CodeBlockState extends State<CodeBlock> {
                 child: Text(
                   context.l10n.showAllLines(lines),
                   style: context.typo.sansBody.copyWith(
-                    fontSize: 12,
+                    fontSize: BayaType.caption,
                     color: colors.muted2,
                     fontWeight: FontWeight.w500,
                   ),
@@ -200,7 +200,7 @@ class DiffView extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.typo.monoSmall.copyWith(
-                      fontSize: 11.5,
+                      fontSize: BayaType.caption,
                       color: colors.muted2,
                     ),
                   ),
@@ -208,14 +208,14 @@ class DiffView extends StatelessWidget {
                 Text(
                   '+${stats.added} ',
                   style: context.typo.monoSmall.copyWith(
-                    fontSize: 11.5,
+                    fontSize: BayaType.caption,
                     color: colors.success,
                   ),
                 ),
                 Text(
                   '−${stats.removed}',
                   style: context.typo.monoSmall.copyWith(
-                    fontSize: 11.5,
+                    fontSize: BayaType.caption,
                     color: colors.error,
                   ),
                 ),

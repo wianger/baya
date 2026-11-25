@@ -112,7 +112,7 @@ class _SessionSheetState extends State<_SessionSheet> {
               folder,
               maxLines: 2,
               style: context.typo.monoSmall.copyWith(
-                fontSize: 12,
+                fontSize: BayaType.caption,
                 color: colors.muted,
               ),
             ),
@@ -185,7 +185,7 @@ class _SessionSheetState extends State<_SessionSheet> {
                       Text(
                         l10n.deleteSessionBody(widget.title),
                         style: context.typo.sansBody.copyWith(
-                          fontSize: 14,
+                          fontSize: BayaType.subhead,
                           height: 1.4,
                         ),
                       ),
@@ -194,7 +194,7 @@ class _SessionSheetState extends State<_SessionSheet> {
                         Text(
                           error,
                           style: context.typo.sansBody.copyWith(
-                            fontSize: 13,
+                            fontSize: BayaType.footnote,
                             color: colors.error,
                           ),
                         ),

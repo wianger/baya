@@ -194,7 +194,7 @@ class ChatPage extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: context.typo.sansBody.copyWith(
-                        fontSize: 16,
+                        fontSize: BayaType.callout,
                         fontWeight: FontWeight.w500,
                         color: colors.text,
                       ),
@@ -231,7 +231,7 @@ class ChatPage extends StatelessWidget {
                   onPressed: () => _openSessionActions(context, session, title),
                   icon: Icon(
                     LucideIcons.ellipsis,
-                    size: 21,
+                    size: 20,
                     color: colors.muted2,
                   ),
                 ),
@@ -600,7 +600,7 @@ class _EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: context.typo.sansBody.copyWith(
                 color: colors.muted,
-                fontSize: 15,
+                fontSize: BayaType.body,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -627,13 +627,13 @@ class _RevokedBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          const Icon(LucideIcons.unlink, color: Colors.white, size: 15),
+          const Icon(LucideIcons.unlink, color: Colors.white, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               context.l10n.pairingRevoked,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: BayaType.caption,
                 color: Colors.white,
                 fontWeight: FontWeight.w500,
               ),
@@ -645,7 +645,7 @@ class _RevokedBanner extends StatelessWidget {
               'Re-pair',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 12,
+                fontSize: BayaType.caption,
                 fontWeight: FontWeight.w600,
                 decoration: TextDecoration.underline,
               ),
@@ -680,7 +680,7 @@ class _AttachedFiles extends StatelessWidget {
                   key: ValueKey('attached-${file.uri}'),
                   avatar: Icon(
                     LucideIcons.fileText,
-                    size: 15,
+                    size: 16,
                     color: colors.muted2,
                   ),
                   label: Text(file.name, style: context.typo.monoSmall),

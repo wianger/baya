@@ -106,7 +106,7 @@ class _PairStepState extends State<PairStep> {
               Text(
                 context.l10n.pairStepInstructions,
                 style: context.typo.sansBody.copyWith(
-                  fontSize: 13,
+                  fontSize: BayaType.footnote,
                   color: colors.muted,
                 ),
               ),
@@ -122,7 +122,7 @@ class _PairStepState extends State<PairStep> {
                 child: Text(
                   'baya pair',
                   style: context.typo.mono.copyWith(
-                    fontSize: 13.5,
+                    fontSize: BayaType.footnote,
                     color: colors.accent,
                   ),
                 ),
@@ -131,7 +131,7 @@ class _PairStepState extends State<PairStep> {
               Text(
                 context.l10n.scanQrThatAppears,
                 style: context.typo.sansBody.copyWith(
-                  fontSize: 13,
+                  fontSize: BayaType.footnote,
                   color: colors.muted,
                 ),
               ),
@@ -196,7 +196,7 @@ class _PairStepState extends State<PairStep> {
                     child: Text(
                       context.l10n.scanLater,
                       style: context.typo.sansBody.copyWith(
-                        fontSize: 13,
+                        fontSize: BayaType.footnote,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -290,7 +290,7 @@ class _StatusOverlay extends StatelessWidget {
                   message,
                   textAlign: TextAlign.center,
                   style: context.typo.sansBody.copyWith(
-                    fontSize: 14,
+                    fontSize: BayaType.subhead,
                     color: colors.text,
                     height: 1.45,
                   ),

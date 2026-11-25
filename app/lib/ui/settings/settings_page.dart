@@ -9,6 +9,7 @@ import 'package:app/ui/core/widgets/baya_group.dart';
 import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
+import 'package:app/ui/core/widgets/liquid_morph.dart';
 import 'package:app/ui/settings/adb_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
 import 'package:flutter/material.dart';
@@ -137,7 +138,6 @@ class SettingsPage extends StatelessWidget {
                             key: const Key('settings-adb'),
                             icon: LucideIcons.smartphone,
                             label: context.l10n.phoneForAgents,
-                            subtitle: context.l10n.phoneForAgentsSettingsHint,
                             chevron: true,
                             onTap: () =>
                                 _openDetail(context, () => const AdbPage()),
@@ -152,7 +152,6 @@ class SettingsPage extends StatelessWidget {
                             key: const Key('settings-about'),
                             icon: LucideIcons.info,
                             label: context.l10n.about,
-                            subtitle: context.l10n.aboutHint,
                             chevron: true,
                             onTap: () => context.push('/about'),
                           ),
@@ -266,9 +265,6 @@ class _NotificationsRowState extends State<_NotificationsRow>
         key: const Key('settings-notifications'),
         icon: blocked ? LucideIcons.bellOff : LucideIcons.bellRing,
         label: context.l10n.notifications,
-        subtitle: blocked
-            ? context.l10n.notificationsOffInSystem
-            : context.l10n.notificationsHint,
         trailing: Switch(
           value: prefs.notifyAgents && !blocked,
           onChanged: (_) => unawaited(toggle()),
@@ -303,7 +299,6 @@ class _KeyBackupEntry extends StatelessWidget {
                   ? LucideIcons.cloudCheck
                   : LucideIcons.cloudAlert,
               label: l10n.keyBackup,
-              subtitle: store.backedUp ? l10n.keyBackedUp : l10n.keyNotBackedUp,
               chevron: true,
               onTap: () => Navigator.of(context).push<void>(
                 MaterialPageRoute<void>(
@@ -371,7 +366,7 @@ class _KeyBackupPageState extends State<KeyBackupPage> {
                     backedUp ? l10n.keyBackedUp : l10n.keyNotBackedUp,
                     key: const Key('key-backup-status'),
                     style: context.typo.sansBody.copyWith(
-                      fontSize: 16,
+                      fontSize: BayaType.callout,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -392,7 +387,7 @@ class _KeyBackupPageState extends State<KeyBackupPage> {
                 l10n.keyBackupHowTo,
                 style: context.typo.sansBody.copyWith(
                   color: colors.muted,
-                  fontSize: 13,
+                  fontSize: BayaType.footnote,
                   height: 1.45,
                 ),
               ),
@@ -404,7 +399,7 @@ class _KeyBackupPageState extends State<KeyBackupPage> {
                 key: const Key('key-backup-failed'),
                 style: context.typo.sansBody.copyWith(
                   color: colors.error,
-                  fontSize: 13,
+                  fontSize: BayaType.footnote,
                 ),
               ),
             ],
@@ -460,51 +455,65 @@ class _ChoiceRow<T> extends StatelessWidget {
         ),
         onTap: () async {
           final box = rowContext.findRenderObject()! as RenderBox;
-          final overlay =
-              Overlay.of(rowContext).context.findRenderObject()! as RenderBox;
-          final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
-          final picked = await showMenu<T>(
+          final rowTop = box.localToGlobal(Offset.zero);
+          final screen = MediaQuery.sizeOf(rowContext);
+          // A small card that swells out of the row's value.
+          final picked = await showLiquid<T>(
             context: rowContext,
-            position: RelativeRect.fromLTRB(
-              origin.dx + box.size.width * .3,
-              origin.dy + box.size.height * .5,
-              overlay.size.width - origin.dx - box.size.width + 16,
-              0,
-            ),
-            color: Theme.of(context).brightness == Brightness.dark
-                ? colors.modelBadgeBg
-                : colors.bg,
-            elevation: 8,
-            shadowColor: Colors.black.withValues(alpha: .25),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-              side: BorderSide(color: colors.border),
-            ),
-            items: [
-              for (final MapEntry(key: choice, value: name) in choices.entries)
-                PopupMenuItem<T>(
-                  value: choice,
-                  height: 52,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 28,
-                        child: choice == value
-                            ? Icon(
-                                LucideIcons.check,
-                                size: 18,
-                                color: colors.text,
-                              )
-                            : null,
+            barrierColor: Colors.black.withValues(alpha: .08),
+            builder: (menuContext) => Stack(
+              children: [
+                Positioned(
+                  right: screen.width - rowTop.dx - box.size.width + 16,
+                  top: rowTop.dy + box.size.height * .6,
+                  width: 220,
+                  child: LiquidMorph(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BayaSurface(
+                      role: BayaSurfaceRole.floating,
+                      radius: 24,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final MapEntry(key: choice, value: name)
+                              in choices.entries)
+                            InkWell(
+                              onTap: () =>
+                                  Navigator.of(menuContext).pop(choice),
+                              child: SizedBox(
+                                height: 50,
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 46,
+                                      child: choice == value
+                                          ? Icon(
+                                              LucideIcons.check,
+                                              size: 18,
+                                              color: colors.text,
+                                            )
+                                          : null,
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        name,
+                                        style: context.typo.sansBody.copyWith(
+                                          fontSize: BayaType.callout,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      Text(
-                        name,
-                        style: context.typo.sansBody.copyWith(fontSize: 16),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-            ],
+              ],
+            ),
           );
           if (picked != null) onChanged(picked);
         },
@@ -578,13 +587,16 @@ class FontSizePage extends StatelessWidget {
           const SizedBox(height: 28),
           Row(
             children: [
-              Text('A', style: context.typo.sansBody.copyWith(fontSize: 15)),
+              Text(
+                'A',
+                style: context.typo.sansBody.copyWith(fontSize: BayaType.body),
+              ),
               Expanded(
                 child: Center(
                   child: Text(
                     prefs.fontScale.localizedLabel(context.l10n),
                     style: context.typo.sansBody.copyWith(
-                      fontSize: 14,
+                      fontSize: BayaType.subhead,
                       color: colors.muted,
                     ),
                   ),

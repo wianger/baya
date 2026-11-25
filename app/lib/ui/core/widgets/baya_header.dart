@@ -38,7 +38,7 @@ class BayaCircleButton extends StatelessWidget {
           tooltip: tooltip,
           icon: Icon(
             icon,
-            size: 21,
+            size: 20,
             color: onPressed == null ? colors.muted : colors.text,
           ),
         ),
@@ -185,7 +185,7 @@ class BayaHeader extends StatelessWidget implements PreferredSizeWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: context.typo.sansBody.copyWith(
-                  fontSize: 17,
+                  fontSize: BayaType.title,
                   fontWeight: FontWeight.w600,
                   color: colors.text,
                 ),
@@ -200,7 +200,10 @@ class BayaHeader extends StatelessWidget implements PreferredSizeWidget {
                     (monoSubtitle
                             ? context.typo.monoSmall
                             : context.typo.sansBody)
-                        .copyWith(fontSize: 12, color: colors.muted),
+                        .copyWith(
+                          fontSize: BayaType.caption,
+                          color: colors.muted,
+                        ),
               ),
           ],
         );

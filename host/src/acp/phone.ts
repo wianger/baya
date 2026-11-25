@@ -41,7 +41,12 @@ export class PhoneConnection implements HubPhone {
   private readonly peer: JsonRpcPeer;
   private readonly closeSocket: (code: number, reason: string) => void;
   private initialized = false;
-  private readonly sendData: (stream: number, offset: number, bytes: Buffer) => Promise<void>;
+  private readonly sendData: (
+    stream: number,
+    offset: number,
+    bytes: Buffer,
+    buffer?: number,
+  ) => Promise<void>;
   /** Downloads under way, by the phone's stream id. */
   private readonly downloads = new Set<number>();
   /** Owns this connection's half-sent uploads. */
@@ -54,7 +59,8 @@ export class PhoneConnection implements HubPhone {
     hub: SessionHub;
     send: (message: Json) => void;
     close: (code: number, reason: string) => void;
-    sendData?: (stream: number, offset: number, bytes: Buffer) => Promise<void>;
+    /** [buffer]: bytes the socket may hold before this waits. */
+    sendData?: (stream: number, offset: number, bytes: Buffer, buffer?: number) => Promise<void>;
   }) {
     this.sendData =
       options.sendData ??
@@ -69,7 +75,7 @@ export class PhoneConnection implements HubPhone {
     });
     this.terminals = new PhoneTerminals({
       notify: (method, params) => this.notify(method, params as Json),
-      sendData: (stream, offset, bytes) => this.sendData(stream, offset, bytes),
+      sendData: (stream, offset, bytes, buffer) => this.sendData(stream, offset, bytes, buffer),
     });
     this.hub.connect(this);
   }

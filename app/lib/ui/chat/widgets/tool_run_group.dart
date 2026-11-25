@@ -46,7 +46,7 @@ class _ToolRunGroupState extends State<ToolRunGroup> {
           t.status == ToolEventStatus.pending,
     );
     final style = context.typo.sansBody.copyWith(
-      fontSize: 14,
+      fontSize: BayaType.subhead,
       fontWeight: FontWeight.w500,
       color: failed ? colors.error : colors.muted2,
     );
@@ -66,7 +66,7 @@ class _ToolRunGroupState extends State<ToolRunGroup> {
               children: [
                 Icon(
                   failed ? LucideIcons.circleAlert : LucideIcons.layers,
-                  size: 15,
+                  size: 16,
                   color: failed ? colors.error : colors.muted,
                 ),
                 const SizedBox(width: 8),
@@ -81,7 +81,7 @@ class _ToolRunGroupState extends State<ToolRunGroup> {
                   duration: BayaMotion.fast,
                   child: Icon(
                     LucideIcons.chevronRight,
-                    size: 15,
+                    size: 16,
                     color: colors.muted,
                   ),
                 ),
@@ -140,7 +140,7 @@ class _ToolRowState extends State<ToolRow> {
         ? colors.accent
         : colors.muted2;
     final style = context.typo.sansBody.copyWith(
-      fontSize: 14,
+      fontSize: BayaType.subhead,
       color: color,
       fontWeight: FontWeight.w500,
     );
@@ -172,7 +172,7 @@ class _ToolRowState extends State<ToolRow> {
                           )
                         : Icon(
                             failed ? LucideIcons.circleX : _icon(content),
-                            size: 15,
+                            size: 16,
                             color: failed || approval ? color : colors.muted,
                           ),
                   ),
@@ -195,7 +195,7 @@ class _ToolRowState extends State<ToolRow> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: context.typo.monoSmall.copyWith(
-                          fontSize: 12,
+                          fontSize: BayaType.caption,
                           color: colors.muted,
                         ),
                       ),
@@ -206,7 +206,7 @@ class _ToolRowState extends State<ToolRow> {
                     Text(
                       '+${stats.added}',
                       style: context.typo.monoSmall.copyWith(
-                        fontSize: 12,
+                        fontSize: BayaType.caption,
                         color: colors.success,
                       ),
                     ),
@@ -214,7 +214,7 @@ class _ToolRowState extends State<ToolRow> {
                     Text(
                       '−${stats.removed}',
                       style: context.typo.monoSmall.copyWith(
-                        fontSize: 12,
+                        fontSize: BayaType.caption,
                         color: colors.error,
                       ),
                     ),
@@ -224,7 +224,7 @@ class _ToolRowState extends State<ToolRow> {
                     Text(
                       context.l10n.approval,
                       style: context.typo.sansBody.copyWith(
-                        fontSize: 12,
+                        fontSize: BayaType.caption,
                         color: colors.accent,
                       ),
                     ),
@@ -235,7 +235,7 @@ class _ToolRowState extends State<ToolRow> {
                     duration: BayaMotion.fast,
                     child: Icon(
                       LucideIcons.chevronRight,
-                      size: 15,
+                      size: 16,
                       color: colors.muted,
                     ),
                   ),

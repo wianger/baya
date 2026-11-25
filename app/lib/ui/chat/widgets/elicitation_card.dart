@@ -103,7 +103,7 @@ class _ElicitationCardState extends State<ElicitationCard> {
                         request.isLink
                             ? LucideIcons.externalLink
                             : LucideIcons.messageCircleQuestion,
-                        size: 17,
+                        size: 18,
                         color: colors.accent,
                       ),
                     ),
@@ -114,7 +114,7 @@ class _ElicitationCardState extends State<ElicitationCard> {
                             ? request.title!
                             : request.message,
                         style: context.typo.sansBody.copyWith(
-                          fontSize: 15,
+                          fontSize: BayaType.body,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -202,7 +202,10 @@ class _Field extends StatelessWidget {
     final colors = context.colors;
     final label = Text(
       field.required ? '${field.title} *' : field.title,
-      style: context.typo.sansBody.copyWith(fontSize: 13, color: colors.muted2),
+      style: context.typo.sansBody.copyWith(
+        fontSize: BayaType.footnote,
+        color: colors.muted2,
+      ),
     );
     switch (field.type) {
       case ElicitationFieldType.boolean:

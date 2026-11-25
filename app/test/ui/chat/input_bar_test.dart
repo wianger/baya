@@ -109,6 +109,10 @@ void main() {
       },
     );
     await tester.enterText(find.byType(TextField), '/');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('slash-command-palette')), findsOneWidget);
     expect(find.text('New session'), findsOneWidget);
@@ -140,6 +144,10 @@ void main() {
       },
     );
     await tester.enterText(find.byType(TextField), '/bro');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pumpAndSettle();
 
     expect(find.text('/browser'), findsOneWidget);
@@ -162,6 +170,10 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), '/compact');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pumpAndSettle();
 
     expect(find.text('Compact context'), findsNothing);
@@ -179,6 +191,10 @@ void main() {
       onStartAudio: () {},
     );
     await tester.enterText(find.byType(TextField), 'hello');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     // Model/thinking stay reachable while a draft is present.
     await tester.pumpAndSettle();
     expectExpanded(tester);
@@ -253,7 +269,7 @@ void main() {
     await tester.pumpAndSettle();
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.enabled, isTrue);
-    expect(field.decoration?.hintText, 'Queue a follow-up…');
+    expect(field.decoration?.hintText, isNull);
     // The composer action button uses the lighter `300` weight variants
     // (see _ComposerActionButton._icon) — match those, not the plain glyphs.
     expect(find.byIcon(LucideIcons300.square), findsOneWidget); // stop
@@ -278,6 +294,10 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), 'and then this');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
     expect(find.byKey(const Key('input-bar-queue')), findsNothing);
     await tester.tap(find.byKey(const Key('input-bar-action')));
@@ -305,6 +325,10 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), 'quick follow-up');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
     expect(find.byIcon(LucideIcons300.arrowUp), findsOneWidget);
     expect(
@@ -359,6 +383,10 @@ void main() {
 
     final field = find.byType(TextField);
     await tester.enterText(field, 'hello');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
 
     // Plain Enter → send + clear.
@@ -373,6 +401,10 @@ void main() {
 
     // Shift+Enter → newline, NOT a send.
     await tester.enterText(field, 'line1');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
@@ -424,7 +456,15 @@ void main() {
 
     // Typed a key at a time, as a keyboard does.
     await tester.enterText(field, 'explain ');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.enterText(field, 'explain @');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
     expect(picks, 1);
     expect(tester.widget<TextField>(field).controller!.text, 'explain ');
@@ -432,13 +472,25 @@ void main() {
     // Nothing picked: the @ stays as typed.
     picked = false;
     await tester.enterText(field, 'explain @');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
     expect(picks, 2);
     expect(tester.widget<TextField>(field).controller!.text, 'explain @');
 
     // Not at the start of a word: an address, not a mention.
     await tester.enterText(field, 'mail me');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.enterText(field, 'mail me@');
+    // The composer opens into its card.
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     await tester.pump();
     expect(picks, 2);
   });

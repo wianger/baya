@@ -61,38 +61,38 @@ class AgentMarkdown extends StatelessWidget {
         letterSpacing: -0.55,
       ),
       h2: base.copyWith(
-        fontSize: 20.5,
+        fontSize: BayaType.headline,
         fontWeight: FontWeight.w700,
         height: 1.22,
         letterSpacing: -0.4,
       ),
       h3: base.copyWith(
-        fontSize: 18,
+        fontSize: BayaType.headline,
         fontWeight: FontWeight.w600,
         height: 1.28,
         letterSpacing: -0.28,
       ),
       h4: base.copyWith(
-        fontSize: 16.5,
+        fontSize: BayaType.callout,
         fontWeight: FontWeight.w600,
         height: 1.32,
         letterSpacing: -0.2,
       ),
       h5: base.copyWith(
-        fontSize: 15.5,
+        fontSize: BayaType.body,
         fontWeight: FontWeight.w600,
         height: 1.35,
         letterSpacing: -0.15,
       ),
       h6: base.copyWith(
-        fontSize: 14.5,
+        fontSize: BayaType.subhead,
         fontWeight: FontWeight.w600,
         height: 1.4,
         color: colors.muted2,
       ),
     );
     final markdown = GptMarkdown(
-      linkLocalhost(data),
+      separateTables(linkLocalhost(data)),
       style: base,
       onLinkTap: (url, _) => _openLink(context, url),
       // A chip that takes its own room in the line, so the words around
@@ -112,7 +112,7 @@ class AgentMarkdown extends StatelessWidget {
                 child: Text(
                   code,
                   style: typo.mono.copyWith(
-                    fontSize: 12.5,
+                    fontSize: BayaType.caption,
                     height: 1.35,
                     color: colors.accent,
                     letterSpacing: -0.1,
@@ -176,7 +176,7 @@ class AgentMarkdown extends StatelessWidget {
         spacing: 5,
         padding: 3,
         style: base.copyWith(
-          fontSize: 14,
+          fontSize: BayaType.subhead,
           height: 1.45,
           fontWeight: FontWeight.w600,
           color: colors.muted2,
@@ -327,8 +327,11 @@ class _MarkdownTable extends StatelessWidget {
                               : null,
                         ),
                         children: [
+                          // A long cell wraps inside a column of at most
+                          // 260 instead of stretching the whole table.
                           for (final field in row.fields)
-                            Padding(
+                            Container(
+                              constraints: const BoxConstraints(maxWidth: 260),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 10,
@@ -337,7 +340,7 @@ class _MarkdownTable extends StatelessWidget {
                                 field.data.trim(),
                                 textAlign: field.alignment,
                                 style: style.copyWith(
-                                  fontSize: 13,
+                                  fontSize: BayaType.footnote,
                                   height: 1.35,
                                   fontWeight: row.isHeader
                                       ? FontWeight.w600
@@ -359,4 +362,40 @@ class _MarkdownTable extends StatelessWidget {
       ),
     );
   }
+}
+
+final _tableDivider = RegExp(r'^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$');
+final _fence = RegExp(r'^\s*(```|~~~)');
+
+/// Agents often write a table straight under a line of text, or text
+/// straight under a table. Markdown needs a blank line there, so one is
+/// put in (never inside a code block).
+String separateTables(String markdown) {
+  if (!markdown.contains('|')) return markdown;
+  final lines = markdown.split('\n');
+  final out = <String>[];
+  var inFence = false;
+  var inTable = false;
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i];
+    if (_fence.hasMatch(line)) inFence = !inFence;
+    if (inFence) {
+      inTable = false;
+      out.add(line);
+      continue;
+    }
+    final startsTable =
+        line.contains('|') &&
+        i + 1 < lines.length &&
+        _tableDivider.hasMatch(lines[i + 1]);
+    if (startsTable && !inTable) {
+      if (out.isNotEmpty && out.last.trim().isNotEmpty) out.add('');
+      inTable = true;
+    } else if (inTable && !line.contains('|')) {
+      if (line.trim().isNotEmpty) out.add('');
+      inTable = false;
+    }
+    out.add(line);
+  }
+  return out.join('\n');
 }
