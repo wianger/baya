@@ -225,6 +225,44 @@ export class PhoneTerminals {
   }
 
   /**
+   * A session's terminal in herdr: the one kept for it, else one where its
+   * agent already runs in its folder, else its agent's own TUI resumed on
+   * the same conversation ([resume]: the command line), else a shell there.
+   */
+  async forSession(options: {
+    session: string;
+    cwd: string;
+    agent: string;
+    resume: string | null;
+  }): Promise<Json> {
+    if (!(await this.core.available())) return { available: false };
+    const listed = (await this.core.call("terminal.list", {}))["terminals"];
+    const terminals = (Array.isArray(listed) ? listed : []) as Json[];
+    const live = terminals.filter((t) => t["state"] === "live");
+    const labels = (t: Json) => (t["labels"] ?? {}) as Json;
+    const own = live.find((t) => labels(t)["baya.session"] === options.session);
+    if (own) return { available: true, terminal: own };
+    const folder = (path: unknown) => String(path ?? "").replace(/[\\/]+$/u, "");
+    const program = (t: Json) => {
+      const status = t["status"] as Json | undefined;
+      const foreground = t["foreground"] as Json | undefined;
+      return String(status?.["app"] ?? foreground?.["name"] ?? t["agent"] ?? "").toLowerCase();
+    };
+    const running = live.find(
+      (t) =>
+        program(t) === options.agent.toLowerCase() &&
+        folder((t["foreground"] as Json | undefined)?.["cwd"] ?? t["cwd"]) === folder(options.cwd),
+    );
+    if (running) return { available: true, terminal: running };
+    const started = await this.run({
+      cwd: options.cwd,
+      session: options.session,
+      ...(options.resume ? { line: options.resume } : {}),
+    });
+    return { available: true, terminal: started };
+  }
+
+  /**
    * Its screen and up to [lines] of history as plain text, for reading
    * further back than the phone was sent on attach.
    */
@@ -256,4 +294,33 @@ function isDisplay(value: unknown): value is Json {
   const color = (c: unknown) =>
     c === undefined || (typeof c === "string" && /^#[0-9a-f]{6}$/iu.test(c));
   return color(bg) && color(fg);
+}
+
+/** A command line's word, quoted for a POSIX shell or PowerShell alike. */
+function quote(word: string): string {
+  return /^[\w@%+=:,./-]+$/u.test(word) ? word : `'${word.replaceAll("'", "''")}'`;
+}
+
+/**
+ * The command that reopens an agent's own conversation in its TUI, for the
+ * agents whose CLI can: Claude Code, Codex, Pi. [env] is the agent's
+ * configured environment, which may name the CLI's path.
+ */
+export function resumeCommand(
+  agent: string,
+  sessionId: string | null,
+  env: Record<string, string> = {},
+): string | null {
+  if (!sessionId) return null;
+  const id = quote(sessionId);
+  switch (agent) {
+    case "claude":
+      return `${quote(env["CLAUDE_CODE_EXECUTABLE"] ?? "claude")} --resume ${id}`;
+    case "codex":
+      return `${quote(env["CODEX_PATH"] ?? "codex")} resume ${id}`;
+    case "pi":
+      return `pi --session ${id}`;
+    default:
+      return null;
+  }
 }

@@ -18,12 +18,10 @@ Future<void> openSessionTerminal(
   BuildContext context, {
   required HostConnection host,
   required String sessionId,
-  required String cwd,
-  String agent = '',
 }) {
   final repository = TerminalsRepository(HostTerminalLink(host));
   // The page opens at once; finding (or starting) the terminal happens on it.
-  final terminal = repository.forSession(sessionId, cwd, agent: agent);
+  final terminal = repository.forSession(sessionId);
   final prefs = context.read<Preferences>();
   return Navigator.of(context).push(
     MaterialPageRoute<void>(

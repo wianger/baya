@@ -339,40 +339,17 @@ class TerminalsRepository {
     return HerdrTerminal.fromJson(result.cast<String, dynamic>());
   }
 
-  /// [sessionId]'s terminal in herdr: the one labelled for it, else the
-  /// live terminal where its agent ([agent], e.g. "Claude Code") runs in
-  /// its folder, else a new shell in [cwd] kept for it. Null when
-  /// herdr-core is not on the computer.
-  Future<HerdrTerminal?> forSession(
-    String sessionId,
-    String cwd, {
-    String agent = '',
-  }) async {
-    final list = await this.list();
-    if (!list.available) return null;
-    final live = list.terminals.where((t) => t.live).toList()
-      ..sort(
-        (a, b) =>
-            (b.created ?? DateTime(0)).compareTo(a.created ?? DateTime(0)),
-      );
-    for (final terminal in live) {
-      if (terminal.labels['baya.session'] == sessionId) return terminal;
-    }
-    final words = agent.toLowerCase().split(RegExp(r'[^a-z0-9]+'))
-      ..removeWhere((w) => w.isEmpty);
-    bool runsAgent(HerdrTerminal t) {
-      final program = (t.status?.app ?? t.program ?? '').toLowerCase();
-      return program.isNotEmpty && words.contains(program);
-    }
-
-    String folder(String path) => path.replaceAll(RegExp(r'[/\\]+$'), '');
-    for (final terminal in live) {
-      if (runsAgent(terminal) &&
-          folder(terminal.programCwd ?? terminal.cwd) == folder(cwd)) {
-        return terminal;
-      }
-    }
-    return run(cwd: cwd, session: sessionId);
+  /// [sessionId]'s terminal in herdr, as the computer finds it: the one
+  /// kept for it, one where its agent already runs in its folder, its
+  /// agent's own TUI resumed on the conversation, or else a shell there.
+  /// Null when herdr-core is not on the computer.
+  Future<HerdrTerminal?> forSession(String sessionId) async {
+    final result = await _link.call('_baya/terminal_session', {
+      'sessionId': sessionId,
+    });
+    final terminal = result['terminal'];
+    if (result['available'] == false || terminal is! Map) return null;
+    return HerdrTerminal.fromJson(terminal.cast<String, dynamic>());
   }
 
   /// Starts watching [address] at [cols]×[rows].

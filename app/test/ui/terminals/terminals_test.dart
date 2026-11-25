@@ -69,6 +69,10 @@ class _Link implements TerminalLink {
         ),
       },
       '_baya/terminal_run' => _t('t9'),
+      '_baya/terminal_session' => {
+        'available': available,
+        if (available) 'terminal': _t('t5'),
+      },
       '_baya/terminal_read' => {
         'text': [for (var i = 1; i <= 3000; i++) 'line $i'].join('\n'),
       },
@@ -317,41 +321,16 @@ void main() {
     expect(resize.$2['cols'] as int, greaterThan(cols));
   });
 
-  test(
-    "a session's terminal: its own, its agent's in herdr, else a new shell",
-    () async {
-      final link = _Link()
-        ..terminals = [
-          {
-            ..._t('t5'),
-            'labels': {'baya.session': 's1'},
-          },
-        ];
-      final repository = TerminalsRepository(link);
-      expect((await repository.forSession('s1', '/w'))!.address, 't5');
-      expect(link.calls.where((c) => c.$1 == '_baya/terminal_run'), isEmpty);
-
-      await repository.forSession('s2', '/home/me/shop');
-      final run = link.calls.lastWhere((c) => c.$1 == '_baya/terminal_run');
-      expect(run.$2, {'cwd': '/home/me/shop', 'session': 's2'});
-
-      // Its agent already runs in herdr in its folder: that terminal.
-      link.terminals = [_t('t1'), _t('t7', program: 'claude')];
-      final found = await repository.forSession(
-        's4',
-        '/home/me/shop/',
-        agent: 'Claude Code',
-      );
-      expect(found!.address, 't7');
-      expect(
-        await repository.forSession('s4', '/elsewhere', agent: 'Claude Code'),
-        isNot(predicate<HerdrTerminal>((t) => t.address == 't7')),
-      );
-
-      link.available = false;
-      expect(await repository.forSession('s3', '/w'), isNull);
-    },
-  );
+  test("a session's terminal is the one the computer finds for it", () async {
+    final link = _Link();
+    final repository = TerminalsRepository(link);
+    expect((await repository.forSession('s1'))!.address, 't5');
+    final call = link.calls.single;
+    expect(call.$1, '_baya/terminal_session');
+    expect(call.$2, {'sessionId': 's1'});
+    link.available = false;
+    expect(await repository.forSession('s1'), isNull);
+  });
 
   testWidgets(
     'earlier output is read from the computer, newest first in view',

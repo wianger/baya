@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { encodeFrame, FrameReader, HerdrCore } from "../src/herdr/core.ts";
-import { PhoneTerminals } from "../src/herdr/phone_terminals.ts";
+import { PhoneTerminals, resumeCommand } from "../src/herdr/phone_terminals.ts";
 
 const fake = fileURLToPath(new URL("./fixtures/fake-hc.mjs", import.meta.url));
 
@@ -97,5 +97,17 @@ describe("herdr-core", () => {
     const terminals = new PhoneTerminals(new Phone(), hc);
     expect(await terminals.list()).toEqual({ available: false, terminals: [] });
     await expect(hc.call("terminal.list", {})).rejects.toMatchObject({ kind: "not_installed" });
+  });
+});
+
+describe("a session's terminal", () => {
+  it("reopens the agent's own conversation where its CLI can", () => {
+    expect(resumeCommand("claude", "abc-1", { CLAUDE_CODE_EXECUTABLE: "/u/claude" })).toBe(
+      "/u/claude --resume abc-1",
+    );
+    expect(resumeCommand("codex", "t 1")).toBe("codex resume 't 1'");
+    expect(resumeCommand("pi", "p1")).toBe("pi --session p1");
+    expect(resumeCommand("deepseek", "d1")).toBeNull();
+    expect(resumeCommand("claude", null)).toBeNull();
   });
 });

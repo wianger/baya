@@ -1,5 +1,9 @@
 package dev.wianger.baya
 
+import android.opengl.EGL14
+import android.opengl.EGLConfig
+import android.opengl.GLES20
+import com.limelight.binding.video.MediaCodecHelper
 import android.app.Activity
 import android.content.Context
 import android.graphics.Rect
@@ -199,6 +203,8 @@ object Moonlight {
                 else -> PreferenceConfiguration.FormatOption.AUTO
             }
         }
+        // Moonlight picks decoder workarounds by GPU (Adreno, PowerVR...).
+        MediaCodecHelper.initialize(activity.applicationContext, glRenderer())
         val texture = textures.createSurfaceProducer()
         texture.setSize(prefs.width, prefs.height)
         producer = texture
@@ -322,4 +328,31 @@ object Moonlight {
         override fun unlockCanvasAndPost(canvas: android.graphics.Canvas?) = Unit
         override fun getSurfaceFrame() = Rect()
     }
+
+    /** The GPU's GL_RENDERER string, from a throwaway offscreen context. */
+    private fun glRenderer(): String = runCatching {
+        val display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
+        val version = IntArray(2)
+        EGL14.eglInitialize(display, version, 0, version, 1)
+        val configs = arrayOfNulls<EGLConfig>(1)
+        val count = IntArray(1)
+        EGL14.eglChooseConfig(
+            display,
+            intArrayOf(EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT, EGL14.EGL_NONE),
+            0, configs, 0, 1, count, 0,
+        )
+        val context = EGL14.eglCreateContext(
+            display, configs[0], EGL14.EGL_NO_CONTEXT,
+            intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE), 0,
+        )
+        val surface = EGL14.eglCreatePbufferSurface(
+            display, configs[0], intArrayOf(EGL14.EGL_WIDTH, 1, EGL14.EGL_HEIGHT, 1, EGL14.EGL_NONE), 0,
+        )
+        EGL14.eglMakeCurrent(display, surface, surface, context)
+        val renderer = GLES20.glGetString(GLES20.GL_RENDERER) ?: ""
+        EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
+        EGL14.eglDestroySurface(display, surface)
+        EGL14.eglDestroyContext(display, context)
+        renderer
+    }.getOrDefault("")
 }

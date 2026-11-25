@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
-import { PhoneTerminals } from "../herdr/phone_terminals.ts";
+import { loadConfig } from "../config.ts";
+import { PhoneTerminals, resumeCommand } from "../herdr/phone_terminals.ts";
 import { adbConnect, adbDisconnect, adbPair, adbStatus } from "../integrations/adb.ts";
 import { logOnce } from "../log_once.ts";
 import { pairPhone } from "../pairing/service.ts";
@@ -338,6 +339,16 @@ export class PhoneConnection implements HubPhone {
         return this.terminals.run({
           ...params,
           ...(cwd ? { cwd: await resolveDirectory(cwd) } : {}),
+        });
+      }
+      case "_baya/terminal_session": {
+        const { record } = this.session(params);
+        const agent = loadConfig().agents.find((a) => a.id === record.agent);
+        return this.terminals.forSession({
+          session: record.id,
+          cwd: record.cwd,
+          agent: record.agent,
+          resume: resumeCommand(record.agent, record.agentSessionId, agent?.env),
         });
       }
       case "_baya/terminal_attach":

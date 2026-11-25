@@ -1,6 +1,8 @@
-/// The opening: the mark and the name side by side and large, as Claude's
-/// launch shows them; then they glide into the home's arrangement, the bird
-/// above and the name below, smaller, and the home comes up around them.
+/// The opening. Android's launch screen leaves the bird alone in the middle,
+/// at this same size; the bird steps aside as the name writes in beside it,
+/// large, as Claude's launch shows them; then the two glide into the home's
+/// arrangement, the bird above and the name below, smaller, and the home
+/// comes up around them.
 library;
 
 import 'dart:async';
@@ -16,6 +18,9 @@ const kHomeMarkSize = 64.0;
 const kHomeWordmarkSize = 44.0;
 const kHomeMarkGap = 10.0;
 
+/// The bird Android's launch screen draws (branding/generate.py SPLASH_SCALE).
+const kLaunchMarkSize = 80.0;
+
 class BayaIntro extends StatefulWidget {
   const BayaIntro({super.key, required this.child, this.enabled = true});
 
@@ -29,10 +34,10 @@ class BayaIntro extends StatefulWidget {
 }
 
 class _BayaIntroState extends State<BayaIntro> with TickerProviderStateMixin {
-  /// The row fades and settles in.
+  /// The bird steps aside and the name writes in.
   late final _enter = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 420),
+    duration: const Duration(milliseconds: 520),
   );
 
   /// Row → column.
@@ -59,6 +64,9 @@ class _BayaIntroState extends State<BayaIntro> with TickerProviderStateMixin {
   }
 
   Future<void> _run() async {
+    // The first frames repeat the launch screen exactly: no jump.
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    if (!mounted) return;
     await _enter.forward();
     await Future<void>.delayed(const Duration(milliseconds: 280));
     if (!mounted) return;
@@ -99,7 +107,7 @@ class _BayaIntroState extends State<BayaIntro> with TickerProviderStateMixin {
                 final move = Curves.easeInOutCubic.transform(_move.value);
                 final lift = Curves.easeOut.transform(_lift.value);
                 // Sizes: large in the row, the home's in the column.
-                final mark = lerpDouble(80, kHomeMarkSize, move)!;
+                final mark = lerpDouble(kLaunchMarkSize, kHomeMarkSize, move)!;
                 final word = lerpDouble(64, kHomeWordmarkSize, move)!;
                 final style = brandDisplayTextStyle(
                   fontSize: word,
@@ -127,8 +135,14 @@ class _BayaIntroState extends State<BayaIntro> with TickerProviderStateMixin {
                 final rowWidth = mark + rowGap + text.width;
                 final columnHeight = mark + kHomeMarkGap + text.height;
                 // Mark: left of the row → top of the column.
+                // Alone at first, where the launch screen drew it; then left,
+                // making room for the name.
                 final markRow = Offset(
-                  center.dx - rowWidth / 2 + mark / 2,
+                  lerpDouble(
+                    center.dx,
+                    center.dx - rowWidth / 2 + mark / 2,
+                    enter,
+                  )!,
                   center.dy,
                 );
                 final markColumn = Offset(
@@ -156,20 +170,21 @@ class _BayaIntroState extends State<BayaIntro> with TickerProviderStateMixin {
                       Positioned(
                         left: markAt.dx - mark / 2,
                         top: markAt.dy - mark / 2,
-                        child: Opacity(
-                          opacity: enter,
-                          child: Transform.scale(
-                            scale: .92 + .08 * enter,
-                            child: AppMark(size: mark),
-                          ),
-                        ),
+                        child: AppMark(size: mark),
                       ),
                       Positioned(
                         left: wordAt.dx - text.width / 2,
                         top: wordAt.dy - text.height / 2,
-                        child: Opacity(
-                          opacity: enter,
-                          child: Text(kAppName, style: style),
+                        // Written in from the bird's side.
+                        child: ClipRect(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: Curves.easeOut.transform(enter),
+                            child: Opacity(
+                              opacity: enter,
+                              child: Text(kAppName, style: style),
+                            ),
+                          ),
                         ),
                       ),
                     ],
