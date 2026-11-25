@@ -50,7 +50,11 @@ function call({ id, method, params }) {
     case "terminal.run":
       return reply(id, { address: "t2", params });
     case "terminal.read":
-      return reply(id, { text: `read ${params.terminal} lines=${params.lines}`, complete: true, how: "history" });
+      return reply(id, {
+        text: `read ${params.terminal} lines=${params.lines}`,
+        complete: true,
+        how: "history",
+      });
     default:
       return out(
         0,
