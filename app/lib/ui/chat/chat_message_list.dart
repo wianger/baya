@@ -316,6 +316,8 @@ class _ChatMessageListState extends State<ChatMessageList> {
   }
 
   bool _onScrollNotification(ScrollNotification notification) {
+    // A table or code block scrolling sideways is not the chat moving.
+    if (notification.depth != 0) return false;
     if (notification is ScrollStartNotification &&
         notification.dragDetails != null) {
       _keyboardDismissTriggered = false;

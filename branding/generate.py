@@ -1,8 +1,8 @@
 """Generate Baya's artwork from one geometry: a perched baya weaver.
 
-Drawn the way magpie's icon is: one ink silhouette on a soft grey tile, with
-white cut into it for the weaver's crown, pale breast, wing and tail
-feathers. Black and white only. Run from the repository root:
+Drawn the way magpie's icon is: one ink silhouette with white cut into it
+for the weaver's crown, pale breast, wing and tail feathers. Black and white
+only, and never on a tile: the launcher's background is plain white. Run from the repository root:
 
     python branding/generate.py
 
@@ -20,11 +20,13 @@ DART = ROOT.parent / "app/lib/ui/core/branding/mark_geometry.g.dart"
 
 INK = "#141414"
 PAPER = "#FFFFFF"
-# Black and white only: the crown, once gold, is cut in white like the
-# breast and feathers.
-GOLD = "#FFFFFF"
-TILE_TOP = "#FAFAFA"
-TILE_BOTTOM = "#E6E6E6"
+# The app's page colours, light and dark: the splash screen's bird takes
+# the text colour on them, as the app's own mark does.
+PAGE_LIGHT = "#FFFFFF"
+PAGE_DARK = "#151517"
+TEXT_DARK = "#F9FAFB"
+# The launcher needs a background layer: plain white, no tile drawn.
+BACKGROUND = "#FFFFFF"
 
 # 108-unit grid (the adaptive icon canvas). Absolute M/L/C/Z commands only,
 # so the app can parse them with a few lines.
@@ -70,7 +72,7 @@ def svg_bird(scale: float = 1.0) -> str:
     return f"""  <g transform="{place(scale)}">
     <path d="{BODY}" fill="{INK}"/>
     <path d="{BREAST}" fill="{PAPER}"/>
-    <path d="{CROWN}" fill="{GOLD}"/>
+    <path d="{CROWN}" fill="{PAPER}"/>
     <path d="{WING}" fill="{INK}" stroke="{PAPER}" stroke-width="{WING_EDGE}" stroke-linejoin="round"/>
     <g stroke="{PAPER}" stroke-width="{LINE_WIDTH}" stroke-linecap="round" fill="none">{lines}</g>
     <circle cx="{ex}" cy="{ey}" r="{ring}" fill="{PAPER}"/>
@@ -78,33 +80,22 @@ def svg_bird(scale: float = 1.0) -> str:
   </g>"""
 
 
-def svg_tile() -> str:
-    return f"""  <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="108" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="{TILE_TOP}"/>
-      <stop offset="1" stop-color="{TILE_BOTTOM}"/>
-    </linearGradient>
-  </defs>
-  <rect width="108" height="108" rx="24" fill="url(#tile)"/>
-"""
-
-
-def svg_mark(background: bool, scale: float = 1.0) -> str:
+def svg_mark(scale: float = 1.0) -> str:
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">\n'
-        f"{svg_tile() if background else ''}{svg_bird(scale)}\n</svg>\n"
+        f"{svg_bird(scale)}\n</svg>\n"
     )
 
 
 def svg_banner() -> str:
     """The repository and social banner: the mark beside the wordmark."""
-    mark = svg_mark(background=True).split("\n", 1)[1].rsplit("</svg>", 1)[0]
+    mark = svg_mark().split("\n", 1)[1].rsplit("</svg>", 1)[0]
     return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640">
-  <rect width="1280" height="640" fill="#0E0E10"/>
-  <svg x="184" y="200" width="240" height="240" viewBox="0 0 108 108">{mark}</svg>
-  <text x="478" y="318" fill="#EDEDEF" font-family="Pinyon Script"
+  <rect width="1280" height="640" fill="#FFFFFF"/>
+  <g transform="translate(184 200) scale({240 / 108:.4f})">{mark}</g>
+  <text x="478" y="318" fill="#0F1115" font-family="Pinyon Script"
     font-size="150">Baya</text>
-  <text x="490" y="436" fill="#8A8A93" font-family="Inter" font-size="34">
+  <text x="490" y="436" fill="#6B6B73" font-family="Inter" font-size="34">
     Your coding agents, from your phone.</text>
 </svg>
 """
@@ -153,24 +144,24 @@ def argb(color: str) -> str:
     return "#FF" + color.removeprefix("#").upper()
 
 
-def vector_foreground() -> str:
+def vector_foreground(ink: str = INK, paper: str = PAPER) -> str:
     ex, ey, ring, pupil = EYE
     lines = "".join(
-        f'      <path android:pathData="{d}" android:strokeColor="{argb(PAPER)}"'
+        f'      <path android:pathData="{d}" android:strokeColor="{argb(paper)}"'
         f' android:strokeWidth="{LINE_WIDTH}" android:strokeLineCap="round"/>\n'
         for d in LINES
     )
     return vector(
         group(
-            f'      <path android:pathData="{BODY}" android:fillColor="{argb(INK)}"/>\n'
-            f'      <path android:pathData="{BREAST}" android:fillColor="{argb(PAPER)}"/>\n'
-            f'      <path android:pathData="{CROWN}" android:fillColor="{argb(GOLD)}"/>\n'
-            f'      <path android:pathData="{WING}" android:fillColor="{argb(INK)}"'
-            f' android:strokeColor="{argb(PAPER)}" android:strokeWidth="{WING_EDGE}"'
+            f'      <path android:pathData="{BODY}" android:fillColor="{argb(ink)}"/>\n'
+            f'      <path android:pathData="{BREAST}" android:fillColor="{argb(paper)}"/>\n'
+            f'      <path android:pathData="{CROWN}" android:fillColor="{argb(paper)}"/>\n'
+            f'      <path android:pathData="{WING}" android:fillColor="{argb(ink)}"'
+            f' android:strokeColor="{argb(paper)}" android:strokeWidth="{WING_EDGE}"'
             ' android:strokeLineJoin="round"/>\n'
             f"{lines}"
-            f'      <path android:pathData="{circle(ex, ey, ring)}" android:fillColor="{argb(PAPER)}"/>\n'
-            f'      <path android:pathData="{circle(ex + 0.3, ey, pupil)}" android:fillColor="{argb(INK)}"/>\n'
+            f'      <path android:pathData="{circle(ex, ey, ring)}" android:fillColor="{argb(paper)}"/>\n'
+            f'      <path android:pathData="{circle(ex + 0.3, ey, pupil)}" android:fillColor="{argb(ink)}"/>\n'
         )
     )
 
@@ -203,17 +194,7 @@ def vector_status() -> str:
 
 
 def vector_background() -> str:
-    return vector(
-        '  <path android:pathData="M0 0H108V108H0Z">\n'
-        '    <aapt:attr name="android:fillColor">\n'
-        '      <gradient android:type="linear" android:startX="0" android:startY="0"'
-        ' android:endX="0" android:endY="108">\n'
-        f'        <item android:offset="0" android:color="{argb(TILE_TOP)}"/>\n'
-        f'        <item android:offset="1" android:color="{argb(TILE_BOTTOM)}"/>\n'
-        "      </gradient>\n"
-        "    </aapt:attr>\n"
-        "  </path>\n"
-    )
+    return vector(f'  <path android:pathData="M0 0H108V108H0Z" android:fillColor="{argb(BACKGROUND)}"/>\n')
 
 
 def dart_geometry() -> str:
@@ -234,14 +215,12 @@ const kMarkWingEdge = {WING_EDGE};
 const kMarkLineWidth = {LINE_WIDTH};
 const kMarkCenter = ({float(cx)}, {float(cy)});
 const kMarkScale = {SCALE};
-const kMarkTile = (0xFF{TILE_TOP[1:]}, 0xFF{TILE_BOTTOM[1:]});
-const kMarkGold = 0xFF{GOLD[1:]};
 """
 
 
 def main() -> None:
-    (ROOT / "baya-mark.svg").write_text(svg_mark(background=True))
-    (ROOT / "baya-foreground.svg").write_text(svg_mark(background=False, scale=SAFE_SCALE))
+    (ROOT / "baya-mark.svg").write_text(svg_mark())
+    (ROOT / "baya-foreground.svg").write_text(svg_mark(scale=SAFE_SCALE))
     (ROOT / "baya-monochrome.svg").write_text(svg_monochrome())
     (ROOT / "banner.svg").write_text(svg_banner())
     drawable = RES / "drawable"
@@ -249,6 +228,11 @@ def main() -> None:
     (drawable / "ic_launcher_monochrome.xml").write_text(vector_monochrome())
     (drawable / "baya_icon_background.xml").write_text(vector_background())
     (drawable / "ic_stat_baya.xml").write_text(vector_status())
+    # Android 12+'s launch screen: the bird alone, on the page colour.
+    (drawable / "splash_mark.xml").write_text(vector_foreground())
+    night = RES / "drawable-night"
+    night.mkdir(exist_ok=True)
+    (night / "splash_mark.xml").write_text(vector_foreground(TEXT_DARK, PAGE_DARK))
     DART.write_text(dart_geometry())
 
 

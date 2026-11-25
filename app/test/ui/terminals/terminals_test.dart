@@ -315,7 +315,7 @@ void main() {
   });
 
   test(
-    "a session's terminal is found again, else started in its folder",
+    "a session's terminal: its own, its agent's in herdr, else a new shell",
     () async {
       final link = _Link()
         ..terminals = [
@@ -331,6 +331,19 @@ void main() {
       await repository.forSession('s2', '/home/me/shop');
       final run = link.calls.lastWhere((c) => c.$1 == '_baya/terminal_run');
       expect(run.$2, {'cwd': '/home/me/shop', 'session': 's2'});
+
+      // Its agent already runs in herdr in its folder: that terminal.
+      link.terminals = [_t('t1'), _t('t7', program: 'claude')];
+      final found = await repository.forSession(
+        's4',
+        '/home/me/shop/',
+        agent: 'Claude Code',
+      );
+      expect(found!.address, 't7');
+      expect(
+        await repository.forSession('s4', '/elsewhere', agent: 'Claude Code'),
+        isNot(predicate<HerdrTerminal>((t) => t.address == 't7')),
+      );
 
       link.available = false;
       expect(await repository.forSession('s3', '/w'), isNull);

@@ -135,7 +135,7 @@ class AboutPage extends StatelessWidget {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
                     children: [
-                      const Center(child: AppMark(size: 96, tile: true)),
+                      const Center(child: AppMark(size: 96)),
                       const SizedBox(height: 14),
                       Text(
                         kAppName,

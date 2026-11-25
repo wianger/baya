@@ -1,11 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
-  <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="108" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FAFAFA"/>
-      <stop offset="1" stop-color="#E6E6E6"/>
-    </linearGradient>
-  </defs>
-  <rect width="108" height="108" rx="24" fill="url(#tile)"/>
   <g transform="translate(54 54) scale(1.1200) translate(-56 -53.5)">
     <path d="M60 31C66 27 76 28 80 36L91 41.5L80 46.5C83 60 76 74 61 77.5C52 79.5 45 77.5 40.5 73L24 79.5L28 72.5L21 68.5L38 60.5C44 50 50 40 60 31Z" fill="#141414"/>
     <path d="M80 50.5C80.5 61 75 71 62.5 74.4C55.5 76.2 49.5 75.2 46 72.4C54.5 69.8 62 63.5 66.2 55.6C69.2 51 74 49 80 50.5Z" fill="#FFFFFF"/>

@@ -418,17 +418,24 @@ void main() {
       );
       expect(find.byKey(const Key('sidebar-settings')), findsOneWidget);
       expect(find.byKey(const Key('sidebar-new-session')), findsOneWidget);
-      // Search opens from the capsule at the top.
+      // Search rises as a card from the round button at the top.
       expect(find.byKey(const Key('sidebar-search-field')), findsNothing);
       await tester.tap(find.byKey(const Key('sidebar-search')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('sidebar-search-field')), findsOneWidget);
+      final sheet = find.byKey(const Key('session-search-sheet'));
+      expect(
+        find.descendant(of: sheet, matching: find.text('Alpha task')),
+        findsOneWidget,
+      );
       await tester.enterText(
         find.byKey(const Key('sidebar-search-field')),
         'Beta',
       );
       await tester.pumpAndSettle();
-      expect(find.text('Alpha task'), findsNothing);
+      expect(
+        find.descendant(of: sheet, matching: find.text('Alpha task')),
+        findsNothing,
+      );
       await tester.tap(find.byKey(const Key('sidebar-search-close')));
       await tester.pumpAndSettle();
       expect(find.text('Alpha task'), findsOneWidget);
@@ -472,7 +479,13 @@ void main() {
         'Renamed',
       );
       await tester.pumpAndSettle();
-      expect(find.text('Renamed Beta'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('session-search-sheet')),
+          matching: find.text('Renamed Beta'),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.byKey(const Key('sidebar-search-close')));
       await tester.pumpAndSettle();
 

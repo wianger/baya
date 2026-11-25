@@ -27,7 +27,6 @@ import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/onboarding/onboarding_page.dart';
 import 'package:app/ui/onboarding/viewmodels/onboarding_viewmodel.dart';
 import 'package:app/ui/pairing/viewmodels/pairing_viewmodel.dart';
-import 'package:app/ui/preview/preview_page.dart';
 import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/settings/settings_page.dart';
 import 'package:app/ui/settings/viewmodels/settings_viewmodel.dart';
@@ -248,19 +247,6 @@ void main() {
         },
       ],
     };
-    desktopHost.handlers['_baya/preview_ports'] = (params) => {
-      'path': '/baya-pair/wsl/preview',
-      'ports': [
-        {
-          'port': 5173,
-          'status': 200,
-          'title': 'Web · Vite + React',
-          'html': true,
-        },
-        {'port': 3000, 'status': 200, 'title': 'API docs', 'html': true},
-        {'port': 8080, 'status': 404, 'title': '', 'html': false},
-      ],
-    };
     final hosts = testHostsFor(storage, {desktop.remoteEpk: desktopHost});
     await hosts.start();
     await pumpOnline(tester, hosts);
@@ -285,6 +271,17 @@ void main() {
       'sidebar',
       const Scaffold(body: SafeArea(child: SessionSidebar())),
       providers: common,
+    );
+    await shoot(
+      tester,
+      'search',
+      const Scaffold(body: SafeArea(child: SessionSidebar())),
+      providers: common,
+      then: () async {
+        await tester.tap(find.byKey(const Key('sidebar-search')));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+      },
     );
     await shoot(
       tester,
@@ -386,20 +383,6 @@ void main() {
       const SessionShell(child: RunPage(runId: 'run')),
       providers: common,
       size: const Size(1280, 800),
-    );
-    await shoot(
-      tester,
-      'preview-picker',
-      const Scaffold(body: SizedBox.expand()),
-      providers: common,
-      then: () async {
-        unawaited(
-          showPreviewPicker(
-            tester.element(find.byType(Scaffold)),
-            hosts.byKey(desktop.remoteEpk)!,
-          ),
-        );
-      },
     );
     await shoot(
       tester,

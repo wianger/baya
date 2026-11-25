@@ -17,12 +17,13 @@ import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/workspaces/session_actions.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
+import 'package:app/ui/workspaces/session_overview.dart';
+import 'package:app/ui/workspaces/session_search.dart';
 import 'package:app/ui/workspaces/widgets/scope_switchers.dart';
+import 'package:app/ui/workspaces/widgets/session_list_row.dart';
 import 'package:app/ui/workspaces/workspace_navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -34,36 +35,26 @@ class SessionSidebar extends StatefulWidget {
 }
 
 class _SessionSidebarState extends State<SessionSidebar> {
-  String _query = '';
+  /// Sessions listed before "View all".
+  static const _recents = 8;
+
+  Widget _entry({
+    required Key key,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    child: DrawerLine(key: key, icon: icon, label: label, onTap: onTap),
+  );
+
   bool _opening = false;
   bool _choosing = false;
-  bool _searching = false;
-  final _search = TextEditingController();
-  final _searchFocus = FocusNode();
 
-  @override
-  void dispose() {
-    _search.dispose();
-    _searchFocus.dispose();
-    super.dispose();
-  }
-
-  /// Claude-style header: search is a single circle until tapped, then the
-  /// text field takes the header row.
-  void _openSearch() {
-    setState(() => _searching = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _searchFocus.requestFocus();
-    });
-  }
-
-  void _closeSearch() {
-    _search.clear();
-    _searchFocus.unfocus();
-    setState(() {
-      _searching = false;
-      _query = '';
-    });
+  /// Claude's search: a card over the drawer; the session picked opens.
+  Future<void> _openSearch() async {
+    final item = await showSessionSearch(context);
+    if (item != null && mounted) await _open(item);
   }
 
   Future<void> _choose(Future<void> Function() action) async {
@@ -71,9 +62,6 @@ class _SessionSidebarState extends State<SessionSidebar> {
     setState(() => _choosing = true);
     try {
       await action();
-      if (!mounted) return;
-      _search.clear();
-      setState(() => _query = '');
     } catch (_) {
       if (mounted) {
         await showBayaError(
@@ -186,7 +174,6 @@ class _SessionSidebarState extends State<SessionSidebar> {
     final state = vm.state;
     final selection = context.watch<SessionSelection>();
     final workspaces = vm.workspaces;
-    final query = _query.trim().toLowerCase();
     final deviceEpk = vm.selectedDevice;
     final runs = (context.watch<Preferences?>()?.runs ?? const [])
         .where(
@@ -198,11 +185,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                   run.workspaceKey == vm.selectedWorkspace),
         )
         .toList(growable: false);
-    final items = vm.pinnedFirst(
-      vm.workspaceItems.where(
-        (item) => vm.displayNameOf(item).toLowerCase().contains(query),
-      ),
-    );
+    final items = vm.workspaceItems;
     return BayaSurface(
       radius: 0,
       elevated: false,
@@ -218,70 +201,31 @@ class _SessionSidebarState extends State<SessionSidebar> {
                     : ListView(
                         padding: EdgeInsets.zero,
                         children: [
+                          // Claude's drawer header: the name on the left,
+                          // a round search button on the right.
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                            padding: const EdgeInsets.fromLTRB(20, 12, 16, 14),
                             child: Row(
                               children: [
-                                const AppMark(size: 34, tile: true),
-                                const SizedBox(width: 10),
+                                const AppMark(size: 30),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     kAppName,
                                     style: brandDisplayTextStyle(
-                                      fontSize: 31,
+                                      fontSize: 34,
                                       color: colors.text,
                                     ),
                                   ),
                                 ),
+                                CircleAction(
+                                  key: const Key('sidebar-search'),
+                                  icon: LucideIcons.search,
+                                  tooltip: context.l10n.searchSessions,
+                                  onPressed: _openSearch,
+                                ),
                               ],
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                            child: _searching
-                                ? _SidebarSearchField(
-                                    controller: _search,
-                                    focusNode: _searchFocus,
-                                    onChanged: (value) =>
-                                        setState(() => _query = value),
-                                    onClose: _closeSearch,
-                                  )
-                                // DeepSeek's drawer opens on a floating
-                                // search capsule.
-                                : BayaSurface(
-                                    role: BayaSurfaceRole.floating,
-                                    radius: 26,
-                                    child: InkWell(
-                                      key: const Key('sidebar-search'),
-                                      onTap: _openSearch,
-                                      child: SizedBox(
-                                        height: 52,
-                                        child: Row(
-                                          children: [
-                                            const SizedBox(width: 18),
-                                            Icon(
-                                              LucideIcons.search,
-                                              size: 20,
-                                              color: colors.muted,
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Text(
-                                                context.l10n.searchSessions,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: context.typo.sansBody
-                                                    .copyWith(
-                                                      fontSize: 16,
-                                                      color: colors.muted,
-                                                    ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -330,7 +274,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                           // computer's own conversations, its screen, and
                           // parallel runs.
                           if (vm.selectedHost != null) ...[
-                            _DrawerEntry(
+                            _entry(
                               key: const Key('drawer-computer-sessions'),
                               icon: LucideIcons.squareTerminal,
                               label: context.l10n.computerSessionsRow,
@@ -340,7 +284,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                               },
                             ),
                             if (vm.canControlScreen)
-                              _DrawerEntry(
+                              _entry(
                                 key: const Key('drawer-remote-control'),
                                 icon: LucideIcons.monitorSmartphone,
                                 label: context.l10n.remoteControl,
@@ -374,73 +318,92 @@ class _SessionSidebarState extends State<SessionSidebar> {
                               ),
                             ),
                           ],
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(28, 18, 24, 4),
+                            child: Text(
+                              context.l10n.recents,
+                              style: context.typo.sansBody.copyWith(
+                                color: colors.muted,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
                           if (items.isEmpty)
-                            SizedBox(
-                              height: 200,
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Center(
-                                  child: Text(
-                                    state is HomeNoPeer
-                                        ? context.l10n.pairToGetStarted
-                                        : _query.isNotEmpty
-                                        ? context.l10n.noMatchingSessions
-                                        : context.l10n.noSessionsInWorkspace,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: colors.muted,
-                                      height: 1.6,
-                                      fontSize: 14,
-                                    ),
-                                  ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                28,
+                                12,
+                                24,
+                                24,
+                              ),
+                              child: Text(
+                                state is HomeNoPeer
+                                    ? context.l10n.pairToGetStarted
+                                    : context.l10n.noSessionsInWorkspace,
+                                style: TextStyle(
+                                  color: colors.muted,
+                                  height: 1.6,
+                                  fontSize: 14,
                                 ),
                               ),
                             )
-                          else
-                            for (final (label, group) in _byDay(
-                              context,
-                              vm,
-                              items,
-                            )) ...[
+                          else ...[
+                            for (final item in items.take(_recents))
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  24,
-                                  18,
-                                  24,
-                                  4,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
                                 ),
-                                child: Text(
-                                  label,
-                                  style: context.typo.sansBody.copyWith(
-                                    color: colors.muted,
-                                    fontSize: 14,
-                                    height: 25 / 14,
+                                child: SessionListRow(
+                                  key: ValueKey(
+                                    'session-row-${item.peer.remoteEpk}-${item.sessionId}',
+                                  ),
+                                  vm: vm,
+                                  item: item,
+                                  highlighted: selection.matches(
+                                    item.peer.remoteEpk,
+                                    item.sessionId,
+                                  ),
+                                  onOpen: () {
+                                    if (!_opening) _open(item);
+                                  },
+                                  onMore: () =>
+                                      showSessionActions(context, item),
+                                ),
+                              ),
+                            if (items.length > _recents)
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    4,
+                                    16,
+                                    12,
+                                  ),
+                                  child: TextButton(
+                                    key: const Key('sidebar-view-all'),
+                                    onPressed: _openSearch,
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: colors.muted,
+                                      textStyle: context.typo.sansBody.copyWith(
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(context.l10n.viewAll),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          LucideIcons.chevronRight,
+                                          size: 16,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                              for (final item in group)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  child: _DrawerRow(
-                                    key: ValueKey(
-                                      'session-row-${item.peer.remoteEpk}-${item.sessionId}',
-                                    ),
-                                    vm: vm,
-                                    item: item,
-                                    highlighted: selection.matches(
-                                      item.peer.remoteEpk,
-                                      item.sessionId,
-                                    ),
-                                    onOpen: () {
-                                      if (!_opening) _open(item);
-                                    },
-                                    onMore: () =>
-                                        showSessionActions(context, item),
-                                  ),
-                                ),
-                            ],
+                          ],
                         ],
                       ),
               ),
@@ -522,246 +485,6 @@ class _SidebarCircleAction extends StatelessWidget {
             tooltip: tooltip,
             onPressed: onPressed,
             icon: Icon(icon, size: 22, color: colors.muted2),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Header search that replaces the brand row once the search button is tapped.
-class _SidebarSearchField extends StatelessWidget {
-  const _SidebarSearchField({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-    required this.onClose,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            key: const Key('sidebar-search-field'),
-            controller: controller,
-            focusNode: focusNode,
-            onChanged: onChanged,
-            style: context.typo.sansBody.copyWith(fontSize: 15),
-            decoration: InputDecoration(
-              hintText: context.l10n.searchSessions,
-              isDense: true,
-              filled: true,
-              fillColor: colors.glassFill,
-              prefixIcon: Icon(
-                LucideIcons.search,
-                size: 18,
-                color: colors.muted,
-              ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(22),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          key: const Key('sidebar-search-close'),
-          tooltip: context.l10n.closeSearch,
-          onPressed: onClose,
-          icon: Icon(LucideIcons.x, size: 19, color: colors.muted2),
-        ),
-      ],
-    );
-  }
-}
-
-/// The sessions under DeepSeek's history headings: pinned first, then today,
-/// yesterday, the last 7 and 30 days, then by month.
-List<(String, List<HomeItem>)> _byDay(
-  BuildContext context,
-  HomeViewModel vm,
-  List<HomeItem> items,
-) {
-  final l10n = context.l10n;
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final groups = <String, List<HomeItem>>{};
-  for (final item in items) {
-    final String label;
-    final at = item.session.updatedAt?.toLocal();
-    if (vm.isPinned(item)) {
-      label = l10n.pinned;
-    } else if (at == null) {
-      label = l10n.historyEarlier;
-    } else {
-      final day = DateTime(at.year, at.month, at.day);
-      final days = today.difference(day).inDays;
-      label = days <= 0
-          ? l10n.historyToday
-          : days == 1
-          ? l10n.historyYesterday
-          : days < 7
-          ? l10n.historyWeek
-          : days < 30
-          ? l10n.historyMonth
-          : DateFormat.yMMMM(Localizations.localeOf(context).toLanguageTag())
-                .format(at);
-    }
-    (groups[label] ??= []).add(item);
-  }
-  return [for (final MapEntry(:key, :value) in groups.entries) (key, value)];
-}
-
-/// One session in the drawer, as DeepSeek lists a chat: its title on one
-/// line, the open one filled; a spinner while it works, a dot for news.
-class _DrawerRow extends StatelessWidget {
-  const _DrawerRow({
-    super.key,
-    required this.vm,
-    required this.item,
-    required this.highlighted,
-    required this.onOpen,
-    required this.onMore,
-  });
-
-  final HomeViewModel vm;
-  final HomeItem item;
-  final bool highlighted;
-  final VoidCallback onOpen;
-  final VoidCallback onMore;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final working = vm.isRoomWorking(item.peer.remoteEpk, item.sessionId);
-    final unread =
-        !working &&
-        (context.watch<Preferences?>()?.isUnread(
-              item.peer.remoteEpk,
-              item.session,
-            ) ??
-            false);
-    return Material(
-      color: highlighted ? colors.inputFill : Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onOpen,
-        onLongPress: () {
-          unawaited(HapticFeedback.mediumImpact());
-          onMore();
-        },
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 50),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    vm.displayNameOf(item),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.typo.sansBody.copyWith(
-                      fontSize: 16,
-                      height: 24 / 16,
-                      color: colors.text,
-                      fontWeight: highlighted
-                          ? FontWeight.w500
-                          : FontWeight.w400,
-                    ),
-                  ),
-                ),
-                if (working)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: SizedBox.square(
-                      dimension: 12,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.4,
-                        color: colors.muted,
-                      ),
-                    ),
-                  )
-                else if (unread)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Container(
-                      key: const Key('session-unread'),
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        color: colors.text,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A destination in the drawer: an icon and its name, as a plain row.
-class _DrawerEntry extends StatelessWidget {
-  const _DrawerEntry({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: [
-                  Icon(icon, size: 20, color: colors.text),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.typo.sansBody.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: colors.text,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ),

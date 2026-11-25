@@ -252,6 +252,7 @@ void main() {
 
   testWidgets('session settings change the model', (tester) async {
     final chat = await _pump(tester);
+    await _openComposer(tester);
     await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
     await tester.pumpAndSettle();
     expect(find.text('Opus'), findsWidgets);
@@ -402,6 +403,7 @@ void main() {
     };
     computer.handlers['_baya/logout'] = (_) => const <String, dynamic>{};
     final chat = await _pump(tester, computer: computer);
+    await _openComposer(tester);
     await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('sign-out')));
@@ -418,6 +420,7 @@ void main() {
 
   testWidgets('no sign-out for agents without logout', (tester) async {
     final chat = await _pump(tester);
+    await _openComposer(tester);
     await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('sign-out')), findsNothing);
@@ -438,10 +441,17 @@ void main() {
     tester,
   ) async {
     final chat = await _pump(tester);
+    await _openComposer(tester);
     expect(find.text('Opus'), findsOneWidget);
     await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('setting-model')), findsOneWidget);
     await _finish(tester, chat);
   });
+}
+
+/// Claude's composer is one line until used: a tap opens it to its tools.
+Future<void> _openComposer(WidgetTester tester) async {
+  await tester.tap(find.byType(TextField));
+  await tester.pumpAndSettle();
 }

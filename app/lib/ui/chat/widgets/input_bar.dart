@@ -84,10 +84,6 @@ class InputBar extends StatefulWidget {
   /// send along. True when one was picked, and the `@` gives way to it.
   final Future<bool> Function()? onMention;
 
-  /// Replies to send in one tap while the composer is empty: what the agent
-  /// is usually told next. Held, one goes into the composer to edit first.
-  final List<String> quickReplies;
-
   const InputBar({
     super.key,
     required this.onSend,
@@ -108,7 +104,6 @@ class InputBar extends StatefulWidget {
     this.onOpenAttach,
     this.drafts,
     this.onMention,
-    this.quickReplies = const [],
     this.disabled = false,
     this.streaming = false,
   });
@@ -129,6 +124,10 @@ class _InputBarState extends State<InputBar> {
   late final FocusNode _focusNode = FocusNode(onKeyEvent: _onComposerKey);
   bool _empty = true;
   bool _focused = false;
+
+  /// Keeps the text field (and the keyboard) as the composer opens from
+  /// its one-line pill into the card.
+  final _fieldKey = GlobalKey();
   String? _slashQuery;
   bool _cancelArmed = false;
   // True while the hold-to-talk gesture is active. Lets `_beginVoice` tell
@@ -422,25 +421,130 @@ class _InputBarState extends State<InputBar> {
         !showStrip &&
         widget.onCancel != null;
 
-    final showReplies =
-        widget.quickReplies.isNotEmpty &&
-        _empty &&
-        !hasImage &&
-        canInteract &&
-        !widget.streaming &&
-        !showStrip;
+    // Claude's composer: one pill line while idle, a card with its tools
+    // under the text once it is in use.
+    final open =
+        _focused ||
+        !_empty ||
+        hasImage ||
+        showStrip ||
+        (_slashQuery != null && canInteract);
+
+    final textField = TextField(
+      key: _fieldKey,
+      focusNode: _focusNode,
+      controller: _controller,
+      enabled: canInteract,
+      minLines: 1,
+      maxLines: 6,
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      style: context.typo.sansBody.copyWith(fontSize: 16),
+      cursorColor: colors.accent,
+      decoration: InputDecoration(
+        hintText: widget.streaming
+            ? context.l10n.queueFollowUp
+            : (widget.voice != null || widget.onStartAudio != null)
+            ? context.l10n.replyToAgentOrTalk(widget.agentLabel)
+            : context.l10n.replyToAgent(widget.agentLabel),
+        hintStyle: context.typo.sansBody.copyWith(color: colors.muted),
+        filled: false,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        disabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+      ),
+    );
+    // The voice and send buttons end both forms of the composer.
+    final trailing = <Widget>[
+      if (!widget.streaming &&
+          !voiceUnsupported &&
+          (widget.voice != null || widget.onStartAudio != null)) ...[
+        _ComposerActionButton(
+          key: const ValueKey('voice-action'),
+          tooltipKey: _voiceTooltipKey,
+          audioOnly: true,
+          streaming: false,
+          hasContent: false,
+          disabled: widget.disabled,
+          onSendText: _submit,
+          onCancel: null,
+          onStartAudio: widget.onStartAudio,
+          voiceEnabled: widget.voice != null,
+          voiceUnsupported: voiceUnsupported,
+          onVoiceLongPressStart: _onVoiceStart,
+          onVoiceLongPressMoveUpdate: _onVoiceMove,
+          onVoiceLongPressEnd: _onVoiceEnd,
+          onVoiceTap: _onVoiceTap,
+        ),
+        const SizedBox(width: 8),
+      ],
+      _ComposerActionButton(
+        key: const ValueKey('message-action'),
+        streaming: widget.streaming,
+        hasContent: hasContent,
+        disabled: widget.disabled,
+        onSendText: _submit,
+        onCancel: widget.onCancel,
+        onStartAudio: widget.onStartAudio,
+        voiceEnabled: widget.voice != null,
+        voiceUnsupported: voiceUnsupported,
+        onVoiceLongPressStart: _onVoiceStart,
+        onVoiceLongPressMoveUpdate: _onVoiceMove,
+        onVoiceLongPressEnd: _onVoiceEnd,
+        onVoiceTap: _onVoiceTap,
+      ),
+      if (showInlineStop) ...[
+        const SizedBox(width: 8),
+        _InlineStopButton(onTap: widget.onCancel!),
+      ],
+    ];
+    final attach = _AttachButton(
+      enabled: attachEnabled,
+      onTap: widget.onOpenAttach,
+    );
+    final toolRow = Row(
+      children: [
+        attach,
+        const SizedBox(width: 6),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _QuickActionsButton(
+              show: showQuickActions,
+              onPressed: widget.onOpenQuickActions,
+              label: widget.modelLabel,
+            ),
+          ),
+        ),
+        ...trailing,
+      ],
+    );
+    final pillRow = Row(
+      children: [
+        attach,
+        const SizedBox(width: 8),
+        Expanded(child: textField),
+        ...trailing,
+      ],
+    );
 
     final surface = Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      // DeepSeek's composer: floating, white, very round.
+      // Claude's composer: floating, white, very round.
       child: BayaSurface(
         role: BayaSurfaceRole.floating,
         radius: 28,
         emphasized: _focused,
         child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 10, 9),
+            AnimatedPadding(
+              duration: BayaMotion.fast,
+              curve: BayaMotion.enter,
+              padding: open
+                  ? const EdgeInsets.fromLTRB(14, 12, 10, 9)
+                  : const EdgeInsets.fromLTRB(8, 7, 8, 7),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -462,103 +566,12 @@ class _InputBarState extends State<InputBar> {
                       image: attachState.image,
                       onRemove: widget.attachment!.removeImage,
                     ),
-                  TextField(
-                    focusNode: _focusNode,
-                    controller: _controller,
-                    enabled: canInteract,
-                    minLines: 1,
-                    maxLines: 6,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    style: context.typo.sansBody.copyWith(fontSize: 16),
-                    cursorColor: colors.accent,
-                    decoration: InputDecoration(
-                      hintText: widget.streaming
-                          ? context.l10n.queueFollowUp
-                          : (widget.voice != null ||
-                                widget.onStartAudio != null)
-                          ? context.l10n.replyToAgentOrTalk(widget.agentLabel)
-                          : context.l10n.replyToAgent(widget.agentLabel),
-                      hintStyle: context.typo.sansBody.copyWith(
-                        color: colors.muted,
-                      ),
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 3,
-                      ),
-                    ),
-                  ),
-                  Divider(
-                    height: 13,
-                    thickness: 0.5,
-                    color: colors.border.withValues(alpha: 0.42),
-                  ),
-                  Row(
-                    children: [
-                      _AttachButton(
-                        enabled: attachEnabled,
-                        onTap: widget.onOpenAttach,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: _QuickActionsButton(
-                            show: showQuickActions,
-                            onPressed: widget.onOpenQuickActions,
-                            label: widget.modelLabel,
-                          ),
-                        ),
-                      ),
-                      if (!widget.streaming &&
-                          !voiceUnsupported &&
-                          (widget.voice != null ||
-                              widget.onStartAudio != null)) ...[
-                        _ComposerActionButton(
-                          key: const ValueKey('voice-action'),
-                          tooltipKey: _voiceTooltipKey,
-                          audioOnly: true,
-                          streaming: false,
-                          hasContent: false,
-                          disabled: widget.disabled,
-                          onSendText: _submit,
-                          onCancel: null,
-                          onStartAudio: widget.onStartAudio,
-                          voiceEnabled: widget.voice != null,
-                          voiceUnsupported: voiceUnsupported,
-                          onVoiceLongPressStart: _onVoiceStart,
-                          onVoiceLongPressMoveUpdate: _onVoiceMove,
-                          onVoiceLongPressEnd: _onVoiceEnd,
-                          onVoiceTap: _onVoiceTap,
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      _ComposerActionButton(
-                        key: const ValueKey('message-action'),
-                        streaming: widget.streaming,
-                        hasContent: hasContent,
-                        disabled: widget.disabled,
-                        onSendText: _submit,
-                        onCancel: widget.onCancel,
-                        onStartAudio: widget.onStartAudio,
-                        voiceEnabled: widget.voice != null,
-                        voiceUnsupported: voiceUnsupported,
-                        onVoiceLongPressStart: _onVoiceStart,
-                        onVoiceLongPressMoveUpdate: _onVoiceMove,
-                        onVoiceLongPressEnd: _onVoiceEnd,
-                        onVoiceTap: _onVoiceTap,
-                      ),
-                      if (showInlineStop) ...[
-                        const SizedBox(width: 8),
-                        _InlineStopButton(onTap: widget.onCancel!),
-                      ],
-                    ],
-                  ),
+                  if (open) ...[
+                    textField,
+                    const SizedBox(height: 6),
+                    toolRow,
+                  ] else
+                    pillRow,
                 ],
               ),
             ),
@@ -589,35 +602,7 @@ class _InputBarState extends State<InputBar> {
       ),
     );
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AnimatedSize(
-          duration: BayaMotion.standard,
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.bottomCenter,
-          child: showReplies
-              ? _QuickReplies(
-                  replies: widget.quickReplies,
-                  onSend: (text) {
-                    unawaited(HapticFeedback.lightImpact());
-                    widget.onSend(text);
-                  },
-                  onEdit: (text) {
-                    unawaited(HapticFeedback.selectionClick());
-                    _controller.value = TextEditingValue(
-                      text: text,
-                      selection: TextSelection.collapsed(offset: text.length),
-                    );
-                    _focusNode.requestFocus();
-                  },
-                )
-              : const SizedBox(width: double.infinity),
-        ),
-        surface,
-      ],
-    );
+    return surface;
   }
 }
 
@@ -843,9 +828,7 @@ class _QuickActionsButtonState extends State<_QuickActionsButton>
       child: FadeTransition(
         opacity: _fade,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 190),
-          // A filled pill with a chip icon and a caret makes it read as the
-          // model switcher rather than a stray label next to `+`.
+          constraints: const BoxConstraints(maxWidth: 220),
           // The chip looks compact; its touch area is a full 48 tall.
           child: InkWell(
             key: const Key('input-bar-quick-actions'),
@@ -855,28 +838,25 @@ class _QuickActionsButtonState extends State<_QuickActionsButton>
               constraints: const BoxConstraints(minHeight: 48),
               child: Center(
                 widthFactor: 1,
-                child: BayaSurface(
-                  elevated: false,
+                child: DecoratedBox(
+                  // Claude's model chip: a grey pill, the name in full.
+                  decoration: ShapeDecoration(
+                    color: context.colors.selection,
+                    shape: const StadiumBorder(),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 7, 9, 7),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            widget.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                        const SizedBox(width: 3),
-                        Icon(
-                          LucideIcons.chevronDown,
-                          size: 14,
-                          color: context.colors.muted2,
-                        ),
-                      ],
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 9,
+                    ),
+                    child: Text(
+                      widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.typo.sansBody.copyWith(
+                        fontSize: 14,
+                        color: context.colors.text,
+                      ),
                     ),
                   ),
                 ),
@@ -1292,62 +1272,3 @@ class _SlashPalette extends StatelessWidget {
 
 /// One row of replies over the composer, scrolling sideways when they
 /// don't fit.
-class _QuickReplies extends StatelessWidget {
-  const _QuickReplies({
-    required this.replies,
-    required this.onSend,
-    required this.onEdit,
-  });
-
-  final List<String> replies;
-  final void Function(String text) onSend;
-  final void Function(String text) onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Semantics(
-      container: true,
-      label: context.l10n.quickReplies,
-      hint: context.l10n.quickReplyHint,
-      child: SizedBox(
-        height: 40,
-        child: ListView.separated(
-          key: const Key('quick-replies'),
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-          itemCount: replies.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, i) {
-            final text = replies[i];
-            return BayaReveal(
-              delay: BayaReveal.stagger(i),
-              offset: 6,
-              child: Material(
-                color: colors.surface.withValues(alpha: 0.92),
-                shape: StadiumBorder(side: BorderSide(color: colors.border)),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => onSend(text),
-                  onLongPress: () => onEdit(text),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Center(
-                      child: Text(
-                        text,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: 14,
-                          color: colors.text,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}

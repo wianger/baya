@@ -13,13 +13,10 @@ Future<void> showSessionSheet(
   required String agent,
   required String computer,
   required String? folder,
-  bool pinned = false,
-  ValueChanged<bool>? onPin,
   VoidCallback? onFind,
   VoidCallback? onTerminal,
   VoidCallback? onFiles,
   VoidCallback? onChanges,
-  VoidCallback? onPreview,
   required VoidCallback onRename,
   required Future<void> Function() onDelete,
 }) {
@@ -33,13 +30,10 @@ Future<void> showSessionSheet(
       agent: agent,
       computer: computer,
       folder: folder,
-      pinned: pinned,
-      onPin: onPin,
       onFind: onFind,
       onTerminal: onTerminal,
       onFiles: onFiles,
       onChanges: onChanges,
-      onPreview: onPreview,
       onRename: onRename,
       onDelete: onDelete,
     ),
@@ -52,13 +46,10 @@ class _SessionSheet extends StatefulWidget {
     required this.agent,
     required this.computer,
     required this.folder,
-    required this.pinned,
-    required this.onPin,
     required this.onFind,
     required this.onTerminal,
     required this.onFiles,
     required this.onChanges,
-    required this.onPreview,
     required this.onRename,
     required this.onDelete,
   });
@@ -67,13 +58,10 @@ class _SessionSheet extends StatefulWidget {
   final String agent;
   final String computer;
   final String? folder;
-  final bool pinned;
-  final ValueChanged<bool>? onPin;
   final VoidCallback? onFind;
   final VoidCallback? onTerminal;
   final VoidCallback? onFiles;
   final VoidCallback? onChanges;
-  final VoidCallback? onPreview;
   final VoidCallback onRename;
   final Future<void> Function() onDelete;
 
@@ -155,15 +143,6 @@ class _SessionSheetState extends State<_SessionSheet> {
                 chevron: true,
                 onTap: () => _then(changes),
               ),
-            if (widget.onPreview case final preview?)
-              BayaRow(
-                key: const ValueKey('session-action-preview'),
-                icon: LucideIcons.globe,
-                label: l10n.webPreview,
-                subtitle: l10n.webPreviewHint,
-                chevron: true,
-                onTap: () => _then(preview),
-              ),
             if (widget.onFiles case final files?)
               BayaRow(
                 key: const ValueKey('session-action-files'),
@@ -171,13 +150,6 @@ class _SessionSheetState extends State<_SessionSheet> {
                 label: l10n.files,
                 chevron: true,
                 onTap: () => _then(files),
-              ),
-            if (widget.onPin case final pin?)
-              BayaRow(
-                key: const ValueKey('session-action-pin'),
-                icon: widget.pinned ? LucideIcons.pinOff : LucideIcons.pin,
-                label: widget.pinned ? l10n.unpinSession : l10n.pinSession,
-                onTap: () => _then(() => pin(!widget.pinned)),
               ),
             BayaRow(
               key: const ValueKey('session-action-rename'),

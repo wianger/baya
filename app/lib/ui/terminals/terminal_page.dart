@@ -12,14 +12,11 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/baya_dialog.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
-import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,7 +31,6 @@ class TerminalPage extends StatefulWidget {
     this.online,
     this.fontSize = 13,
     this.onFontSize,
-    this.onAllTerminals,
   });
 
   final TerminalsRepository repository;
@@ -46,9 +42,6 @@ class TerminalPage extends StatefulWidget {
   /// The text size to start at, and where a pinch's result is kept.
   final double fontSize;
   final ValueChanged<double>? onFontSize;
-
-  /// Shows every terminal on the computer, from a session's own.
-  final void Function(BuildContext context)? onAllTerminals;
 
   @override
   State<TerminalPage> createState() => _TerminalPageState();
@@ -80,7 +73,6 @@ class _TerminalPageState extends State<TerminalPage> {
   late double _fontSize = widget.fontSize.clamp(_minFont, _maxFont);
   _Input _input = _Input.compose;
   bool _atBottom = true;
-  bool _copied = false;
 
   /// While pinching: the size it started at, and the grid to show.
   double? _pinchFrom;
@@ -323,73 +315,6 @@ class _TerminalPageState extends State<TerminalPage> {
     }
   }
 
-  // ── menu ───────────────────────────────────────────────────────────────
-
-  Future<void> _copy() async {
-    final selection = _controller.selection;
-    final text = selection != null
-        ? _terminal.buffer.getText(selection)
-        : _terminal.buffer.lines
-              .toList()
-              .skip(
-                math.max(
-                  0,
-                  _terminal.buffer.lines.length - _terminal.viewHeight,
-                ),
-              )
-              .map((line) => line.toString().trimRight())
-              .join('\n')
-              .trim();
-    await Clipboard.setData(ClipboardData(text: text));
-    _controller.clearSelection();
-    if (!mounted) return;
-    unawaited(HapticFeedback.selectionClick());
-    setState(() => _copied = true);
-    Timer(const Duration(milliseconds: 1400), () {
-      if (mounted) setState(() => _copied = false);
-    });
-  }
-
-  Future<void> _paste() async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final text = data?.text;
-    if (text != null && text.isNotEmpty) _terminal.paste(text);
-  }
-
-  Future<void> _end() async {
-    final l10n = context.l10n;
-    final go = await showBayaDialog<bool>(
-      context: context,
-      builder: (dialogContext) => BayaDialog(
-        title: Text(l10n.endTerminalTitle),
-        content: Text(
-          l10n.endTerminalBody,
-          style: TextStyle(color: dialogContext.colors.muted2),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            key: const Key('terminal-end-confirm'),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(
-              l10n.endTerminal,
-              style: TextStyle(color: dialogContext.colors.error),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (go != true) return;
-    try {
-      await widget.repository.kill(widget.terminal.address);
-    } catch (error) {
-      if (mounted) await showBayaError(context, message: '$error');
-    }
-  }
-
   TerminalTheme _theme(AppColors colors, Brightness brightness) {
     final base = brightness == Brightness.dark
         ? TerminalThemes.defaultTheme
@@ -454,47 +379,6 @@ class _TerminalPageState extends State<TerminalPage> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            key: const Key('terminal-copy'),
-            tooltip: _copied ? l10n.copied : l10n.copy,
-            onPressed: _copy,
-            icon: AnimatedSwitcher(
-              duration: BayaMotion.fast,
-              child: Icon(
-                _copied ? LucideIcons.check : LucideIcons.copy,
-                key: ValueKey(_copied),
-                size: 19,
-              ),
-            ),
-          ),
-          PopupMenuButton<String>(
-            key: const Key('terminal-menu'),
-            icon: const Icon(LucideIcons.ellipsis, size: 20),
-            onSelected: (choice) => switch (choice) {
-              'paste' => unawaited(_paste()),
-              'all' => widget.onAllTerminals?.call(context),
-              _ => unawaited(_end()),
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(value: 'paste', child: Text(l10n.paste)),
-              if (widget.onAllTerminals != null)
-                PopupMenuItem(
-                  key: const Key('terminal-all'),
-                  value: 'all',
-                  child: Text(l10n.allTerminals),
-                ),
-              if (live)
-                PopupMenuItem(
-                  value: 'end',
-                  child: Text(
-                    l10n.endTerminal,
-                    style: TextStyle(color: colors.error),
-                  ),
-                ),
-            ],
-          ),
-        ],
       ),
       body: SafeArea(
         top: false,
@@ -526,6 +410,15 @@ class _TerminalPageState extends State<TerminalPage> {
                       textStyle: TerminalStyle(
                         fontSize: _fontSize,
                         fontFamily: kMonoFamily,
+                        // Prompts (starship, powerline) and TUIs draw icons
+                        // from Nerd Fonts' private-use glyphs.
+                        fontFamilyFallback: const [
+                          'Symbols Nerd Font Mono',
+                          'Noto Sans Mono CJK SC',
+                          'Noto Color Emoji',
+                          'Noto Sans Symbols',
+                          'Noto Sans Symbols 2',
+                        ],
                       ),
                     ),
                   ),

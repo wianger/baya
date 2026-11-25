@@ -56,7 +56,6 @@ dependencies:
   # Read the installed version for the Android update channel.
   package_info_plus: ^10.2.2
   re_highlight: ^0.0.3
-  webview_flutter: ^4.14.1
   file_picker: ^13.3.2
   share_plus: ^13.3.1
   video_player: ^2.14.1
@@ -79,6 +78,7 @@ flutter:
     - assets/fonts/Inter/OFL.txt
     - assets/fonts/JetBrainsMono/OFL.txt
     - assets/fonts/PinyonScript/OFL.txt
+    - assets/fonts/SymbolsNerdFont/LICENSE
 
   # Unmodified upstream static fonts; sources and checksums in assets/fonts.
   fonts:
@@ -94,6 +94,10 @@ flutter:
           weight: 600
         - asset: assets/fonts/Inter/Inter-Bold.ttf
           weight: 700
+    # Prompt and TUI icons (Powerline, Nerd Font) in terminals.
+    - family: Symbols Nerd Font Mono
+      fonts:
+        - asset: assets/fonts/SymbolsNerdFont/SymbolsNerdFontMono-Regular.ttf
     - family: JetBrains Mono
       fonts:
         - asset: assets/fonts/JetBrainsMono/JetBrainsMono-Regular.ttf

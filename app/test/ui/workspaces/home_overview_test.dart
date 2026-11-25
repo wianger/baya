@@ -138,7 +138,9 @@ void main() {
     prefs.dispose();
   });
 
-  testWidgets('holding a session in the drawer pins it first', (tester) async {
+  testWidgets('holding a session in the drawer opens its actions', (
+    tester,
+  ) async {
     FlutterSecureStorage.setMockInitialValues({});
     final prefs = Preferences();
     await prefs.load();
@@ -184,18 +186,9 @@ void main() {
       find.byKey(ValueKey('session-row-${peer.remoteEpk}-alpha')),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('session-action-pin')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Pinned'), findsOneWidget);
-    final alpha = tester.getTopLeft(
-      find.byKey(ValueKey('session-row-${peer.remoteEpk}-alpha')),
-    );
-    final beta = tester.getTopLeft(
-      find.byKey(ValueKey('session-row-${peer.remoteEpk}-beta')),
-    );
-    expect(alpha.dy, lessThan(beta.dy));
-    expect(prefs.isPinned(peer.remoteEpk, 'alpha'), isTrue);
+    expect(find.byKey(const Key('session-sheet')), findsOneWidget);
+    expect(find.byKey(const ValueKey('session-action-rename')), findsOneWidget);
+    expect(find.byKey(const ValueKey('session-action-pin')), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     vm.dispose();

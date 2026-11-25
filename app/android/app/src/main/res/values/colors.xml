@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The app's page colour, so launch flows straight into the first frame. -->
-    <color name="launch_background">#FAF9F6</color>
+    <color name="launch_background">#FFFFFF</color>
 </resources>

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:app/config/dependencies.dart';
 import 'package:app/data/agents/agent_notifier.dart';
@@ -13,6 +14,7 @@ import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/routing/app_router.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
+import 'package:app/ui/core/branding/baya_intro.dart';
 import 'package:app/ui/core/themes/app_font_licenses.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/update/states/update_banner_state.dart';
@@ -21,6 +23,9 @@ import 'package:app/ui/update/viewmodels/update_banner_viewmodel.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+/// `flutter test` runs without the opening animation.
+final _underTest = Platform.environment.containsKey('FLUTTER_TEST');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -247,7 +252,10 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
           builder: (context, child) => MediaQuery.withClampedTextScaling(
             minScaleFactor: prefs.fontScale.factor,
             maxScaleFactor: prefs.fontScale.factor,
-            child: child ?? const SizedBox.shrink(),
+            child: BayaIntro(
+              enabled: !_underTest,
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         ),
       ),

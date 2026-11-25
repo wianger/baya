@@ -19,5 +19,3 @@ const kMarkWingEdge = 1.9;
 const kMarkLineWidth = 1.8;
 const kMarkCenter = (56.0, 53.5);
 const kMarkScale = 1.12;
-const kMarkTile = (0xFFFAFAFA, 0xFFE6E6E6);
-const kMarkGold = 0xFFFFFFFF;

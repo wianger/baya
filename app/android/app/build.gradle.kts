@@ -75,6 +75,11 @@ android {
     buildTypes {
         release {
             if (hasReleaseKeystore) signingConfig = signingConfigs.getByName("release")
+            // Keeps what BouncyCastle and Moonlight's native core look up by name.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

@@ -2,7 +2,6 @@ import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
-import { previews } from "../preview/preview.ts";
 import type { DirectServer } from "../transport/direct_server.ts";
 
 const run = promisify(execFile);
@@ -143,10 +142,6 @@ export class TailnetPairingServer {
       };
       const url = request.url ?? "";
       const path = url.split("?")[0];
-      if (url.startsWith(`${base}/preview/`) || path === `${base}/preview`) {
-        if (request.headers["tailscale-user-login"] !== self.login) return reply(403, {});
-        return previews.forward(request, response, url.slice(`${base}/preview`.length));
-      }
       const action =
         request.method !== "GET"
           ? null
@@ -174,10 +169,6 @@ export class TailnetPairingServer {
     const server = createServer(handler);
     server.on("upgrade", (request, socket, head) => {
       const url = request.url ?? "";
-      if (url.startsWith(`${base}/preview/`)) {
-        if (request.headers["tailscale-user-login"] !== self.login) return socket.destroy();
-        return previews.upgrade(request, socket, head, url.slice(`${base}/preview`.length));
-      }
       if (url.split("?")[0] !== `${base}/direct`) return socket.destroy();
       this.direct.handleUpgrade(request, socket, head);
     });

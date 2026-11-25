@@ -1,7 +1,7 @@
 # Baya artwork
 
 The mark is a perched baya weaver, drawn the way magpie draws its icon: one
-ink silhouette on a soft grey tile, with white cut in for the pale breast,
+ink silhouette, with white cut in for the pale breast,
 wing and tail feathers, and the crown of a breeding male, all in white: the mark
 is black and white only. In the app the bird takes the text colour and
 its cut-outs the page colour, so it reads in both themes.
@@ -15,7 +15,7 @@ python branding/generate.py
 
 It writes:
 
-- `baya-mark.svg`, the mark on its grey tile;
+- `baya-mark.svg`, the mark (never on a tile; the launcher background is plain white);
 - `baya-foreground.svg` and `baya-monochrome.svg`, the Android adaptive and
   themed-icon layers;
 - `banner.svg`, the repository and social banner;

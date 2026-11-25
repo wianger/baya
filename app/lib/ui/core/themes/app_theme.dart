@@ -132,16 +132,18 @@ ThemeData _buildTheme(AppColors colors, Brightness brightness) {
       shape: const StadiumBorder(),
     ),
     switchTheme: SwitchThemeData(
+      // iOS's switch: a full white knob either way, on a grey or ink track.
       trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      thumbIcon: const WidgetStatePropertyAll(Icon(null)),
       thumbColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
             ? colors.onAccent
-            : colors.muted2,
+            : Colors.white,
       ),
       trackColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
             ? colors.accent
-            : colors.inputFill,
+            : colors.text.withValues(alpha: .14),
       ),
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: colors.accent),
