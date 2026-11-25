@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:app/data/images/image_picker_service.dart';
 import 'package:app/domain/entities/agent_command.dart';
@@ -380,19 +381,22 @@ class _InputBarState extends State<InputBar>
     });
   }
 
-  /// The keyboard's height last frame.
+  /// The keyboard's height last frame, and its full height this time up.
   double _keyboard = 0;
+  double _keyboardPeak = 0;
 
-  /// The keyboard went away (back gesture, or the system closing it) while
-  /// the field kept focus: let it go, so the composer folds back to a line.
+  /// The keyboard is going away (its own hide key, the back gesture) while
+  /// the field kept focus: let go as soon as it starts down, so the
+  /// composer folds back to a line together with it, not after it.
   /// Read from the window: the Scaffold hides the inset from its body.
   @override
   void didChangeMetrics() {
     if (!mounted) return;
     final keyboard = View.of(context).viewInsets.bottom;
-    final closed = _keyboard > 0 && keyboard == 0;
+    final closing = keyboard < _keyboard && keyboard < _keyboardPeak * .85;
     _keyboard = keyboard;
-    if (closed && _focusNode.hasFocus) _focusNode.unfocus();
+    _keyboardPeak = keyboard == 0 ? 0 : math.max(_keyboardPeak, keyboard);
+    if (closing && _focusNode.hasFocus) _focusNode.unfocus();
   }
 
   @override

@@ -27,23 +27,9 @@ class SharedDraft extends ChangeNotifier {
   }
 
   void clear() {
-    if (_text == null && _prompt == null) return;
+    if (_text == null) return;
     _text = null;
-    _prompt = null;
     notifyListeners();
-  }
-
-  String? _prompt;
-
-  /// [text], typed on the home page, is sent as the first message of the
-  /// session opened next.
-  void send(String text) => _prompt = text;
-
-  /// The first message to send, once.
-  String? takePrompt() {
-    final text = _prompt;
-    _prompt = null;
-    return text;
   }
 }
 

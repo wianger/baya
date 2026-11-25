@@ -439,8 +439,6 @@ class SessionController extends ChangeNotifier {
       _config = _setup.configOptions;
       _modes = _setup.modes;
       _loaded = true;
-      final first = _shared?.takePrompt();
-      if (first != null) scheduleMicrotask(() => unawaited(prompt(first)));
       final shared = _shared?.take();
       final waiting =
           _handoff.remove('${host.key}/$sessionId') ??

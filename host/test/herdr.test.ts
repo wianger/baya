@@ -102,11 +102,12 @@ describe("herdr-core", () => {
 
 describe("a session's terminal", () => {
   it("reopens the agent's own conversation where its CLI can", () => {
-    expect(resumeCommand("claude", "abc-1", { CLAUDE_CODE_EXECUTABLE: "/u/claude" })).toBe(
-      "/u/claude --resume abc-1",
-    );
-    expect(resumeCommand("codex", "t 1")).toBe("codex resume 't 1'");
-    expect(resumeCommand("pi", "p1")).toBe("pi --session p1");
+    // Nothing said yet: no conversation file, so it starts under that id.
+    expect(
+      resumeCommand("claude", "abc-1", { CLAUDE_CODE_EXECUTABLE: "/u/claude" }, "/nowhere"),
+    ).toBe("/u/claude --session-id abc-1");
+    expect(resumeCommand("codex", "t 1")).toBe('codex resume "t 1"');
+    expect(resumeCommand("pi", "p1")).toBe("pi --session-id p1");
     expect(resumeCommand("deepseek", "d1")).toBeNull();
     expect(resumeCommand("claude", null)).toBeNull();
   });
