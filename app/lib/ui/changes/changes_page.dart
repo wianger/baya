@@ -4,6 +4,7 @@ import 'package:app/ui/core/code/code_view.dart';
 import 'package:app/ui/core/code/highlighter.dart';
 import 'package:app/ui/core/code/line_diff.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -103,13 +104,13 @@ class _ChangesPageState extends State<ChangesPage> {
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(
-        title: Text(context.l10n.changes),
+      appBar: BayaHeader(
+        title: context.l10n.changes,
         actions: [
-          IconButton(
+          HeaderAction(
+            icon: LucideIcons.refreshCw,
             tooltip: context.l10n.refresh,
             onPressed: _busy == null ? _reload : null,
-            icon: const Icon(LucideIcons.refreshCw, size: 19),
           ),
         ],
       ),
@@ -433,14 +434,14 @@ class _FileChangesState extends State<_FileChanges> {
     final language = CodeHighlighter.languageForPath(widget.path);
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(
-        title: Text(widget.path.split('/').last),
+      appBar: BayaHeader(
+        title: widget.path.split('/').last,
         actions: [
-          IconButton(
+          HeaderAction(
             key: const Key('revert-file'),
+            icon: LucideIcons.undo2,
             tooltip: context.l10n.revertFile,
             onPressed: _busy ? null : _revertFile,
-            icon: const Icon(LucideIcons.undo2, size: 19),
           ),
         ],
       ),

@@ -8,6 +8,7 @@ import 'package:app/data/launcher/launcher.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
@@ -37,7 +38,7 @@ class SessionWelcome extends StatelessWidget {
                 children: [
                   const SizedBox(width: 16),
                   if (menu != null)
-                    CircleAction(
+                    BayaCircleButton(
                       key: const Key('overview-menu'),
                       icon: LucideIcons.textAlignStart,
                       tooltip: context.l10n.openNavigation,
@@ -68,39 +69,6 @@ class SessionWelcome extends StatelessWidget {
             ),
             const HomeComposer(),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A round, floating button: Claude's corner controls.
-class CircleAction extends StatelessWidget {
-  const CircleAction({
-    super.key,
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    this.size = 52,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onPressed;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return BayaSurface(
-      role: BayaSurfaceRole.floating,
-      radius: size / 2,
-      child: SizedBox.square(
-        dimension: size,
-        child: IconButton(
-          onPressed: onPressed,
-          tooltip: tooltip,
-          icon: Icon(icon, size: 21, color: colors.text),
         ),
       ),
     );

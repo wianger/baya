@@ -22,6 +22,7 @@ import 'package:app/ui/chat/widgets/session_settings_sheet.dart';
 import 'package:app/ui/chat/widgets/sign_in_card.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
@@ -171,25 +172,12 @@ class ChatPage extends StatelessWidget {
       // in an ellipsis instead of running under them.
       child: Row(
         children: [
-          BayaSurface(
-            role: BayaSurfaceRole.floating,
-            radius: 26,
-            child: SizedBox.square(
-              dimension: 52,
-              child: IconButton(
-                tooltip: menu != null
-                    ? context.l10n.sessions
-                    : context.l10n.back,
-                onPressed: leadingAction,
-                icon: Icon(
-                  menu != null
-                      ? LucideIcons.textAlignStart
-                      : LucideIcons.chevronLeft,
-                  size: 21,
-                  color: colors.text,
-                ),
-              ),
-            ),
+          BayaCircleButton(
+            tooltip: menu != null ? context.l10n.sessions : context.l10n.back,
+            onPressed: leadingAction,
+            icon: menu != null
+                ? LucideIcons.textAlignStart
+                : LucideIcons.chevronLeft,
           ),
           const SizedBox(width: 10),
           // DeepSeek's header: the title beside the menu circle, alone;

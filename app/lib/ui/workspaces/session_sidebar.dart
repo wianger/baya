@@ -10,6 +10,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/states/home_state.dart';
@@ -17,7 +18,6 @@ import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/runs/run_page.dart';
 import 'package:app/ui/workspaces/session_actions.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
-import 'package:app/ui/workspaces/session_overview.dart';
 import 'package:app/ui/workspaces/session_search.dart';
 import 'package:app/ui/workspaces/widgets/scope_switchers.dart';
 import 'package:app/ui/workspaces/widgets/session_list_row.dart';
@@ -218,7 +218,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                                     ),
                                   ),
                                 ),
-                                CircleAction(
+                                BayaCircleButton(
                                   key: const Key('sidebar-search'),
                                   icon: LucideIcons.search,
                                   tooltip: context.l10n.searchSessions,
@@ -414,7 +414,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
                 child: Row(
                   children: [
-                    _SidebarCircleAction(
+                    BayaCircleButton(
                       key: const Key('sidebar-settings'),
                       tooltip: context.l10n.settings,
                       icon: LucideIcons.settings2,
@@ -449,42 +449,6 @@ class _SessionSidebarState extends State<SessionSidebar> {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SidebarCircleAction extends StatelessWidget {
-  const _SidebarCircleAction({
-    super.key,
-    required this.tooltip,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return BayaSurface(
-      role: BayaSurfaceRole.control,
-      radius: 22,
-      elevated: false,
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: SizedBox.square(
-          dimension: 48,
-          child: IconButton(
-            tooltip: tooltip,
-            onPressed: onPressed,
-            icon: Icon(icon, size: 22, color: colors.muted2),
           ),
         ),
       ),

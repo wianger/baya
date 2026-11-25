@@ -9,6 +9,7 @@ import 'package:app/data/voice/read_aloud_controller.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/chat/widgets/agent_markdown.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:flutter/material.dart';
@@ -157,10 +158,9 @@ class _SelectTextPage extends StatelessWidget {
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(
-        backgroundColor: colors.bg,
-        title: Text(context.l10n.selectText),
-        centerTitle: true,
+      appBar: BayaHeader(
+        title: context.l10n.selectText,
+        leading: HeaderLeading.close,
       ),
       body: SafeArea(
         child: ListView(

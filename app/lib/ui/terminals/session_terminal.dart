@@ -9,6 +9,7 @@ import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/terminals/terminal_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -68,7 +69,7 @@ class _Opening extends StatelessWidget {
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(backgroundColor: colors.bg, toolbarHeight: 52),
+      appBar: const BayaHeader(),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),

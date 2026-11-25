@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -355,30 +356,10 @@ class _TerminalPageState extends State<TerminalPage> {
     final live = _ended == null;
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(
-        backgroundColor: colors.bg,
-        toolbarHeight: 52,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              info.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.typo.title.copyWith(fontSize: 16),
-            ),
-            Text(
-              '${info.address} · ${info.folder}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.typo.monoSmall.copyWith(
-                fontSize: 11,
-                color: colors.muted,
-              ),
-            ),
-          ],
-        ),
+      appBar: BayaHeader(
+        title: info.label,
+        subtitle: '${info.address} · ${info.folder}',
+        monoSubtitle: true,
       ),
       body: SafeArea(
         top: false,

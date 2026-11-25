@@ -7,6 +7,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/tailnet_pairing.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_group.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/core/widgets/copy_button.dart';
 import 'package:app_settings/app_settings.dart';
@@ -105,10 +106,7 @@ class _AdbPageState extends State<AdbPage> {
     if (host != null) _status ??= host.call('_baya/adb_status');
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        title: Text(context.l10n.phoneForAgents),
-      ),
+      appBar: BayaHeader(title: context.l10n.phoneForAgents),
       body: SafeArea(
         child: host == null
             ? Center(

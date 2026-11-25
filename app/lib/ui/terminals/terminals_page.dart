@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
@@ -149,20 +150,7 @@ class _TerminalsPageState extends State<TerminalsPage> {
     final list = _list;
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(
-        backgroundColor: colors.bg,
-        centerTitle: true,
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l10n.terminals),
-            Text(
-              widget.launch.label,
-              style: TextStyle(fontSize: 11.5, color: colors.muted),
-            ),
-          ],
-        ),
-      ),
+      appBar: BayaHeader(title: l10n.terminals, subtitle: widget.launch.label),
       floatingActionButton: list?.available ?? false
           ? FloatingActionButton.extended(
               key: const Key('terminal-new'),
