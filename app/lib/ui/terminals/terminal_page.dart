@@ -78,9 +78,7 @@ class _TerminalPageState extends State<TerminalPage> {
   /// The Ghostty trial engine, when it draws this terminal.
   late final GhosttyController? _ghostty =
       widget.engine == TerminalEngine.ghostty
-      ? GhosttyController(
-          onOutput: (data) => _stream?.input(data),
-        )
+      ? GhosttyController(onOutput: (data) => _stream?.input(data))
       : null;
 
   /// How fast xterm takes the bytes, beside Ghostty's numbers.
