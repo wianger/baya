@@ -39,6 +39,7 @@ Future<void> openSessionTerminal(
                 fontSize: prefs.terminalFontSize,
                 onFontSize: (size) =>
                     unawaited(prefs.setTerminalFontSize(size)),
+                engine: prefs.terminalEngine,
               );
             }
             return _Opening(

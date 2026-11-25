@@ -503,5 +503,7 @@
   "recents": "最近",
   "viewAll": "查看全部",
   "closeSearchSheet": "关闭",
-  "earlierOutput": "更早的输出"
+  "earlierOutput": "更早的输出",
+  "terminalEngine": "终端引擎",
+  "terminalEngineGhostty": "Ghostty（试用）"
 }
