@@ -3,6 +3,7 @@
  * agents it recognizes in them. Baya speaks its socket API (one JSON
  * request and one JSON reply per line), the same one the `herdr` CLI uses.
  */
+import { execFile } from "node:child_process";
 import { connect } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -57,6 +58,9 @@ export class HerdrApp {
 
   /** One request on its own connection: its result, or why not. */
   call(method: string, params: Json = {}, timeoutMs = 15_000): Promise<Json> {
+    // On Windows herdr listens on an AF_UNIX socket, which Node cannot open
+    // (it takes the path for a named pipe): its own CLI makes the call.
+    if (process.platform === "win32") return viaCli(method, params, timeoutMs);
     return new Promise((resolve, reject) => {
       const id = `baya-${++next}`;
       const socket = connect(this.path());
@@ -187,3 +191,84 @@ export class HerdrApp {
 }
 
 export const herdrApp = new HerdrApp();
+
+/** The `herdr` command line for an API method, where it has one. */
+function cliArgs(method: string, params: Json): string[] {
+  const str = (key: string) => String(params[key] ?? "");
+  switch (method) {
+    case "pane.list":
+      return ["pane", "list"];
+    case "agent.list":
+      return ["agent", "list"];
+    case "agent.prompt":
+      return ["agent", "prompt", str("target"), str("text")];
+    case "pane.send_keys":
+      return ["pane", "send-keys", str("pane_id"), ...((params["keys"] as string[]) ?? [])];
+    case "workspace.list":
+      return ["workspace", "list"];
+    case "workspace.create":
+      return ["workspace", "create", "--cwd", str("cwd"), "--no-focus"];
+    case "tab.create":
+      return [
+        "tab",
+        "create",
+        "--workspace",
+        str("workspace_id"),
+        "--cwd",
+        str("cwd"),
+        "--no-focus",
+        ...(params["label"] ? ["--label", str("label")] : []),
+      ];
+    case "agent.start":
+      return [
+        "agent",
+        "start",
+        str("name"),
+        "--kind",
+        str("kind"),
+        "--pane",
+        str("pane_id"),
+        ...(((params["args"] as string[]) ?? []).length
+          ? ["--", ...(params["args"] as string[])]
+          : []),
+      ];
+    case "integration.install":
+      return ["integration", "install", str("target")];
+    default:
+      throw new HerdrAppError(`herdr's CLI has no ${method}.`, "unsupported");
+  }
+}
+
+function viaCli(method: string, params: Json, timeoutMs: number): Promise<Json> {
+  // The list of integrations comes as text from the CLI: installing the
+  // three Baya reads is idempotent, so the list is left empty here.
+  if (method === "integration.list") return Promise.resolve({ integrations: [] });
+  return new Promise((resolve, reject) => {
+    execFile(
+      "herdr",
+      cliArgs(method, params),
+      { timeout: timeoutMs, windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        const text = `${stdout}`.trim() || `${stderr}`.trim();
+        let reply: Json | null = null;
+        try {
+          reply = JSON.parse(text.split("\n").find((l) => l.startsWith("{")) ?? "") as Json;
+        } catch {
+          reply = null;
+        }
+        const failure = reply?.["error"] as Json | undefined;
+        if (failure) {
+          return reject(
+            new HerdrAppError(String(failure["message"] ?? method), String(failure["code"] ?? "")),
+          );
+        }
+        if (reply && "result" in reply) return resolve((reply["result"] as Json) ?? {});
+        if (error)
+          return reject(
+            new HerdrAppError(`herdr is not running (${error.message}).`, "unavailable"),
+          );
+        resolve({});
+      },
+    );
+  });
+}
