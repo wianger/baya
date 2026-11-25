@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { TerminalSnapshot } from "./client_services.ts";
-import { isObject } from "./jsonrpc.ts";
+import { isObject, type Json } from "./jsonrpc.ts";
 import type { SessionUpdate } from "./schema.ts";
 
 /** Conversation updates kept for replay; the rest is session state. */
@@ -125,6 +125,7 @@ export class Transcript {
   private readonly terminalOutput = new Map<string, TerminalSnapshot>();
   private timer: NodeJS.Timeout | null = null;
   private readonly path: string | null;
+  private agentState: Json | null = null;
 
   constructor(path: string | null) {
     this.path = path;
@@ -133,7 +134,9 @@ export class Transcript {
         const document = JSON.parse(readFileSync(path, "utf8")) as {
           entries?: unknown;
           terminals?: unknown;
+          agent?: unknown;
         };
+        if (isObject(document.agent)) this.agentState = document.agent;
         if (Array.isArray(document.terminals)) {
           for (const terminal of document.terminals as TerminalSnapshot[]) {
             if (typeof terminal?.terminalId === "string") {
@@ -153,6 +156,20 @@ export class Transcript {
         this.entries = [];
       }
     }
+  }
+
+  /**
+   * What the agent said of itself the last time it ran this conversation
+   * (its capabilities, models, modes), so a reopen after a restart need
+   * not wait for it to start again.
+   */
+  get agent(): Json | null {
+    return this.agentState;
+  }
+
+  set agent(value: Json | null) {
+    this.agentState = value;
+    this.scheduleSave();
   }
 
   get updates(): readonly SessionUpdate[] {
@@ -276,7 +293,12 @@ export class Transcript {
     const temporary = `${this.path}.tmp`;
     writeFileSync(
       temporary,
-      JSON.stringify({ version: 1, entries: this.entries, terminals: this.terminals }),
+      JSON.stringify({
+        version: 1,
+        entries: this.entries,
+        terminals: this.terminals,
+        ...(this.agentState ? { agent: this.agentState } : {}),
+      }),
       {
         mode: 0o600,
       },

@@ -18,6 +18,7 @@ const t1 = {
   state: "live",
   status: { state: "blocked", app: "claude" },
 };
+const sent = [];
 function call({ id, method, params }) {
   switch (method) {
     case "terminal.list":
@@ -49,6 +50,9 @@ function call({ id, method, params }) {
       return reply(id, t1);
     case "terminal.run":
       return reply(id, { address: "t2", params });
+    case "terminal.send":
+      sent.push(params);
+      return reply(id, {});
     case "terminal.read":
       return reply(id, {
         text: `read ${params.terminal} lines=${params.lines}`,
