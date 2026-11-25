@@ -69,6 +69,9 @@ class _Link implements TerminalLink {
         ),
       },
       '_baya/terminal_run' => _t('t9'),
+      '_baya/terminal_read' => {
+        'text': [for (var i = 1; i <= 3000; i++) 'line $i'].join('\n'),
+      },
       _ => <String, dynamic>{},
     };
   }
@@ -347,6 +350,31 @@ void main() {
 
       link.available = false;
       expect(await repository.forSession('s3', '/w'), isNull);
+    },
+  );
+
+  testWidgets(
+    'earlier output is read from the computer, newest first in view',
+    (tester) async {
+      final link = _Link();
+      final repository = TerminalsRepository(link);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildLightTheme(),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: TerminalHistoryPage(
+            title: 'claude',
+            load: () => repository.read('t1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final read = link.calls.single;
+      expect(read.$1, '_baya/terminal_read');
+      expect(read.$2, {'terminal': 't1', 'lines': 10000});
+      expect(find.text('line 3000'), findsOneWidget);
+      expect(find.text('line 1'), findsNothing);
     },
   );
 }

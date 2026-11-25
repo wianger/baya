@@ -988,5 +988,6 @@
   "fontPreviewAnswer": "Drag the slider below to change the text size. Replies, code and lists all follow it.",
   "recents": "Recents",
   "viewAll": "View all",
-  "closeSearchSheet": "Close"
+  "closeSearchSheet": "Close",
+  "earlierOutput": "Earlier output"
 }

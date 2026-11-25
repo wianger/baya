@@ -29,6 +29,8 @@ const HISTORY = 300;
  * the screen rather than the backlog.
  */
 const SOCKET_BUFFER = 256 * 1024;
+/** The most history one read returns. */
+const MAX_READ = 10_000;
 /** Events that land within this long reach phones as one change. */
 const SETTLE_MS = 150;
 
@@ -220,6 +222,17 @@ export class PhoneTerminals {
     payload.writeUInt16LE(width, 0);
     payload.writeUInt16LE(height, 2);
     this.core.send(entry.channel, FRAME.resize, payload);
+  }
+
+  /**
+   * Its screen and up to [lines] of history as plain text, for reading
+   * further back than the phone was sent on attach.
+   */
+  read(terminal: unknown, lines: unknown): Promise<Json> {
+    return this.core.call("terminal.read", {
+      terminal: String(terminal),
+      lines: size(lines, MAX_READ) ?? MAX_READ,
+    });
   }
 
   kill(terminal: unknown): Promise<Json> {

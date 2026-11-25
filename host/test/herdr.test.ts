@@ -83,6 +83,14 @@ describe("herdr-core", () => {
     expect(await hc.call("terminal.list", {})).toMatchObject({ terminals: [{ address: "t1" }] });
   });
 
+  it("reads a terminal's history as text, at most ten thousand lines", async () => {
+    core = new HerdrCore(async () => [process.execPath, fake]);
+    const terminals = new PhoneTerminals(new Phone(), core);
+    expect(await terminals.read("t1", 500)).toMatchObject({ text: "read t1 lines=500" });
+    expect(await terminals.read("t1", 99_999)).toMatchObject({ text: "read t1 lines=10000" });
+    terminals.close();
+  });
+
   it("says when hc is not installed", async () => {
     const hc = new HerdrCore(async () => null);
     core = hc;
