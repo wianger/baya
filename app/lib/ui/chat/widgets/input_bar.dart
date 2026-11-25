@@ -112,7 +112,15 @@ class InputBar extends StatefulWidget {
   State<InputBar> createState() => _InputBarState();
 }
 
-class _InputBarState extends State<InputBar> with WidgetsBindingObserver {
+class _InputBarState extends State<InputBar>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  /// 0: one line; 1: the card with its tools.
+  late final _openness = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 320),
+    reverseDuration: const Duration(milliseconds: 260),
+  );
+
   /// How far left the press must slide to arm slide-to-cancel (logical px).
   static const double _cancelThreshold = 90;
 
@@ -243,6 +251,7 @@ class _InputBarState extends State<InputBar> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _openness.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _transcriptSub?.cancel();
     _draftSub?.cancel();
@@ -441,11 +450,7 @@ class _InputBarState extends State<InputBar> with WidgetsBindingObserver {
     // Claude's composer: one pill line while idle, a card with its tools
     // under the text once it is in use.
     final open =
-        _focused ||
-        !_empty ||
-        hasImage ||
-        showStrip ||
-        (_slashQuery != null && canInteract);
+        _focused || !_empty || hasImage || (_slashQuery != null && canInteract);
 
     final textField = TextField(
       key: _fieldKey,
@@ -468,13 +473,15 @@ class _InputBarState extends State<InputBar> with WidgetsBindingObserver {
       ),
     );
     // The voice and send buttons end both forms of the composer.
-    final trailing = <Widget>[
+    // [owner]: the copy that holds the voice tooltip's key; while the
+    // composer opens or closes both rows show the buttons for a moment.
+    List<Widget> trailingFor({required bool owner}) => <Widget>[
       if (!widget.streaming &&
           !voiceUnsupported &&
           (widget.voice != null || widget.onStartAudio != null)) ...[
         _ComposerActionButton(
           key: const ValueKey('voice-action'),
-          tooltipKey: _voiceTooltipKey,
+          tooltipKey: owner ? _voiceTooltipKey : null,
           audioOnly: true,
           streaming: false,
           hasContent: false,
@@ -511,11 +518,12 @@ class _InputBarState extends State<InputBar> with WidgetsBindingObserver {
         _InlineStopButton(onTap: widget.onCancel!),
       ],
     ];
+
     final attach = _AttachButton(
       enabled: attachEnabled,
       onTap: widget.onOpenAttach,
     );
-    final toolRow = Row(
+    Widget toolRowFor({required bool owner}) => Row(
       children: [
         attach,
         const SizedBox(width: 10),
@@ -530,58 +538,79 @@ class _InputBarState extends State<InputBar> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(width: 12),
-        ...trailing,
+        ...trailingFor(owner: owner),
       ],
     );
     // The field never changes place in the tree: idle, the buttons sit at
     // its sides; in use they fold away and the row under it grows in, so
     // the field just widens.
-    const grow = Duration(milliseconds: 260);
-    const curve = Curves.easeOutCubic;
-    final fieldRow = Row(
-      children: [
-        AnimatedSize(
-          duration: grow,
-          curve: curve,
-          child: open
-              ? const SizedBox(height: 44)
-              : Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: attach,
-                ),
-        ),
-        Expanded(child: textField),
-        AnimatedSize(
-          duration: grow,
-          curve: curve,
-          child: open
-              ? const SizedBox.shrink()
-              : Row(mainAxisSize: MainAxisSize.min, children: trailing),
-        ),
-      ],
-    );
-    final tools = AnimatedSize(
-      duration: grow,
-      curve: curve,
-      alignment: Alignment.topCenter,
-      child: open
-          ? Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: 1),
-                duration: grow,
-                curve: curve,
-                builder: (_, t, child) => Opacity(
-                  opacity: t,
-                  child: Transform.translate(
-                    offset: Offset(0, 6 * (1 - t)),
-                    child: child,
-                  ),
-                ),
-                child: toolRow,
+    // One motion for the whole change, on one curve: the buttons beside
+    // the field fold away as it widens, and the row under it grows in;
+    // back the same way when it closes.
+    if (open) {
+      if (_openness.status != AnimationStatus.completed &&
+          _openness.status != AnimationStatus.forward) {
+        _openness.forward();
+      }
+    } else if (_openness.status != AnimationStatus.dismissed &&
+        _openness.status != AnimationStatus.reverse) {
+      _openness.reverse();
+    }
+    double fold(double t) => Curves.easeInOutCubic.transform(t);
+    Widget side(double t, Alignment from, Widget child) => t >= 1
+        ? const SizedBox.shrink()
+        : ClipRect(
+            child: Align(
+              alignment: from,
+              widthFactor: 1 - t,
+              child: Opacity(opacity: 1 - t, child: child),
+            ),
+          );
+    final fieldRow = AnimatedBuilder(
+      animation: _openness,
+      builder: (_, field) {
+        final t = fold(_openness.value);
+        return Row(
+          children: [
+            side(
+              t,
+              Alignment.centerRight,
+              Padding(padding: const EdgeInsets.only(right: 8), child: attach),
+            ),
+            Expanded(child: field!),
+            side(
+              t,
+              Alignment.centerLeft,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: trailingFor(owner: t < .5),
               ),
-            )
-          : const SizedBox(width: double.infinity),
+            ),
+          ],
+        );
+      },
+      child: textField,
+    );
+    final tools = AnimatedBuilder(
+      animation: _openness,
+      builder: (_, _) {
+        final t = fold(_openness.value);
+        final row = toolRowFor(owner: t >= .5);
+        if (t <= 0) return const SizedBox(width: double.infinity);
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.topCenter,
+            heightFactor: t,
+            child: Opacity(
+              opacity: t,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: row,
+              ),
+            ),
+          ),
+        );
+      },
     );
 
     final surface = Padding(
@@ -593,12 +622,16 @@ class _InputBarState extends State<InputBar> with WidgetsBindingObserver {
         emphasized: _focused,
         child: Stack(
           children: [
-            AnimatedPadding(
-              duration: grow,
-              curve: curve,
-              padding: open
-                  ? const EdgeInsets.fromLTRB(14, 12, 10, 9)
-                  : const EdgeInsets.fromLTRB(8, 7, 8, 7),
+            AnimatedBuilder(
+              animation: _openness,
+              builder: (_, child) => Padding(
+                padding: EdgeInsets.lerp(
+                  const EdgeInsets.fromLTRB(8, 7, 8, 7),
+                  const EdgeInsets.fromLTRB(14, 12, 10, 9),
+                  fold(_openness.value),
+                )!,
+                child: child,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,

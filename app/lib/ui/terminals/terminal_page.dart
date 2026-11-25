@@ -13,11 +13,13 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
+import 'package:app/ui/terminals/ghostty_view.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +34,7 @@ class TerminalPage extends StatefulWidget {
     this.online,
     this.fontSize = 13,
     this.onFontSize,
+    this.engine = TerminalEngine.xterm,
   });
 
   final TerminalsRepository repository;
@@ -43,6 +46,9 @@ class TerminalPage extends StatefulWidget {
   /// The text size to start at, and where a pinch's result is kept.
   final double fontSize;
   final ValueChanged<double>? onFontSize;
+
+  /// What draws it: xterm.dart, or the Ghostty trial.
+  final TerminalEngine engine;
 
   @override
   State<TerminalPage> createState() => _TerminalPageState();
@@ -68,6 +74,15 @@ class _TerminalPageState extends State<TerminalPage> {
   StreamSubscription<void>? _resets;
   StreamSubscription<void>? _changes;
   late ByteConversionSink _decoder = _newDecoder();
+
+  /// The Ghostty trial engine, when it draws this terminal.
+  late final GhosttyController? _ghostty =
+      widget.engine == TerminalEngine.ghostty
+      ? GhosttyController(onOutput: (data) => _stream?.input(data))
+      : null;
+
+  /// How fast xterm takes the bytes, beside Ghostty's numbers.
+  final _xtermStats = TerminalStats();
   bool _attaching = false;
   String? _ended;
   String? _error;
@@ -112,6 +127,8 @@ class _TerminalPageState extends State<TerminalPage> {
     unawaited(_stream?.close());
     _gridHide?.cancel();
     _decoder.close();
+    _ghostty?.dispose();
+    _xtermStats.dispose();
     _controller.dispose();
     _focus.dispose();
     _scroll.dispose();
@@ -148,6 +165,10 @@ class _TerminalPageState extends State<TerminalPage> {
   }
 
   void _toBottom() {
+    if (_ghostty case final ghostty?) {
+      ghostty.toBottom();
+      return;
+    }
     if (!_scroll.hasClients) return;
     unawaited(
       _scroll.animateTo(
@@ -196,7 +217,16 @@ class _TerminalPageState extends State<TerminalPage> {
         return;
       }
       _stream = stream;
-      _bytes = stream.bytes.listen(_decoder.add);
+      final ghostty = _ghostty;
+      _bytes = stream.bytes.listen(
+        ghostty != null
+            ? ghostty.write
+            : (bytes) {
+                final watch = Stopwatch()..start();
+                _decoder.add(bytes);
+                _xtermStats.wrote(bytes.length, watch.elapsed);
+              },
+      );
       _resets = stream.resets.listen((_) => _fresh());
       unawaited(
         stream.ended.then((reason) {
@@ -216,6 +246,10 @@ class _TerminalPageState extends State<TerminalPage> {
 
   /// The computer paints the whole screen again after a reconnect.
   void _fresh() {
+    if (_ghostty case final ghostty?) {
+      ghostty.reset();
+      return;
+    }
     _decoder.close();
     final cols = _terminal.viewWidth;
     final rows = _terminal.viewHeight;
@@ -246,6 +280,11 @@ class _TerminalPageState extends State<TerminalPage> {
     unawaited(HapticFeedback.selectionClick());
     final (ctrl, alt) = (_ctrl, _alt);
     if (ctrl || alt) setState(() => _ctrl = _alt = false);
+    if (_ghostty != null) {
+      _stream?.input(_keySequence(key, alt: alt));
+      _toBottom();
+      return;
+    }
     // The terminal encodes the modifiers itself (and the cursor mode).
     _terminal.keyInput(key, ctrl: ctrl, alt: alt);
     _toBottom();
@@ -261,7 +300,13 @@ class _TerminalPageState extends State<TerminalPage> {
   void _submit() {
     final text = _line.text;
     unawaited(HapticFeedback.lightImpact());
-    if (text.isNotEmpty) _terminal.paste(text);
+    if (text.isNotEmpty) {
+      if (_ghostty != null) {
+        _stream?.input(text);
+      } else {
+        _terminal.paste(text);
+      }
+    }
     _stream?.input('\r');
     _line.clear();
     _toBottom();
@@ -396,32 +441,65 @@ class _TerminalPageState extends State<TerminalPage> {
                     onPointerMove: _move,
                     onPointerUp: _up,
                     onPointerCancel: _up,
-                    child: TerminalView(
-                      _terminal,
-                      key: ObjectKey(_terminal),
-                      controller: _controller,
-                      scrollController: _scroll,
-                      focusNode: _focus,
-                      readOnly: !live,
-                      // Composing: a tap selects or scrolls, it does not
-                      // bring the raw keyboard up.
-                      hardwareKeyboardOnly: _input == _Input.compose,
-                      theme: _theme(colors, brightness),
-                      keyboardAppearance: brightness,
-                      keyboardType: TextInputType.visiblePassword,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      textStyle: TerminalStyle(
-                        fontSize: _fontSize,
-                        fontFamily: kMonoFamily,
-                        // Prompts (starship, powerline) and TUIs draw icons
-                        // from Nerd Fonts' private-use glyphs.
-                        fontFamilyFallback: const [
-                          'Symbols Nerd Font Mono',
-                          'Noto Sans Mono CJK SC',
-                          'Noto Color Emoji',
-                          'Noto Sans Symbols',
-                          'Noto Sans Symbols 2',
-                        ],
+                    child: _ghostty != null
+                        ? GhosttyView(
+                            controller: _ghostty,
+                            fontSize: _fontSize,
+                            onResize: (cols, rows) =>
+                                _resized(cols, rows, 0, 0),
+                          )
+                        : TerminalView(
+                            _terminal,
+                            key: ObjectKey(_terminal),
+                            controller: _controller,
+                            scrollController: _scroll,
+                            focusNode: _focus,
+                            readOnly: !live,
+                            // Composing: a tap selects or scrolls, it does not
+                            // bring the raw keyboard up.
+                            hardwareKeyboardOnly: _input == _Input.compose,
+                            theme: _theme(colors, brightness),
+                            keyboardAppearance: brightness,
+                            keyboardType: TextInputType.visiblePassword,
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            textStyle: TerminalStyle(
+                              fontSize: _fontSize,
+                              fontFamily: kMonoFamily,
+                              // Prompts (starship, powerline) and TUIs draw icons
+                              // from Nerd Fonts' private-use glyphs.
+                              fontFamilyFallback: const [
+                                'Symbols Nerd Font Mono',
+                                'Noto Sans Mono CJK SC',
+                                'Noto Color Emoji',
+                                'Noto Sans Symbols',
+                                'Noto Sans Symbols 2',
+                              ],
+                            ),
+                          ),
+                  ),
+                  // While engines are compared: how fast this one parses,
+                  // and (Ghostty) how long a frame takes to paint.
+                  Positioned(
+                    left: 10,
+                    bottom: 8,
+                    child: IgnorePointer(
+                      child: ListenableBuilder(
+                        listenable: _ghostty?.stats ?? _xtermStats,
+                        builder: (context, _) {
+                          final stats = _ghostty?.stats ?? _xtermStats;
+                          return Text(
+                            _ghostty != null
+                                ? 'Ghostty · $stats'
+                                : 'xterm · '
+                                      '${stats.mbPerSecond.toStringAsFixed(1)}'
+                                      ' MB/s',
+                            key: const Key('terminal-engine-stats'),
+                            style: context.typo.monoSmall.copyWith(
+                              fontSize: 10,
+                              color: colors.muted.withValues(alpha: .7),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -1017,4 +1095,26 @@ class _TerminalHistoryPageState extends State<TerminalHistoryPage> {
       ),
     );
   }
+}
+
+/// What the key bar's keys send, for the Ghostty trial (xterm encodes its
+/// own). Normal cursor mode, as shells and most TUIs expect.
+String _keySequence(TerminalKey key, {required bool alt}) {
+  final sequence = switch (key) {
+    TerminalKey.escape => '\x1b',
+    TerminalKey.tab => '\t',
+    TerminalKey.enter => '\r',
+    TerminalKey.backspace => '\x7f',
+    TerminalKey.arrowUp => '\x1b[A',
+    TerminalKey.arrowDown => '\x1b[B',
+    TerminalKey.arrowRight => '\x1b[C',
+    TerminalKey.arrowLeft => '\x1b[D',
+    TerminalKey.home => '\x1b[H',
+    TerminalKey.end => '\x1b[F',
+    TerminalKey.pageUp => '\x1b[5~',
+    TerminalKey.pageDown => '\x1b[6~',
+    TerminalKey.delete => '\x1b[3~',
+    _ => '',
+  };
+  return alt && sequence.isNotEmpty ? '\x1b$sequence' : sequence;
 }

@@ -142,9 +142,11 @@ export class PhoneTerminals {
       ...(line ? { line } : argv.length ? { argv } : {}),
       cwd,
       ...(cols && rows ? { size: { cols, rows } } : {}),
-      // A shell started from the phone survives losing its program: the
-      // phone comes back to a shell in the same folder.
-      keep: !line && argv.length === 0,
+      // A shell started from the phone, or a session's agent, survives
+      // losing its program: the phone comes back to a shell in the same
+      // folder (an agent that exits at once, say a new session with
+      // nothing to resume yet, still leaves a terminal to open).
+      keep: (!line && argv.length === 0) || params["keep"] === true,
       no_parent: true,
       labels: {
         "baya.from": "phone",
@@ -257,6 +259,7 @@ export class PhoneTerminals {
     const started = await this.run({
       cwd: options.cwd,
       session: options.session,
+      keep: true,
       ...(options.resume ? { line: options.resume } : {}),
     });
     return { available: true, terminal: started };

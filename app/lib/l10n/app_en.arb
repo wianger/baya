@@ -989,5 +989,7 @@
   "recents": "Recents",
   "viewAll": "View all",
   "closeSearchSheet": "Close",
-  "earlierOutput": "Earlier output"
+  "earlierOutput": "Earlier output",
+  "terminalEngine": "Terminal engine",
+  "terminalEngineGhostty": "Ghostty (trial)"
 }

@@ -56,6 +56,7 @@ class Preferences extends ChangeNotifier {
   static const _kThemeModeKey = 'prefs.theme_mode';
   static const _kFontScaleKey = 'prefs.font_scale';
   static const _kTerminalFontKey = 'prefs.terminal_font_size';
+  static const _kTerminalEngineKey = 'prefs.terminal_engine';
   static const _kLanguageKey = 'prefs.language';
   static const _kRunsKey = 'prefs.parallel_runs';
 
@@ -89,6 +90,10 @@ class Preferences extends ChangeNotifier {
   AppFontScale get fontScale => _fontScale;
 
   /// The terminal's text size, as the last pinch left it.
+  /// Which engine draws terminals: xterm.dart, or the Ghostty trial.
+  TerminalEngine get terminalEngine => _terminalEngine;
+  TerminalEngine _terminalEngine = TerminalEngine.xterm;
+
   double get terminalFontSize => _terminalFontSize;
   double _terminalFontSize = 13;
 
@@ -162,6 +167,11 @@ class Preferences extends ChangeNotifier {
     if (terminalFont != null && terminalFont >= 6 && terminalFont <= 28) {
       _terminalFontSize = terminalFont;
     }
+    final engine = await _store.read(key: _kTerminalEngineKey);
+    _terminalEngine = TerminalEngine.values.firstWhere(
+      (e) => e.name == engine,
+      orElse: () => TerminalEngine.xterm,
+    );
 
     final scale = AppFontScale.fromName(await _store.read(key: _kFontScaleKey));
     if (scale != _fontScale) {
@@ -598,6 +608,13 @@ class Preferences extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setTerminalEngine(TerminalEngine value) async {
+    if (value == _terminalEngine) return;
+    _terminalEngine = value;
+    notifyListeners();
+    await _store.write(key: _kTerminalEngineKey, value: value.name);
+  }
+
   Future<void> setTerminalFontSize(double value) async {
     if (value == _terminalFontSize) return;
     _terminalFontSize = value;
@@ -614,4 +631,13 @@ class Preferences extends ChangeNotifier {
         return ThemeMode.system;
     }
   }
+}
+
+/// What draws terminals on the phone.
+enum TerminalEngine {
+  /// xterm.dart: Dart, the long-standing one.
+  xterm,
+
+  /// Ghostty's libghostty-vt, on trial.
+  ghostty,
 }

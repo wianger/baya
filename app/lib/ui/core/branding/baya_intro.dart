@@ -26,14 +26,15 @@ class BayaIntro extends StatefulWidget {
 
   final Widget child;
 
-  /// Off in tests and when the system asks for less motion.
+  /// Off in tests.
   final bool enabled;
 
   @override
   State<BayaIntro> createState() => _BayaIntroState();
 }
 
-class _BayaIntroState extends State<BayaIntro> with TickerProviderStateMixin {
+class _BayaIntroState extends State<BayaIntro>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   /// The bird steps aside and the name writes in.
   late final _enter = AnimationController(
     vsync: this,
@@ -60,6 +61,27 @@ class _BayaIntroState extends State<BayaIntro> with TickerProviderStateMixin {
       _done = true;
       return;
     }
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_run());
+  }
+
+  DateTime? _left;
+
+  /// Coming back after a while plays the opening again, as a launch does;
+  /// a quick switch away and back does not.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden) _left ??= DateTime.now();
+    if (state != AppLifecycleState.resumed) return;
+    final away = _left == null
+        ? Duration.zero
+        : DateTime.now().difference(_left!);
+    _left = null;
+    if (away < const Duration(seconds: 30) || !_done) return;
+    _enter.value = 0;
+    _move.value = 0;
+    _lift.value = 0;
+    setState(() => _done = false);
     unawaited(_run());
   }
 
@@ -77,13 +99,8 @@ class _BayaIntroState extends State<BayaIntro> with TickerProviderStateMixin {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_done && MediaQuery.disableAnimationsOf(context)) _done = true;
-  }
-
-  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _enter.dispose();
     _move.dispose();
     _lift.dispose();

@@ -310,8 +310,7 @@ class _MarkdownTable extends StatelessWidget {
           radius: 14,
           elevated: false,
           child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            builder: (context, constraints) => _SideScroll(
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   minWidth: constraints.hasBoundedWidth
@@ -336,20 +335,22 @@ class _MarkdownTable extends StatelessWidget {
                         ),
                         children: [
                           // A long cell wraps inside a column of at most
-                          // 260 instead of stretching the whole table.
+                          // 300 instead of stretching the whole table.
                           for (final field in row.fields)
                             Container(
-                              constraints: const BoxConstraints(maxWidth: 260),
+                              constraints: const BoxConstraints(maxWidth: 300),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 10,
                               ),
-                              child: Text(
+                              // Each cell keeps its own Markdown: code,
+                              // bold, links.
+                              child: GptMarkdown(
                                 field.data.trim(),
                                 textAlign: field.alignment,
                                 style: style.copyWith(
                                   fontSize: BayaType.footnote,
-                                  height: 1.35,
+                                  height: 1.4,
                                   fontWeight: row.isHeader
                                       ? FontWeight.w600
                                       : FontWeight.w400,
@@ -441,4 +442,76 @@ String spaceCjk(String markdown) {
     if (i < lines.length - 1) out.write('\n');
   }
   return out.toString();
+}
+
+/// A table wider than the screen scrolls sideways; its edge fades while
+/// more of it is off to that side, so it reads as scrollable.
+class _SideScroll extends StatefulWidget {
+  const _SideScroll({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_SideScroll> createState() => _SideScrollState();
+}
+
+class _SideScrollState extends State<_SideScroll> {
+  final _controller = ScrollController();
+  bool _before = false;
+  bool _after = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_update);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _update());
+  }
+
+  void _update() {
+    if (!mounted || !_controller.hasClients) return;
+    final p = _controller.position;
+    final before = p.pixels > p.minScrollExtent + 1;
+    final after = p.pixels < p.maxScrollExtent - 1;
+    if (before != _before || after != _after) {
+      setState(() {
+        _before = before;
+        _after = after;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scroll = NotificationListener<ScrollMetricsNotification>(
+      onNotification: (_) {
+        _update();
+        return false;
+      },
+      child: SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        child: widget.child,
+      ),
+    );
+    if (!_before && !_after) return scroll;
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (bounds) => LinearGradient(
+        colors: [
+          _before ? Colors.transparent : Colors.black,
+          Colors.black,
+          Colors.black,
+          _after ? Colors.transparent : Colors.black,
+        ],
+        stops: const [0, .06, .9, 1],
+      ).createShader(bounds),
+      child: scroll,
+    );
+  }
 }
