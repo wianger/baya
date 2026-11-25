@@ -112,7 +112,7 @@ class InputBar extends StatefulWidget {
   State<InputBar> createState() => _InputBarState();
 }
 
-class _InputBarState extends State<InputBar> {
+class _InputBarState extends State<InputBar> with WidgetsBindingObserver {
   /// How far left the press must slide to arm slide-to-cancel (logical px).
   static const double _cancelThreshold = 90;
 
@@ -142,6 +142,7 @@ class _InputBarState extends State<InputBar> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller.addListener(_onTextChange);
     _focusNode.addListener(_onFocusChange);
     _subscribeTranscripts();
@@ -242,6 +243,7 @@ class _InputBarState extends State<InputBar> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _transcriptSub?.cancel();
     _draftSub?.cancel();
     _voiceTooltipTimer?.cancel();
@@ -367,6 +369,21 @@ class _InputBarState extends State<InputBar> {
     _voiceTooltipTimer = Timer(_voiceTooltipDuration, () {
       if (mounted) Tooltip.dismissAllToolTips();
     });
+  }
+
+  /// The keyboard's height last frame.
+  double _keyboard = 0;
+
+  /// The keyboard went away (back gesture, or the system closing it) while
+  /// the field kept focus: let it go, so the composer folds back to a line.
+  /// Read from the window: the Scaffold hides the inset from its body.
+  @override
+  void didChangeMetrics() {
+    if (!mounted) return;
+    final keyboard = View.of(context).viewInsets.bottom;
+    final closed = _keyboard > 0 && keyboard == 0;
+    _keyboard = keyboard;
+    if (closed && _focusNode.hasFocus) _focusNode.unfocus();
   }
 
   @override

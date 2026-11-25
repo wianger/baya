@@ -148,11 +148,11 @@ class ToolContent {
     final texts = [
       for (final item in tool.content)
         if (item is ToolCallText && item.content.displayText.trim().isNotEmpty)
-          cleanTerminalText(item.content.displayText),
+          unfence(cleanTerminalText(item.content.displayText)),
     ];
     if (texts.isNotEmpty) return ToolOutput(text: texts.join('\n'));
     final raw = tool.rawOutput;
-    if (raw is String) return ToolOutput(text: cleanTerminalText(raw));
+    if (raw is String) return ToolOutput(text: unfence(cleanTerminalText(raw)));
     if (raw is Map) {
       final map = raw.cast<String, dynamic>();
       final text = _first(map, const [
@@ -165,7 +165,7 @@ class ToolContent {
       final stderr = _first(map, const ['stderr']);
       return ToolOutput(
         text: text is String
-            ? cleanTerminalText(text)
+            ? unfence(cleanTerminalText(text))
             : (text == null && stderr == null
                   ? const JsonEncoder.withIndent('  ').convert(map)
                   : null),
@@ -238,6 +238,22 @@ String cleanTerminalText(String text) {
     for (final line in plain.split('\n'))
       line.split('\r').lastWhere((part) => part.isNotEmpty, orElse: () => ''),
   ].join('\n');
+}
+
+final _fenceLine = RegExp(r'^\s*(```|~~~)[\w+.-]*\s*$');
+
+/// Agents often hand a result over wrapped in a Markdown fence
+/// (```` ```console ````...```` ``` ````), but it shows in an output box
+/// already: the wrapping fence goes. A fence inside the text (a Markdown
+/// file read) stays.
+String unfence(String text) {
+  final lines = text.trim().split('\n');
+  if (lines.length < 2 ||
+      !_fenceLine.hasMatch(lines.first) ||
+      !_fenceLine.hasMatch(lines.last)) {
+    return text;
+  }
+  return lines.sublist(1, lines.length - 1).join('\n');
 }
 
 class ToolOutput {

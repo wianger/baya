@@ -117,6 +117,12 @@ void main() {
         'Mode  Name\n100%',
       );
       expect(cleanTerminalText('\x1B]0;title\x07ok'), 'ok');
+      // A result wrapped in a Markdown fence shows without it.
+      expect(unfence('```console\n\$ ls\na b\n```'), '\$ ls\na b');
+      expect(
+        unfence('# Doc\n```\ncode\n```\nend'),
+        '# Doc\n```\ncode\n```\nend',
+      );
     });
 
     test('a failed call with nothing to show says it failed', () {

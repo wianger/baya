@@ -257,16 +257,13 @@ class ChatPage extends StatelessWidget {
       computer: session.host.host.label,
       folder: session.summary?.cwd,
       onFind: context.read<ChatFind>().show,
-      onTerminal: switch (session.summary?.cwd) {
-        final cwd? when session.host.isOnline => () => openSessionTerminal(
-          context,
-          host: session.host,
-          sessionId: session.sessionId,
-          cwd: cwd,
-          agent: session.agentName,
-        ),
-        _ => null,
-      },
+      onTerminal: session.host.isOnline
+          ? () => openSessionTerminal(
+              context,
+              host: session.host,
+              sessionId: session.sessionId,
+            )
+          : null,
       onFiles: () => context.push('/session-files'),
       onChanges: () => openChanges(context, session),
       onRename: () async {

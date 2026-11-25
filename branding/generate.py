@@ -129,9 +129,9 @@ def vector(body: str) -> str:
     )
 
 
-def group(body: str) -> str:
+def group(body: str, scale: float = SAFE_SCALE) -> str:
     cx, cy = CENTER
-    s = SCALE * SAFE_SCALE
+    s = SCALE * scale
     return (
         '  <group android:pivotX="54" android:pivotY="54"\n'
         f'      android:scaleX="{s:.4f}" android:scaleY="{s:.4f}">\n'
@@ -144,7 +144,13 @@ def argb(color: str) -> str:
     return "#FF" + color.removeprefix("#").upper()
 
 
-def vector_foreground(ink: str = INK, paper: str = PAPER) -> str:
+# Android draws the launch screen's icon 240 dp wide; the app's intro opens
+# with an 80 dp mark. At this scale the two birds are the same size, so the
+# hand-over doesn't jump.
+SPLASH_SCALE = 80 / 240
+
+
+def vector_foreground(ink: str = INK, paper: str = PAPER, scale: float = SAFE_SCALE) -> str:
     ex, ey, ring, pupil = EYE
     lines = "".join(
         f'      <path android:pathData="{d}" android:strokeColor="{argb(paper)}"'
@@ -161,7 +167,8 @@ def vector_foreground(ink: str = INK, paper: str = PAPER) -> str:
             ' android:strokeLineJoin="round"/>\n'
             f"{lines}"
             f'      <path android:pathData="{circle(ex, ey, ring)}" android:fillColor="{argb(paper)}"/>\n'
-            f'      <path android:pathData="{circle(ex + 0.3, ey, pupil)}" android:fillColor="{argb(ink)}"/>\n'
+            f'      <path android:pathData="{circle(ex + 0.3, ey, pupil)}" android:fillColor="{argb(ink)}"/>\n',
+            scale,
         )
     )
 
@@ -229,10 +236,10 @@ def main() -> None:
     (drawable / "baya_icon_background.xml").write_text(vector_background())
     (drawable / "ic_stat_baya.xml").write_text(vector_status())
     # Android 12+'s launch screen: the bird alone, on the page colour.
-    (drawable / "splash_mark.xml").write_text(vector_foreground())
+    (drawable / "splash_mark.xml").write_text(vector_foreground(scale=SPLASH_SCALE))
     night = RES / "drawable-night"
     night.mkdir(exist_ok=True)
-    (night / "splash_mark.xml").write_text(vector_foreground(TEXT_DARK, PAGE_DARK))
+    (night / "splash_mark.xml").write_text(vector_foreground(TEXT_DARK, PAGE_DARK, SPLASH_SCALE))
     DART.write_text(dart_geometry())
 
 

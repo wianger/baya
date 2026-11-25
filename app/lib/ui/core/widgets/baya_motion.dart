@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:app/ui/core/themes/themes.dart';
-import 'package:app/ui/core/widgets/liquid_morph.dart';
 import 'package:flutter/material.dart';
 
 /// Shared motion language for the app: quick feedback, short settling,
@@ -161,17 +160,45 @@ Widget bayaFadeThrough(
   );
 }
 
-/// The app's dialogs: their card swells out of the tap (see LiquidMorph,
-/// which BayaDialog wears).
+/// The app's dialogs: Material's, rising with a short spring as they fade.
 Future<T?> showBayaDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool barrierDismissible = true,
-}) => showLiquid<T>(
+}) => showDialog<T>(
   context: context,
   barrierDismissible: barrierDismissible,
-  builder: builder,
+  animationStyle: const AnimationStyle(
+    duration: BayaMotion.standard,
+    reverseDuration: BayaMotion.fast,
+    curve: BayaMotion.enter,
+    reverseCurve: BayaMotion.exit,
+  ),
+  builder: (context) => _DialogRise(child: builder(context)),
 );
+
+class _DialogRise extends StatelessWidget {
+  const _DialogRise({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || MediaQuery.disableAnimationsOf(context)) {
+      return child;
+    }
+    return ScaleTransition(
+      scale: Tween<double>(begin: .96, end: 1).animate(
+        CurvedAnimation(
+          parent: animation,
+          curve: BayaMotion.spring,
+          reverseCurve: BayaMotion.exit,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
 
 /// The page canvas: the M3 `surface` color.
 class BayaBackdrop extends StatelessWidget {
