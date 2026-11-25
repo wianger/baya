@@ -214,9 +214,3 @@ class AppColors extends ThemeExtension<AppColors> {
     );
   }
 }
-
-/// The mark's colors, the same as branding/baya-mark.svg.
-abstract final class AppBrandColors {
-  static const ink = Color(0xFF0F1115);
-  static const paper = Color(0xFFFFFFFF);
-}

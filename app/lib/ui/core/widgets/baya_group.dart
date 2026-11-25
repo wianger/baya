@@ -137,7 +137,12 @@ class BayaRow extends StatelessWidget {
       child: Ink(
         color: highlighted ? colors.selection : null,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 13, trailing == null ? 16 : 6, 13),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            13,
+            trailing == null || trailing is Icon ? 16 : 10,
+            13,
+          ),
           child: Row(
             children: [
               if (icon != null) ...[
@@ -190,8 +195,10 @@ class BayaRow extends StatelessWidget {
                   ],
                 ),
               ),
+              // The value sits against the row's end, beside its arrow.
               if (value case final text?)
-                Flexible(
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
                   child: Padding(
                     padding: const EdgeInsets.only(left: 12),
                     child: Text(

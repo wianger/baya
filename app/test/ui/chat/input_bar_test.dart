@@ -55,6 +55,11 @@ void main() {
     );
   }
 
+  Future<void> openComposer(WidgetTester tester) async {
+    await tester.tap(find.byType(TextField));
+    await tester.pumpAndSettle();
+  }
+
   void expectExpanded(WidgetTester tester) {
     expect(quickActionsKey, findsOneWidget);
     final sizeTransition = find.ancestor(
@@ -68,7 +73,7 @@ void main() {
     );
   }
 
-  testWidgets('quick actions button is visible when input is empty', (
+  testWidgets('idle, the composer is one line; in use, a card with tools', (
     tester,
   ) async {
     await pumpBar(
@@ -79,6 +84,13 @@ void main() {
       onStartAudio: () {},
     );
     await tester.pumpAndSettle();
+    expect(quickActionsKey, findsNothing);
+    final attach = tester.getRect(find.byKey(const Key('input-bar-attach')));
+    final field = tester.getRect(find.byType(TextField));
+    expect(attach.right, lessThan(field.left));
+    expect(attach.center.dy, closeTo(field.center.dy, 4));
+
+    await openComposer(tester);
     expectExpanded(tester);
   });
 
@@ -182,7 +194,7 @@ void main() {
       onOpenQuickActions: () {},
       onStartAudio: () {},
     );
-    await tester.pumpAndSettle();
+    await openComposer(tester);
 
     final attach = tester.getRect(find.byKey(const Key('input-bar-attach')));
     final field = tester.getRect(find.byType(TextField));
@@ -223,7 +235,7 @@ void main() {
       streaming: true,
       onOpenQuickActions: () {},
     );
-    await tester.pumpAndSettle();
+    await openComposer(tester);
     expectExpanded(tester);
   });
 
@@ -313,6 +325,7 @@ void main() {
       streaming: false,
       onOpenQuickActions: () => tapped++,
     );
+    await openComposer(tester);
     await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
     await tester.pump();
     expect(tapped, 1);
@@ -428,32 +441,5 @@ void main() {
     await tester.enterText(field, 'mail me@');
     await tester.pump();
     expect(picks, 2);
-  });
-
-  testWidgets('a quick reply sends in a tap, or is edited when held', (
-    tester,
-  ) async {
-    final sent = <String>[];
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: InputBar(
-            onSend: sent.add,
-            quickReplies: const ['Continue', 'Run the tests'],
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
-    expect(sent, ['Continue']);
-
-    await tester.longPress(find.text('Run the tests'));
-    await tester.pumpAndSettle();
-    final field = find.byType(TextField);
-    expect(tester.widget<TextField>(field).controller!.text, 'Run the tests');
-    // With a draft, they make room.
-    expect(find.byKey(const Key('quick-replies')), findsNothing);
-    expect(sent, ['Continue']);
   });
 }

@@ -9,12 +9,11 @@ const kAppName = 'Baya';
 /// black and white only. The
 /// paths come from branding/generate.py (108-unit grid).
 ///
-/// [tile] draws it on its grey tile, as on the launcher; without one the
-/// bird takes the text colour and its white parts the page colour.
+/// Never on a tile: the bird takes the text colour and its white parts
+/// the page colour.
 class AppMark extends StatelessWidget {
-  const AppMark({super.key, this.size = 28, this.tile = false});
+  const AppMark({super.key, this.size = 28});
   final double size;
-  final bool tile;
 
   @override
   Widget build(BuildContext context) {
@@ -24,11 +23,7 @@ class AppMark extends StatelessWidget {
       image: true,
       child: CustomPaint(
         size: Size.square(size),
-        painter: AppMarkPainter(
-          tile: tile,
-          ink: tile ? AppBrandColors.ink : colors.text,
-          paper: tile ? AppBrandColors.paper : colors.bg,
-        ),
+        painter: AppMarkPainter(ink: colors.text, paper: colors.bg),
       ),
     );
   }
@@ -59,13 +54,8 @@ class AppWordmark extends StatelessWidget {
 }
 
 class AppMarkPainter extends CustomPainter {
-  const AppMarkPainter({
-    required this.tile,
-    required this.ink,
-    required this.paper,
-  });
+  const AppMarkPainter({required this.ink, required this.paper});
 
-  final bool tile;
   final Color ink;
 
   /// The white of the drawing: breast, feather lines, eye.
@@ -81,20 +71,6 @@ class AppMarkPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(size.width / 108, size.height / 108);
-    if (tile) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          const Rect.fromLTWH(0, 0, 108, 108),
-          const Radius.circular(24),
-        ),
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(kMarkTile.$1), Color(kMarkTile.$2)],
-          ).createShader(const Rect.fromLTWH(0, 0, 108, 108)),
-      );
-    }
     canvas
       ..translate(54, 54)
       ..scale(kMarkScale)
@@ -152,5 +128,5 @@ class AppMarkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(AppMarkPainter old) =>
-      old.tile != tile || old.ink != ink || old.paper != paper;
+      old.ink != ink || old.paper != paper;
 }

@@ -24,7 +24,7 @@ class WelcomeStep extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Center(child: AppMark(size: 104, tile: true)),
+                const Center(child: AppMark(size: 104)),
                 const SizedBox(height: 24),
                 Text(
                   kAppName,

@@ -87,8 +87,6 @@ Future<void> showSessionActions(BuildContext context, HomeItem item) {
     agent: item.session.agentName,
     computer: item.peer.label,
     folder: item.session.cwd,
-    pinned: vm.isPinned(item),
-    onPin: (pinned) => vm.setPinned(item, pinned: pinned),
     onRename: () => renameSession(context, item),
     onDelete: () async {
       final wasSelected = selection.matches(

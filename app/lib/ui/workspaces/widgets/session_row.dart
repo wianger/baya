@@ -47,13 +47,8 @@ class SessionRow extends StatelessWidget {
         .split(RegExp(r'[/\\]'))
         .lastWhere((part) => part.isNotEmpty, orElse: () => item.session.cwd);
     final when = item.session.updatedAt;
-    final pinned = vm.isPinned(item);
     return BayaRow(
-      icon: working
-          ? LucideIcons.loaderCircle
-          : pinned
-          ? LucideIcons.pin
-          : LucideIcons.messageSquare,
+      icon: working ? LucideIcons.loaderCircle : LucideIcons.messageSquare,
       spinning: working,
       label: vm.displayNameOf(item),
       subtitle: [

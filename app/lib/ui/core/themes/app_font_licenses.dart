@@ -8,5 +8,9 @@ void registerAppFontLicenses() {
       final text = await rootBundle.loadString('assets/fonts/$family/OFL.txt');
       yield LicenseEntryWithLineBreaks([family], text);
     }
+    final symbols = await rootBundle.loadString(
+      'assets/fonts/SymbolsNerdFont/LICENSE',
+    );
+    yield LicenseEntryWithLineBreaks(['Symbols Nerd Font'], symbols);
   });
 }

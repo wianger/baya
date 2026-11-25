@@ -142,20 +142,14 @@
   "couldNotReadSessionDirectory": "Could not read the session directory.",
   "couldNotReadFile": "Could not read file.",
   "chatAndAppearance": "Chat & appearance",
-  "displayAndConversation": "Display and conversation",
   "information": "Information",
   "aboutHint": "Version, updates and project links",
   "themeSystem": "System",
   "themeLight": "Light",
   "themeDark": "Dark",
-  "toolsHidden": "Tools hidden",
-  "toolsVisible": "Tools visible",
   "theme": "Theme",
-  "themeHint": "Follow Android or keep one appearance.",
   "textSize": "Text size",
-  "textSizeHint": "Scale the whole app, including chat text.",
   "hideToolCalls": "Hide tool calls in chat",
-  "hideToolCallsHint": "Only show your messages and assistant replies.",
   "chooseFolderHint": "Choose a folder on your computer. A fresh agent session will start there.",
   "refreshComputers": "Refresh computers",
   "folderPath": "Folder path",
@@ -201,11 +195,6 @@
   "renameSession": "Rename session",
   "overview": "Overview",
   "openNavigation": "Open navigation",
-  "bringFirstComputerOnline": "Bring your first computer online",
-  "noWorkspace": "No workspace",
-  "runningNow": "Running now",
-  "noWorkspaceSelected": "No workspace selected",
-  "useSidebarToChooseWorkspace": "Use the sidebar to choose or create a workspace.",
   "pairToOpenSession": "Pair a computer to open a session.",
   "couldNotLoadComputers": "Could not load your computers. Try again.",
   "couldNotReadFolder": "Could not read this folder. Try again.",
@@ -309,14 +298,6 @@
       }
     }
   },
-  "folderCount": "{count, plural, =1{1 folder} other{{count} folders}}",
-  "@folderCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "pairStepInstructions": "On your computer (Windows, Linux, or macOS), open a terminal and run:",
   "connectingTo": "Connecting to {name}…",
   "@connectingTo": {
@@ -327,20 +308,6 @@
     }
   },
   "nicknameHint": "Pick a label so this computer is easy to spot in your list. You can change it later from the sidebar.",
-  "displaySummary": "{theme} · {scale} text · {tools}",
-  "@displaySummary": {
-    "placeholders": {
-      "theme": {
-        "type": "String"
-      },
-      "scale": {
-        "type": "String"
-      },
-      "tools": {
-        "type": "String"
-      }
-    }
-  },
   "fontSmall": "Small",
   "fontDefault": "Default",
   "fontLarge": "Large",
@@ -394,16 +361,7 @@
       }
     }
   },
-  "sessionsCount": "Sessions · {count}",
-  "@sessionsCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "noSessionsInWorkspace": "No sessions in this workspace yet. Start one in any folder.",
-  "pairDeviceHint": "Pair a device to see its workspaces and activity here. Your navigation and session list will appear in the sidebar.",
   "computerDidNotConnect": "The selected computer did not connect in time. Start Baya on it, then try again.",
   "pairedDevicesCount": "{count} paired devices",
   "@pairedDevicesCount": {
@@ -534,8 +492,6 @@
   "keyBackupFailed": "Couldn't back up. Check that Google Backup is on.",
   "security": "Security",
   "language": "Language",
-  "languageHint": "The app's language.",
-  "newItem": "New",
   "tokensOf": "{used} / {size} tokens",
   "@tokensOf": {
     "placeholders": {
@@ -569,18 +525,7 @@
   "agentStartupNotes": "Startup notes",
   "attach": "Attach",
   "recent": "Recent",
-  "allSessionsRunning": "Every session here is running.",
-  "whatShouldAgentDo": "What should the agent do?",
-  "pickFolderAndAgent": "Pick a folder and an agent",
   "justNow": "just now",
-  "showAllSessions": "{count, plural, other{Show all {count}}}",
-  "@showAllSessions": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "minutesAgo": "{count}m ago",
   "@minutesAgo": {
     "placeholders": {
@@ -605,7 +550,6 @@
       }
     }
   },
-  "startOneAbove": "Start one above.",
   "allSessions": "All sessions",
   "committed": "Committed {sha}",
   "@committed": {
@@ -668,47 +612,8 @@
   },
   "revert": "Revert",
   "confirmRevert": "Tap again to revert",
-  "problems": "{count, plural, =1{1 problem on this phone} other{{count} problems on this phone}}",
-  "copyReport": "Copy the report",
-  "reportOnGitHub": "Report on GitHub",
-  "reportOnGitHubHint": "Opens an issue with the report for you to check first",
-  "clearProblems": "Clear",
-  "@problems": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "releaseNotes": "Release notes",
-  "sourceAndDocs": "Source and documentation",
-  "reportProblem": "Report a problem",
-  "openSourceLicenses": "Open-source licenses",
-  "webPreview": "Web preview",
-  "webPreviewHint": "A site running on this computer",
-  "webPreviewOn": "Sites running on {computer}",
-  "@webPreviewOn": {
-    "placeholders": {
-      "computer": {
-        "type": "String"
-      }
-    }
-  },
-  "lookingForWebServers": "Looking for web servers…",
-  "noWebServersFound": "No web server is running on this computer. Start one (or ask the agent to), or type its port below.",
   "port": "Port",
   "open": "Open",
-  "lookAgain": "Look again",
-  "copyAddress": "Copy address",
-  "reload": "Reload",
-  "previewDidNotLoad": "Port {port} did not answer",
-  "@previewDidNotLoad": {
-    "placeholders": {
-      "port": {
-        "type": "int"
-      }
-    }
-  },
   "startingAgents": "Starting {count} agents…",
   "@startingAgents": {
     "placeholders": {
@@ -997,8 +902,6 @@
   "notifyAllow": "Allow",
   "notifyReject": "Reject",
   "notifyStop": "Stop",
-  "sharedTextHint": "Open a session to add it there, or start a new one",
-  "discardShared": "Discard shared text",
   "unread": "New since you last looked",
   "notifyReply": "Reply",
   "replyTo": "Reply to {agent}…",
@@ -1010,23 +913,15 @@
     }
   },
   "replyNotSent": "Your reply wasn't sent: the computer is offline",
-  "quickReplies": "Quick replies",
-  "quickReplyHint": "Tap to send, hold to edit first",
-  "quickContinue": "Continue",
-  "quickRunTests": "Run the tests",
-  "quickCommit": "Commit the changes",
   "findInChat": "Find in chat",
   "findInChatHint": "Find in this chat",
   "findNoMatches": "None",
   "findOlder": "Earlier match",
   "findNewer": "Later match",
-  "pinSession": "Pin to top",
-  "unpinSession": "Unpin",
   "pinned": "Pinned",
   "computerSessions": "On this computer",
   "computerSessionsHint": "Conversations your agents had outside Baya — in a terminal, an editor, anywhere. Pick one to continue it here.",
   "computerSessionsRow": "Conversations on this computer",
-  "computerSessionsRowHint": "Continue one started in a terminal or elsewhere",
   "askingAgents": "Asking the agents…",
   "allAgents": "All {count}",
   "@allAgents": {
@@ -1072,9 +967,6 @@
     }
   },
   "terminalReconnecting": "Reconnecting… the terminal keeps running on the computer.",
-  "endTerminal": "End terminal",
-  "endTerminalTitle": "End this terminal?",
-  "endTerminalBody": "Its program stops on the computer, for every phone and terminal watching it.",
   "paste": "Paste",
   "terminalStateBlocked": "Needs you",
   "terminalStateWorking": "Working",
@@ -1087,7 +979,6 @@
   "typingIntoTerminal": "Typing straight into the terminal",
   "terminalComposeHint": "Type, then send to the terminal",
   "remoteControl": "Remote control",
-  "remoteControlHint": "This computer's screen, mouse and keyboard",
   "remoteControlConnecting": "Connecting to {label}…",
   "@remoteControlConnecting": {
     "placeholders": {
@@ -1105,21 +996,19 @@
   "qualityBalanced": "Balanced",
   "qualitySaver": "Data saver",
   "sessionTerminal": "Terminal",
-  "sessionTerminalHint": "A shell in this session's folder",
-  "allTerminals": "All terminals on this computer",
+  "sessionTerminalHint": "Its terminal in herdr on the computer",
   "qualityBest": "Best (1440p, up to 120 fps)",
   "remoteControlPairing": "Pairing this phone with Sunshine on the computer…",
   "remoteControlNotInstalled": "Sunshine is not installed on the computer. Run there: baya remote install",
   "remoteControlNotRunning": "Sunshine is installed but not running on the computer.",
   "remoteControlForeignAccount": "Sunshine on the computer has an account Baya does not know. Run there: baya remote login <user> <password>",
   "remoteControlNotWindows": "Remote control streams a Windows screen: connect to Baya running on Windows.",
-  "historyToday": "Today",
-  "historyYesterday": "Yesterday",
-  "historyWeek": "Previous 7 days",
-  "historyMonth": "Previous 30 days",
-  "historyEarlier": "Earlier",
   "selectText": "Select text",
   "share": "Share",
   "fontPreviewQuestion": "Preview the text size",
-  "fontPreviewAnswer": "Drag the slider below to change the text size. Replies, code and lists all follow it."
+  "fontPreviewAnswer": "Drag the slider below to change the text size. Replies, code and lists all follow it.",
+  "homeComposerHint": "Start a session",
+  "recents": "Recents",
+  "viewAll": "View all",
+  "closeSearchSheet": "Close"
 }

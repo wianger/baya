@@ -43,5 +43,10 @@
     "file": "PinyonScript/PinyonScript-Regular.ttf",
     "source": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/pinyonscript/PinyonScript-Regular.ttf",
     "sha256": "4aab130a6ed27f8b8117738c84a5602edf9300cdcc0651a9a65bf96f451ac29a"
+  },
+  {
+    "file": "SymbolsNerdFont/SymbolsNerdFontMono-Regular.ttf",
+    "source": "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/NerdFontsSymbolsOnly.zip",
+    "sha256": "f0f624d9b474bea1662cf7e862d44aebe1ae1f6c7f9cb7a0ca5d0e5ac9561c60"
   }
 ]

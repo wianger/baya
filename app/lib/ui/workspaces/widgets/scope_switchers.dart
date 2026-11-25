@@ -239,23 +239,25 @@ Future<({_ScopeAction action, String? key})?> _showScopeSheet(
     context,
     sheetKey: sheetKey,
     title: title,
+    // A round plus, as Claude adds things.
     action: Builder(
-      builder: (headerContext) => Tooltip(
-        message: addLabel,
-        child: OutlinedButton.icon(
-          key: Key('$prefix-add'),
-          onPressed: canAdd
-              ? () =>
-                    Navigator.of(headerContext)
-                        .pop((action: _ScopeAction.add, key: null))
-              : null,
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(0, 36),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            visualDensity: VisualDensity.compact,
-          ),
-          icon: const Icon(LucideIcons.plus, size: 16),
-          label: Text(headerContext.l10n.newItem),
+      builder: (headerContext) => IconButton(
+        key: Key('$prefix-add'),
+        tooltip: addLabel,
+        onPressed: canAdd
+            ? () =>
+                  Navigator.of(headerContext)
+                      .pop((action: _ScopeAction.add, key: null))
+            : null,
+        style: IconButton.styleFrom(
+          backgroundColor: headerContext.colors.selection,
+          fixedSize: const Size.square(40),
+          shape: const CircleBorder(),
+        ),
+        icon: Icon(
+          LucideIcons.plus,
+          size: 20,
+          color: headerContext.colors.text,
         ),
       ),
     ),

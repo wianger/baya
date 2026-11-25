@@ -27,7 +27,6 @@ import 'package:app/ui/core/widgets/baya_notice.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
-import 'package:app/ui/preview/preview_page.dart';
 import 'package:app/ui/terminals/session_terminal.dart';
 import 'package:app/ui/transfer/transfer_flow.dart';
 import 'package:app/ui/workspaces/session_dialogs.dart';
@@ -261,7 +260,6 @@ class ChatPage extends StatelessWidget {
     SessionController session,
     String displayName,
   ) {
-    final prefs = context.read<Preferences>();
     return showSessionSheet(
       context,
       title: displayName,
@@ -270,9 +268,6 @@ class ChatPage extends StatelessWidget {
           : session.agentName,
       computer: session.host.host.label,
       folder: session.summary?.cwd,
-      pinned: prefs.isPinned(session.host.key, session.sessionId),
-      onPin: (pinned) =>
-          prefs.setPinned(session.host.key, session.sessionId, pinned: pinned),
       onFind: context.read<ChatFind>().show,
       onTerminal: switch (session.summary?.cwd) {
         final cwd? when session.host.isOnline => () => openSessionTerminal(
@@ -280,12 +275,12 @@ class ChatPage extends StatelessWidget {
           host: session.host,
           sessionId: session.sessionId,
           cwd: cwd,
+          agent: session.agentName,
         ),
         _ => null,
       },
       onFiles: () => context.push('/session-files'),
       onChanges: () => openChanges(context, session),
-      onPreview: () => showPreviewPicker(context, session.host),
       onRename: () async {
         final name = await showSessionRenameDialog(
           context,
@@ -493,38 +488,11 @@ class ChatPage extends StatelessWidget {
               return session.attachedFiles.length > before;
             }
           : null,
-      quickReplies: _quickReplies(context, session),
       onSend: (text) {
         final image = context.read<AttachmentViewModel>().takeImageForSend();
-        if (image == null) context.read<Preferences?>()?.rememberSent(text);
         session.prompt(text, image: image);
       },
     );
-  }
-
-  /// Once the agent has answered and waits for nothing: the replies this
-  /// phone sends most, then the ones every coding session needs.
-  static List<String> _quickReplies(
-    BuildContext context,
-    SessionController session,
-  ) {
-    final last = session.messages.lastOrNull;
-    if (!session.loaded ||
-        session.working ||
-        last == null ||
-        last is UserMsg ||
-        session.permission != null ||
-        session.elicitation != null) {
-      return const [];
-    }
-    final l10n = context.l10n;
-    final seen = <String>{};
-    return [
-      ...?context.read<Preferences?>()?.phrases(),
-      l10n.quickContinue,
-      l10n.quickRunTests,
-      l10n.quickCommit,
-    ].where((t) => seen.add(t.toLowerCase())).take(5).toList();
   }
 
   /// Open the Camera/Gallery sheet and drive the picker. Hints deep-link to
