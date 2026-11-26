@@ -253,6 +253,7 @@ class HomeViewModel extends ViewModel<HomeState> {
   void _load() {
     if (_disposed) return;
     if (!_hosts.loaded) return;
+    unawaited(_mirrorHerdrWorkspaces());
     final hosts = _hosts.all;
     if (hosts.isEmpty) {
       emit(const HomeNoPeer());
@@ -269,6 +270,38 @@ class HomeViewModel extends ViewModel<HomeState> {
         },
       ),
     );
+  }
+
+  /// Workspaces being made for herdr's, so one isn't made twice.
+  final _mirroring = <String>{};
+
+  /// A session in a herdr pane goes into the phone workspace named as its
+  /// herdr workspace (made when there is none), unless someone filed it
+  /// elsewhere: the phone groups conversations as the computer does.
+  Future<void> _mirrorHerdrWorkspaces() async {
+    for (final host in _hosts.all) {
+      final device = toStandardB64(host.key);
+      for (final session in host.sessions) {
+        final label = session.paneWorkspace;
+        if (label == null) continue;
+        if (_prefs.workspaceForSession(device, session.sessionId) != null) {
+          continue;
+        }
+        final claim = '$device|$label';
+        if (!_mirroring.add(claim)) continue;
+        try {
+          final existing = workspacesForDevice(device).entries
+              .where((w) => workspaceLabel(w.key) == label)
+              .map((w) => w.key)
+              .firstOrNull;
+          final key = existing ?? workspaceKey(device, newLogicalWorkspaceId());
+          if (existing == null) await _prefs.setWorkspaceName(key, label);
+          await _prefs.setSessionWorkspace(device, session.sessionId, key);
+        } finally {
+          _mirroring.remove(claim);
+        }
+      }
+    }
   }
 
   /// Remember the workspace of the session the user opened.

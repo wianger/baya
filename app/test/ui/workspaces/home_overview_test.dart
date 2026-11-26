@@ -1,3 +1,4 @@
+import 'package:app/acp/acp.dart';
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -232,4 +233,41 @@ void main() {
       prefs.dispose();
     });
   }
+
+  testWidgets('a session in a herdr pane is filed under its herdr workspace', (
+    tester,
+  ) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    final prefs = Preferences();
+    await prefs.load();
+    final peer = testPeer();
+    final storage = MemoryStorage([peer]);
+    final host = FakeHost(
+      sessions: [
+        const SessionSummary(
+          sessionId: 'herdr-w1-p2',
+          cwd: '/home/me/carve',
+          title: 'Context sandbox',
+          agent: 'claude',
+          agentName: 'Claude Code',
+          paneStatus: 'idle',
+          paneWorkspace: 'carve',
+        ),
+        testSession(id: 'own'),
+      ],
+    );
+    final hosts = testHosts(storage, host);
+    await hosts.start();
+    final vm = HomeViewModel(hosts, storage, prefs);
+    await tester.pumpAndSettle();
+
+    final item = vm.allItems.firstWhere((i) => i.sessionId == 'herdr-w1-p2');
+    expect(vm.workspaceLabel(vm.workspaceKeyFor(item)), 'carve');
+    final own = vm.allItems.firstWhere((i) => i.sessionId == 'own');
+    expect(vm.workspaceLabel(vm.workspaceKeyFor(own)), 'Inbox');
+
+    vm.dispose();
+    hosts.dispose();
+    prefs.dispose();
+  });
 }

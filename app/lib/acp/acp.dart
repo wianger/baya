@@ -715,6 +715,9 @@ class SessionSummary {
   /// agent runs in a herdr pane on the computer.
   final String? paneStatus;
 
+  /// The herdr workspace its pane sits in, by name.
+  final String? paneWorkspace;
+
   /// The agent runs in a herdr pane: one process, its own TUI.
   bool get inPane => paneStatus != null;
 
@@ -732,6 +735,7 @@ class SessionSummary {
     this.running = false,
     this.error,
     this.paneStatus,
+    this.paneWorkspace,
   });
 
   factory SessionSummary.fromJson(Json json) {
@@ -752,6 +756,11 @@ class SessionSummary {
         {'status': final String status} => status,
         _ => null,
       },
+      paneWorkspace: switch (baya['herdr']) {
+        {'workspace': final String workspace} when workspace.isNotEmpty =>
+          workspace,
+        _ => null,
+      },
     );
   }
 
@@ -767,7 +776,8 @@ class SessionSummary {
         'working': working,
         'running': running,
         if (error != null) 'error': error,
-        if (paneStatus != null) 'herdr': {'status': paneStatus},
+        if (paneStatus != null)
+          'herdr': {'status': paneStatus, 'workspace': ?paneWorkspace},
       },
     },
   };
@@ -784,6 +794,7 @@ class SessionSummary {
         running: running ?? this.running,
         error: error,
         paneStatus: paneStatus,
+        paneWorkspace: paneWorkspace,
       );
 
   @override
@@ -796,6 +807,7 @@ class SessionSummary {
       other.agent == agent &&
       other.agentName == agentName &&
       other.paneStatus == paneStatus &&
+      other.paneWorkspace == paneWorkspace &&
       other.working == working &&
       other.running == running &&
       other.error == error;
@@ -809,6 +821,7 @@ class SessionSummary {
     agent,
     agentName,
     paneStatus,
+    paneWorkspace,
     working,
     running,
     error,

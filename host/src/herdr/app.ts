@@ -26,6 +26,8 @@ export interface PaneAgent {
   status: "idle" | "working" | "blocked" | "done" | "unknown";
   cwd: string;
   title: string;
+  /** The herdr workspace it sits in, by name. */
+  workspace: string;
   /** The agent's own session, when its integration reported it. */
   session: { kind: "id" | "path"; value: string } | null;
 }
@@ -122,6 +124,13 @@ export class HerdrApp {
   async agents(): Promise<PaneAgent[]> {
     const result = await this.call("pane.list", {});
     const panes = (result["panes"] as Json[] | undefined) ?? [];
+    const spaces = await this.call("workspace.list", {}).catch(() => ({}) as Json);
+    const label = new Map(
+      ((spaces["workspaces"] as Json[] | undefined) ?? []).map((w) => [
+        String(w["workspace_id"]),
+        String(w["label"] ?? ""),
+      ]),
+    );
     return panes.flatMap((pane) => {
       const agent = pane["agent"];
       if (typeof agent !== "string" || !agent) return [];
@@ -135,6 +144,7 @@ export class HerdrApp {
           status: (pane["agent_status"] as PaneAgent["status"]) ?? "unknown",
           cwd: String(pane["foreground_cwd"] ?? pane["cwd"] ?? ""),
           title: String(pane["terminal_title_stripped"] ?? ""),
+          workspace: label.get(String(pane["workspace_id"])) ?? "",
           session:
             session && (session["kind"] === "id" || session["kind"] === "path")
               ? { kind: session["kind"], value: String(session["value"]) }
