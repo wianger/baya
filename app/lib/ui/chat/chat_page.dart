@@ -262,6 +262,7 @@ class ChatPage extends StatelessWidget {
               context,
               host: session.host,
               sessionId: session.sessionId,
+              title: displayName,
             )
           : null,
       onFiles: () => context.push('/session-files'),

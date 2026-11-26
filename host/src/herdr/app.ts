@@ -153,12 +153,32 @@ export class HerdrApp {
     return this.call("pane.send_keys", { pane_id: paneId, keys });
   }
 
+  sendText(paneId: string, text: string): Promise<Json> {
+    return this.call("pane.send_text", { pane_id: paneId, text });
+  }
+
+  /** What [paneId] shows now, with its colours, and how many rows it has. */
+  async screen(paneId: string): Promise<{ text: string; rows: number }> {
+    const read = await this.call("pane.read", {
+      pane_id: paneId,
+      source: "visible",
+      format: "ansi",
+      strip_ansi: false,
+    });
+    const text = String((read["read"] as Json | undefined)?.["text"] ?? "");
+    return { text, rows: text.split("\n").length };
+  }
+
   /** The workspace for [cwd], made when there is none. */
   async workspaceFor(cwd: string): Promise<string> {
-    const list = await this.call("workspace.list", {});
-    const workspaces = (list["workspaces"] as Json[] | undefined) ?? [];
-    const norm = (p: unknown) => String(p ?? "").replace(/[\\/]+$/u, "");
-    const found = workspaces.find((w) => norm(w["cwd"]) === norm(cwd));
+    // Workspaces don't say their folder; their panes do.
+    const list = await this.call("pane.list", {});
+    const panes = (list["panes"] as Json[] | undefined) ?? [];
+    const norm = (p: unknown) =>
+      String(p ?? "")
+        .replace(/[\\/]+$/u, "")
+        .toLowerCase();
+    const found = panes.find((p) => norm(p["cwd"]) === norm(cwd));
     if (found) return String(found["workspace_id"]);
     const made = await this.call("workspace.create", { cwd, focus: false });
     return String((made["workspace"] as Json)["workspace_id"]);
@@ -234,6 +254,10 @@ function cliArgs(method: string, params: Json): string[] {
       ];
     case "integration.install":
       return ["integration", "install", str("target")];
+    case "pane.send_text":
+      return ["pane", "send-text", str("pane_id"), str("text")];
+    case "pane.read":
+      return ["pane", "read", str("pane_id"), "--source", "visible", "--ansi"];
     default:
       throw new HerdrAppError(`herdr's CLI has no ${method}.`, "unsupported");
   }

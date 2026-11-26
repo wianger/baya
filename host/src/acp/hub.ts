@@ -112,6 +112,25 @@ export class SessionHub {
     this.paneTimer.unref();
   }
 
+  /**
+   * A new conversation as alma runs one: a tab in [cwd]'s herdr workspace
+   * with [agent]'s own TUI started in it, visible on the computer. Null
+   * when herdr isn't running or can't start that agent.
+   */
+  async startInPane(cwd: string, agent?: string): Promise<PaneSession | null> {
+    const id = agent ?? defaultAgentId();
+    const kind = id ? HERDR_KINDS[id] : undefined;
+    if (!this.followPanes || !kind || !(await herdrApp.available())) return null;
+    const since = Date.now();
+    const paneId = await herdrApp.start(kind, cwd);
+    const pane = (await herdrApp.agents()).find((p) => p.paneId === paneId);
+    if (!pane) return null;
+    const session = new PaneSession(pane, herdrApp, (changed) => this.paneChanged(changed), since);
+    this.panes.set(session.id, session);
+    this.paneChanged(session);
+    return session;
+  }
+
   private paneChanged(session: PaneSession): void {
     if (this.panes.get(session.id) !== session) return;
     this.push("_baya/session_changed", { session: session.info() });
@@ -423,6 +442,14 @@ export class SessionHub {
     }
   }
 }
+
+/** Baya's agent ids → the kinds herdr starts and recognizes. */
+const HERDR_KINDS: Record<string, string> = {
+  claude: "claude",
+  codex: "codex",
+  pi: "pi",
+  agy: "agy",
+};
 
 /** A conversation the phone can open: Baya's own, or an agent in a herdr pane. */
 export type Conversation = HostedSession | PaneSession;

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { loadConfig } from "../config.ts";
+import { herdrApp } from "../herdr/app.ts";
 import { PaneSession } from "../herdr/pane_session.ts";
 import { PhoneTerminals, resumeCommand } from "../herdr/phone_terminals.ts";
 import { adbConnect, adbDisconnect, adbPair, adbStatus } from "../integrations/adb.ts";
@@ -179,6 +180,13 @@ export class PhoneConnection implements HubPhone {
           typeof meta["agentSessionId"] === "string" ? meta["agentSessionId"] : undefined;
         // Its title comes along, as the agent named it.
         const title = typeof meta["title"] === "string" ? meta["title"].trim() : "";
+        // A new conversation runs in a herdr pane where it can: the agent's
+        // own TUI, visible on the computer, the chat read from its record.
+        const inPane = adopted ? null : await this.hub.startInPane(cwd, agent);
+        if (inPane) {
+          const setup = await inPane.attach(this, false);
+          return { sessionId: inPane.id, ...setup };
+        }
         const session = this.hub.create(
           cwd,
           agent,
@@ -345,11 +353,22 @@ export class PhoneConnection implements HubPhone {
           ...(cwd ? { cwd: await resolveDirectory(cwd) } : {}),
         });
       }
+      case "_baya/pane_screen":
+        return herdrApp.screen(this.pane(params).paneId);
+      case "_baya/pane_input": {
+        const pane = this.pane(params).paneId;
+        const text = optionalString(params, "text");
+        if (text) await herdrApp.sendText(pane, text);
+        const keys = Array.isArray(params["keys"])
+          ? params["keys"].filter((key): key is string => typeof key === "string")
+          : [];
+        if (keys.length) await herdrApp.sendKeys(pane, keys);
+        return {};
+      }
       case "_baya/terminal_session": {
+        // Its terminal is its herdr pane: the phone shows the pane's screen.
         if (this.hub.get(stringParam(params, "sessionId")) instanceof PaneSession) {
-          throw RpcError.invalidParams(
-            "This conversation runs in a herdr pane on the computer; its chat is that agent.",
-          );
+          return { available: true, pane: true };
         }
         const { record } = this.session(params);
         const agent = loadConfig().agents.find((a) => a.id === record.agent);
@@ -428,6 +447,14 @@ export class PhoneConnection implements HubPhone {
         },
       },
     };
+  }
+
+  private pane(params: Json): PaneSession {
+    const session = this.session(params);
+    if (!(session instanceof PaneSession)) {
+      throw RpcError.invalidParams("This session doesn't run in a herdr pane.");
+    }
+    return session;
   }
 
   private session(params: Json): Conversation {
