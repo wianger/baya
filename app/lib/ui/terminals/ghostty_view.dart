@@ -139,10 +139,15 @@ class GhosttyView extends StatefulWidget {
     required this.controller,
     required this.fontSize,
     required this.onResize,
+    this.fixed = false,
   });
 
   final GhosttyController controller;
   final double fontSize;
+
+  /// Draws the controller's own grid at its natural size (a herdr pane's
+  /// screen, sized on the computer) instead of fitting a grid to the view.
+  final bool fixed;
 
   /// The grid this view holds, once laid out and whenever it changes.
   final void Function(int cols, int rows) onResize;
@@ -169,6 +174,24 @@ class _GhosttyViewState extends State<GhosttyView> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final metrics = _CellMetrics.of(context, widget.fontSize);
+    if (widget.fixed) {
+      final c = widget.controller;
+      return RepaintBoundary(
+        child: CustomPaint(
+          size: Size(12 + c.cols * metrics.width, c.rows * metrics.height),
+          painter: _GhosttyPainter(
+            controller: c,
+            state: _state,
+            rows: _rows,
+            cells: _cells,
+            metrics: metrics,
+            foreground: colors.text,
+            background: colors.bg,
+            cursor: colors.text,
+          ),
+        ),
+      );
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final cols = math.max(

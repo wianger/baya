@@ -45,7 +45,11 @@ export class PaneSession {
   /** Prompts waiting for the agent to finish the turn they started. */
   private readonly waiting: ((response: PromptResponse) => void)[] = [];
 
-  constructor(pane: PaneAgent, app: HerdrApp, onChange: (session: PaneSession) => void) {
+  /** Started by Baya just now: no record older than this is its own. */
+  private readonly since: number;
+
+  constructor(pane: PaneAgent, app: HerdrApp, onChange: (session: PaneSession) => void, since = 0) {
+    this.since = since;
     this.pane = pane;
     this.app = app;
     this.onChange = onChange;
@@ -124,7 +128,15 @@ export class PaneSession {
     this.pane = pane;
     if (JSON.stringify([pane.status, pane.title, pane.session]) === before) return;
     this.updatedAt = Date.now();
-    if (!this.recordPath || pane.session) this.locate();
+    if (!this.recordPath || pane.session) {
+      const before = this.recordPath;
+      this.locate();
+      // Its record appeared (a new conversation's first turn): follow it.
+      if (this.recordPath !== before && this.attached.size > 0) {
+        this.watch();
+        this.read();
+      }
+    }
     // A turn the phone started has ended: its prompt is answered.
     if (wasWorking && (pane.status === "idle" || pane.status === "done")) {
       this.read();
@@ -227,8 +239,11 @@ export class PaneSession {
     if (session?.kind === "path") path = session.value;
     else if (session?.kind === "id")
       path = locateRecord(this.pane.agent, session.value, this.pane.cwd);
-    else if (agentFamily(this.pane.agent))
-      path = recordsIn(this.pane.agent, this.pane.cwd)[0]?.path ?? null;
+    else if (agentFamily(this.pane.agent)) {
+      // A pane Baya just started owns no record older than itself.
+      const newest = recordsIn(this.pane.agent, this.pane.cwd)[0];
+      path = newest && newest.at >= this.since ? newest.path : null;
+    }
     if (path && path !== this.recordPath) {
       if (this.recordPath) unwatchFile(this.recordPath);
       this.recordPath = path;

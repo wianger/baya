@@ -991,5 +991,7 @@
   "closeSearchSheet": "Close",
   "earlierOutput": "Earlier output",
   "terminalEngine": "Terminal engine",
-  "terminalEngineGhostty": "Ghostty (trial)"
+  "terminalEngineGhostty": "Ghostty (trial)",
+  "paneScreenHint": "Its herdr pane on the computer",
+  "paneScreenType": "Type into the pane"
 }

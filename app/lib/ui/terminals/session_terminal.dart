@@ -1,5 +1,5 @@
-/// A session's own terminal: a shell in its folder, kept by herdr-core on
-/// the computer and found again each time the session opens it.
+/// A session's terminal: the herdr pane its agent runs in, or for an older
+/// session the terminal the computer finds or starts for it.
 library;
 
 import 'dart:async';
@@ -10,6 +10,7 @@ import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_header.dart';
+import 'package:app/ui/terminals/pane_screen_page.dart';
 import 'package:app/ui/terminals/terminal_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -18,23 +19,37 @@ Future<void> openSessionTerminal(
   BuildContext context, {
   required HostConnection host,
   required String sessionId,
+  String title = '',
 }) {
   final repository = TerminalsRepository(HostTerminalLink(host));
-  // The page opens at once; finding (or starting) the terminal happens on it.
-  final terminal = repository.forSession(sessionId);
+  // The page opens at once; what it shows is found on it: the herdr pane
+  // the session's agent runs in, or a terminal for an older session.
+  final target = host.call('_baya/terminal_session', {
+    'sessionId': sessionId,
+  }, const Duration(seconds: 60));
   final prefs = context.read<Preferences>();
   return Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => HostTerminal(
         host: host,
-        build: (online) => FutureBuilder<HerdrTerminal?>(
-          future: terminal,
+        build: (online) => FutureBuilder<Map<String, dynamic>>(
+          future: target,
           builder: (context, snapshot) {
-            final found = snapshot.data;
-            if (found != null) {
+            final result = snapshot.data;
+            if (result?['pane'] == true) {
+              return PaneScreenPage(
+                host: host,
+                sessionId: sessionId,
+                title: title,
+              );
+            }
+            final terminal = result?['terminal'];
+            if (terminal is Map) {
               return TerminalPage(
                 repository: repository,
-                terminal: found,
+                terminal: HerdrTerminal.fromJson(
+                  terminal.cast<String, dynamic>(),
+                ),
                 online: online,
                 fontSize: prefs.terminalFontSize,
                 onFontSize: (size) =>

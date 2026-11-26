@@ -505,5 +505,7 @@
   "closeSearchSheet": "关闭",
   "earlierOutput": "更早的输出",
   "terminalEngine": "终端引擎",
-  "terminalEngineGhostty": "Ghostty（试用）"
+  "terminalEngineGhostty": "Ghostty（试用）",
+  "paneScreenHint": "电脑上 herdr 里它的窗格",
+  "paneScreenType": "输入到窗格"
 }
