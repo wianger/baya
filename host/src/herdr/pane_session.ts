@@ -128,7 +128,11 @@ export class PaneSession {
           agentName: agentLabel(this.pane.agent),
           working: this.working,
           running: true,
-          herdr: { pane: this.pane.paneId, status: this.pane.status },
+          herdr: {
+            pane: this.pane.paneId,
+            status: this.pane.status,
+            workspace: this.pane.workspace,
+          },
         },
       },
     };
@@ -136,10 +140,15 @@ export class PaneSession {
 
   /** herdr reported the pane again: its status, title, session. */
   update(pane: PaneAgent): void {
-    const before = JSON.stringify([this.pane.status, this.pane.title, this.pane.session]);
+    const before = JSON.stringify([
+      this.pane.status,
+      this.pane.title,
+      this.pane.session,
+      this.pane.workspace,
+    ]);
     const wasWorking = this.working || this.pane.status === "blocked";
     this.pane = pane;
-    if (JSON.stringify([pane.status, pane.title, pane.session]) === before) return;
+    if (JSON.stringify([pane.status, pane.title, pane.session, pane.workspace]) === before) return;
     this.updatedAt = Date.now();
     if (!this.recordPath || pane.session) {
       const before = this.recordPath;
@@ -176,7 +185,11 @@ export class PaneSession {
           agentName: agentLabel(this.pane.agent),
           title: this.title,
           working: this.working,
-          herdr: { pane: this.pane.paneId, status: this.pane.status },
+          herdr: {
+            pane: this.pane.paneId,
+            status: this.pane.status,
+            workspace: this.pane.workspace,
+          },
           promptCapabilities: {},
           canFork: false,
         },
