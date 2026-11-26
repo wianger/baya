@@ -1,7 +1,9 @@
 import { homedir } from "node:os";
 import { type AgentDefinition, defaultAgentId, loadConfig } from "../config.ts";
+import { resumeArgs, sessionForPane, setSessionForPane } from "../herdr/aliases.ts";
 import { type HerdrApp, herdrApp } from "../herdr/app.ts";
 import { PaneSession, paneSessionId } from "../herdr/pane_session.ts";
+import { locateRecord } from "../herdr/records.ts";
 import { isPairedKey, listPeers, markSeen, type PeerRecord } from "../pairing/storage.ts";
 import {
   addSession,
@@ -87,13 +89,32 @@ export class SessionHub {
       const agents = await herdrApp.agents();
       const live = new Set<string>();
       for (const pane of agents) {
-        const id = paneSessionId(pane.paneId);
+        // A conversation Baya ran before keeps the id the phone knows.
+        const alias = sessionForPane(pane.paneId);
+        const id = alias ?? paneSessionId(pane.paneId);
         live.add(id);
         const known = this.panes.get(id);
         if (known) {
           known.update(pane);
         } else {
-          const session = new PaneSession(pane, herdrApp, (changed) => this.paneChanged(changed));
+          const hosted = alias ? this.sessions.get(alias) : undefined;
+          if (hosted) {
+            // It lives in herdr now: Baya's own process for it goes.
+            hosted.stop();
+            this.sessions.delete(alias!);
+          }
+          const record = alias
+            ? (hosted?.record ?? listSessions().find((r) => r.id === alias))
+            : undefined;
+          const session = new PaneSession(
+            pane,
+            herdrApp,
+            (changed) => this.paneChanged(changed),
+            0,
+            alias
+              ? { id: alias, ...(record?.agentSessionId ? { record: record.agentSessionId } : {}) }
+              : {},
+          );
           this.panes.set(id, session);
           this.paneChanged(session);
         }
@@ -102,7 +123,15 @@ export class SessionHub {
         if (live.has(id)) continue;
         this.panes.delete(id);
         session.destroy();
-        this.push("_baya/session_removed", { sessionId: id });
+        setSessionForPane(session.paneId, null);
+        // A conversation Baya knows stays on the phone when its pane closes:
+        // the next open moves it into a pane again.
+        const record = listSessions().find((r) => r.id === id);
+        if (record) {
+          this.changed(this.adopt(record));
+        } else {
+          this.push("_baya/session_removed", { sessionId: id });
+        }
       }
     } catch {
       running = false;
@@ -127,6 +156,36 @@ export class SessionHub {
     if (!pane) return null;
     const session = new PaneSession(pane, herdrApp, (changed) => this.paneChanged(changed), since);
     this.panes.set(session.id, session);
+    this.paneChanged(session);
+    return session;
+  }
+
+  /**
+   * Moves a conversation Baya has been running into a herdr pane: the
+   * agent's TUI reopens that same conversation in a tab of its folder's
+   * workspace, and the phone keeps its id. Null when it can't (herdr not
+   * running, an agent herdr can't start, nothing of the agent's to resume).
+   */
+  async moveToPane(id: string): Promise<PaneSession | null> {
+    const hosted = this.sessions.get(id);
+    const record = hosted?.record;
+    const kind = record ? HERDR_KINDS[record.agent] : undefined;
+    if (!this.followPanes || !hosted || !record || !kind || !record.agentSessionId) return null;
+    if (hosted.working || !(await herdrApp.available())) return null;
+    const exists = locateRecord(record.agent, record.agentSessionId, record.cwd) !== null;
+    const args = resumeArgs(record.agent, record.agentSessionId, exists);
+    if (!args) return null;
+    const paneId = await herdrApp.start(kind, record.cwd, args);
+    setSessionForPane(paneId, id);
+    const pane = (await herdrApp.agents()).find((p) => p.paneId === paneId);
+    if (!pane) return null;
+    hosted.stop();
+    this.sessions.delete(id);
+    const session = new PaneSession(pane, herdrApp, (changed) => this.paneChanged(changed), 0, {
+      id,
+      record: record.agentSessionId,
+    });
+    this.panes.set(id, session);
     this.paneChanged(session);
     return session;
   }

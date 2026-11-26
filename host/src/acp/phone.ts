@@ -200,8 +200,14 @@ export class PhoneConnection implements HubPhone {
         const setup = await session.attach(this, Boolean(adopted));
         return { sessionId: session.id, ...setup };
       }
-      case "session/load":
+      case "session/load": {
+        // A conversation Baya ran itself moves into herdr when opened: one
+        // process, in a pane on the computer, the chat read from its record.
+        const id = stringParam(params, "sessionId");
+        const moved = await this.hub.moveToPane(id).catch(() => null);
+        if (moved) return moved.attach(this, true);
         return this.session(params).attach(this, true, cursorParam(bayaMeta(params)["resume"]));
+      }
       case "session/resume":
         return this.session(params).attach(this, false);
       case "session/prompt":

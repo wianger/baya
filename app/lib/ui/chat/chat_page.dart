@@ -17,6 +17,7 @@ import 'package:app/ui/chat/widgets/context_usage_button.dart';
 import 'package:app/ui/chat/widgets/elicitation_card.dart';
 import 'package:app/ui/chat/widgets/file_picker_sheet.dart';
 import 'package:app/ui/chat/widgets/input_bar.dart';
+import 'package:app/ui/chat/widgets/pane_question_card.dart';
 import 'package:app/ui/chat/widgets/permission_card.dart';
 import 'package:app/ui/chat/widgets/session_settings_sheet.dart';
 import 'package:app/ui/chat/widgets/sign_in_card.dart';
@@ -123,6 +124,19 @@ class ChatPage extends StatelessWidget {
                         key: ValueKey('elicitation-${request.requestId}'),
                         request: request,
                         onAnswer: session.answerElicitation,
+                      ),
+                    // Its agent waits in its herdr pane for an answer.
+                    if (session.summary?.waitingForAnswer == true)
+                      PaneQuestionCard(
+                        key: ValueKey('pane-question-${session.sessionId}'),
+                        host: session.host,
+                        sessionId: session.sessionId,
+                        onOpenTerminal: () => openSessionTerminal(
+                          context,
+                          host: session.host,
+                          sessionId: session.sessionId,
+                          title: session.title,
+                        ),
                       ),
                     if (session.authAgent != null)
                       SignInCard(
