@@ -48,8 +48,21 @@ export class PaneSession {
   /** Started by Baya just now: no record older than this is its own. */
   private readonly since: number;
 
-  constructor(pane: PaneAgent, app: HerdrApp, onChange: (session: PaneSession) => void, since = 0) {
+  /** The id the phone knows it by, for a conversation Baya ran before. */
+  private readonly fixedId: string | undefined;
+  /** The agent's own id of the conversation, known before its integration says. */
+  private readonly knownRecord: string | undefined;
+
+  constructor(
+    pane: PaneAgent,
+    app: HerdrApp,
+    onChange: (session: PaneSession) => void,
+    since = 0,
+    known: { id?: string; record?: string } = {},
+  ) {
     this.since = since;
+    this.fixedId = known.id;
+    this.knownRecord = known.record;
     this.pane = pane;
     this.app = app;
     this.onChange = onChange;
@@ -57,7 +70,7 @@ export class PaneSession {
   }
 
   get id(): string {
-    return paneSessionId(this.pane.paneId);
+    return this.fixedId ?? paneSessionId(this.pane.paneId);
   }
 
   get paneId(): string {
@@ -239,6 +252,8 @@ export class PaneSession {
     if (session?.kind === "path") path = session.value;
     else if (session?.kind === "id")
       path = locateRecord(this.pane.agent, session.value, this.pane.cwd);
+    else if (this.knownRecord)
+      path = locateRecord(this.pane.agent, this.knownRecord, this.pane.cwd);
     else if (agentFamily(this.pane.agent)) {
       // A pane Baya just started owns no record older than itself.
       const newest = recordsIn(this.pane.agent, this.pane.cwd)[0];

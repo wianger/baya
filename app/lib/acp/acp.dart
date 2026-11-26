@@ -711,6 +711,16 @@ class SessionSummary {
   /// Why the agent could not start, when it could not.
   final String? error;
 
+  /// Its herdr pane's agent status (idle, working, blocked, done), when the
+  /// agent runs in a herdr pane on the computer.
+  final String? paneStatus;
+
+  /// The agent runs in a herdr pane: one process, its own TUI.
+  bool get inPane => paneStatus != null;
+
+  /// The agent waits for an answer in its TUI (an approval, a question).
+  bool get waitingForAnswer => paneStatus == 'blocked';
+
   const SessionSummary({
     required this.sessionId,
     required this.cwd,
@@ -721,6 +731,7 @@ class SessionSummary {
     this.working = false,
     this.running = false,
     this.error,
+    this.paneStatus,
   });
 
   factory SessionSummary.fromJson(Json json) {
@@ -737,6 +748,10 @@ class SessionSummary {
       working: baya['working'] == true,
       running: baya['running'] == true,
       error: _string(baya['error']),
+      paneStatus: switch (baya['herdr']) {
+        {'status': final String status} => status,
+        _ => null,
+      },
     );
   }
 
@@ -752,6 +767,7 @@ class SessionSummary {
         'working': working,
         'running': running,
         if (error != null) 'error': error,
+        if (paneStatus != null) 'herdr': {'status': paneStatus},
       },
     },
   };
@@ -767,6 +783,7 @@ class SessionSummary {
         working: working ?? this.working,
         running: running ?? this.running,
         error: error,
+        paneStatus: paneStatus,
       );
 
   @override
@@ -778,6 +795,7 @@ class SessionSummary {
       other.updatedAt == updatedAt &&
       other.agent == agent &&
       other.agentName == agentName &&
+      other.paneStatus == paneStatus &&
       other.working == working &&
       other.running == running &&
       other.error == error;
@@ -790,6 +808,7 @@ class SessionSummary {
     updatedAt,
     agent,
     agentName,
+    paneStatus,
     working,
     running,
     error,
