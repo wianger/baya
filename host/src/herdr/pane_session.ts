@@ -54,6 +54,8 @@ export class PaneSession {
   private model: string | null = null;
   /** How full its context is, as its record last said. */
   private usage: Update | null = null;
+  /** The model its record says last replied (Pi names it as its picker does). */
+  private recordModel: string | null = null;
   /** Prompts waiting for the agent to finish the turn they started. */
   private readonly waiting: ((response: PromptResponse) => void)[] = [];
 
@@ -199,12 +201,14 @@ export class PaneSession {
         if (!later.length || !this.attached.has(phone)) return;
         this.send(phone, {
           sessionUpdate: "config_option_update",
-          configOptions: [modelOption(later, this.model)],
+          configOptions: [modelOption(later, this.model ?? this.recordModel)],
         } as Update);
       });
     }
     return {
-      ...(models?.length ? { configOptions: [modelOption(models, this.model)] } : {}),
+      ...(models?.length
+        ? { configOptions: [modelOption(models, this.model ?? this.recordModel)] }
+        : {}),
       _meta: {
         [BAYA_META]: {
           agent: this.pane.agent,
@@ -271,6 +275,12 @@ export class PaneSession {
   async input(text: string | undefined, keys: string[]): Promise<void> {
     if (text) await this.app.sendText(this.pane.paneId, text);
     if (keys.length) await this.app.sendKeys(this.pane.paneId, keys);
+  }
+
+  /** Ends its agent and closes its pane on the computer. */
+  close(): Promise<void> {
+    this.stop();
+    return this.app.close(this.pane.paneId);
   }
 
   /** Esc, as its TUI stops a turn. */
@@ -341,6 +351,7 @@ export class PaneSession {
     const result = readRecord(this.pane.agent, this.recordPath);
     if (result.title) this.recordTitle = result.title;
     this.usage = this.usageUpdate(result.usage ?? null) ?? this.usage;
+    if (result.usage?.model) this.recordModel = result.usage.model;
     return result;
   }
 

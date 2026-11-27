@@ -170,7 +170,7 @@ class _SessionSheetState extends State<_SessionSheet> {
               if (!_confirming)
                 BayaRow(
                   key: const ValueKey('session-action-delete'),
-                  icon: LucideIcons.trash2,
+                  icon: LucideIcons.circleX,
                   label: l10n.deleteSession,
                   destructive: true,
                   onTap: () => setState(() => _confirming = true),
@@ -227,7 +227,7 @@ class _SessionSheetState extends State<_SessionSheet> {
                                         color: Colors.white,
                                       ),
                                     )
-                                  : Text(l10n.delete),
+                                  : Text(l10n.closeSessionConfirm),
                             ),
                           ),
                         ],

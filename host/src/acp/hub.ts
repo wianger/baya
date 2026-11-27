@@ -3,6 +3,7 @@ import { type AgentDefinition, defaultAgentId, loadConfig } from "../config.ts";
 import { resumeArgs, sessionForPane, setSessionForPane } from "../herdr/aliases.ts";
 import { herdrApp, type PaneAgent, type PaneHost } from "../herdr/app.ts";
 import { isMirror, mirrorList, setMirror } from "../herdr/mirrors.ts";
+import { choicesFrom, type ModelChoice, useModelFetcher } from "../herdr/models.ts";
 import { PaneSession, paneSessionId } from "../herdr/pane_session.ts";
 import { locateRecord } from "../herdr/records.ts";
 import { herdrWindow } from "../herdr/window.ts";
@@ -71,6 +72,10 @@ export class SessionHub {
   constructor(options: { persist?: boolean; panes?: boolean } = {}) {
     this.persist = options.persist ?? true;
     this.followPanes = options.panes ?? false;
+    // A pane's agent offers the models it gives Baya over ACP.
+    if (this.followPanes) {
+      useModelFetcher((id) => (this.definition(id) ? this.agentModels(id) : Promise.resolve([])));
+    }
   }
 
   async start(): Promise<void> {
@@ -310,6 +315,20 @@ export class SessionHub {
     return session;
   }
 
+  /**
+   * Closes a conversation: one in a pane ends there (its tab or window
+   * pane closes on the computer, the agent's own history stays); one Baya
+   * runs stops and leaves the list.
+   */
+  async close(id: string): Promise<boolean> {
+    const pane = this.panes.get(id);
+    if (!pane) return this.delete(id);
+    await pane.close();
+    this.panes.delete(id);
+    this.push("_baya/session_removed", { sessionId: id });
+    return true;
+  }
+
   delete(id: string): boolean {
     const session = this.sessions.get(id);
     if (!session) return false;
@@ -350,6 +369,14 @@ export class SessionHub {
     } finally {
       agent.stop();
     }
+  }
+
+  /** Agent [id]'s models, from a session of it started for the asking. */
+  agentModels(id: string): Promise<ModelChoice[]> {
+    return this.withAgent(id, undefined, async (agent) => {
+      const result = await agent.request("session/new", { cwd: homedir(), mcpServers: [] });
+      return choicesFrom(result as Json);
+    });
   }
 
   /** How the agent signs in, and whether it can sign out. */

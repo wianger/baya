@@ -268,7 +268,7 @@ export class PhoneConnection implements HubPhone {
         this.session(params).rename(stringParam(params, "title"));
         return { session: this.session(params).info() };
       case "session/delete":
-        this.hub.delete(this.session(params).id);
+        await this.hub.close(this.session(params).id);
         return {};
       case "_baya/browse":
         return browseDirectory(optionalString(params, "path"), params["showHidden"] === true);

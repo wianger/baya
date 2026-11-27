@@ -333,9 +333,13 @@ class Preferences extends ChangeNotifier {
   /// folder's (a workspace someone named so, or the folder's own).
   String workspaceOf(String epk, SessionSummary session) {
     final device = toStandardB64(epk);
-    final filed = workspaceForSession(device, session.sessionId);
+    // In herdr, its space on the computer is where it is, as herdr shows.
+    final pane = session.paneWorkspace;
+    final filed = pane == null
+        ? workspaceForSession(device, session.sessionId)
+        : null;
     if (filed != null) return filed;
-    final label = session.paneWorkspace ?? folderName(session.cwd);
+    final label = pane ?? folderName(session.cwd);
     for (final key in customWorkspaceKeysForDevice(device)) {
       if (_workspaceNames[key] == label) return key;
     }

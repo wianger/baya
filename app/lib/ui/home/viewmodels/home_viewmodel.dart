@@ -154,9 +154,10 @@ class HomeViewModel extends ViewModel<HomeState> {
   Map<String, String> workspacesForDevice(String deviceEpk) {
     final device = toStandardB64(deviceEpk);
     final result = <String, String>{};
-    for (final key in _prefs.customWorkspaceKeysForDevice(device)) {
-      result[key] = '';
-    }
+    // As herdr-app's spaces: a workspace is there while it has sessions;
+    // one just made stays while it is the one shown.
+    final shown = _prefs.workspaceForDevice(device);
+    if (shown != null && _prefs.isCustomWorkspace(shown)) result[shown] = '';
     for (final item in allItems.where(
       (item) => toStandardB64(item.peer.remoteEpk) == device,
     )) {
