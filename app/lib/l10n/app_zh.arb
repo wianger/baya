@@ -236,8 +236,8 @@
   "onComputer": "位于 {computer}",
   "deleteNamed": "删除 {name}？",
   "deleteDeviceBody": "这会从手机上移除这台电脑并清除其缓存的会话。之后可以在电脑上运行 baya pair 重新配对。",
-  "deleteWorkspaceNamed": "删除工作区 {name}？",
-  "deleteWorkspaceBody": "会话和电脑上的历史都会保留，会话将回到各自的文件夹分组。",
+  "deleteWorkspaceNamed": "关闭“{name}”工作区？",
+  "deleteWorkspaceBody": "里面的每个会话都会在电脑上一起关闭，就像在 herdr 里关闭这个 space；agent 自己的历史仍然保留。",
   "deleteSessionBody": "关闭“{name}”？电脑上它的标签页会关闭，agent 停止；对话仍保存在 agent 自己的历史里。",
   "noSessionsInWorkspace": "此工作区还没有会话，可以在任意文件夹开始一个。",
   "computerDidNotConnect": "所选电脑未能及时连接，请在电脑上启动 Baya 后重试。",
@@ -439,9 +439,9 @@
   "findOlder": "上一个（更早）",
   "findNewer": "下一个（更新）",
   "pinned": "已置顶",
-  "computerSessions": "电脑上的对话",
+  "computerSessions": "对话",
   "computerSessionsHint": "智能体在 Baya 之外进行的对话——终端、编辑器或其他地方。选一个就在这里继续。",
-  "computerSessionsRow": "电脑上的其他对话",
+  "computerSessionsRow": "对话",
   "askingAgents": "正在询问各个智能体…",
   "allAgents": "全部 {count}",
   "agentsCouldNotList": "未能列出：{names}",
@@ -509,5 +509,6 @@
   "paneWaitingForAnswer": "等你回答",
   "sessionsWorking": "运行中",
   "sessionsIdle": "空闲",
-  "closeSessionConfirm": "关闭"
+  "closeSessionConfirm": "关闭",
+  "askAboutSelection": "提问"
 }

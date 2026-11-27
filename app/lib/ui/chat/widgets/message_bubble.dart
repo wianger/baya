@@ -388,17 +388,36 @@ class PlanCard extends StatelessWidget {
 // AssistantBubble — left-aligned monospace text
 // ---------------------------------------------------------------------------
 
-class AssistantBubble extends StatelessWidget {
+class AssistantBubble extends StatefulWidget {
   final AssistantMsg message;
   final bool showCopy;
-  const AssistantBubble(this.message, {super.key, this.showCopy = true});
+
+  /// Selected words to ask about in the composer.
+  final ValueChanged<String>? onAsk;
+
+  const AssistantBubble(
+    this.message, {
+    super.key,
+    this.showCopy = true,
+    this.onAsk,
+  });
+
+  @override
+  State<AssistantBubble> createState() => _AssistantBubbleState();
+}
+
+class _AssistantBubbleState extends State<AssistantBubble> {
+  /// What the finger has selected now.
+  String _selected = '';
 
   @override
   Widget build(BuildContext context) {
-    // Agent output is rendered as Markdown (GFM + code blocks),
-    // spanning the FULL content width (the message list already pads 16px on
-    // each side) — unlike the user's right-aligned chat bubble, which stays
-    // capped. Selectable so prose/code can be copied.
+    final message = widget.message;
+    final l10n = context.l10n;
+    // Agent output is rendered as Markdown (GFM + code blocks), spanning the
+    // FULL content width (the message list already pads 16px on each side).
+    // Holding it selects at once, with handles to drag the range; its
+    // toolbar asks about, copies or reads aloud what is selected.
     return BayaReveal(
       offset: 9,
       child: SizedBox(
@@ -406,15 +425,56 @@ class AssistantBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // As in DeepSeek: holding the answer opens its menu (copy,
-            // select text, read aloud, share) rather than a selection.
-            GestureDetector(
-              key: const Key('assistant-hold'),
-              behavior: HitTestBehavior.translucent,
-              onLongPress: () => showMessageMenu(context, message.text),
+            SelectionArea(
+              key: const Key('assistant-select'),
+              onSelectionChanged: (content) =>
+                  _selected = content?.plainText ?? '',
+              contextMenuBuilder: (context, state) {
+                void done() => state.hideToolbar();
+                return AdaptiveTextSelectionToolbar.buttonItems(
+                  anchors: state.contextMenuAnchors,
+                  buttonItems: [
+                    if (widget.onAsk != null)
+                      ContextMenuButtonItem(
+                        label: l10n.askAboutSelection,
+                        onPressed: () {
+                          final words = _selected;
+                          done();
+                          state.clearSelection();
+                          widget.onAsk!(words);
+                        },
+                      ),
+                    ContextMenuButtonItem(
+                      label: l10n.copy,
+                      onPressed: () {
+                        unawaited(
+                          Clipboard.setData(ClipboardData(text: _selected)),
+                        );
+                        done();
+                        state.clearSelection();
+                      },
+                    ),
+                    ContextMenuButtonItem(
+                      label: l10n.readAloud,
+                      onPressed: () {
+                        final text = speechText(_selected);
+                        done();
+                        if (text.isEmpty) return;
+                        unawaited(
+                          ReadAloudController.instance.toggle(
+                            owner: message,
+                            text: text,
+                            language: speechLanguage(text),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                );
+              },
               child: AgentMarkdown(message.text),
             ),
-            if (showCopy) ...[
+            if (widget.showCopy) ...[
               const SizedBox(height: 8),
               _CopyRow(text: message.text),
             ],

@@ -200,7 +200,12 @@ class Transcript {
       );
       return;
     }
-    final id = messageId ?? _nextId('user');
+    // An agent's own record names no phone id: its echo of a queued
+    // prompt is known by its words.
+    final byText = _pending.any((m) => m.id == messageId)
+        ? null
+        : _pending.where((m) => m.text.trim() == text.trim()).firstOrNull;
+    final id = byText?.id ?? messageId ?? _nextId('user');
     final sent = _pending.where((m) => m.id == id).firstOrNull;
     _pending.removeWhere((m) => m.id == id);
     _rows.add(

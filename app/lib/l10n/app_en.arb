@@ -326,7 +326,7 @@
     }
   },
   "deleteDeviceBody": "This removes the computer from this phone and clears its cached sessions. The computer can be paired again by running baya pair.",
-  "deleteWorkspaceNamed": "Delete {name} workspace?",
+  "deleteWorkspaceNamed": "Close the {name} workspace?",
   "@deleteWorkspaceNamed": {
     "placeholders": {
       "name": {
@@ -334,7 +334,7 @@
       }
     }
   },
-  "deleteWorkspaceBody": "Sessions and computer history are kept. Sessions will return to their folder groups.",
+  "deleteWorkspaceBody": "Every session in it closes on the computer too, as closing its space in herdr does; the agents' own histories stay.",
   "deleteSessionBody": "Close \"{name}\"? Its agent stops and its tab closes on the computer; the conversation stays in the agent's own history.",
   "@deleteSessionBody": {
     "placeholders": {
@@ -897,9 +897,9 @@
   "findOlder": "Earlier match",
   "findNewer": "Later match",
   "pinned": "Pinned",
-  "computerSessions": "On this computer",
+  "computerSessions": "Conversations",
   "computerSessionsHint": "Conversations your agents had outside Baya — in a terminal, an editor, anywhere. Pick one to continue it here.",
-  "computerSessionsRow": "Conversations on this computer",
+  "computerSessionsRow": "Conversations",
   "askingAgents": "Asking the agents…",
   "allAgents": "All {count}",
   "@allAgents": {
@@ -1004,5 +1004,9 @@
   "closeSessionConfirm": "Close",
   "@closeSessionConfirm": {
     "description": "Confirm button: close a session"
+  },
+  "askAboutSelection": "Ask",
+  "@askAboutSelection": {
+    "description": "Selection toolbar: quote the selected words in the composer to ask about them"
   }
 }

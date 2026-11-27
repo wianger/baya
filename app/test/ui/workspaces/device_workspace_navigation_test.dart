@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:app/acp/acp.dart' show folderName;
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/domain/value_objects/workspace.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
@@ -290,14 +289,8 @@ void main() {
 
     await vm.deleteWorkspace(workspace);
     await pumpEventQueue();
-    expect(folderWorkspaceLabel(vm.selectedWorkspace!), isNotNull);
-    // Back in their own folders' workspaces.
-    for (final item in vm.allItems) {
-      expect(
-        vm.workspaceLabel(vm.workspaceKeyFor(item)),
-        folderName(item.session.cwd),
-      );
-    }
+    // Closed with its sessions, as a space in herdr closes.
+    expect(vm.selectedWorkspace, isNot(workspace));
 
     final restoredAfterDelete = Preferences();
     await restoredAfterDelete.load();

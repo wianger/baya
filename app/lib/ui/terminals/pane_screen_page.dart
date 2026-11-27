@@ -1,7 +1,9 @@
-/// A session's terminal when its agent runs in a herdr pane: that pane's
-/// screen, exactly as herdr shows it on the computer, drawn cell by cell at
-/// the pane's own width and scaled to the phone (pinch to zoom). Keys and
-/// text typed here go into the pane.
+/// A session's terminal when its agent runs in a tab of herdr's TUI: that
+/// pane's screen, exactly as herdr shows it on the computer, drawn cell by
+/// cell at its own size and dragged sideways when wider than the phone.
+/// Dragging up and down turns the program's wheel (full-screen agents keep
+/// their own history); pinch sizes the text; a tap brings the keyboard up
+/// for the line typed into the pane.
 library;
 
 import 'dart:async';
@@ -56,6 +58,15 @@ int _cells(String line) {
 class _PaneScreenPageState extends State<PaneScreenPage> {
   late final _screen = GhosttyController(onOutput: (_) {});
   final _line = TextEditingController();
+  final _lineFocus = FocusNode();
+  double _font = 13;
+
+  // One finger: a tap, or a drag that turns the wheel. Two: a pinch.
+  final _pointers = <int, Offset>{};
+  (Offset, Duration)? _touch;
+  double _wheel = 0;
+  double? _pinchStart;
+  double? _pinchFrom;
   Timer? _poll;
   String _last = '';
   String? _error;
@@ -76,6 +87,7 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
     _poll?.cancel();
     _screen.dispose();
     _line.dispose();
+    _lineFocus.dispose();
     super.dispose();
   }
 
@@ -105,8 +117,12 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
     }
   }
 
-  Future<void> _input({String? text, List<String> keys = const []}) async {
-    unawaited(HapticFeedback.selectionClick());
+  Future<void> _input({
+    String? text,
+    List<String> keys = const [],
+    bool haptic = true,
+  }) async {
+    if (haptic) unawaited(HapticFeedback.selectionClick());
     try {
       await widget.host.call('_baya/pane_input', {
         'sessionId': widget.sessionId,
@@ -119,6 +135,69 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
     unawaited(
       Future<void>.delayed(const Duration(milliseconds: 150), _refresh),
     );
+  }
+
+  double get _spread {
+    final points = _pointers.values.take(2).toList();
+    return (points[0] - points[1]).distance;
+  }
+
+  void _down(PointerDownEvent event) {
+    _pointers[event.pointer] = event.localPosition;
+    _touch = _pointers.length == 1
+        ? (event.localPosition, event.timeStamp)
+        : null;
+    if (_pointers.length == 2) {
+      _pinchStart = _spread;
+      _pinchFrom = _font;
+    }
+  }
+
+  void _move(PointerMoveEvent event) {
+    if (!_pointers.containsKey(event.pointer)) return;
+    _pointers[event.pointer] = event.localPosition;
+    final start = _pinchStart;
+    final from = _pinchFrom;
+    if (_pointers.length == 2 && start != null && from != null && start > 8) {
+      final size = (from * _spread / start).clamp(7.0, 24.0);
+      final stepped = (size * 2).roundToDouble() / 2;
+      if (stepped != _font) setState(() => _font = stepped);
+      return;
+    }
+    // Mostly sideways is seeing the rest of a wide screen.
+    if (_pointers.length != 1 || event.delta.dy.abs() < event.delta.dx.abs()) {
+      return;
+    }
+    _wheel += event.delta.dy;
+    final line = _font * 1.25;
+    final x = _screen.cols ~/ 2 + 1;
+    final y = _screen.rows ~/ 2 + 1;
+    var turns = '';
+    while (_wheel.abs() >= line) {
+      // Finger down: back to older output.
+      final up = _wheel > 0;
+      _wheel -= up ? line : -line;
+      turns += '\x1b[<${up ? 64 : 65};$x;${y}M';
+    }
+    if (turns.isNotEmpty) unawaited(_input(text: turns, haptic: false));
+  }
+
+  void _up(PointerEvent event) {
+    _pointers.remove(event.pointer);
+    if (_pointers.length < 2) {
+      _pinchStart = null;
+      _pinchFrom = null;
+    }
+    final touch = _touch;
+    _touch = null;
+    if (event is PointerUpEvent &&
+        touch != null &&
+        _pointers.isEmpty &&
+        (event.localPosition - touch.$1).distance < 12 &&
+        event.timeStamp - touch.$2 < const Duration(milliseconds: 350)) {
+      _lineFocus.requestFocus();
+    }
+    if (_pointers.isEmpty) _wheel = 0;
   }
 
   void _submit() {
@@ -160,24 +239,26 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
                   ),
                 ),
               ),
-            // The pane at its width, fit to the phone; pinch for more.
+            // The pane at its own size, the rest of it a drag sideways.
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) => InteractiveViewer(
-                  maxScale: 4,
-                  constrained: false,
-                  child: SizedBox(
-                    width: constraints.maxWidth,
-                    child: FittedBox(
-                      fit: BoxFit.fitWidth,
-                      alignment: Alignment.topLeft,
-                      child: GhosttyView(
-                        key: const Key('pane-screen'),
-                        controller: _screen,
-                        fontSize: 13,
-                        fixed: true,
-                        onResize: (_, _) {},
-                      ),
+              child: Listener(
+                onPointerDown: _down,
+                onPointerMove: _move,
+                onPointerUp: _up,
+                onPointerCancel: _up,
+                child: SingleChildScrollView(
+                  key: const Key('pane-screen-sideways'),
+                  scrollDirection: Axis.horizontal,
+                  // Up and down is the program's wheel, not this view.
+                  child: SingleChildScrollView(
+                    physics: const NeverScrollableScrollPhysics(),
+                    reverse: true,
+                    child: GhosttyView(
+                      key: const Key('pane-screen'),
+                      controller: _screen,
+                      fontSize: _font,
+                      fixed: true,
+                      onResize: (_, _) {},
                     ),
                   ),
                 ),
@@ -211,6 +292,7 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
                     child: TextField(
                       key: const Key('pane-screen-input'),
                       controller: _line,
+                      focusNode: _lineFocus,
                       onSubmitted: (_) => _submit(),
                       textInputAction: TextInputAction.send,
                       decoration: InputDecoration(

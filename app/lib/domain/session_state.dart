@@ -27,6 +27,10 @@ class MessageImage {
   int get hashCode => Object.hash(data, mime);
 }
 
+/// A draft that quotes words to ask about: added to the composer, not
+/// put in place of what is there.
+const askDraftId = 'ask';
+
 class UserMsg extends ChatMessage {
   final String text;
   final UserMsgStatus status;

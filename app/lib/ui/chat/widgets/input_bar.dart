@@ -160,6 +160,15 @@ class _InputBarState extends State<InputBar>
 
   void _onDraft(UserMsg message) {
     if (!mounted) return;
+    if (message.id == askDraftId) {
+      final next = '${message.text}${_controller.text}';
+      _controller.value = TextEditingValue(
+        text: next,
+        selection: TextSelection.collapsed(offset: next.length),
+      );
+      _focusNode.requestFocus();
+      return;
+    }
     final text = message.text;
     final image = message.image;
     if (image != null) widget.attachment?.restore(image);

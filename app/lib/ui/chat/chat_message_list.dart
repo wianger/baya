@@ -222,6 +222,9 @@ class ChatMessageList extends StatefulWidget {
   /// The message a search shows: scrolled to and outlined.
   final String? focus;
 
+  /// Words selected in an answer, to ask about in the composer.
+  final ValueChanged<String>? onAsk;
+
   const ChatMessageList({
     super.key,
     required this.messages,
@@ -229,6 +232,7 @@ class ChatMessageList extends StatefulWidget {
     this.live = true,
     this.onEdit,
     this.focus,
+    this.onAsk,
   });
 
   @override
@@ -605,6 +609,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                           () => AssistantBubble(
                             msg,
                             showCopy: copyOwners.contains(msg),
+                            onAsk: widget.onAsk,
                           ),
                         ),
                         ThinkingMsg() => ThinkingBlock(

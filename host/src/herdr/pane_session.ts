@@ -57,6 +57,8 @@ export class PaneSession {
   private sent = 0;
   private recordTitle: string | null = null;
   private updatedAt = Date.now();
+  /** Prompts typed in that its record doesn't show yet: queued in its TUI. */
+  private queued: { id: string; text: string }[] = [];
   /** Settings picked from a phone (model, thinking), by option id. */
   private chosen: Record<string, string> = {};
   /** How full its context is, as its record last said. */
@@ -227,6 +229,7 @@ export class PaneSession {
             workspace: this.pane.workspace,
           },
           promptCapabilities: {},
+          ...(this.queued.length ? { queued: this.queued } : {}),
           canFork: false,
         },
       },
@@ -262,6 +265,9 @@ export class PaneSession {
         "The agent is waiting for an answer in its terminal. Open the terminal to answer it.",
       );
     }
+    const meta = (params["_meta"] as Json | undefined)?.[BAYA_META] as Json | undefined;
+    const messageId = typeof meta?.["messageId"] === "string" ? meta["messageId"] : null;
+    if (messageId) this.queued.push({ id: messageId, text });
     await this.app.prompt(this.pane.paneId, text);
     this.watch();
     this.startTurn();
@@ -406,6 +412,18 @@ export class PaneSession {
     const result = readRecord(this.pane.agent, this.recordPath);
     if (result.title) this.recordTitle = result.title;
     this.usage = this.usageUpdate(result.usage ?? null) ?? this.usage;
+    if (this.queued.length) {
+      const said = new Set(
+        result.updates.flatMap((u) => {
+          const content = u["content"] as Json | undefined;
+          return u["sessionUpdate"] === "user_message_chunk" &&
+            typeof content?.["text"] === "string"
+            ? [content["text"].trim()]
+            : [];
+        }),
+      );
+      this.queued = this.queued.filter((q) => !said.has(q.text.trim()));
+    }
     if (result.usage?.model) this.recordModel = result.usage.model;
     return result;
   }
@@ -434,6 +452,19 @@ export class PaneSession {
     }
     if (updates.length <= this.sent) return;
     const fresh = updates.slice(this.sent);
+    // Taken by the agent: in its record now, no longer queued.
+    for (const update of fresh) {
+      const content = update["content"] as Json | undefined;
+      if (
+        update["sessionUpdate"] !== "user_message_chunk" ||
+        typeof content?.["text"] !== "string"
+      ) {
+        continue;
+      }
+      const said = content["text"].trim();
+      const at = this.queued.findIndex((q) => q.text.trim() === said);
+      if (at >= 0) this.queued.splice(at, 1);
+    }
     this.sent = updates.length;
     this.updatedAt = Date.now();
     for (const phone of this.attached) {
