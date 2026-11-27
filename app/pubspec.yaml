@@ -14,12 +14,12 @@ dependencies:
     sdk: flutter
   intl: any
 
-  lucide_icons_flutter: ^4.0.2
+  lucide_icons_flutter: ^4.0.3
   cryptography: ^2.7.0
   mobile_scanner: ^7.5.0
   flutter_secure_storage: ^11.2.0
   web_socket_channel: ^3.0.1
-  go_router: ^18.1.3
+  go_router: ^18.1.4
 
   # baya://pair links open the app straight into pairing.
   app_links: ^7.2.0
@@ -59,7 +59,7 @@ dependencies:
   file_picker: ^13.3.2
   share_plus: ^13.3.1
   video_player: ^2.14.1
-  flutter_svg: ^2.3.2
+  flutter_svg: ^2.5.0
   xterm: ^4.0.0
   # Trial terminal engine: Ghostty's libghostty-vt (MIT), prebuilt per ABI.
   libghostty: ^0.0.13
