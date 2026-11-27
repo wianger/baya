@@ -94,7 +94,10 @@ export class SessionHub {
   private async watchPanes(first = false): Promise<void> {
     let running = true;
     try {
-      if (first) await herdrApp.prepare().catch(() => {});
+      if (first) {
+        await herdrApp.prepare().catch(() => {});
+        void this.moveAllToPanes();
+      }
       // Agents run in two places: the herdr-app window (over herdr-core) and
       // herdr's server (its TUI). A tab that only mirrors a window agent in
       // the TUI is not a conversation of its own.
@@ -210,6 +213,26 @@ export class SessionHub {
     this.panes.set(id, session);
     this.paneChanged(session);
     return session;
+  }
+
+  /**
+   * Every conversation Baya still runs itself whose agent herdr can run
+   * moves into a pane, without waiting to be opened: one place for them
+   * all. Those it can't (DeepSeek, none of the agent's own to resume)
+   * stay, and why is logged.
+   */
+  private async moveAllToPanes(): Promise<void> {
+    for (const [id, hosted] of [...this.sessions]) {
+      const { agent, title } = hosted.record;
+      if (!HERDR_KINDS[agent]) continue;
+      const moved = await this.moveToPane(id).catch((error: unknown) => {
+        console.error(`[baya] could not move "${title}" into herdr: ${String(error)}`);
+        return undefined;
+      });
+      if (moved === null) {
+        console.error(`[baya] "${title}" (${agent}) stays in Baya: nothing of its agent's to resume`);
+      }
+    }
   }
 
   /**
