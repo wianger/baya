@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:app/acp/acp.dart' show SessionSummary;
+import 'package:app/acp/acp.dart' show SessionSummary, folderName;
 import 'package:app/data/transport/epk_encoding.dart';
 import 'package:app/domain/runs/parallel_run.dart';
 import 'package:app/domain/value_objects/workspace.dart';
@@ -202,7 +202,7 @@ class Preferences extends ChangeNotifier {
         }
       }
     } on FormatException {
-      // A damaged navigation preference falls back to Inbox.
+      // A damaged navigation preference: nothing remembered.
     }
     if (device != _selectedDeviceEpk ||
         !mapEquals(remembered, _workspacesByDevice)) {
@@ -233,7 +233,7 @@ class Preferences extends ChangeNotifier {
         }
       }
     } on FormatException {
-      /* Invalid preference, fall back to Inbox. */
+      /* Invalid preference: sessions are in their folders' workspaces. */
     }
     if (!mapEquals(sessionWorkspaces, _sessionWorkspaces)) {
       _sessionWorkspaces = sessionWorkspaces;
@@ -315,21 +315,31 @@ class Preferences extends ChangeNotifier {
         : null;
   }
 
-  /// Display name for a logical workspace. Inbox has no stored name until the
-  /// user renames it.
+  /// Display name for a logical workspace the user named or renamed.
   String? workspaceName(String key) =>
       isWorkspaceKey(key) ? _workspaceNames[key] : null;
 
   bool isCustomWorkspace(String key) =>
-      isWorkspaceKey(key) &&
-      !isInboxWorkspace(key) &&
-      _workspaceNames.containsKey(key);
+      isWorkspaceKey(key) && _workspaceNames.containsKey(key);
 
   Iterable<String> customWorkspaceKeysForDevice(String epk) {
     final device = toStandardB64(epk);
     return _workspaceNames.keys.where(
       (key) => isWorkspaceKeyForDevice(key, device),
     );
+  }
+
+  /// The workspace [session] is in: the one it was filed in, else its
+  /// folder's (a workspace someone named so, or the folder's own).
+  String workspaceOf(String epk, SessionSummary session) {
+    final device = toStandardB64(epk);
+    final filed = workspaceForSession(device, session.sessionId);
+    if (filed != null) return filed;
+    final label = session.paneWorkspace ?? folderName(session.cwd);
+    for (final key in customWorkspaceKeysForDevice(device)) {
+      if (_workspaceNames[key] == label) return key;
+    }
+    return folderWorkspaceKey(device, label);
   }
 
   String? workspaceForSession(String epk, String sessionId) {
@@ -406,18 +416,15 @@ class Preferences extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool canDeleteWorkspace(String key) =>
-      isWorkspaceKey(key) && !isInboxWorkspace(key);
+  /// A folder's own workspace comes back while it has sessions: only
+  /// workspaces someone made or named go.
+  bool canDeleteWorkspace(String key) => isCustomWorkspace(key);
 
   /// Delete a logical workspace without deleting its sessions or computer
-  /// history. Its sessions fall back to the device Inbox.
+  /// history. Its sessions go back to their folders' workspaces.
   Future<void> deleteWorkspace(String key) async {
     if (!canDeleteWorkspace(key)) {
-      throw ArgumentError.value(
-        key,
-        'key',
-        'The device Inbox cannot be deleted',
-      );
+      throw ArgumentError.value(key, 'key', 'Not a workspace anyone made');
     }
     final device = workspaceDevice(key);
     final beforeNames = Map<String, String>.of(_workspaceNames);

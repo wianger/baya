@@ -72,7 +72,7 @@ export class PhoneConnection implements HubPhone {
     this.closeSocket = options.close;
     this.peer = new JsonRpcPeer({
       write: options.send,
-      onRequest: (method, params) => this.handle(method, params),
+      onRequest: (method, params) => this.timed(method, params),
       onNotification: (method, params) => this.handleNotification(method, params),
     });
     this.terminals = new PhoneTerminals({
@@ -140,6 +140,22 @@ export class PhoneConnection implements HubPhone {
     this.downloads.clear();
     uploads.detach(this.id);
     this.terminals.close();
+  }
+
+  /**
+   * [handle], logging any request that takes over a second: what a phone
+   * waited on, so "slow" is seen in the log, not guessed at.
+   */
+  private async timed(method: string, params: Json): Promise<unknown> {
+    const started = performance.now();
+    try {
+      return await this.handle(method, params);
+    } finally {
+      const took = Math.round(performance.now() - started);
+      if (took > 1000 && !method.startsWith("session/prompt")) {
+        console.error(`[baya] slow ${method} ${took}ms`);
+      }
+    }
   }
 
   private async handle(method: string, params: Json): Promise<unknown> {

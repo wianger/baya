@@ -18,6 +18,7 @@ void main() {
     expect(workspaceId(key), 'release-train');
     expect(isWorkspaceKeyForDevice(key, device), isTrue);
     expect(isWorkspaceKeyForDevice(key, 'another-device'), isFalse);
-    expect(isInboxWorkspace(inboxWorkspaceKey(device)), isTrue);
+    expect(folderWorkspaceLabel(folderWorkspaceKey(device, '我的 app')), '我的 app');
+    expect(folderWorkspaceLabel(key), isNull);
   });
 }

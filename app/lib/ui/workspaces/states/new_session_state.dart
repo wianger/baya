@@ -63,7 +63,6 @@ class NewSessionReady extends NewSessionState {
 
   bool get canOpen =>
       host.online &&
-      selectedWorkspace != null &&
       !loading &&
       !opening &&
       directory?.availableAgents.contains(agent) == true;

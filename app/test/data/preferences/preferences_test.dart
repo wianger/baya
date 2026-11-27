@@ -229,30 +229,30 @@ void main() {
       p.dispose();
     });
 
-    test('Inbox is a permanent system workspace', () async {
-      final store = _FakeSecureStorage();
-      final p = Preferences(store);
+    test('a session nobody filed is in its folder\'s own workspace', () async {
+      final p = Preferences(_FakeSecureStorage());
       await p.load();
       final device = base64Encode(List.filled(32, 26));
-      final inbox = inboxWorkspaceKey(device);
-
-      expect(p.canDeleteWorkspace(inbox), isFalse);
-      expect(() => p.deleteWorkspace(inbox), throwsArgumentError);
-
-      await p.setWorkspaceName(inbox, 'Inbox renamed');
-      expect(p.workspaceName(inbox), 'Inbox renamed');
-      expect(p.isCustomWorkspace(inbox), isFalse);
-      expect(p.canDeleteWorkspace(inbox), isFalse);
-
-      final restored = Preferences(store);
-      await restored.load();
-      expect(restored.workspaceName(inbox), 'Inbox renamed');
-      expect(restored.isCustomWorkspace(inbox), isFalse);
+      const shop = SessionSummary(
+        sessionId: 's1',
+        cwd: '/home/me/shop',
+        title: '',
+        agent: 'pi',
+        agentName: 'Pi',
+      );
+      final folder = p.workspaceOf(device, shop);
+      expect(folder, folderWorkspaceKey(device, 'shop'));
+      expect(folderWorkspaceLabel(folder), 'shop');
+      // Always there while it has sessions: not deleted.
+      expect(p.canDeleteWorkspace(folder), isFalse);
+      // A workspace someone named so takes it in.
+      final mine = workspaceKey(device, 'mine');
+      await p.setWorkspaceName(mine, 'shop');
+      expect(p.workspaceOf(device, shop), mine);
       p.dispose();
-      restored.dispose();
     });
 
-    test('deleting a workspace returns its sessions to Inbox', () async {
+    test('deleting a workspace returns its sessions to their folders', () async {
       final p = Preferences(_FakeSecureStorage());
       await p.load();
       final device = base64Encode(List.filled(32, 27));
@@ -267,10 +267,7 @@ void main() {
       expect(p.isCustomWorkspace(workspace), isFalse);
       expect(p.workspaceForSession(device, 'session-a'), isNull);
       expect(p.workspaceForSession(device, 'session-b'), isNull);
-      expect(
-        p.workspaceForDevice(device) ?? inboxWorkspaceKey(device),
-        inboxWorkspaceKey(device),
-      );
+      expect(p.workspaceForDevice(device), isNull);
       p.dispose();
     });
 

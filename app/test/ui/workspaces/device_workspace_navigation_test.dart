@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:app/acp/acp.dart' show folderName;
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/domain/value_objects/workspace.dart';
 import 'package:app/domain/workspaces/workspace_repository.dart';
@@ -25,7 +26,6 @@ void main() {
       final pc = testPeer();
       final prefs = Preferences();
       await prefs.load();
-      await prefs.setSelectedWorkspace(inboxWorkspaceKey(pc.remoteEpk));
       final storage = MemoryStorage([pc]);
       final host = FakeHost(
         sessions: [
@@ -105,7 +105,9 @@ void main() {
       final notesWorkspace = workspaceKey(pc.remoteEpk, 'notes');
       await prefs.setWorkspaceName(notesWorkspace, 'notes');
       await prefs.setSessionWorkspace(pc.remoteEpk, 'pc-notes', notesWorkspace);
-      await prefs.setSelectedWorkspace(inboxWorkspaceKey(pc.remoteEpk));
+      await prefs.setSelectedWorkspace(
+        folderWorkspaceKey(pc.remoteEpk, 'shared'),
+      );
       final storage = MemoryStorage([pc, laptop, empty]);
       final hosts = testHostsFor(storage, {
         pc.remoteEpk: FakeHost(
@@ -189,11 +191,11 @@ void main() {
       expect(find.text('Laptop task'), findsOneWidget);
       expect(find.text('Desktop notes'), findsNothing);
       expect(vm.workspaces.length, 1);
-      expect(vm.workspaces.keys.single, inboxWorkspaceKey(laptop.remoteEpk));
+      expect(folderWorkspaceLabel(vm.workspaces.keys.single), isNotNull);
       await choose('device-switch', 'Empty device');
       expect(vm.workspaceItems, isEmpty);
-      expect(vm.workspaces.keys.single, inboxWorkspaceKey(empty.remoteEpk));
-      expect(find.text('Inbox'), findsOneWidget);
+      // Nothing there yet: no workspace, no catch-all.
+      expect(vm.workspaces, isEmpty);
       await choose('device-switch', 'PC');
       expect(find.text('Desktop notes'), findsOneWidget);
       expect(find.text('Desktop one'), findsNothing);
@@ -288,12 +290,14 @@ void main() {
 
     await vm.deleteWorkspace(workspace);
     await pumpEventQueue();
-    expect(vm.selectedWorkspace, inboxWorkspaceKey(pc.remoteEpk));
-    expect(
-      vm.workspaceItems.map((item) => item.sessionId),
-      unorderedEquals(['session-alpha', 'session-beta']),
-      reason: 'Deleting a workspace moves all of its sessions to Inbox',
-    );
+    expect(folderWorkspaceLabel(vm.selectedWorkspace!), isNotNull);
+    // Back in their own folders' workspaces.
+    for (final item in vm.allItems) {
+      expect(
+        vm.workspaceLabel(vm.workspaceKeyFor(item)),
+        folderName(item.session.cwd),
+      );
+    }
 
     final restoredAfterDelete = Preferences();
     await restoredAfterDelete.load();
@@ -371,8 +375,6 @@ void main() {
       await vm.selectWorkspace(betaWorkspace);
       expect(vm.workspaceItems.map((item) => item.sessionId), ['session-beta']);
 
-      await vm.selectWorkspace(inboxWorkspaceKey(pc.remoteEpk));
-      expect(vm.workspaceItems, isEmpty);
 
       vm.dispose();
       hosts.dispose();
@@ -380,7 +382,7 @@ void main() {
     },
   );
 
-  test('url-safe device ids share one canonical Inbox', () async {
+  test('url-safe device ids share one canonical folder workspace', () async {
     FlutterSecureStorage.setMockInitialValues({});
     final rawEpk = base64UrlEncode(List.filled(32, 251));
     final canonicalEpk = base64Encode(List.filled(32, 251));
@@ -409,9 +411,11 @@ void main() {
     });
     await pumpEventQueue();
 
-    final inbox = inboxWorkspaceKey(canonicalEpk);
     expect(vm.workspaces, hasLength(1));
-    expect(vm.workspaces.keys.single, inbox);
+    expect(
+      vm.workspaces.keys.single,
+      folderWorkspaceKey(canonicalEpk, 'project'),
+    );
     expect(vm.workspaceItems.map((item) => item.sessionId), ['session-alpha']);
 
     vm.dispose();

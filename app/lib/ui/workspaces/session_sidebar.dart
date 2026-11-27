@@ -186,6 +186,24 @@ class _SessionSidebarState extends State<SessionSidebar> {
         )
         .toList(growable: false);
     final items = vm.workspaceItems;
+    final (working, idle) = splitByActivity(
+      vm,
+      items,
+      context.watch<Preferences?>(),
+    );
+    Widget row(HomeItem item) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: SessionListRow(
+        key: ValueKey('session-row-${item.peer.remoteEpk}-${item.sessionId}'),
+        vm: vm,
+        item: item,
+        highlighted: selection.matches(item.peer.remoteEpk, item.sessionId),
+        onOpen: () {
+          if (!_opening) _open(item);
+        },
+        onMore: () => showSessionActions(context, item),
+      ),
+    );
     return BayaSurface(
       radius: 0,
       elevated: false,
@@ -318,16 +336,6 @@ class _SessionSidebarState extends State<SessionSidebar> {
                               ),
                             ),
                           ],
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(28, 18, 24, 4),
-                            child: Text(
-                              context.l10n.recents,
-                              style: context.typo.sansBody.copyWith(
-                                color: colors.muted,
-                                fontSize: BayaType.body,
-                              ),
-                            ),
-                          ),
                           if (items.isEmpty)
                             Padding(
                               padding: const EdgeInsets.fromLTRB(
@@ -348,29 +356,41 @@ class _SessionSidebarState extends State<SessionSidebar> {
                               ),
                             )
                           else ...[
-                            for (final item in items.take(_recents))
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: SessionListRow(
-                                  key: ValueKey(
-                                    'session-row-${item.peer.remoteEpk}-${item.sessionId}',
-                                  ),
-                                  vm: vm,
-                                  item: item,
-                                  highlighted: selection.matches(
-                                    item.peer.remoteEpk,
-                                    item.sessionId,
-                                  ),
-                                  onOpen: () {
-                                    if (!_opening) _open(item);
-                                  },
-                                  onMore: () =>
-                                      showSessionActions(context, item),
-                                ),
+                            // As herdr-app lists them: what is working,
+                            // then what is idle (finished and not yet seen
+                            // first).
+                            for (final (title, section, key) in [
+                              (
+                                context.l10n.sessionsWorking,
+                                working,
+                                const Key('sidebar-working'),
                               ),
-                            if (items.length > _recents)
+                              (
+                                context.l10n.sessionsIdle,
+                                idle.take(_recents).toList(),
+                                const Key('sidebar-idle'),
+                              ),
+                            ])
+                              if (section.isNotEmpty) ...[
+                                Padding(
+                                  key: key,
+                                  padding: const EdgeInsets.fromLTRB(
+                                    28,
+                                    18,
+                                    24,
+                                    4,
+                                  ),
+                                  child: Text(
+                                    title,
+                                    style: context.typo.sansBody.copyWith(
+                                      color: colors.muted,
+                                      fontSize: BayaType.body,
+                                    ),
+                                  ),
+                                ),
+                                for (final item in section) row(item),
+                              ],
+                            if (idle.length > _recents)
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Padding(
@@ -432,7 +452,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                         alignment: Alignment.centerRight,
                         child: BayaButton(
                           buttonKey: const Key('sidebar-new-session'),
-                          onPressed: vm.selectedWorkspace == null
+                          onPressed: vm.selectedDevice == null
                               ? null
                               : () =>
                                     startSession(context, close: widget.close),

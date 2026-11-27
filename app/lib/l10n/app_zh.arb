@@ -214,7 +214,6 @@
   "noWorkspacesYet": "还没有工作区",
   "chooseDeviceFirst": "请先选择设备",
   "createWorkspaceHint": "创建一个，把任意文件夹的会话归为一组。",
-  "inbox": "收件箱",
   "mobile": "手机",
   "androidDevice": "Android 设备",
   "versionReady": "版本 {version}（{build}）已可下载。",
@@ -500,7 +499,6 @@
   "share": "分享",
   "fontPreviewQuestion": "预览文字大小",
   "fontPreviewAnswer": "拖动下方的滑杆调整文字大小，回复、代码和列表都会随之变化。",
-  "recents": "最近",
   "viewAll": "查看全部",
   "closeSearchSheet": "关闭",
   "earlierOutput": "更早的输出",
@@ -508,5 +506,7 @@
   "terminalEngineGhostty": "Ghostty（试用）",
   "paneScreenHint": "电脑上 herdr 里它的窗格",
   "paneScreenType": "输入到窗格",
-  "paneWaitingForAnswer": "等你回答"
+  "paneWaitingForAnswer": "等你回答",
+  "sessionsWorking": "运行中",
+  "sessionsIdle": "空闲"
 }

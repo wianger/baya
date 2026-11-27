@@ -214,7 +214,6 @@
   "noWorkspacesYet": "No workspaces yet",
   "chooseDeviceFirst": "Choose a device first",
   "createWorkspaceHint": "Create one to group sessions from any folders.",
-  "inbox": "Inbox",
   "mobile": "Mobile",
   "androidDevice": "Android device",
   "versionReady": "Version {version} ({build}) is ready to download.",
@@ -986,7 +985,6 @@
   "share": "Share",
   "fontPreviewQuestion": "Preview the text size",
   "fontPreviewAnswer": "Drag the slider below to change the text size. Replies, code and lists all follow it.",
-  "recents": "Recents",
   "viewAll": "View all",
   "closeSearchSheet": "Close",
   "earlierOutput": "Earlier output",
@@ -994,5 +992,13 @@
   "terminalEngineGhostty": "Ghostty (trial)",
   "paneScreenHint": "Its herdr pane on the computer",
   "paneScreenType": "Type into the pane",
-  "paneWaitingForAnswer": "Waiting for your answer"
+  "paneWaitingForAnswer": "Waiting for your answer",
+  "sessionsWorking": "Working",
+  "sessionsIdle": "Idle",
+  "@sessionsWorking": {
+    "description": "Sidebar section: sessions whose agent is working or waiting for an answer"
+  },
+  "@sessionsIdle": {
+    "description": "Sidebar section: sessions whose agent is idle"
+  }
 }

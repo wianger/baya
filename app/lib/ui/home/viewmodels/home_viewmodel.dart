@@ -59,14 +59,13 @@ class HomeViewModel extends ViewModel<HomeState> {
   bool get canControlScreen => selectedHost?.intro?.screen ?? false;
 
   String workspaceKeyFor(HomeItem item) =>
-      _prefs.workspaceForSession(item.peer.remoteEpk, item.sessionId) ??
-      inboxWorkspaceKey(toStandardB64(item.peer.remoteEpk));
+      _prefs.workspaceOf(item.peer.remoteEpk, item.session);
 
   String? workspaceLabel(String? key) {
     if (key == null) return null;
-    final custom = _prefs.workspaceName(key);
-    if (custom != null) return custom;
-    return isInboxWorkspace(key) ? appL10n.inbox : workspaceId(key);
+    return _prefs.workspaceName(key) ??
+        folderWorkspaceLabel(key) ??
+        workspaceId(key);
   }
 
   Future<String> createWorkspace({
@@ -87,8 +86,8 @@ class HomeViewModel extends ViewModel<HomeState> {
 
   bool canDeleteWorkspace(String key) => _prefs.canDeleteWorkspace(key);
 
-  /// Deleting returns the workspace's sessions to Inbox without deleting their
-  /// computer history.
+  /// Deleting returns the workspace's sessions to their folders' workspaces
+  /// without deleting their computer history.
   Future<void> deleteWorkspace(String key) => _prefs.deleteWorkspace(key);
 
   /// Rename a phone-side workspace. The key is stable, so sessions assigned to
@@ -154,7 +153,7 @@ class HomeViewModel extends ViewModel<HomeState> {
   /// Workspace id → the secondary line shown in the workspace picker.
   Map<String, String> workspacesForDevice(String deviceEpk) {
     final device = toStandardB64(deviceEpk);
-    final result = <String, String>{inboxWorkspaceKey(device): ''};
+    final result = <String, String>{};
     for (final key in _prefs.customWorkspaceKeysForDevice(device)) {
       result[key] = '';
     }
@@ -253,7 +252,6 @@ class HomeViewModel extends ViewModel<HomeState> {
   void _load() {
     if (_disposed) return;
     if (!_hosts.loaded) return;
-    unawaited(_mirrorHerdrWorkspaces());
     final hosts = _hosts.all;
     if (hosts.isEmpty) {
       emit(const HomeNoPeer());
@@ -272,44 +270,11 @@ class HomeViewModel extends ViewModel<HomeState> {
     );
   }
 
-  /// Workspaces being made for herdr's, so one isn't made twice.
-  final _mirroring = <String>{};
-
-  /// A session in a herdr pane goes into the phone workspace named as its
-  /// herdr workspace (made when there is none), unless someone filed it
-  /// elsewhere: the phone groups conversations as the computer does.
-  Future<void> _mirrorHerdrWorkspaces() async {
-    for (final host in _hosts.all) {
-      final device = toStandardB64(host.key);
-      for (final session in host.sessions) {
-        final label = session.paneWorkspace;
-        if (label == null) continue;
-        if (_prefs.workspaceForSession(device, session.sessionId) != null) {
-          continue;
-        }
-        final claim = '$device|$label';
-        if (!_mirroring.add(claim)) continue;
-        try {
-          final existing = workspacesForDevice(device).entries
-              .where((w) => workspaceLabel(w.key) == label)
-              .map((w) => w.key)
-              .firstOrNull;
-          final key = existing ?? workspaceKey(device, newLogicalWorkspaceId());
-          if (existing == null) await _prefs.setWorkspaceName(key, label);
-          await _prefs.setSessionWorkspace(device, session.sessionId, key);
-        } finally {
-          _mirroring.remove(claim);
-        }
-      }
-    }
-  }
-
   /// Remember the workspace of the session the user opened.
   Future<void> openSession(String epk, String sessionId) async {
-    final explicitWorkspace = _prefs.workspaceForSession(epk, sessionId);
-    await _prefs.setSelectedWorkspace(
-      explicitWorkspace ?? inboxWorkspaceKey(toStandardB64(epk)),
-    );
+    final session = _hosts.find(epk, sessionId)?.session;
+    if (session == null) return;
+    await _prefs.setSelectedWorkspace(_prefs.workspaceOf(epk, session));
   }
 
   /// `true` when the session's computer is connected.

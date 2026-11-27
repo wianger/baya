@@ -269,22 +269,22 @@ void main() {
     expect(find.text('2 sessions · 2 folders'), findsOneWidget);
   });
 
-  testWidgets('Inbox cannot be deleted from the workspace switcher', (
+  testWidgets('only a workspace someone made can be deleted', (
     tester,
   ) async {
-    const inbox = 'pc:workspace:inbox';
+    const folder = 'pc:workspace:folder-YXBw';
     const custom = 'pc:workspace:release';
     await tester.pumpWidget(
       MaterialApp(
         theme: buildLightTheme(),
         home: Scaffold(
           body: WorkspaceSwitcher(
-            workspaces: const {inbox: '', custom: '2 sessions'},
-            labels: const {inbox: 'Inbox', custom: 'Release'},
-            selected: inbox,
+            workspaces: const {folder: '', custom: '2 sessions'},
+            labels: const {folder: 'app', custom: 'Release'},
+            selected: folder,
             hasDevice: true,
             onSelected: (_) {},
-            canDelete: (key) => !isInboxWorkspace(key),
+            canDelete: (key) => key == custom,
             onDelete: (_) async => true,
           ),
         ),
@@ -294,7 +294,7 @@ void main() {
     await tester.tap(find.byKey(const Key('workspace-switch')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('workspace-delete-$inbox')), findsNothing);
+    expect(find.byKey(const ValueKey('workspace-delete-$folder')), findsNothing);
     expect(find.byKey(const ValueKey('workspace-delete-$custom')), findsOne);
   });
 
@@ -359,7 +359,9 @@ void main() {
       final betaWorkspace = workspaceKey(peer.remoteEpk, 'beta');
       await prefs.setWorkspaceName(betaWorkspace, 'beta');
       await prefs.setSessionWorkspace(peer.remoteEpk, 'beta', betaWorkspace);
-      await prefs.setSelectedWorkspace(inboxWorkspaceKey(peer.remoteEpk));
+      await prefs.setSelectedWorkspace(
+        folderWorkspaceKey(peer.remoteEpk, 'alpha'),
+      );
       final storage = MemoryStorage([peer]);
       final host = FakeHost(
         sessions: [

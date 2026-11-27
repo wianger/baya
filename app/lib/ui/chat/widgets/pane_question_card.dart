@@ -15,6 +15,34 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 final _ansi = RegExp(r'\x1B\[[0-9;?]*[ -/]*[@-~]|\x1B\][^\x07]*\x07');
 
+/// A TUI's frame: borders and rules around what it asks.
+final _frame = RegExp(
+  r'^[\s│┃║|╭╮╰╯┌┐└┘├┤┬┴┼─━═╌╍┄┅]+|[\s│┃║|╭╮╰╯┌┐└┘├┤─━═]+$',
+);
+final _rule = RegExp(r'^[\s─━═╌╍┄┅\-_╭╮╰╯┌┐└┘│┃║]*$');
+
+/// A choice as TUIs list them: `❯ 1. Yes`, `2) No`.
+final _choice = RegExp(r'^(?:[❯›>▶●○◯◉*]\s*)?(\d)[.)]\s+(.+)$');
+
+/// The question in a screen's text: its last lines, out of their frame.
+@visibleForTesting
+List<String> questionLines(String screen) {
+  final lines = [
+    for (final raw
+        in screen.replaceAll(_ansi, '').replaceAll('\r', '').split('\n'))
+      if (!_rule.hasMatch(raw)) raw.replaceAll(_frame, '').trimRight(),
+  ].where((line) => line.trim().isNotEmpty).toList();
+  return lines.skip(lines.length > 12 ? lines.length - 12 : 0).toList();
+}
+
+/// The numbered choices among [lines], as `(digit, label)`.
+@visibleForTesting
+List<(String, String)> questionChoices(List<String> lines) => [
+  for (final line in lines)
+    if (_choice.firstMatch(line.trim()) case final m?)
+      (m.group(1)!, m.group(2)!.trim()),
+];
+
 class PaneQuestionCard extends StatefulWidget {
   const PaneQuestionCard({
     super.key,
@@ -32,7 +60,7 @@ class PaneQuestionCard extends StatefulWidget {
 }
 
 class _PaneQuestionCardState extends State<PaneQuestionCard> {
-  String _question = '';
+  List<String> _lines = const [];
   Timer? _poll;
 
   @override
@@ -57,18 +85,9 @@ class _PaneQuestionCardState extends State<PaneQuestionCard> {
       final result = await widget.host.call('_baya/pane_screen', {
         'sessionId': widget.sessionId,
       });
-      final lines = (result['text'] as String? ?? '')
-          .replaceAll(_ansi, '')
-          .replaceAll('\r', '')
-          .split('\n')
-          .map((line) => line.trimRight())
-          .where((line) => line.trim().isNotEmpty)
-          .toList();
-      final question = lines
-          .skip(lines.length > 10 ? lines.length - 10 : 0)
-          .join('\n');
-      if (mounted && question != _question) {
-        setState(() => _question = question);
+      final lines = questionLines(result['text'] as String? ?? '');
+      if (mounted && lines.join('\n') != _lines.join('\n')) {
+        setState(() => _lines = lines);
       }
     } catch (_) {
       // Shown again on the next read.
@@ -91,6 +110,11 @@ class _PaneQuestionCardState extends State<PaneQuestionCard> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final l10n = context.l10n;
+    final choices = questionChoices(_lines);
+    final question = [
+      for (final line in _lines)
+        if (_choice.firstMatch(line.trim()) == null) line.trim(),
+    ].join('\n');
     Widget answer(String label, VoidCallback onTap, {Key? key}) => Padding(
       padding: const EdgeInsets.only(right: 6),
       child: OutlinedButton(
@@ -139,23 +163,49 @@ class _PaneQuestionCardState extends State<PaneQuestionCard> {
                 ),
               ],
             ),
-            if (_question.isNotEmpty)
+            if (question.isNotEmpty)
               Container(
+                key: const Key('pane-question-text'),
                 margin: const EdgeInsets.only(top: 6, bottom: 10),
-                constraints: const BoxConstraints(maxHeight: 180),
+                constraints: const BoxConstraints(maxHeight: 160),
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: colors.codeBg,
                   borderRadius: BorderRadius.circular(14),
                 ),
+                // Wrapped to the card, the end (where it asks) in view.
                 child: SingleChildScrollView(
                   reverse: true,
-                  scrollDirection: Axis.horizontal,
                   child: Text(
-                    _question,
-                    style: context.typo.monoSmall.copyWith(
-                      fontSize: BayaType.caption,
+                    question,
+                    style: context.typo.sansBody.copyWith(
+                      fontSize: BayaType.footnote,
+                      height: 1.4,
                     ),
+                  ),
+                ),
+              ),
+            // Its choices as it numbers them, each a tap.
+            for (final (digit, label) in choices)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: OutlinedButton(
+                  key: Key('pane-choice-$digit'),
+                  onPressed: () => _answer(text: digit),
+                  style: OutlinedButton.styleFrom(
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    '$digit. $label',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -163,13 +213,15 @@ class _PaneQuestionCardState extends State<PaneQuestionCard> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  answer(
-                    '1',
-                    () => _answer(text: '1'),
-                    key: const Key('pane-answer-1'),
-                  ),
-                  answer('2', () => _answer(text: '2')),
-                  answer('3', () => _answer(text: '3')),
+                  if (choices.isEmpty) ...[
+                    answer(
+                      '1',
+                      () => _answer(text: '1'),
+                      key: const Key('pane-answer-1'),
+                    ),
+                    answer('2', () => _answer(text: '2')),
+                    answer('3', () => _answer(text: '3')),
+                  ],
                   answer('⏎', () => _answer(keys: ['enter'])),
                   answer('esc', () => _answer(keys: ['esc'])),
                   answer('↑', () => _answer(keys: ['up'])),

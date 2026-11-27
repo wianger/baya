@@ -3,6 +3,7 @@
 /// below, narrowed as you type.
 library;
 
+import 'package:app/data/preferences/preferences.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_header.dart';
@@ -62,6 +63,11 @@ class _SearchSheetState extends State<_SearchSheet> {
     final items = vm.workspaceItems
         .where((item) => vm.displayNameOf(item).toLowerCase().contains(query))
         .toList(growable: false);
+    final (working, idle) = splitByActivity(
+      vm,
+      items,
+      context.watch<Preferences?>(),
+    );
     final top = MediaQuery.paddingOf(context).top;
     return Padding(
       padding: EdgeInsets.only(top: top + 8),
@@ -126,16 +132,6 @@ class _SearchSheetState extends State<_SearchSheet> {
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-                      child: Text(
-                        l10n.recents,
-                        style: context.typo.sansBody.copyWith(
-                          fontSize: BayaType.body,
-                          color: colors.muted,
-                        ),
-                      ),
-                    ),
                     if (items.isEmpty)
                       Padding(
                         padding: const EdgeInsets.all(24),
@@ -151,15 +147,31 @@ class _SearchSheetState extends State<_SearchSheet> {
                         ),
                       )
                     else
-                      for (final item in items)
-                        SessionListRow(
-                          key: ValueKey(
-                            'search-row-${item.peer.remoteEpk}-${item.sessionId}',
+                      for (final (title, section) in [
+                        (l10n.sessionsWorking, working),
+                        (l10n.sessionsIdle, idle),
+                      ])
+                        if (section.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                            child: Text(
+                              title,
+                              style: context.typo.sansBody.copyWith(
+                                fontSize: BayaType.body,
+                                color: colors.muted,
+                              ),
+                            ),
                           ),
-                          vm: vm,
-                          item: item,
-                          onOpen: () => Navigator.of(context).pop(item),
-                        ),
+                          for (final item in section)
+                            SessionListRow(
+                              key: ValueKey(
+                                'search-row-${item.peer.remoteEpk}-${item.sessionId}',
+                              ),
+                              vm: vm,
+                              item: item,
+                              onOpen: () => Navigator.of(context).pop(item),
+                            ),
+                        ],
                   ],
                 ),
               ),

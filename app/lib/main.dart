@@ -7,8 +7,6 @@ import 'package:app/data/device/device_name.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/launcher/launcher.dart';
 import 'package:app/data/preferences/preferences.dart';
-import 'package:app/data/transport/epk_encoding.dart';
-import 'package:app/domain/value_objects/workspace.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/pairing/backed_up_identity_store.dart';
 import 'package:app/routing/adaptive.dart';
@@ -115,10 +113,7 @@ class _BayaAppState extends State<BayaApp> with WidgetsBindingObserver {
       if (hosted == null) return _router.go('/home');
       final prefs = services.prefs;
       unawaited(
-        prefs.setSelectedWorkspace(
-          prefs.workspaceForSession(ref.host, ref.session) ??
-              inboxWorkspaceKey(toStandardB64(ref.host)),
-        ),
+        prefs.setSelectedWorkspace(prefs.workspaceOf(ref.host, hosted.session)),
       );
       final title = hosted.session.title;
       final device = hosted.host.host.label;
