@@ -491,7 +491,7 @@
   "sessionTerminalHint": "电脑上 herdr 里它的终端",
   "qualityBest": "最佳（1440p，最高 120 帧）",
   "remoteControlPairing": "正在与电脑上的 Sunshine 配对…",
-  "remoteControlNotInstalled": "电脑上还没装 Sunshine。在电脑上运行：baya remote install",
+  "remoteControlNotInstalled": "没能在电脑上装好 Sunshine。",
   "remoteControlNotRunning": "电脑上的 Sunshine 已安装但没有运行。",
   "remoteControlForeignAccount": "电脑上的 Sunshine 已有 Baya 不知道的账号。在电脑上运行：baya remote login <用户名> <密码>",
   "remoteControlNotWindows": "远程控制需要 Windows 上运行的 Baya：请连接 Windows 那台主机。",
@@ -510,5 +510,6 @@
   "sessionsWorking": "运行中",
   "sessionsIdle": "空闲",
   "closeSessionConfirm": "关闭",
-  "askAboutSelection": "提问"
+  "askAboutSelection": "提问",
+  "remoteControlInstalling": "正在电脑上安装 Sunshine。如果电脑上弹出 Windows 的授权提示，请点允许。"
 }

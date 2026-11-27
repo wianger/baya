@@ -40,6 +40,7 @@ void main() {
   late FakeHost computer;
   late _Bridge bridge;
   String? pinToComputer;
+  var installs = 0;
 
   Future<RemoteScreenSession> session({bool ready = true}) async {
     FlutterSecureStorage.setMockInitialValues({});
@@ -51,6 +52,11 @@ void main() {
             'reason': 'not_installed',
             'address': 'pc.tail.ts.net',
           };
+    installs = 0;
+    computer.handlers['_baya/screen_install'] = (_) {
+      installs++;
+      return <String, Object?>{};
+    };
     computer.handlers['_baya/screen_pair'] = (params) {
       pinToComputer = params['pin'] as String;
       return <String, Object?>{};
@@ -129,25 +135,24 @@ void main() {
     again.dispose();
   });
 
-  test(
-    'a computer without Sunshine says so, and a failed pairing ends it',
-    () async {
-      final screen = await session(ready: false);
-      await screen.start();
-      expect(screen.state, ScreenState.ended);
-      expect(screen.reason, 'not_installed');
-      expect(bridge.sent('start'), isEmpty);
+  test('a computer without Sunshine gets it installed, and a failed pairing ends it', () async {
+    final screen = await session(ready: false);
+    await screen.start();
+    // It was installed on the computer first; still not there, it ends.
+    expect(installs, 1);
+    expect(screen.state, ScreenState.ended);
+    expect(screen.reason, 'not_installed');
+    expect(bridge.sent('start'), isEmpty);
 
-      final other = await session();
-      bridge.pairState = 'PIN_WRONG';
-      await other.start();
-      expect(other.state, ScreenState.ended);
-      expect(other.reason, contains('PIN_WRONG'));
-      expect(bridge.sent('start'), isEmpty);
-      screen.dispose();
-      other.dispose();
-    },
-  );
+    final other = await session();
+    bridge.pairState = 'PIN_WRONG';
+    await other.start();
+    expect(other.state, ScreenState.ended);
+    expect(other.reason, contains('PIN_WRONG'));
+    expect(bridge.sent('start'), isEmpty);
+    screen.dispose();
+    other.dispose();
+  });
 
   test(
     'the stream follows the phone: 120 fps only where the screen shows it',

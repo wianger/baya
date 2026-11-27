@@ -399,6 +399,18 @@ class _Status extends StatelessWidget {
                   fontSize: BayaType.callout,
                 ),
               ),
+              if (!ended && session.stage == 'install') ...[
+                const SizedBox(height: 8),
+                Text(
+                  l10n.remoteControlInstalling,
+                  key: const Key('remote-screen-installing'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: BayaType.footnote,
+                  ),
+                ),
+              ],
               if (!ended && session.stage == 'pair') ...[
                 const SizedBox(height: 8),
                 Text(

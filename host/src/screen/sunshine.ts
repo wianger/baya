@@ -165,3 +165,42 @@ export async function sunshinePin(pin: string, name: string, timeoutMs = 20_000)
   }
   throw new Error("The phone's pairing request did not reach Sunshine.");
 }
+
+/**
+ * Installs Sunshine with winget, for a phone that asked to control this
+ * screen: Windows asks the person at the computer to allow it once.
+ */
+export async function installSunshine(): Promise<SunshineState> {
+  if (process.platform !== "win32") return { ready: false, reason: "not_windows" };
+  const { spawn } = await import("node:child_process");
+  const code = await new Promise<number | null>((resolve) => {
+    const child = spawn(
+      "winget",
+      [
+        "install",
+        "--source",
+        "winget",
+        "--id",
+        "LizardByte.Sunshine",
+        "--silent",
+        "--disable-interactivity",
+        "--accept-package-agreements",
+        "--accept-source-agreements",
+      ],
+      { stdio: "ignore", windowsHide: true },
+    );
+    child.once("error", () => resolve(null));
+    child.once("exit", resolve);
+  });
+  // Already there counts too: winget says so with a code of its own.
+  if (code !== 0 && !existsSync(EXECUTABLE)) {
+    throw new Error("winget could not install Sunshine on the computer.");
+  }
+  // Its service takes a moment to answer after the install.
+  for (let tries = 0; tries < 20; tries++) {
+    const state = await sunshineState();
+    if (state.ready || state.reason !== "not_running") return state;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+  return sunshineState();
+}
