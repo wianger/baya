@@ -373,7 +373,10 @@ export class PhoneConnection implements HubPhone {
         const live = this.hub.get(stringParam(params, "sessionId"));
         if (live instanceof PaneSession) {
           const terminal = await live.terminal().catch(() => null);
-          return terminal ? { available: true, terminal } : { available: true, pane: true };
+          // Watched as it is: the computer's window keeps its size.
+          return terminal
+            ? { available: true, terminal, observe: true }
+            : { available: true, pane: true };
         }
         const { record } = this.session(params);
         const agent = loadConfig().agents.find((a) => a.id === record.agent);

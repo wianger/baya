@@ -90,6 +90,8 @@ class HerdrTerminal {
     this.exitCode,
     this.reason,
     this.labels = const {},
+    this.cols,
+    this.rows,
   });
 
   factory HerdrTerminal.fromJson(Map<String, dynamic> json) {
@@ -121,8 +123,14 @@ class HerdrTerminal {
             in (json['labels'] as Map? ?? const {}).entries)
           if (key is String && value is String) key: value,
       },
+      cols: json['cols'] as int?,
+      rows: json['rows'] as int?,
     );
   }
+
+  /// Its size on the computer, when known.
+  final int? cols;
+  final int? rows;
 
   /// `t7`, or `box/t7` on a machine herdr added.
   final String address;
@@ -182,12 +190,16 @@ class TerminalStream {
   int _rows = 24;
   bool _closed = false;
   bool _attached = false;
+
+  /// Watching it as it is: the computer keeps its size, told in [sizes].
+  bool _observe = false;
   StreamSubscription<DataFrame>? _frames;
   StreamSubscription<({String method, Json params})>? _news;
   StreamSubscription<void>? _online;
 
   final _bytes = StreamController<Uint8List>.broadcast();
   final _resets = StreamController<void>.broadcast();
+  final _sizes = StreamController<(int, int)>.broadcast();
   final _ended = Completer<String>();
 
   /// The program's output, starting with a paint of the screen.
@@ -195,6 +207,10 @@ class TerminalStream {
 
   /// A fresh paint follows: clear the screen and scrollback first.
   Stream<void> get resets => _resets.stream;
+
+  /// An observed terminal's size (columns, rows) as the computer changes
+  /// it, each before the paint at that size.
+  Stream<(int, int)> get sizes => _sizes.stream;
 
   /// Completes with the reason (`exited`, `killed` …) once the program ended
   /// or the terminal went away on the computer.
@@ -212,6 +228,7 @@ class TerminalStream {
       'cols': _cols,
       'rows': _rows,
       'resumed': resumed,
+      if (_observe) 'observe': true,
     });
     _attached = true;
     return HerdrTerminal.fromJson(
@@ -226,6 +243,15 @@ class TerminalStream {
       if (!_bytes.isClosed) _bytes.add(frame.bytes);
     });
     _news = _link.news.listen((event) {
+      if (event.method == '_baya/terminal_size' &&
+          event.params['stream'] == _stream) {
+        final cols = event.params['cols'];
+        final rows = event.params['rows'];
+        if (cols is int && rows is int && !_sizes.isClosed) {
+          _sizes.add((cols, rows));
+        }
+        return;
+      }
       if (event.method != '_baya/terminal_closed' ||
           event.params['stream'] != _stream) {
         return;
@@ -290,6 +316,7 @@ class TerminalStream {
     }
     await _bytes.close();
     await _resets.close();
+    await _sizes.close();
   }
 }
 
@@ -352,15 +379,18 @@ class TerminalsRepository {
     return HerdrTerminal.fromJson(terminal.cast<String, dynamic>());
   }
 
-  /// Starts watching [address] at [cols]×[rows].
+  /// Starts watching [address] at [cols]×[rows]; [observe] watches it at
+  /// its own size instead, which the computer keeps.
   Future<(TerminalStream, HerdrTerminal)> attach(
     String address, {
     required int cols,
     required int rows,
+    bool observe = false,
   }) async {
     final stream = TerminalStream._(_link, address)
       .._cols = cols
       .._rows = rows
+      .._observe = observe
       .._start();
     try {
       return (stream, await stream._attach(resumed: false));

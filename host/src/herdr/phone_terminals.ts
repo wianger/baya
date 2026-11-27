@@ -111,11 +111,33 @@ class TerminalWatch {
 
 const watch = new TerminalWatch(herdr);
 
+/** One attached terminal on the phone. */
+interface Stream {
+  terminal: string;
+  channel: number;
+  offset: number;
+  /** Watching only: the computer keeps its size. */
+  observe: boolean;
+  /** Its size as hc last told an observer. */
+  size?: { cols: number; rows: number };
+  /** An observer's attach for keys, opened at the first key. */
+  typing?: { channel: number; queued: Buffer[] } | undefined;
+  /** The last byte or size handed to the phone. */
+  sent: Promise<void>;
+}
+
+function sizeFrame(cols: number, rows: number): Buffer {
+  const payload = Buffer.alloc(4);
+  payload.writeUInt16LE(cols, 0);
+  payload.writeUInt16LE(rows, 2);
+  return payload;
+}
+
 export class PhoneTerminals {
   private readonly phone: TerminalPhone;
   private readonly core: HerdrCore;
   /** The phone's stream ids → hc channels, with the bytes sent so far. */
-  private readonly streams = new Map<number, { channel: number; offset: number }>();
+  private readonly streams = new Map<number, Stream>();
 
   constructor(phone: TerminalPhone, core: HerdrCore = herdr) {
     this.phone = phone;
@@ -167,8 +189,16 @@ export class PhoneTerminals {
       throw new HerdrError("A terminal and a stream are required.");
     }
     this.detach(stream);
-    const entry = { channel: -1, offset: 0 };
+    // Watching it as it is (a pane shown on the computer too): its size
+    // stays the computer's, and the phone is told each new size.
+    const observe = params["observe"] === true;
+    const entry: Stream = { terminal, channel: -1, offset: 0, observe, sent: Promise.resolve() };
     this.streams.set(stream, entry);
+    // Bytes and sizes reach the phone in the order hc sent them.
+    const inOrder = (send: () => Promise<void> | void) => {
+      entry.sent = entry.sent.then(send).catch(() => {});
+      return entry.sent;
+    };
     let result: Json;
     try {
       result = await this.core.open(
@@ -179,17 +209,27 @@ export class PhoneTerminals {
           rows: size(params["rows"], 1000) ?? 24,
           history: HISTORY,
           resumed: params["resumed"] === true,
+          ...(observe ? { observe: true, resize_notifications: true } : {}),
           ...(isDisplay(params["display"]) ? { display: params["display"] } : {}),
         },
         {
-          data: async (bytes) => {
-            const offset = entry.offset;
-            entry.offset += bytes.length;
-            await this.phone.sendData(stream, offset, bytes, SOCKET_BUFFER);
+          data: (bytes) =>
+            inOrder(() => {
+              const offset = entry.offset;
+              entry.offset += bytes.length;
+              return this.phone.sendData(stream, offset, bytes, SOCKET_BUFFER);
+            }),
+          resize: (cols, rows) => {
+            entry.size = { cols, rows };
+            if (entry.typing && entry.typing.channel >= 0) {
+              this.core.send(entry.typing.channel, FRAME.resize, sizeFrame(cols, rows));
+            }
+            void inOrder(() => this.phone.notify("_baya/terminal_size", { stream, cols, rows }));
           },
           close: (reason) => {
             if (this.streams.get(stream) !== entry) return;
             this.streams.delete(stream);
+            this.endTyping(entry);
             this.phone.notify("_baya/terminal_closed", { stream, ...(reason ?? {}) });
           },
         },
@@ -199,6 +239,10 @@ export class PhoneTerminals {
       throw error;
     }
     entry.channel = result["channel"] as number;
+    const facts = result["terminal"] as Json | undefined;
+    const cols = size(facts?.["cols"], 65535);
+    const rows = size(facts?.["rows"], 65535);
+    if (!entry.size && cols && rows) entry.size = { cols, rows };
     // Detached while the reply was on its way.
     if (this.streams.get(stream) !== entry) this.core.closeChannel(entry.channel);
     return { terminal: result["terminal"] };
@@ -209,23 +253,70 @@ export class PhoneTerminals {
     if (!entry) return;
     this.streams.delete(stream);
     if (entry.channel >= 0) this.core.closeChannel(entry.channel);
+    this.endTyping(entry);
   }
 
   input(stream: unknown, data: unknown): void {
     const entry = typeof stream === "number" ? this.streams.get(stream) : undefined;
     if (!entry || entry.channel < 0 || typeof data !== "string" || !data) return;
-    this.core.send(entry.channel, FRAME.data, Buffer.from(data, "utf8"));
+    const bytes = Buffer.from(data, "utf8");
+    if (!entry.observe) {
+      this.core.send(entry.channel, FRAME.data, bytes);
+      return;
+    }
+    // An observer can't type: keys go through a second attach that asks
+    // for the size the terminal already has, so typing never resizes it.
+    entry.typing ??= { channel: -1, queued: [] };
+    const typing = entry.typing;
+    if (typing.channel >= 0) {
+      this.core.send(typing.channel, FRAME.data, bytes);
+      return;
+    }
+    typing.queued.push(bytes);
+    if (typing.queued.length > 1 || !entry.size) return;
+    void this.core
+      .open(
+        "terminal.attach",
+        {
+          terminal: entry.terminal,
+          cols: entry.size.cols,
+          rows: entry.size.rows,
+          history: 0,
+        },
+        // Its paint is the observer's too: dropped.
+        { data: () => {}, close: () => {} },
+      )
+      .then((opened) => {
+        const channel = opened["channel"] as number;
+        if (entry.typing !== typing) {
+          this.core.closeChannel(channel);
+          return;
+        }
+        typing.channel = channel;
+        if (entry.size) {
+          this.core.send(channel, FRAME.resize, sizeFrame(entry.size.cols, entry.size.rows));
+        }
+        for (const queued of typing.queued) this.core.send(channel, FRAME.data, queued);
+        typing.queued = [];
+      })
+      .catch(() => {
+        if (entry.typing === typing) entry.typing = undefined;
+      });
   }
 
   resize(stream: unknown, cols: unknown, rows: unknown): void {
     const entry = typeof stream === "number" ? this.streams.get(stream) : undefined;
     const width = size(cols, 65535);
     const height = size(rows, 65535);
-    if (!entry || entry.channel < 0 || !width || !height) return;
-    const payload = Buffer.alloc(4);
-    payload.writeUInt16LE(width, 0);
-    payload.writeUInt16LE(height, 2);
-    this.core.send(entry.channel, FRAME.resize, payload);
+    // An observer leaves the size to the computer.
+    if (!entry || entry.observe || entry.channel < 0 || !width || !height) return;
+    this.core.send(entry.channel, FRAME.resize, sizeFrame(width, height));
+  }
+
+  private endTyping(entry: Stream): void {
+    const typing = entry.typing;
+    entry.typing = undefined;
+    if (typing && typing.channel >= 0) this.core.closeChannel(typing.channel);
   }
 
   /**
