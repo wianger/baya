@@ -352,6 +352,7 @@ class ChatPage extends StatelessWidget {
       working: working,
       live: session.loaded && !session.loading,
       onEdit: (message) => _edit(context, session, message),
+      onAsk: session.askAbout,
     );
   }
 

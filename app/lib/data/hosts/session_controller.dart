@@ -130,6 +130,15 @@ class SessionController extends ChangeNotifier {
     if (!_drafts.isClosed) _drafts.add(message);
   }
 
+  /// Words picked out of an answer, quoted at the top of the composer to
+  /// ask about (what is typed there stays).
+  void askAbout(String words) {
+    final quote = words.trim().split('\n').map((line) => '> $line').join('\n');
+    if (quote.isNotEmpty && !_drafts.isClosed) {
+      _drafts.add(UserMsg(id: askDraftId, text: '$quote\n\n'));
+    }
+  }
+
   /// Messages waiting for the composer of a branch that is opening.
   static final _handoff = <String, UserMsg>{};
 
@@ -436,6 +445,18 @@ class SessionController extends ChangeNotifier {
         _epoch = null;
       }
       _setup = SessionSetup.fromJson(result);
+      // Sent to an agent in herdr that hasn't taken them yet: still queued.
+      for (final item in (meta['queued'] as List? ?? const [])) {
+        if (item is Map && item['id'] is String && item['text'] is String) {
+          _transcript.addPending(
+            UserMsg(
+              id: item['id'] as String,
+              text: item['text'] as String,
+              status: UserMsgStatus.pending,
+            ),
+          );
+        }
+      }
       _config = _setup.configOptions;
       _modes = _setup.modes;
       _loaded = true;

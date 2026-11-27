@@ -84,11 +84,17 @@ class HomeViewModel extends ViewModel<HomeState> {
 
   bool isCustomWorkspace(String key) => _prefs.isCustomWorkspace(key);
 
-  bool canDeleteWorkspace(String key) => _prefs.canDeleteWorkspace(key);
+  /// Any workspace closes, as any space in herdr does.
+  bool canDeleteWorkspace(String key) => true;
 
-  /// Deleting returns the workspace's sessions to their folders' workspaces
-  /// without deleting their computer history.
-  Future<void> deleteWorkspace(String key) => _prefs.deleteWorkspace(key);
+  /// Closing a workspace closes its sessions on the computer, as closing a
+  /// space in herdr closes its terminals; then the workspace goes.
+  Future<void> deleteWorkspace(String key) async {
+    for (final item in _itemsInWorkspace(key)) {
+      await deleteSession(item);
+    }
+    if (_prefs.isCustomWorkspace(key)) await _prefs.deleteWorkspace(key);
+  }
 
   /// Rename a phone-side workspace. The key is stable, so sessions assigned to
   /// it keep their grouping.

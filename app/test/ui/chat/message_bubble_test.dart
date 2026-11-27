@@ -39,28 +39,32 @@ void main() {
     );
   });
 
-  testWidgets('holding an answer opens its menu; select text opens a page', (
+  testWidgets('holding an answer selects it; its toolbar asks, copies, reads', (
     tester,
   ) async {
+    final asked = <String>[];
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: AssistantBubble(AssistantMsg(id: 'a1', text: 'reply')),
+          body: AssistantBubble(
+            const AssistantMsg(id: 'a1', text: 'reply words'),
+            onAsk: asked.add,
+          ),
         ),
       ),
     );
     await tester.pump();
-    // As in DeepSeek, the answer itself is not a selection area.
-    expect(find.byType(SelectionArea), findsNothing);
-    await tester.longPress(find.byKey(const Key('assistant-hold')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('message-menu')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('message-menu-select')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('select-text-page')), findsOneWidget);
     expect(find.byType(SelectionArea), findsOneWidget);
+    await tester.longPress(find.textContaining('reply'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ask'), findsOneWidget);
+    expect(find.text('Copy'), findsOneWidget);
+    expect(find.text('Read aloud'), findsOneWidget);
+    await tester.tap(find.text('Ask'));
+    await tester.pumpAndSettle();
+    expect(asked.single, isNotEmpty);
   });
 
   testWidgets('the copy footer is a compact labelled icon action', (
