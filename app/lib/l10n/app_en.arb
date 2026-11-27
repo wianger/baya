@@ -891,11 +891,7 @@
     }
   },
   "replyNotSent": "Your reply wasn't sent: the computer is offline",
-  "findInChat": "Find in chat",
-  "findInChatHint": "Find in this chat",
   "findNoMatches": "None",
-  "findOlder": "Earlier match",
-  "findNewer": "Later match",
   "pinned": "Pinned",
   "computerSessions": "Conversations",
   "computerSessionsHint": "Conversations your agents had outside Baya — in a terminal, an editor, anywhere. Pick one to continue it here.",
