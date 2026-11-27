@@ -382,9 +382,49 @@ class _TerminalPageState extends State<TerminalPage> {
     }
   }
 
+  /// A one-finger drag over a full-screen program (pi, vim): xterm's own
+  /// scroll view takes the gesture before its wheel handling sees it, so
+  /// the drag turns into wheel turns here, a line's height each.
+  double _wheel = 0;
+
+  void _wheelDrag(PointerMoveEvent event) {
+    final terminal = _terminal;
+    if (_ghostty != null ||
+        _pointers.length != 1 ||
+        !terminal.isUsingAltBuffer) {
+      _wheel = 0;
+      return;
+    }
+    // Mostly sideways is dragging a wide terminal, not scrolling it.
+    if (event.delta.dy.abs() < event.delta.dx.abs()) return;
+    _wheel += event.delta.dy;
+    final line = _fontSize * 1.25;
+    // The middle of the screen, 1-based, where the program's main view is.
+    final x = terminal.viewWidth ~/ 2 + 1;
+    final y = terminal.viewHeight ~/ 2 + 1;
+    while (_wheel.abs() >= line) {
+      // Finger down: back to older output.
+      final up = _wheel > 0;
+      _wheel -= up ? line : -line;
+      // xterm.dart codes the wheel as 68/69 (shift held); terminals send
+      // 64/65.
+      final button = up ? 64 : 65;
+      if (!terminal.mouseMode.reportScroll) {
+        _stream?.input(up ? '\x1b[A' : '\x1b[B');
+      } else if (terminal.mouseReportMode == MouseReportMode.sgr) {
+        _stream?.input('\x1b[<$button;$x;${y}M');
+      } else {
+        _stream?.input(
+          '\x1b[M${String.fromCharCodes([32 + button, 32 + x, 32 + y])}',
+        );
+      }
+    }
+  }
+
   void _move(PointerMoveEvent event) {
     if (!_pointers.containsKey(event.pointer)) return;
     _pointers[event.pointer] = event.localPosition;
+    _wheelDrag(event);
     final start = _pinchStart;
     final from = _pinchFrom;
     if (_pointers.length < 2 || start == null || from == null || start < 8) {
@@ -536,6 +576,9 @@ class _TerminalPageState extends State<TerminalPage> {
                             )
                           : TerminalView(
                               autoResize: !widget.fixed,
+                              // Drags over a full-screen program are wheel
+                              // turns sent from [_wheelDrag].
+                              simulateScroll: false,
                               _terminal,
                               key: ObjectKey(_terminal),
                               controller: _controller,

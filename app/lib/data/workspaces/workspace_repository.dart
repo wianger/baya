@@ -135,6 +135,7 @@ class WorkspaceRepository extends IWorkspaceRepository {
     WorkspaceAgent agent, {
     String? agentSessionId,
     String? title,
+    String? space,
   }) async {
     final host = _host(hostId);
     final Map<String, dynamic> result;
@@ -148,6 +149,7 @@ class WorkspaceRepository extends IWorkspaceRepository {
             'agent': agent.id,
             'agentSessionId': ?agentSessionId,
             'title': ?title,
+            'space': ?space,
           },
         },
       }, const Duration(minutes: 3));

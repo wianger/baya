@@ -236,8 +236,8 @@ export class HerdrApp implements PaneHost {
    * (`hc attach`): an agent that runs in the herdr-app window, seen and
    * typed into here too. Its pane.
    */
-  async openMirror(cwd: string, terminal: string, label: string): Promise<string> {
-    const pane = await this.tabFor(cwd, label);
+  async openMirror(cwd: string, terminal: string, label: string, space?: string): Promise<string> {
+    const pane = await this.tabFor(cwd, label, space);
     await this.call("pane.send_text", { pane_id: pane, text: `hc attach ${terminal}` });
     await this.call("pane.send_keys", { pane_id: pane, keys: ["enter"] });
     return pane;
@@ -260,10 +260,28 @@ export class HerdrApp implements PaneHost {
   }
 
   /**
-   * A fresh pane for [cwd]: a new tab in its folder's workspace, or the
-   * first tab of a workspace made for it (no empty shell left beside it).
+   * A fresh pane for [cwd]: a new tab in the workspace named [space] (the
+   * phone's workspace) or else in its folder's, or the first tab of a
+   * workspace made for it (no empty shell left beside it).
    */
-  private async tabFor(cwd: string, label?: string): Promise<string> {
+  private async tabFor(cwd: string, label?: string, space?: string): Promise<string> {
+    if (space) {
+      const listed = await this.call("workspace.list", {});
+      const named = ((listed["workspaces"] as Json[] | undefined) ?? []).find(
+        (w) => w["label"] === space,
+      );
+      if (!named) {
+        const made = await this.call("workspace.create", { cwd, label: space, focus: false });
+        return String((made["root_pane"] as Json)["pane_id"]);
+      }
+      const tab = await this.call("tab.create", {
+        workspace_id: String(named["workspace_id"]),
+        cwd,
+        focus: false,
+        ...(label ? { label } : {}),
+      });
+      return String((tab["root_pane"] as Json)["pane_id"]);
+    }
     // Workspaces don't say their folder; their panes do.
     const list = await this.call("pane.list", {});
     const panes = (list["panes"] as Json[] | undefined) ?? [];
@@ -321,7 +339,14 @@ function cliArgs(method: string, params: Json): string[] {
     case "workspace.list":
       return ["workspace", "list"];
     case "workspace.create":
-      return ["workspace", "create", "--cwd", str("cwd"), "--no-focus"];
+      return [
+        "workspace",
+        "create",
+        "--cwd",
+        str("cwd"),
+        "--no-focus",
+        ...(params["label"] ? ["--label", str("label")] : []),
+      ];
     case "tab.create":
       return [
         "tab",

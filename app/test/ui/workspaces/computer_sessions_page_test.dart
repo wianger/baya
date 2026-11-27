@@ -49,6 +49,7 @@ class _Repository implements IWorkspaceRepository {
     WorkspaceAgent agent, {
     String? agentSessionId,
     String? title,
+    String? space,
   }) async {
     opened.add((path, agent.id, agentSessionId!, title));
     return OpenedWorkspace(
