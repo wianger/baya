@@ -23,7 +23,7 @@ function sessionStatus(session: Conversation): SessionStatus {
     title: session.title,
     cwd: session.record.cwd,
     agent: session.record.agent,
-    running: "running" in session ? session.running : true,
+    running: true,
     working: session.working,
     error: info.baya.error ?? null,
   };
@@ -158,7 +158,7 @@ export class ControlServer {
       }
       case "remove": {
         if (typeof params["id"] !== "string") throw new Error("id is required.");
-        return { removed: this.hub.delete(params["id"]) };
+        return { removed: await this.hub.close(params["id"]) };
       }
       case "pair": {
         const ttlMs =

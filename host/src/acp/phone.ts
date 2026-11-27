@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
-import { loadConfig } from "../config.ts";
 import { PaneSession } from "../herdr/pane_session.ts";
-import { PhoneTerminals, resumeCommand } from "../herdr/phone_terminals.ts";
+import { PhoneTerminals } from "../herdr/phone_terminals.ts";
 import { adbConnect, adbDisconnect, adbPair, adbStatus } from "../integrations/adb.ts";
 import { logOnce } from "../log_once.ts";
 import { pairPhone } from "../pairing/service.ts";
@@ -25,7 +24,6 @@ import {
 } from "../workspace/git.ts";
 import { browseSessionFiles, readSessionFile } from "../workspace/session_files.ts";
 import { openDownload, uploads } from "../workspace/transfer.ts";
-import type { Cursor } from "./hosted_session.ts";
 import type { Conversation, HubPhone, SessionHub } from "./hub.ts";
 import { isObject, type Json, JsonRpcPeer, RpcError, type RpcId } from "./jsonrpc.ts";
 import { BAYA_META, PROTOCOL_VERSION } from "./schema.ts";
@@ -202,21 +200,6 @@ export class PhoneConnection implements HubPhone {
         // workspace: its sessions share one space on the computer.
         const space = typeof meta["space"] === "string" ? meta["space"].trim() : "";
         const inPane = await this.hub.startInPane(cwd, agent, space || undefined, adopted);
-        if (!inPane && !this.hub.followsPanes) {
-          // Tests of the ACP side alone, with no herdr: Baya runs it.
-          const title = typeof meta["title"] === "string" ? meta["title"].trim() : "";
-          const session = this.hub.create(
-            cwd,
-            agent,
-            adopted
-              ? {
-                  agentSessionId: adopted,
-                  ...(title ? { title, titleSource: "agent" as const } : {}),
-                }
-              : {},
-          );
-          return { sessionId: session.id, ...(await session.attach(this, Boolean(adopted))) };
-        }
         if (!inPane) {
           throw RpcError.invalidParams(
             "This agent can't run in herdr on this computer: start herdr, or pick Claude Code, Codex or Pi.",
@@ -225,18 +208,8 @@ export class PhoneConnection implements HubPhone {
         const setup = await inPane.attach(this, Boolean(adopted));
         return { sessionId: inPane.id, ...setup };
       }
-      case "session/load": {
-        // A conversation Baya ran itself moves into herdr when opened: one
-        // process, in a pane on the computer, the chat read from its record.
-        const id = stringParam(params, "sessionId");
-        const moved = await this.hub.moveToPane(id).catch(() => null);
-        if (moved) return moved.attach(this, true);
-        const session = this.session(params);
-        if (!(session instanceof PaneSession) && this.hub.followsPanes) {
-          throw RpcError.invalidParams("This conversation can't run in herdr on this computer.");
-        }
-        return session.attach(this, true, cursorParam(bayaMeta(params)["resume"]));
-      }
+      case "session/load":
+        return this.session(params).attach(this, true);
       case "session/resume":
         return this.session(params).attach(this, false);
       case "session/prompt":
@@ -248,30 +221,6 @@ export class PhoneConnection implements HubPhone {
       case "session/close":
         this.session(params).detach(this);
         return {};
-      case "_baya/fork": {
-        // A new session holding [sessionId]'s conversation up to the agent
-        // message [messageId], or none of it without one.
-        const source = this.hub.hosted(stringParam(params, "sessionId"));
-        if (!source) {
-          throw RpcError.invalidParams("This agent runs in herdr: branch it in its terminal.");
-        }
-        const messageId = optionalString(params, "messageId");
-        const fingerprint = optionalString(params, "messageFingerprint");
-        const occurrence = params["messageOccurrence"];
-        const agentSessionId = messageId
-          ? await this.hub.fork(source, {
-              messageId,
-              ...(fingerprint ? { messageFingerprint: fingerprint } : {}),
-              ...(typeof occurrence === "number" ? { messageOccurrence: occurrence } : {}),
-            })
-          : undefined;
-        const session = this.hub.create(source.record.cwd, source.record.agent, {
-          title: source.title,
-          titleSource: source.record.titleSource ?? "prompt",
-          ...(agentSessionId ? { agentSessionId } : {}),
-        });
-        return { session: session.info() };
-      }
       case "_baya/rename":
         this.session(params).rename(stringParam(params, "title"));
         return { session: this.session(params).info() };
@@ -400,22 +349,13 @@ export class PhoneConnection implements HubPhone {
       case "_baya/terminal_session": {
         // Its terminal is its pane: a herdr-core terminal streams to the
         // phone (colours, live); a pane of herdr's own shows its screen.
-        const live = this.hub.get(stringParam(params, "sessionId"));
-        if (live instanceof PaneSession) {
-          const terminal = await live.terminal().catch(() => null);
-          // Watched as it is: the computer's window keeps its size.
-          return terminal
-            ? { available: true, terminal, observe: true }
-            : { available: true, pane: true };
-        }
-        const { record } = this.session(params);
-        const agent = loadConfig().agents.find((a) => a.id === record.agent);
-        return this.terminals.forSession({
-          session: record.id,
-          cwd: record.cwd,
-          agent: record.agent,
-          resume: resumeCommand(record.agent, record.agentSessionId, agent?.env, record.cwd),
-        });
+        const terminal = await this.session(params)
+          .terminal()
+          .catch(() => null);
+        // Watched as it is: the computer's window keeps its size.
+        return terminal
+          ? { available: true, terminal, observe: true }
+          : { available: true, pane: true };
       }
       case "_baya/terminal_attach":
         return this.terminals.attach(params);
@@ -532,12 +472,4 @@ function bayaMeta(params: Json): Json {
   const meta = params["_meta"];
   const baya = isObject(meta) ? meta[BAYA_META] : undefined;
   return isObject(baya) ? baya : {};
-}
-/** A `{epoch, seq}` resume cursor, or undefined. */
-function cursorParam(value: unknown): Cursor | undefined {
-  if (!isObject(value)) return undefined;
-  const { epoch, seq } = value;
-  return typeof epoch === "string" && typeof seq === "number" && Number.isInteger(seq)
-    ? { epoch, seq }
-    : undefined;
 }

@@ -42,7 +42,6 @@ import {
 import { controlCall, readControlInfo } from "./control/client.ts";
 import type { HostStatus, SessionStatus } from "./control/protocol.ts";
 import { ControlServer } from "./control/server.ts";
-import { dshDesktop, isDsh } from "./integrations/dsh_desktop.ts";
 import { buildQRUri, displayQR } from "./pairing/qr.ts";
 import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/storage.ts";
 import { issuePendingPairToken, type PendingPairToken } from "./pairing/token_store.ts";
@@ -50,7 +49,7 @@ import { packaged, selfCommand } from "./runtime/self.ts";
 import { packageVersion } from "./runtime/version.ts";
 import { installSunshine, sunshineLogin, sunshineState } from "./screen/sunshine.ts";
 import { installStartup, uninstallStartup } from "./service.ts";
-import { findSession, folderName, listSessions, removeSession } from "./session/registry.ts";
+import { folderName } from "./session/registry.ts";
 import {
   directEndpoint,
   hostLabel,
@@ -178,18 +177,6 @@ function sessionRows(sessions: SessionStatus[]): string[] {
   ).map((line) => `  ${line}`);
 }
 
-function offlineSessions(): SessionStatus[] {
-  return listSessions().map((record) => ({
-    id: record.id,
-    title: record.title ?? folderName(record.cwd),
-    cwd: record.cwd,
-    agent: record.agent,
-    running: false,
-    working: false,
-    error: null,
-  }));
-}
-
 async function printStatus(status: HostStatus): Promise<void> {
   const peers = await listPeers();
   out(
@@ -305,16 +292,6 @@ function logTo(path: string): void {
 async function runForeground(): Promise<void> {
   if (await hostStatus()) throw new Error("Baya is already running. See `baya status`.");
   const hub = new SessionHub({ panes: true });
-  // Every DeepSeek session shows in DeepSeek's desktop app too; sessions
-  // already recorded there are left alone.
-  const agents = loadConfig().agents;
-  for (const session of listSessions()) {
-    const definition = agents.find((agent) => agent.id === session.agent);
-    if (definition && isDsh(definition) && session.agentSessionId) {
-      dshDesktop.register(definition, session.agentSessionId, session.cwd);
-    }
-  }
-  dshDesktop.flush();
   let control: ControlServer | null = null;
   let stopping = false;
   const shutdown = async (): Promise<void> => {
@@ -383,11 +360,9 @@ async function startTailnet(hub: SessionHub, control: ControlServer): Promise<vo
 
 async function status(args: ParsedArgs): Promise<void> {
   const current = await hostStatus();
-  if (json(args)) return printJson(current ?? { running: false, sessions: offlineSessions() });
+  if (json(args)) return printJson(current ?? { running: false, sessions: [] });
   if (current) return printStatus(current);
   out(warn("Baya is not running"), hint("baya"));
-  const sessions = offlineSessions();
-  if (sessions.length > 0) out("", bold("Sessions"), ...sessionRows(sessions));
 }
 
 async function open(args: ParsedArgs): Promise<void> {
@@ -406,11 +381,15 @@ async function open(args: ParsedArgs): Promise<void> {
 async function close(args: ParsedArgs): Promise<void> {
   const query = args.positionals[0];
   if (!query) throw new Error("Which session? Pass its id prefix or title (see `baya status`).");
-  const record = findSession(query);
-  if (!record) throw new Error(`No session matches "${query}". See \`baya status\`.`);
-  if (await hostStatus()) await controlCall("remove", { id: record.id });
-  else removeSession(record.id);
-  out(ok(`Closed ${bold(record.title ?? folderName(record.cwd))}`));
+  const current = await hostStatus();
+  if (!current) throw new Error("Baya is not running: its sessions are in herdr.");
+  const needle = query.toLowerCase();
+  const session =
+    current.sessions.find((s) => s.id.startsWith(query)) ??
+    current.sessions.find((s) => s.title.toLowerCase().includes(needle));
+  if (!session) throw new Error(`No session matches "${query}". See \`baya status\`.`);
+  await controlCall("remove", { id: session.id });
+  out(ok(`Closed ${bold(session.title || folderName(session.cwd))}`));
 }
 
 // ── phones ──────────────────────────────────────────────────────────────────
