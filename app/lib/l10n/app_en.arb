@@ -335,7 +335,7 @@
     }
   },
   "deleteWorkspaceBody": "Sessions and computer history are kept. Sessions will return to their folder groups.",
-  "deleteSessionBody": "Delete \"{name}\" and its history on the computer? Its agent stops.",
+  "deleteSessionBody": "Close \"{name}\"? Its agent stops and its tab closes on the computer; the conversation stays in the agent's own history.",
   "@deleteSessionBody": {
     "placeholders": {
       "name": {
@@ -485,7 +485,7 @@
     }
   },
   "thinking": "Thinking",
-  "deleteSession": "Delete session",
+  "deleteSession": "Close session",
   "showAllLines": "Show all {count} lines",
   "@showAllLines": {
     "placeholders": {
@@ -1000,5 +1000,9 @@
   },
   "@sessionsIdle": {
     "description": "Sidebar section: sessions whose agent is idle"
+  },
+  "closeSessionConfirm": "Close",
+  "@closeSessionConfirm": {
+    "description": "Confirm button: close a session"
   }
 }

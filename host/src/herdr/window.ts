@@ -114,6 +114,12 @@ export class HerdrWindow implements PaneHost {
     return { text, rows: text.split("\n").length };
   }
 
+  /** Ends its program and removes the terminal: its pane leaves the window. */
+  async close(paneId: string): Promise<void> {
+    await this.core.call("terminal.kill", { terminal: paneId }).catch(() => {});
+    await this.core.call("terminal.rm", { terminal: paneId });
+  }
+
   async terminal(paneId: string): Promise<Json | null> {
     const listed = await this.core.call("terminal.list", {});
     const terminals = (listed["terminals"] as Json[] | undefined) ?? [];

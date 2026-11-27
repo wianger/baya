@@ -54,6 +54,8 @@ export interface PaneHost {
   start(kind: string, cwd: string, args?: string[], label?: string): Promise<string>;
   /** Integrations that make panes report their agent's session. */
   prepare(): Promise<void>;
+  /** Ends the agent in [paneId] and closes its pane on the computer. */
+  close(paneId: string): Promise<void>;
 }
 
 /** Where herdr's server listens on this computer. */
@@ -257,6 +259,10 @@ export class HerdrApp implements PaneHost {
 
   closePane(paneId: string): Promise<Json> {
     return this.call("pane.close", { pane_id: paneId });
+  }
+
+  async close(paneId: string): Promise<void> {
+    await this.closePane(paneId);
   }
 
   /**

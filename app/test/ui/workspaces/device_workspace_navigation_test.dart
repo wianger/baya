@@ -459,7 +459,10 @@ void main() {
       final prefs = Preferences();
       await prefs.load();
       final storage = MemoryStorage([pc]);
-      final host = FakeHost(sessions: []);
+      // The session the picker starts, as the computer lists it.
+      final host = FakeHost(
+        sessions: [testSession(id: 'created-room', cwd: '/project')],
+      );
       final hosts = testHosts(storage, host);
       await hosts.start();
       final vm = HomeViewModel(hosts, storage, prefs);
