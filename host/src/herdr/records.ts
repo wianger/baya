@@ -119,7 +119,7 @@ function findFile(root: string, match: (name: string) => boolean, depth = 4): st
 export function readRecord(
   agent: string,
   path: string,
-): { updates: Update[]; title: string | null } {
+): { updates: Update[]; title: string | null; usage?: RecordUsage | null } {
   let lines: Json[];
   try {
     lines = readFileSync(path, "utf8")
@@ -136,16 +136,63 @@ export function readRecord(
   } catch {
     return { updates: [], title: null };
   }
+  const usage = usageOf(agent, lines);
   switch (agentFamily(agent)) {
     case "claude":
-      return fromClaude(lines);
+      return { ...fromClaude(lines), usage };
     case "pi":
-      return fromPi(lines);
+      return { ...fromPi(lines), usage };
     case "codex":
-      return fromCodex(lines);
+      return { ...fromCodex(lines), usage };
     default:
-      return { updates: [], title: null };
+      return { updates: [], title: null, usage };
   }
+}
+
+/** How full the context is: what its last reply was sent with. */
+export interface RecordUsage {
+  used: number;
+  /** Tokens it holds; 0 when not known here. */
+  size: number;
+  /** The model that last replied, as the record names it. */
+  model: string | null;
+}
+
+const num = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
+
+export function usageOf(agent: string, lines: Json[]): RecordUsage | null {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]!;
+    const message = line["message"] as Json | undefined;
+    const usage = message?.["usage"] as Json | undefined;
+    if (!usage || !isObject(usage)) continue;
+    switch (agentFamily(agent)) {
+      case "claude": {
+        if (line["type"] !== "assistant") continue;
+        const used =
+          num(usage["input_tokens"]) +
+          num(usage["cache_creation_input_tokens"]) +
+          num(usage["cache_read_input_tokens"]) +
+          num(usage["output_tokens"]);
+        // Claude Code's window: 200K, or 1M once a conversation is past it.
+        return { used, size: used > 200_000 ? 1_000_000 : 200_000, model: null };
+      }
+      case "pi": {
+        if (message?.["role"] !== "assistant") continue;
+        const used =
+          num(usage["input"]) +
+          num(usage["cacheRead"]) +
+          num(usage["cacheWrite"]) +
+          num(usage["output"]);
+        const provider = typeof message["provider"] === "string" ? message["provider"] : "";
+        const model = typeof message["model"] === "string" ? message["model"] : "";
+        return { used, size: 0, model: provider && model ? `${provider}/${model}` : null };
+      }
+      default:
+        return null;
+    }
+  }
+  return null;
 }
 
 // ── updates ─────────────────────────────────────────────────────────────

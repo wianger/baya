@@ -148,9 +148,13 @@ export class PhoneConnection implements HubPhone {
    */
   private async timed(method: string, params: Json): Promise<unknown> {
     const started = performance.now();
+    // One still not answered after 5 s is logged then, not only if it ends.
+    const stuck = setTimeout(() => console.error(`[baya] still waiting ${method}`), 5000);
+    stuck.unref?.();
     try {
       return await this.handle(method, params);
     } finally {
+      clearTimeout(stuck);
       const took = Math.round(performance.now() - started);
       if (took > 1000 && !method.startsWith("session/prompt")) {
         console.error(`[baya] slow ${method} ${took}ms`);

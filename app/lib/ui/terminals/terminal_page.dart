@@ -244,15 +244,16 @@ class _TerminalPageState extends State<TerminalPage> {
       }
       _stream = stream;
       final ghostty = _ghostty;
-      _bytes = stream.bytes.listen(
-        ghostty != null
-            ? ghostty.write
-            : (bytes) {
-                final watch = Stopwatch()..start();
-                _decoder.add(bytes);
-                _xtermStats.wrote(bytes.length, watch.elapsed);
-              },
-      );
+      _bytes = stream.bytes.listen((bytes) {
+        _modes.feed(bytes);
+        if (ghostty != null) {
+          ghostty.write(bytes);
+          return;
+        }
+        final watch = Stopwatch()..start();
+        _decoder.add(bytes);
+        _xtermStats.wrote(bytes.length, watch.elapsed);
+      });
       _resets = stream.resets.listen((_) => _fresh());
       _sizes = stream.sizes.listen(_sized);
       unawaited(
@@ -387,31 +388,44 @@ class _TerminalPageState extends State<TerminalPage> {
   /// the drag turns into wheel turns here, a line's height each.
   double _wheel = 0;
 
+  /// What the program asked of the screen, read from its bytes: either
+  /// engine draws it, this tells drags what they mean.
+  final _modes = ScreenModes();
+
   void _wheelDrag(PointerMoveEvent event) {
-    final terminal = _terminal;
-    if (_ghostty != null ||
-        _pointers.length != 1 ||
-        !terminal.isUsingAltBuffer) {
+    if (_pointers.length != 1) {
       _wheel = 0;
       return;
     }
     // Mostly sideways is dragging a wide terminal, not scrolling it.
     if (event.delta.dy.abs() < event.delta.dx.abs()) return;
+    final ghostty = _ghostty;
+    // The main screen: xterm scrolls its own scrollback; Ghostty's is
+    // scrolled here.
+    if (!_modes.alt && ghostty == null) {
+      _wheel = 0;
+      return;
+    }
     _wheel += event.delta.dy;
     final line = _fontSize * 1.25;
+    final (cols, rows) = ghostty != null
+        ? (ghostty.cols, ghostty.rows)
+        : (_terminal.viewWidth, _terminal.viewHeight);
     // The middle of the screen, 1-based, where the program's main view is.
-    final x = terminal.viewWidth ~/ 2 + 1;
-    final y = terminal.viewHeight ~/ 2 + 1;
+    final x = cols ~/ 2 + 1;
+    final y = rows ~/ 2 + 1;
     while (_wheel.abs() >= line) {
       // Finger down: back to older output.
       final up = _wheel > 0;
       _wheel -= up ? line : -line;
-      // xterm.dart codes the wheel as 68/69 (shift held); terminals send
-      // 64/65.
+      if (!_modes.alt) {
+        ghostty?.scroll(up ? -1 : 1);
+        continue;
+      }
       final button = up ? 64 : 65;
-      if (!terminal.mouseMode.reportScroll) {
+      if (!_modes.mouse) {
         _stream?.input(up ? '\x1b[A' : '\x1b[B');
-      } else if (terminal.mouseReportMode == MouseReportMode.sgr) {
+      } else if (_modes.sgr) {
         _stream?.input('\x1b[<$button;$x;${y}M');
       } else {
         _stream?.input(
@@ -1238,4 +1252,37 @@ String _keySequence(TerminalKey key, {required bool alt}) {
     _ => '',
   };
   return alt && sequence.isNotEmpty ? '\x1b$sequence' : sequence;
+}
+
+/// The private modes a program set that change what a drag means: the
+/// alternate screen (a full-screen program), mouse reporting, SGR codes.
+@visibleForTesting
+class ScreenModes {
+  bool alt = false;
+  bool mouse = false;
+  bool sgr = false;
+
+  static final _set = RegExp(r'\x1b\[\?([\d;]+)([hl])');
+  String _tail = '';
+
+  void feed(List<int> bytes) {
+    // Latin-1 keeps every byte one character: the escapes are ASCII.
+    final text = _tail + String.fromCharCodes(bytes);
+    for (final m in _set.allMatches(text)) {
+      final on = m.group(2) == 'h';
+      for (final mode in m.group(1)!.split(';')) {
+        switch (mode) {
+          case '47' || '1047' || '1049':
+            alt = on;
+          case '9' || '1000' || '1002' || '1003':
+            mouse = on;
+          case '1006':
+            sgr = on;
+        }
+      }
+    }
+    // An escape cut across two chunks is read with the next one.
+    final cut = text.lastIndexOf('\x1b');
+    _tail = cut >= 0 && text.length - cut < 24 ? text.substring(cut) : '';
+  }
 }

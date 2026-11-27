@@ -8,7 +8,17 @@ import { exec } from "node:child_process";
 export interface ModelChoice {
   value: string;
   name: string;
+  /** Tokens its context holds, where the catalog says. */
+  context?: number;
 }
+
+/** `1.0M`, `258.6K`, `128000`: tokens. */
+const tokens = (text: string | undefined): number | undefined => {
+  const m = /^([\d.]+)([KM]?)$/iu.exec(text ?? "");
+  if (!m) return undefined;
+  const scale = m[2]?.toUpperCase() === "M" ? 1_000_000 : m[2] ? 1_000 : 1;
+  return Math.round(Number(m[1]) * scale);
+};
 
 const CLAUDE: ModelChoice[] = [
   { value: "default", name: "Default" },
@@ -27,7 +37,10 @@ export function parsePiModels(table: string): ModelChoice[] {
     .slice(1)
     .map((line) => line.trim().split(/\s+/u))
     .filter((cols) => cols.length >= 2 && cols[0] && cols[1])
-    .map(([provider, model]) => ({ value: `${provider}/${model}`, name: model! }));
+    .map(([provider, model, context]) => {
+      const size = tokens(context);
+      return { value: `${provider}/${model}`, name: model!, ...(size ? { context: size } : {}) };
+    });
 }
 
 function listPiModels(): Promise<ModelChoice[]> {
@@ -57,6 +70,13 @@ export async function modelsFor(agent: string): Promise<ModelChoice[]> {
   return [];
 }
 
+/** The context [model] (`provider/id`) holds, once Pi's catalog is read. */
+export function piContext(model: string | null): number {
+  if (!model) return 0;
+  if (!piKnown) void listPiModels();
+  return piKnown?.find((m) => m.value === model)?.context ?? 0;
+}
+
 /** The ACP config option the phone's model picker shows. */
 export function modelOption(
   choices: ModelChoice[],
@@ -68,6 +88,6 @@ export function modelOption(
     category: "model",
     type: "select",
     currentValue: current ?? choices[0]?.value ?? "",
-    options: choices,
+    options: choices.map(({ value, name }) => ({ value, name })),
   };
 }
