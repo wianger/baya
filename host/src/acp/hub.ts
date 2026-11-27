@@ -230,7 +230,9 @@ export class SessionHub {
         return undefined;
       });
       if (moved === null) {
-        console.error(`[baya] "${title}" (${agent}) stays in Baya: nothing of its agent's to resume`);
+        console.error(
+          `[baya] "${title}" (${agent}) stays in Baya: nothing of its agent's to resume`,
+        );
       }
     }
   }
