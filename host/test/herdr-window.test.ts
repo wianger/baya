@@ -80,4 +80,14 @@ describe("HerdrWindow", () => {
       params: { terminal: "t3", keys: ["1", "space", "a"] },
     });
   });
+
+  it("gives the phone the live terminal behind a pane to stream", async () => {
+    const { core } = fakeCore([
+      { address: "t3", state: "live", labels: { "herdr.space": "s1" } },
+      { address: "t4", state: "exited", labels: {} },
+    ]);
+    const window = new HerdrWindow(core);
+    expect((await window.terminal("t3"))?.["address"]).toBe("t3");
+    expect(await window.terminal("t4")).toBeNull();
+  });
 });
