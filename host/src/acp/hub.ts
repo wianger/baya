@@ -1,9 +1,10 @@
 import { homedir } from "node:os";
 import { type AgentDefinition, defaultAgentId, loadConfig } from "../config.ts";
 import { resumeArgs, sessionForPane, setSessionForPane } from "../herdr/aliases.ts";
-import { type HerdrApp, herdrApp } from "../herdr/app.ts";
+import { herdrApp, type PaneHost } from "../herdr/app.ts";
 import { PaneSession, paneSessionId } from "../herdr/pane_session.ts";
 import { locateRecord } from "../herdr/records.ts";
+import { herdrWindow } from "../herdr/window.ts";
 import { isPairedKey, listPeers, markSeen, type PeerRecord } from "../pairing/storage.ts";
 import {
   addSession,
@@ -63,6 +64,11 @@ export class SessionHub {
 
   /** Follows herdr's panes (the host does; tests don't). */
   private readonly followPanes: boolean;
+  /**
+   * Where agents live in panes here: the herdr-app window on Windows (herdr's
+   * server runs there with no window), herdr's server and its TUI elsewhere.
+   */
+  private readonly paneHost: PaneHost = process.platform === "win32" ? herdrWindow : herdrApp;
 
   constructor(options: { persist?: boolean; panes?: boolean } = {}) {
     this.persist = options.persist ?? true;
@@ -85,8 +91,8 @@ export class SessionHub {
   private async watchPanes(first = false): Promise<void> {
     let running = true;
     try {
-      if (first) await installIntegrations(herdrApp);
-      const agents = await herdrApp.agents();
+      if (first) await this.paneHost.prepare();
+      const agents = await this.paneHost.agents();
       const live = new Set<string>();
       for (const pane of agents) {
         // A conversation Baya ran before keeps the id the phone knows.
@@ -108,7 +114,7 @@ export class SessionHub {
             : undefined;
           const session = new PaneSession(
             pane,
-            herdrApp,
+            this.paneHost,
             (changed) => this.paneChanged(changed),
             0,
             alias
@@ -149,12 +155,17 @@ export class SessionHub {
   async startInPane(cwd: string, agent?: string): Promise<PaneSession | null> {
     const id = agent ?? defaultAgentId();
     const kind = id ? HERDR_KINDS[id] : undefined;
-    if (!this.followPanes || !kind || !(await herdrApp.available())) return null;
+    if (!this.followPanes || !kind || !(await this.paneHost.available())) return null;
     const since = Date.now();
-    const paneId = await herdrApp.start(kind, cwd);
-    const pane = (await herdrApp.agents()).find((p) => p.paneId === paneId);
+    const paneId = await this.paneHost.start(kind, cwd);
+    const pane = (await this.paneHost.agents()).find((p) => p.paneId === paneId);
     if (!pane) return null;
-    const session = new PaneSession(pane, herdrApp, (changed) => this.paneChanged(changed), since);
+    const session = new PaneSession(
+      pane,
+      this.paneHost,
+      (changed) => this.paneChanged(changed),
+      since,
+    );
     this.panes.set(session.id, session);
     this.paneChanged(session);
     return session;
@@ -171,20 +182,26 @@ export class SessionHub {
     const record = hosted?.record;
     const kind = record ? HERDR_KINDS[record.agent] : undefined;
     if (!this.followPanes || !hosted || !record || !kind || !record.agentSessionId) return null;
-    if (hosted.working || !(await herdrApp.available())) return null;
+    if (hosted.working || !(await this.paneHost.available())) return null;
     const exists = locateRecord(record.agent, record.agentSessionId, record.cwd) !== null;
     const args = resumeArgs(record.agent, record.agentSessionId, exists);
     if (!args) return null;
-    const paneId = await herdrApp.start(kind, record.cwd, args);
+    const paneId = await this.paneHost.start(kind, record.cwd, args);
     setSessionForPane(paneId, id);
-    const pane = (await herdrApp.agents()).find((p) => p.paneId === paneId);
+    const pane = (await this.paneHost.agents()).find((p) => p.paneId === paneId);
     if (!pane) return null;
     hosted.stop();
     this.sessions.delete(id);
-    const session = new PaneSession(pane, herdrApp, (changed) => this.paneChanged(changed), 0, {
-      id,
-      record: record.agentSessionId,
-    });
+    const session = new PaneSession(
+      pane,
+      this.paneHost,
+      (changed) => this.paneChanged(changed),
+      0,
+      {
+        id,
+        record: record.agentSessionId,
+      },
+    );
     this.panes.set(id, session);
     this.paneChanged(session);
     return session;
@@ -512,19 +529,3 @@ const HERDR_KINDS: Record<string, string> = {
 
 /** A conversation the phone can open: Baya's own, or an agent in a herdr pane. */
 export type Conversation = HostedSession | PaneSession;
-
-/**
- * herdr's integrations for the agents Baya reads (hooks that tell herdr
- * which conversation each pane holds), installed once where missing.
- */
-async function installIntegrations(app: HerdrApp): Promise<void> {
-  const list = await app.call("integration.list", {});
-  const integrations = (list["integrations"] as Record<string, unknown>[] | undefined) ?? [];
-  for (const target of ["claude", "codex", "pi"]) {
-    const entry = integrations.find((i) => i["target"] === target);
-    // Not listed (the CLI on Windows lists none): install anyway, it is
-    // idempotent; listed: only where the agent is there and it is missing.
-    if (entry && (entry["available"] !== true || entry["state"] !== "not_installed")) continue;
-    await app.call("integration.install", { target }).catch(() => {});
-  }
-}

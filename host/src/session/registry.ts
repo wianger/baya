@@ -7,7 +7,7 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { BAYA_HOME, ensureBayaHome } from "../config.ts";
 
 /** A Baya session: a conversation with one agent in one folder. */
@@ -56,7 +56,13 @@ function normalizeCwd(input: string): string {
 }
 
 export function folderName(cwd: string): string {
-  return basename(cwd.replace(/[\\/]+$/u, "")) || cwd;
+  // Either separator: a Windows computer's paths read the same anywhere.
+  return (
+    cwd
+      .replace(/[\\/]+$/u, "")
+      .split(/[\\/]/u)
+      .pop() || cwd
+  );
 }
 
 function parse(raw: unknown): SessionRecord[] {

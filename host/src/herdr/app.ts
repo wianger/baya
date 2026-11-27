@@ -32,6 +32,25 @@ export interface PaneAgent {
   session: { kind: "id" | "path"; value: string } | null;
 }
 
+/**
+ * Where agents run in panes on this computer: herdr's server (its TUI), or
+ * the herdr-app window over herdr-core. One conversation per pane.
+ */
+export interface PaneHost {
+  available(): Promise<boolean>;
+  agents(): Promise<PaneAgent[]>;
+  /** Types [text] into the agent in [paneId] and presses Enter. */
+  prompt(paneId: string, text: string): Promise<unknown>;
+  sendKeys(paneId: string, keys: string[]): Promise<unknown>;
+  /** Types [text] without pressing Enter. */
+  sendText(paneId: string, text: string): Promise<unknown>;
+  screen(paneId: string): Promise<{ text: string; rows: number }>;
+  /** A new tab in [cwd]'s workspace running [kind] with [args]: its pane. */
+  start(kind: string, cwd: string, args?: string[], label?: string): Promise<string>;
+  /** Integrations that make panes report their agent's session. */
+  prepare(): Promise<void>;
+}
+
 /** Where herdr's server listens on this computer. */
 export function herdrSocketPath(): string {
   const override = process.env["HERDR_SOCKET_PATH"];
@@ -51,7 +70,7 @@ export function herdrSocketPath(): string {
 
 let next = 0;
 
-export class HerdrApp {
+export class HerdrApp implements PaneHost {
   private readonly path: () => string;
 
   constructor(path: () => string = herdrSocketPath) {
@@ -117,6 +136,22 @@ export class HerdrApp {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * herdr's integrations for the agents Baya reads (hooks that tell herdr
+   * which conversation each pane holds), installed once where missing.
+   */
+  async prepare(): Promise<void> {
+    const list = await this.call("integration.list", {});
+    const integrations = (list["integrations"] as Json[] | undefined) ?? [];
+    for (const target of ["claude", "codex", "pi"]) {
+      const entry = integrations.find((i) => i["target"] === target);
+      // Not listed (the CLI on Windows lists none): install anyway, it is
+      // idempotent; listed: only where the agent is there and it is missing.
+      if (entry && (entry["available"] !== true || entry["state"] !== "not_installed")) continue;
+      await this.call("integration.install", { target }).catch(() => {});
     }
   }
 
@@ -297,6 +332,8 @@ function viaCli(method: string, params: Json, timeoutMs: number): Promise<Json> 
           );
         }
         if (reply && "result" in reply) return resolve((reply["result"] as Json) ?? {});
+        // `pane read` prints the screen itself.
+        if (!error && method === "pane.read") return resolve({ read: { text: `${stdout}` } });
         if (error)
           return reject(
             new HerdrAppError(`herdr is not running (${error.message}).`, "unavailable"),
