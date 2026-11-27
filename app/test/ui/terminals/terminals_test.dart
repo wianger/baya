@@ -240,6 +240,43 @@ void main() {
     expect(find.byKey(const Key('terminal-keys')), findsNothing);
   });
 
+  testWidgets('a pane shown on the computer keeps its size, seen sideways', (
+    tester,
+  ) async {
+    final link = _Link();
+    await tester.pumpWidget(
+      _app(
+        TerminalPage(
+          repository: TerminalsRepository(link),
+          terminal: HerdrTerminal.fromJson({
+            ..._t('t1'),
+            'cols': 142,
+            'rows': 39,
+          }),
+          fixed: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final attach = link.attaches.single;
+    expect(attach['observe'], true);
+    expect((attach['cols'], attach['rows']), (142, 39));
+    Terminal screen() =>
+        tester.widget<TerminalView>(find.byType(TerminalView)).terminal;
+    expect((screen().viewWidth, screen().viewHeight), (142, 39));
+    // Wider than the phone: dragged sideways.
+    expect(find.byKey(const Key('terminal-sideways')), findsOneWidget);
+
+    // The computer resized it: so does the phone, and never the other way.
+    link.events.add((
+      method: '_baya/terminal_size',
+      params: {'stream': attach['stream'], 'cols': 160, 'rows': 40},
+    ));
+    await tester.pumpAndSettle();
+    expect((screen().viewWidth, screen().viewHeight), (160, 40));
+    expect(link.notes.where((n) => n.$1 == '_baya/terminal_resize'), isEmpty);
+  });
+
   testWidgets('it opens to read; a line is composed, then sent', (
     tester,
   ) async {

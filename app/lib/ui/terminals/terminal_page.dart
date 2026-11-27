@@ -12,6 +12,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/terminals/herdr_terminals.dart';
@@ -35,6 +36,7 @@ class TerminalPage extends StatefulWidget {
     this.fontSize = 13,
     this.onFontSize,
     this.engine = TerminalEngine.xterm,
+    this.fixed = false,
   });
 
   final TerminalsRepository repository;
@@ -49,6 +51,10 @@ class TerminalPage extends StatefulWidget {
 
   /// What draws it: xterm.dart, or the Ghostty trial.
   final TerminalEngine engine;
+
+  /// Shown at its own size, which the computer keeps (a pane shown there
+  /// too): wider than the phone, it is dragged sideways to see all of it.
+  final bool fixed;
 
   @override
   State<TerminalPage> createState() => _TerminalPageState();
@@ -72,7 +78,14 @@ class _TerminalPageState extends State<TerminalPage> {
   TerminalStream? _stream;
   StreamSubscription<void>? _bytes;
   StreamSubscription<void>? _resets;
+  StreamSubscription<void>? _sizes;
   StreamSubscription<void>? _changes;
+
+  /// A fixed terminal's size on the computer.
+  late (int, int) _size = (
+    widget.terminal.cols ?? 80,
+    widget.terminal.rows ?? 24,
+  );
   late ByteConversionSink _decoder = _newDecoder();
 
   /// The Ghostty trial engine, when it draws this terminal.
@@ -103,10 +116,14 @@ class _TerminalPageState extends State<TerminalPage> {
   bool _ctrl = false;
   bool _alt = false;
 
-  Terminal _newTerminal() => Terminal(maxLines: _scrollback)
-    ..onOutput = _output
-    ..onResize = _resized
-    ..onBell = () => unawaited(HapticFeedback.heavyImpact());
+  Terminal _newTerminal() {
+    final terminal = Terminal(maxLines: _scrollback)
+      ..onOutput = _output
+      ..onResize = _resized
+      ..onBell = () => unawaited(HapticFeedback.heavyImpact());
+    if (widget.fixed) terminal.resize(_size.$1, _size.$2);
+    return terminal;
+  }
 
   ByteConversionSink _newDecoder() => const Utf8Decoder(allowMalformed: true)
       .startChunkedConversion(_TerminalSink((text) => _terminal.write(text)));
@@ -117,12 +134,18 @@ class _TerminalPageState extends State<TerminalPage> {
     _scroll.addListener(_scrolled);
     // Its status (waiting for an answer, working) as hc reports it.
     _changes = widget.repository.changes.listen((_) => _refresh());
+    // At its own size: no layout to wait for.
+    if (widget.fixed) {
+      _ghostty?.resize(_size.$1, _size.$2, 8, 16);
+      unawaited(_attach(_size.$1, _size.$2));
+    }
   }
 
   @override
   void dispose() {
     unawaited(_bytes?.cancel());
     unawaited(_resets?.cancel());
+    unawaited(_sizes?.cancel());
     unawaited(_changes?.cancel());
     unawaited(_stream?.close());
     _gridHide?.cancel();
@@ -181,6 +204,8 @@ class _TerminalPageState extends State<TerminalPage> {
 
   /// The view laid out, rotated or zoomed: the first size attaches.
   void _resized(int cols, int rows, int _, int _) {
+    // Its size is the computer's.
+    if (widget.fixed) return;
     // Called during layout: show the new grid once this frame is done.
     if (_pinchFrom != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -211,6 +236,7 @@ class _TerminalPageState extends State<TerminalPage> {
         widget.terminal.address,
         cols: cols,
         rows: rows,
+        observe: widget.fixed,
       );
       if (!mounted) {
         await stream.close();
@@ -228,6 +254,7 @@ class _TerminalPageState extends State<TerminalPage> {
               },
       );
       _resets = stream.resets.listen((_) => _fresh());
+      _sizes = stream.sizes.listen(_sized);
       unawaited(
         stream.ended.then((reason) {
           if (mounted) setState(() => _ended = reason);
@@ -242,6 +269,14 @@ class _TerminalPageState extends State<TerminalPage> {
     } finally {
       _attaching = false;
     }
+  }
+
+  /// A fixed terminal resized on the computer.
+  void _sized((int, int) size) {
+    if (size == _size) return;
+    setState(() => _size = size);
+    _terminal.resize(size.$1, size.$2);
+    _ghostty?.resize(size.$1, size.$2, 8, 16);
   }
 
   /// The computer paints the whole screen again after a reconnect.
@@ -383,6 +418,55 @@ class _TerminalPageState extends State<TerminalPage> {
     ),
   );
 
+  TerminalStyle get _textStyle => TerminalStyle(
+    fontSize: _fontSize,
+    fontFamily: kMonoFamily,
+    // Prompts (starship, powerline) and TUIs draw icons from Nerd Fonts'
+    // private-use glyphs.
+    fontFamilyFallback: const [
+      'Symbols Nerd Font Mono',
+      'Noto Sans Mono CJK SC',
+      'Noto Color Emoji',
+      'Noto Sans Symbols',
+      'Noto Sans Symbols 2',
+    ],
+  );
+
+  /// A fixed terminal at its own width, dragged sideways when wider than
+  /// the phone; otherwise the view as it is.
+  Widget _fit(Widget view) {
+    if (!widget.fixed) return view;
+    if (_ghostty != null) {
+      // Ghostty draws the grid at its natural size: dragged both ways,
+      // the bottom (where an agent asks) first.
+      return SingleChildScrollView(
+        key: const Key('terminal-sideways'),
+        scrollDirection: Axis.horizontal,
+        child: SingleChildScrollView(reverse: true, child: view),
+      );
+    }
+    final probe = TextPainter(
+      text: TextSpan(text: 'M' * 20, style: _textStyle.toTextStyle()),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final cell = probe.width / 20;
+    probe.dispose();
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        key: const Key('terminal-sideways'),
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          // Its columns, the view's padding, and a little slack so the
+          // last column never wraps.
+          width: math.max(constraints.maxWidth, _size.$1 * cell + 12 + cell),
+          height: constraints.maxHeight,
+          child: view,
+        ),
+      ),
+    );
+  }
+
   TerminalTheme _theme(AppColors colors, Brightness brightness) {
     final base = brightness == Brightness.dark
         ? TerminalThemes.defaultTheme
@@ -441,41 +525,35 @@ class _TerminalPageState extends State<TerminalPage> {
                     onPointerMove: _move,
                     onPointerUp: _up,
                     onPointerCancel: _up,
-                    child: _ghostty != null
-                        ? GhosttyView(
-                            controller: _ghostty,
-                            fontSize: _fontSize,
-                            onResize: (cols, rows) =>
-                                _resized(cols, rows, 0, 0),
-                          )
-                        : TerminalView(
-                            _terminal,
-                            key: ObjectKey(_terminal),
-                            controller: _controller,
-                            scrollController: _scroll,
-                            focusNode: _focus,
-                            readOnly: !live,
-                            // Composing: a tap selects or scrolls, it does not
-                            // bring the raw keyboard up.
-                            hardwareKeyboardOnly: _input == _Input.compose,
-                            theme: _theme(colors, brightness),
-                            keyboardAppearance: brightness,
-                            keyboardType: TextInputType.visiblePassword,
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            textStyle: TerminalStyle(
+                    child: _fit(
+                      _ghostty != null
+                          ? GhosttyView(
+                              controller: _ghostty,
                               fontSize: _fontSize,
-                              fontFamily: kMonoFamily,
-                              // Prompts (starship, powerline) and TUIs draw icons
-                              // from Nerd Fonts' private-use glyphs.
-                              fontFamilyFallback: const [
-                                'Symbols Nerd Font Mono',
-                                'Noto Sans Mono CJK SC',
-                                'Noto Color Emoji',
-                                'Noto Sans Symbols',
-                                'Noto Sans Symbols 2',
-                              ],
+                              fixed: widget.fixed,
+                              onResize: (cols, rows) =>
+                                  _resized(cols, rows, 0, 0),
+                            )
+                          : TerminalView(
+                              autoResize: !widget.fixed,
+                              _terminal,
+                              key: ObjectKey(_terminal),
+                              controller: _controller,
+                              scrollController: _scroll,
+                              focusNode: _focus,
+                              readOnly: !live,
+                              // Composing: a tap selects or scrolls, it does not
+                              // bring the raw keyboard up.
+                              hardwareKeyboardOnly: _input == _Input.compose,
+                              theme: _theme(colors, brightness),
+                              keyboardAppearance: brightness,
+                              keyboardType: TextInputType.visiblePassword,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
+                              textStyle: _textStyle,
                             ),
-                          ),
+                    ),
                   ),
                   // While engines are compared: how fast this one parses,
                   // and (Ghostty) how long a frame takes to paint.

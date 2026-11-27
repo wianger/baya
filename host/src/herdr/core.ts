@@ -33,6 +33,8 @@ export interface ChannelHandler {
   data(bytes: Buffer): Promise<void> | void;
   /** The channel ended; [reason] is hc's JSON reason, if it gave one. */
   close(reason: Record<string, unknown> | null): void;
+  /** The terminal's new size, before the paint at that size (observers that asked). */
+  resize?(cols: number, rows: number): void;
 }
 
 type Json = Record<string, unknown>;
@@ -255,6 +257,8 @@ export class HerdrCore {
           credit.writeUInt32LE(size);
           this.send(channel, FRAME.credit, credit);
         });
+    } else if (kind === FRAME.resize && payload.length >= 4) {
+      handler.resize?.(payload.readUInt16LE(0), payload.readUInt16LE(2));
     } else if (kind === FRAME.close) {
       this.channels.delete(channel);
       let reason: Json | null = null;
