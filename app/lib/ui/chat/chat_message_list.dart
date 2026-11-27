@@ -39,7 +39,7 @@ List<Object> toolRunItemsForMessages(List<ChatMessage> messages) {
       items.add(StartupNote(message));
       continue;
     }
-    if (message is ToolEvent && !message.awaitingApproval) {
+    if (message is ToolEvent) {
       run.add(message);
       continue;
     }

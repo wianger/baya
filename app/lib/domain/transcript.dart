@@ -71,17 +71,6 @@ class Transcript {
     return tool;
   }
 
-  /// Marks the tool calls a permission question is waiting on.
-  void markAwaiting(Set<String> toolCallIds) {
-    _messages = null;
-    for (var i = 0; i < _rows.length; i++) {
-      final row = _rows[i];
-      if (row is ToolEvent) {
-        _rows[i] = row.withApproval(toolCallIds.contains(row.toolCallId));
-      }
-    }
-  }
-
   void apply(SessionUpdate update) {
     _messages = null;
     if (update is! MessageChunk || update.role != ChunkRole.thought) {
@@ -143,14 +132,9 @@ class Transcript {
         } else {
           _rows.add(plan);
         }
-      case NoticeUpdate(:final severity, :final title, :final authAgent):
+      case NoticeUpdate(:final severity, :final title):
         _rows.add(
-          NoticeMsg(
-            id: _nextId('notice'),
-            severity: severity,
-            text: title,
-            authAgent: authAgent,
-          ),
+          NoticeMsg(id: _nextId('notice'), severity: severity, text: title),
         );
       case CompactionUpdate(:final id, :final status, :final summary):
         final index = _compaction(id);

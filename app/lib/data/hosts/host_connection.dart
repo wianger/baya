@@ -41,13 +41,6 @@ class SessionEvent {
   const SessionEvent(this.sessionId, this.update, [this.seq]);
 }
 
-/// A question from an agent (permission or elicitation) arrived, was
-/// withdrawn, or (for links) completed.
-class QuestionEvent {
-  final Object requestId;
-  const QuestionEvent(this.requestId);
-}
-
 /// Terminal output for one of this computer's sessions.
 class TerminalEvent {
   final String sessionId;
@@ -86,11 +79,8 @@ class HostConnection extends ChangeNotifier {
   List<SessionSummary> _sessions = const [];
 
   /// Open questions (PermissionRequest or ElicitationRequest) by request id.
-  final _questions = <Object, Object>{};
-  final _answers = <Object, Completer<Json>>{};
 
   final _updates = StreamController<SessionEvent>.broadcast();
-  final _questionEvents = StreamController<QuestionEvent>.broadcast();
   final _terminals = StreamController<TerminalEvent>.broadcast();
   final _online = StreamController<void>.broadcast();
   final _data = StreamController<DataFrame>.broadcast();
@@ -141,19 +131,10 @@ class HostConnection extends ChangeNotifier {
   bool _sessionsLive = false;
 
   Stream<SessionEvent> get updates => _updates.stream;
-  Stream<QuestionEvent> get questions => _questionEvents.stream;
   Stream<TerminalEvent> get terminals => _terminals.stream;
 
   /// Fires each time the connection (re)comes up.
   Stream<void> get onOnline => _online.stream;
-
-  /// Permission questions still open, oldest first.
-  List<PermissionRequest> get openPermissions =>
-      _questions.values.whereType<PermissionRequest>().toList();
-
-  /// Elicitations still open, oldest first.
-  List<ElicitationRequest> get openElicitations =>
-      _questions.values.whereType<ElicitationRequest>().toList();
 
   SessionSummary? session(String sessionId) =>
       _sessions.where((s) => s.sessionId == sessionId).firstOrNull;
@@ -209,27 +190,6 @@ class HostConnection extends ChangeNotifier {
 
   void notify(String method, [Json params = const {}]) =>
       _peer?.notify(method, params);
-
-  /// Answers an open permission question; null [optionId] cancels it.
-  void answerPermission(Object requestId, String? optionId) =>
-      _answer(requestId, {
-        'outcome': optionId == null
-            ? {'outcome': 'cancelled'}
-            : {'outcome': 'selected', 'optionId': optionId},
-      });
-
-  /// Answers an elicitation: `accept` with [content], `decline` or `cancel`.
-  void answerElicitation(Object requestId, String action, [Json? content]) =>
-      _answer(requestId, {'action': action, 'content': ?content});
-
-  void _answer(Object requestId, Json result) {
-    _questions.remove(requestId);
-    _answers.remove(requestId)?.complete(result);
-    if (!_questionEvents.isClosed) {
-      _questionEvents.add(QuestionEvent(requestId));
-    }
-    notifyListeners();
-  }
 
   Future<List<SessionSummary>> refreshSessions() async {
     final result = await call('session/list');
@@ -325,9 +285,6 @@ class HostConnection extends ChangeNotifier {
     _sessionsLive = false;
     _peer?.close(RpcClosed(_offlineMessage));
     _peer = null;
-    for (final id in _questions.keys.toList()) {
-      _withdraw(id);
-    }
     _setSessions([
       for (final s in _sessions) s.copyWith(working: false),
     ], save: false);
@@ -372,19 +329,12 @@ class HostConnection extends ChangeNotifier {
 
   // ── from the computer ───────────────────────────────────────────────────
 
-  Future<Object?> _onRequest(String method, Json params, Object id) {
-    final Object question = switch (method) {
-      'session/request_permission' => PermissionRequest.fromJson(id, params),
-      'elicitation/create' => ElicitationRequest.fromJson(id, params),
-      _ => throw RpcError(RpcError.methodNotFound, 'Method not found: $method'),
-    };
-    final answer = Completer<Json>();
-    _answers[id] = answer;
-    _questions[id] = question;
-    if (!_questionEvents.isClosed) _questionEvents.add(QuestionEvent(id));
-    notifyListeners();
-    return answer.future;
-  }
+  /// The computer asks the phone nothing: an agent's questions are asked
+  /// in its pane, and answered there.
+  Future<Object?> _onRequest(String method, Json params, Object id) =>
+      Future.error(
+        RpcError(RpcError.methodNotFound, 'Method not found: $method'),
+      );
 
   void _onNotification(String method, Json params) {
     switch (method) {
@@ -425,19 +375,6 @@ class HostConnection extends ChangeNotifier {
           for (final s in _sessions)
             if (s.sessionId != id) s,
         ]);
-      case r'$/cancel_request':
-        final id = params['requestId'];
-        if (id is Object) _withdraw(id);
-      case 'elicitation/complete':
-        final id = params['elicitationId'];
-        if (id is String) {
-          for (final MapEntry(:key, :value) in _questions.entries.toList()) {
-            if (value is ElicitationRequest && value.elicitationId == id) {
-              _withdraw(key);
-            }
-          }
-          notifyListeners();
-        }
       case '_baya/terminal':
         final sessionId = params['sessionId'];
         if (sessionId is String && !_terminals.isClosed) {
@@ -457,15 +394,6 @@ class HostConnection extends ChangeNotifier {
     _ => null,
   };
 
-  void _withdraw(Object requestId) {
-    final known = _questions.remove(requestId) != null;
-    _answers.remove(requestId);
-    if (known && !_questionEvents.isClosed) {
-      _questionEvents.add(QuestionEvent(requestId));
-    }
-    notifyListeners();
-  }
-
   /// Stops for good (the computer was unpaired on this phone).
   Future<void> stop() async {
     _stopped = true;
@@ -481,7 +409,6 @@ class HostConnection extends ChangeNotifier {
   void dispose() {
     unawaited(stop());
     unawaited(_updates.close());
-    unawaited(_questionEvents.close());
     unawaited(_terminals.close());
     unawaited(_online.close());
     unawaited(_data.close());

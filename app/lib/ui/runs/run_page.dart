@@ -359,8 +359,7 @@ class _MemberCard extends StatelessWidget {
         .firstOrNull;
     final tool = messages.reversed.whereType<ToolEvent>().firstOrNull;
     final working = session?.working ?? false;
-    final needsYou =
-        session?.permission != null || session?.elicitation != null;
+    final needsYou = session?.summary?.waitingForAnswer ?? false;
     final online = session?.online ?? false;
     final (statusLabel, statusColor) = needsYou
         ? (l10n.needsYou, colors.warning)

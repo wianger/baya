@@ -118,9 +118,6 @@ class ToolEvent extends ChatMessage {
   final Object? rawInput;
   final Object? rawOutput;
 
-  /// A permission question for this call is open.
-  final bool awaitingApproval;
-
   /// The live terminal this call runs, when it runs one.
   final TerminalSnapshot? terminal;
 
@@ -134,7 +131,6 @@ class ToolEvent extends ChatMessage {
     this.locations = const [],
     this.rawInput,
     this.rawOutput,
-    this.awaitingApproval = false,
     this.terminal,
   });
 
@@ -153,7 +149,6 @@ class ToolEvent extends ChatMessage {
     locations: patch.locations ?? locations,
     rawInput: patch.rawInput ?? rawInput,
     rawOutput: patch.rawOutput ?? rawOutput,
-    awaitingApproval: awaitingApproval,
     terminal: terminal,
   );
 
@@ -167,25 +162,8 @@ class ToolEvent extends ChatMessage {
     locations: locations,
     rawInput: rawInput,
     rawOutput: rawOutput,
-    awaitingApproval: awaitingApproval,
     terminal: snapshot,
   );
-
-  ToolEvent withApproval(bool awaiting) => awaitingApproval == awaiting
-      ? this
-      : ToolEvent(
-          id: id,
-          toolCallId: toolCallId,
-          title: title,
-          kind: kind,
-          status: status,
-          content: content,
-          locations: locations,
-          rawInput: rawInput,
-          rawOutput: rawOutput,
-          awaitingApproval: awaiting,
-          terminal: terminal,
-        );
 
   static ToolEventStatus statusOf(ToolStatus status) => switch (status) {
     ToolStatus.pending => ToolEventStatus.pending,
@@ -209,14 +187,10 @@ class NoticeMsg extends ChatMessage {
   /// `info`, `warning` or `error`.
   final String severity;
   final String text;
-
-  /// The agent that needs a sign-in, when that is what this is about.
-  final String? authAgent;
   const NoticeMsg({
     required super.id,
     required this.severity,
     required this.text,
-    this.authAgent,
   });
 }
 

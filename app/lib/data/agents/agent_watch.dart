@@ -85,13 +85,11 @@ class AgentWatch {
           _withdraw('done:$key');
         }
       }
-      for (final ask in host.openPermissions) {
-        final alert = _permission(host, ask);
+      // An agent stopped for an answer in its pane on the computer.
+      for (final session in host.sessions) {
+        if (!session.waitingForAnswer) continue;
+        final alert = _question(host, session);
         questions[alert.id] = alert;
-      }
-      for (final ask in host.openElicitations) {
-        final alert = _elicitation(host, ask);
-        if (alert != null) questions[alert.id] = alert;
       }
     }
     // Computers no longer paired take their turns with them.
@@ -178,58 +176,13 @@ class AgentWatch {
         ),
       );
 
-  AgentAlert _permission(HostConnection host, PermissionRequest ask) {
-    final l10n = appL10n;
-    final session = host.session(ask.sessionId);
-    PermissionOption? first(bool Function(PermissionOption) test) =>
-        ask.options.where(test).firstOrNull;
-    final allow =
-        first((o) => o.kind == PermissionKind.allowOnce) ??
-        first((o) => o.kind == PermissionKind.allowAlways);
-    final reject = first(
-      (o) =>
-          o.kind == PermissionKind.rejectOnce ||
-          o.kind == PermissionKind.rejectAlways,
-    );
-    String answer(PermissionOption option) => jsonEncode({
-      'answer': {
-        'host': host.key,
-        'request': ask.requestId,
-        'option': option.id,
-      },
-    });
-    final what = ask.toolCall.title?.trim() ?? '';
-    return AgentAlert(
-      id: 'ask:${host.key}|${jsonEncode(ask.requestId)}',
-      title: l10n.agentNeedsApproval(
-        session == null ? host.host.label : _agent(session),
-      ),
-      text: [
-        if (what.isNotEmpty) what,
-        if (session != null) _title(session),
-      ].join('\n'),
-      opens: (host: host.key, session: ask.sessionId),
-      actions: [
-        if (reject != null)
-          NotificationAction(l10n.notifyReject, answer(reject)),
-        if (allow != null) NotificationAction(l10n.notifyAllow, answer(allow)),
-      ],
-    );
-  }
-
-  AgentAlert? _elicitation(HostConnection host, ElicitationRequest ask) {
-    final sessionId = ask.sessionId;
-    if (sessionId == null) return null;
-    final session = host.session(sessionId);
-    return AgentAlert(
-      id: 'ask:${host.key}|${jsonEncode(ask.requestId)}',
-      title: appL10n.agentHasQuestion(
-        session == null ? host.host.label : _agent(session),
-      ),
-      text: ask.message,
-      opens: (host: host.key, session: sessionId),
-    );
-  }
+  AgentAlert _question(HostConnection host, SessionSummary session) =>
+      AgentAlert(
+        id: 'ask:${host.key}|${session.sessionId}',
+        title: appL10n.agentHasQuestion(_agent(session)),
+        text: _title(session),
+        opens: (host: host.key, session: session.sessionId),
+      );
 
   static String _agent(SessionSummary session) =>
       session.agentName.isEmpty ? session.agent : session.agentName;
@@ -272,14 +225,6 @@ class AgentWatch {
       return;
     }
     switch (message) {
-      case {
-        'answer': {
-          'host': final String host,
-          'request': final Object request,
-          'option': final String option,
-        },
-      }:
-        _hosts.byKey(host)?.answerPermission(request, option);
       case {'stop': {'host': final String host, 'session': final String id}}:
         _hosts.byKey(host)?.notify('session/cancel', {'sessionId': id});
       case {'reply': {'host': final String host, 'session': final String id}}:

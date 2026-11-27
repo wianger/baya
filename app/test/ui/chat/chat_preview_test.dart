@@ -272,15 +272,6 @@ void main() {
       ),
     );
     await tester.pump(const Duration(seconds: 1));
-    host.askPermission({
-      'sessionId': 's1',
-      'toolCall': {'toolCallId': 't3'},
-      'options': [
-        {'optionId': 'once', 'name': 'Allow', 'kind': 'allow_once'},
-        {'optionId': 'always', 'name': 'Always allow', 'kind': 'allow_always'},
-        {'optionId': 'no', 'name': 'Reject', 'kind': 'reject_once'},
-      ],
-    }).ignore();
     await tester.pump(const Duration(seconds: 1));
     await _save(tester, boundary, '$output/chat.png');
 

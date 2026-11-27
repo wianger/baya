@@ -95,48 +95,6 @@ void main() {
     conn.dispose();
   });
 
-  test(
-    'permission questions wait for an answer and can be withdrawn',
-    () async {
-      final host = FakeHost();
-      final conn = connection(host);
-      await conn.start();
-      await settle();
-      final asked = <QuestionEvent>[];
-      conn.questions.listen(asked.add);
-      final answer = host.askPermission({
-        'sessionId': 's1',
-        'toolCall': {'toolCallId': 't1', 'title': 'rm -rf build'},
-        'options': [
-          {'optionId': 'yes', 'name': 'Allow', 'kind': 'allow_once'},
-          {'optionId': 'no', 'name': 'Reject', 'kind': 'reject_once'},
-        ],
-      });
-      await settle();
-      final request = conn.openPermissions.single;
-      expect(request.toolCall.title, 'rm -rf build');
-      expect(request.options.first.allows, isTrue);
-      conn.answerPermission(request.requestId, 'yes');
-      expect(await answer, {
-        'outcome': {'outcome': 'selected', 'optionId': 'yes'},
-      });
-      expect(conn.openPermissions, isEmpty);
-
-      host.askPermission({
-        'sessionId': 's1',
-        'toolCall': {'toolCallId': 't2'},
-        'options': const <Object>[],
-      }).ignore();
-      await settle();
-      final second = conn.openPermissions.single;
-      host.push(r'$/cancel_request', {'requestId': second.requestId});
-      await settle();
-      expect(conn.openPermissions, isEmpty);
-      expect(asked.last.requestId, second.requestId);
-      conn.dispose();
-    },
-  );
-
   test('calls fail fast while offline', () async {
     final host = FakeHost()..refuse = Exception('offline');
     final conn = connection(host);

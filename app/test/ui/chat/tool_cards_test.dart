@@ -188,26 +188,6 @@ void main() {
       expect(find.text('ls'), findsOneWidget);
       expect(find.text('pwd'), findsOneWidget);
     });
-
-    testWidgets('a call waiting on permission says so', (tester) async {
-      await tester.pumpWidget(
-        app(
-          const ToolRunGroup(
-            tools: [
-              ToolEvent(
-                id: 't',
-                toolCallId: 't',
-                title: 'Delete build/',
-                kind: ToolKind.delete,
-                awaitingApproval: true,
-              ),
-            ],
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Approval'), findsOneWidget);
-    });
   });
 
   test('startup chatter folds away and empty agent text is dropped', () {

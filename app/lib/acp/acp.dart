@@ -490,7 +490,6 @@ sealed class SessionUpdate {
         return NoticeUpdate(
           _string(json['severity']) ?? 'info',
           _string(json['title']) ?? '',
-          _string(bayaMeta(json)['authRequired']),
         );
       case 'compaction_update':
         final summary = _maps(json['summary'])
@@ -567,10 +566,7 @@ class UsageUpdate extends SessionUpdate {
 class NoticeUpdate extends SessionUpdate {
   final String severity;
   final String title;
-
-  /// The agent that needs a sign-in, when that is what the notice is about.
-  final String? authAgent;
-  const NoticeUpdate(this.severity, this.title, [this.authAgent]);
+  const NoticeUpdate(this.severity, this.title);
 }
 
 class CompactionUpdate extends SessionUpdate {
@@ -591,56 +587,6 @@ class UnknownUpdate extends SessionUpdate {
 }
 
 // ── Permissions ──────────────────────────────────────────────────────────
-
-enum PermissionKind { allowOnce, allowAlways, rejectOnce, rejectAlways }
-
-class PermissionOption {
-  final String id;
-  final String name;
-  final PermissionKind kind;
-  const PermissionOption(this.id, this.name, this.kind);
-
-  bool get allows =>
-      kind == PermissionKind.allowOnce || kind == PermissionKind.allowAlways;
-}
-
-/// `session/request_permission`: the agent waits for one of [options].
-class PermissionRequest {
-  /// JSON-RPC id of the request, matched by `$/cancel_request`.
-  final Object requestId;
-  final String sessionId;
-  final ToolCallPatch toolCall;
-  final List<PermissionOption> options;
-
-  const PermissionRequest({
-    required this.requestId,
-    required this.sessionId,
-    required this.toolCall,
-    required this.options,
-  });
-
-  factory PermissionRequest.fromJson(Object requestId, Json json) =>
-      PermissionRequest(
-        requestId: requestId,
-        sessionId: _string(json['sessionId']) ?? '',
-        toolCall: ToolCallPatch.fromJson(_map(json['toolCall'])),
-        options: [
-          for (final option in _maps(json['options']))
-            PermissionOption(
-              _string(option['optionId']) ?? '',
-              _string(option['name']) ?? '',
-              switch (option['kind']) {
-                'allow_always' => PermissionKind.allowAlways,
-                'reject_once' => PermissionKind.rejectOnce,
-                'reject_always' => PermissionKind.rejectAlways,
-                _ => PermissionKind.allowOnce,
-              },
-            ),
-        ],
-      );
-}
-
-// ── Baya: computers and their sessions ───────────────────────────────────
 
 /// An agent set up on a computer (`baya agents`).
 class AgentInfo {
@@ -842,16 +788,12 @@ class SessionSetup {
   final bool acceptsImages;
   final bool working;
 
-  /// The agent can branch the conversation from an earlier reply.
-  final bool canFork;
-
   const SessionSetup({
     this.configOptions = const [],
     this.modes,
     this.agentName = '',
     this.acceptsImages = false,
     this.working = false,
-    this.canFork = false,
   });
 
   factory SessionSetup.fromJson(Json json) {
@@ -862,7 +804,6 @@ class SessionSetup {
       agentName: _string(baya['agentName']) ?? '',
       acceptsImages: _map(baya['promptCapabilities'])['image'] == true,
       working: baya['working'] == true,
-      canFork: baya['canFork'] == true,
     );
   }
 }
@@ -901,143 +842,6 @@ class TerminalSnapshot {
       exited: status != null,
     );
   }
-}
-
-enum ElicitationFieldType {
-  text,
-  number,
-  integer,
-  boolean,
-  choice,
-  multiChoice,
-}
-
-/// One field of an elicitation form (a JSON Schema property).
-class ElicitationField {
-  final String name;
-  final String title;
-  final ElicitationFieldType type;
-  final bool required;
-  final Object? defaultValue;
-
-  /// For choices: value → label.
-  final List<(String, String)> options;
-
-  /// `email`, `uri`, `date`, `date-time` for text fields.
-  final String? format;
-
-  const ElicitationField({
-    required this.name,
-    required this.title,
-    required this.type,
-    this.required = false,
-    this.defaultValue,
-    this.options = const [],
-    this.format,
-  });
-}
-
-/// `elicitation/create`: the agent asks the user for structured input or to
-/// open a link.
-class ElicitationRequest {
-  final Object requestId;
-  final String? sessionId;
-  final String message;
-
-  /// Link mode: open [url]; the agent says when it is done.
-  final String? url;
-  final String? elicitationId;
-  final String? title;
-  final List<ElicitationField> fields;
-
-  const ElicitationRequest({
-    required this.requestId,
-    required this.message,
-    this.sessionId,
-    this.url,
-    this.elicitationId,
-    this.title,
-    this.fields = const [],
-  });
-
-  bool get isLink => url != null;
-
-  factory ElicitationRequest.fromJson(Object requestId, Json json) {
-    final schema = _map(json['requestedSchema']);
-    final required = {
-      for (final name in (schema['required'] as List? ?? const [])) '$name',
-    };
-    final fields = <ElicitationField>[];
-    for (final MapEntry(:key, :value) in _map(schema['properties']).entries) {
-      final property = _map(value);
-      final options = <(String, String)>[
-        for (final option in _maps(property['oneOf']))
-          (_string(option['const']) ?? '', _string(option['title']) ?? ''),
-        for (final value in (property['enum'] as List? ?? const []))
-          ('$value', '$value'),
-      ];
-      final items = _map(property['items']);
-      final itemOptions = <(String, String)>[
-        for (final option in _maps(items['anyOf'] ?? items['oneOf']))
-          (_string(option['const']) ?? '', _string(option['title']) ?? ''),
-        for (final value in (items['enum'] as List? ?? const []))
-          ('$value', '$value'),
-      ];
-      final type = switch (property['type']) {
-        'number' => ElicitationFieldType.number,
-        'integer' => ElicitationFieldType.integer,
-        'boolean' => ElicitationFieldType.boolean,
-        'array' => ElicitationFieldType.multiChoice,
-        _ when options.isNotEmpty => ElicitationFieldType.choice,
-        _ => ElicitationFieldType.text,
-      };
-      fields.add(
-        ElicitationField(
-          name: key,
-          title: _string(property['title']) ?? key,
-          type: type,
-          required: required.contains(key),
-          defaultValue: property['default'],
-          options: type == ElicitationFieldType.multiChoice
-              ? itemOptions
-              : options,
-          format: _string(property['format']),
-        ),
-      );
-    }
-    return ElicitationRequest(
-      requestId: requestId,
-      sessionId: _string(json['sessionId']),
-      message: _string(json['message']) ?? '',
-      url: json['mode'] == 'url' ? _string(json['url']) : null,
-      elicitationId: _string(json['elicitationId']),
-      title: _string(schema['title']),
-      fields: fields,
-    );
-  }
-}
-
-/// How an agent signs in.
-class AuthMethod {
-  final String id;
-  final String name;
-  final String? description;
-
-  /// Terminal sign-in: run the agent with `args` on the computer.
-  final List<String>? terminalArgs;
-
-  const AuthMethod(this.id, this.name, {this.description, this.terminalArgs});
-
-  bool get needsComputer => terminalArgs != null;
-
-  factory AuthMethod.fromJson(Json json) => AuthMethod(
-    _string(json['id']) ?? '',
-    _string(json['name']) ?? '',
-    description: _string(json['description']),
-    terminalArgs: json['type'] == 'terminal'
-        ? [for (final arg in (json['args'] as List? ?? const [])) '$arg']
-        : null,
-  );
 }
 
 /// One of an agent's own conversations, not yet in Baya.
