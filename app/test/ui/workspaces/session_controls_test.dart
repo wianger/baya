@@ -269,9 +269,7 @@ void main() {
     expect(find.text('2 sessions · 2 folders'), findsOneWidget);
   });
 
-  testWidgets('only a workspace someone made can be deleted', (
-    tester,
-  ) async {
+  testWidgets('only a workspace someone made can be deleted', (tester) async {
     const folder = 'pc:workspace:folder-YXBw';
     const custom = 'pc:workspace:release';
     await tester.pumpWidget(
@@ -294,7 +292,10 @@ void main() {
     await tester.tap(find.byKey(const Key('workspace-switch')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('workspace-delete-$folder')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('workspace-delete-$folder')),
+      findsNothing,
+    );
     expect(find.byKey(const ValueKey('workspace-delete-$custom')), findsOne);
   });
 

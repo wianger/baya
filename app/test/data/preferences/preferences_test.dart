@@ -252,24 +252,27 @@ void main() {
       p.dispose();
     });
 
-    test('deleting a workspace returns its sessions to their folders', () async {
-      final p = Preferences(_FakeSecureStorage());
-      await p.load();
-      final device = base64Encode(List.filled(32, 27));
-      final workspace = workspaceKey(device, 'release');
-      await p.setWorkspaceName(workspace, 'Release');
-      await p.setSessionWorkspace(device, 'session-a', workspace);
-      await p.setSessionWorkspace(device, 'session-b', workspace);
-      await p.setSelectedWorkspace(workspace);
+    test(
+      'deleting a workspace returns its sessions to their folders',
+      () async {
+        final p = Preferences(_FakeSecureStorage());
+        await p.load();
+        final device = base64Encode(List.filled(32, 27));
+        final workspace = workspaceKey(device, 'release');
+        await p.setWorkspaceName(workspace, 'Release');
+        await p.setSessionWorkspace(device, 'session-a', workspace);
+        await p.setSessionWorkspace(device, 'session-b', workspace);
+        await p.setSelectedWorkspace(workspace);
 
-      await p.deleteWorkspace(workspace);
+        await p.deleteWorkspace(workspace);
 
-      expect(p.isCustomWorkspace(workspace), isFalse);
-      expect(p.workspaceForSession(device, 'session-a'), isNull);
-      expect(p.workspaceForSession(device, 'session-b'), isNull);
-      expect(p.workspaceForDevice(device), isNull);
-      p.dispose();
-    });
+        expect(p.isCustomWorkspace(workspace), isFalse);
+        expect(p.workspaceForSession(device, 'session-a'), isNull);
+        expect(p.workspaceForSession(device, 'session-b'), isNull);
+        expect(p.workspaceForDevice(device), isNull);
+        p.dispose();
+      },
+    );
 
     test('a session is unread once the agent did something not seen', () async {
       final store = _FakeSecureStorage();

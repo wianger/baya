@@ -375,7 +375,6 @@ void main() {
       await vm.selectWorkspace(betaWorkspace);
       expect(vm.workspaceItems.map((item) => item.sessionId), ['session-beta']);
 
-
       vm.dispose();
       hosts.dispose();
       prefs.dispose();
