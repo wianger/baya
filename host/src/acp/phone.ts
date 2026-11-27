@@ -194,32 +194,36 @@ export class PhoneConnection implements HubPhone {
         const cwd = await resolveDirectory(stringParam(params, "cwd"));
         const meta = bayaMeta(params);
         const agent = typeof meta["agent"] === "string" ? meta["agent"] : undefined;
-        // Adopting one of the agent's own conversations replays it.
+        // One of the agent's own conversations, reopened in its TUI.
         const adopted =
           typeof meta["agentSessionId"] === "string" ? meta["agentSessionId"] : undefined;
-        // Its title comes along, as the agent named it.
-        const title = typeof meta["title"] === "string" ? meta["title"].trim() : "";
-        // A new conversation runs in a herdr pane where it can: the agent's
-        // own TUI, visible on the computer, the chat read from its record.
-        // The phone's workspace: its sessions share one space on the computer.
+        // Every conversation runs in herdr: the agent's own TUI, visible on
+        // the computer, the chat read from its record. The phone's
+        // workspace: its sessions share one space on the computer.
         const space = typeof meta["space"] === "string" ? meta["space"].trim() : "";
-        const inPane = adopted ? null : await this.hub.startInPane(cwd, agent, space || undefined);
-        if (inPane) {
-          const setup = await inPane.attach(this, false);
-          return { sessionId: inPane.id, ...setup };
+        const inPane = await this.hub.startInPane(cwd, agent, space || undefined, adopted);
+        if (!inPane && !this.hub.followsPanes) {
+          // Tests of the ACP side alone, with no herdr: Baya runs it.
+          const title = typeof meta["title"] === "string" ? meta["title"].trim() : "";
+          const session = this.hub.create(
+            cwd,
+            agent,
+            adopted
+              ? {
+                  agentSessionId: adopted,
+                  ...(title ? { title, titleSource: "agent" as const } : {}),
+                }
+              : {},
+          );
+          return { sessionId: session.id, ...(await session.attach(this, Boolean(adopted))) };
         }
-        const session = this.hub.create(
-          cwd,
-          agent,
-          adopted
-            ? {
-                agentSessionId: adopted,
-                ...(title ? { title, titleSource: "agent" as const } : {}),
-              }
-            : {},
-        );
-        const setup = await session.attach(this, Boolean(adopted));
-        return { sessionId: session.id, ...setup };
+        if (!inPane) {
+          throw RpcError.invalidParams(
+            "This agent can't run in herdr on this computer: start herdr, or pick Claude Code, Codex or Pi.",
+          );
+        }
+        const setup = await inPane.attach(this, Boolean(adopted));
+        return { sessionId: inPane.id, ...setup };
       }
       case "session/load": {
         // A conversation Baya ran itself moves into herdr when opened: one
@@ -227,7 +231,11 @@ export class PhoneConnection implements HubPhone {
         const id = stringParam(params, "sessionId");
         const moved = await this.hub.moveToPane(id).catch(() => null);
         if (moved) return moved.attach(this, true);
-        return this.session(params).attach(this, true, cursorParam(bayaMeta(params)["resume"]));
+        const session = this.session(params);
+        if (!(session instanceof PaneSession) && this.hub.followsPanes) {
+          throw RpcError.invalidParams("This conversation can't run in herdr on this computer.");
+        }
+        return session.attach(this, true, cursorParam(bayaMeta(params)["resume"]));
       }
       case "session/resume":
         return this.session(params).attach(this, false);
@@ -522,7 +530,6 @@ function bayaMeta(params: Json): Json {
   const baya = isObject(meta) ? meta[BAYA_META] : undefined;
   return isObject(baya) ? baya : {};
 }
-
 /** A `{epoch, seq}` resume cursor, or undefined. */
 function cursorParam(value: unknown): Cursor | undefined {
   if (!isObject(value)) return undefined;

@@ -33,8 +33,7 @@ class BayaIntro extends StatefulWidget {
   State<BayaIntro> createState() => _BayaIntroState();
 }
 
-class _BayaIntroState extends State<BayaIntro>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
+class _BayaIntroState extends State<BayaIntro> with TickerProviderStateMixin {
   /// The bird steps aside and the name writes in.
   late final _enter = AnimationController(
     vsync: this,
@@ -64,27 +63,7 @@ class _BayaIntroState extends State<BayaIntro>
       _done = true;
       return;
     }
-    WidgetsBinding.instance.addObserver(this);
-    unawaited(_run());
-  }
-
-  DateTime? _left;
-
-  /// Coming back after a while plays the opening again, as a launch does;
-  /// a quick switch away and back does not.
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.hidden) _left ??= DateTime.now();
-    if (state != AppLifecycleState.resumed) return;
-    final away = _left == null
-        ? Duration.zero
-        : DateTime.now().difference(_left!);
-    _left = null;
-    if (away < const Duration(seconds: 30) || !_done) return;
-    _enter.value = 0;
-    _move.value = 0;
-    _lift.value = 0;
-    setState(() => _done = false);
+    // Once, as the app launches: coming back to it is not a launch.
     unawaited(_run());
   }
 
@@ -103,7 +82,6 @@ class _BayaIntroState extends State<BayaIntro>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _enter.dispose();
     _move.dispose();
     _lift.dispose();

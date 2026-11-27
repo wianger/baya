@@ -55,27 +55,13 @@ function listPiModels(): Promise<ModelChoice[]> {
   return piModels;
 }
 
-/** The models known now, without waiting; null while they are still read. */
-export function knownModels(agent: string): ModelChoice[] | null {
-  const own = told.get(agentId(agent));
-  if (own) return own;
-  // Asked once; until it answers, the list comes later.
-  if (fetcher && (agent === "claude" || agent === "claude-code" || agent === "pi")) {
-    return null;
-  }
-  if (agent === "claude" || agent === "claude-code") return CLAUDE;
-  if (agent === "pi") {
-    if (!piKnown) void listPiModels();
-    return piKnown;
-  }
-  return [];
-}
+type Json = Record<string, unknown>;
 
-/** Asks agent [id] (Baya's name for it) for its models over ACP. */
-type Fetch = (id: string) => Promise<ModelChoice[]>;
+/** Asks agent [id] (Baya's name for it) for its settings over ACP: `configOptions`. */
+type Fetch = (id: string) => Promise<Json[]>;
 let fetcher: Fetch | null = null;
-const asked = new Map<string, Promise<ModelChoice[]>>();
-const told = new Map<string, ModelChoice[]>();
+const asked = new Map<string, Promise<Json[]>>();
+const told = new Map<string, Json[]>();
 
 export function useModelFetcher(fetch: Fetch): void {
   fetcher = fetch;
@@ -84,26 +70,31 @@ export function useModelFetcher(fetch: Fetch): void {
 /** herdr calls Claude Code `claude-code`; Baya calls it `claude`. */
 const agentId = (agent: string) => (agent === "claude-code" ? "claude" : agent);
 
-function fromAgent(agent: string): Promise<ModelChoice[]> {
+/** The settings a pane's TUI changes with a command: its model, its thinking. */
+const TYPED = new Set(["model", "thought_level"]);
+
+function fromAgent(agent: string): Promise<Json[]> {
   const id = agentId(agent);
   if (!fetcher) return Promise.resolve([]);
   let pending = asked.get(id);
   if (!pending) {
     pending = fetcher(id)
-      .catch(() => [])
-      .then((list) => {
-        if (list.length) told.set(id, list);
+      .catch(() => [] as Json[])
+      .then((all) => {
+        const options = all.filter(
+          (o) => o["type"] === "select" && TYPED.has(String(o["category"] ?? o["id"])),
+        );
+        if (options.length) told.set(id, options);
         else asked.delete(id);
-        return list;
+        return options;
       });
     asked.set(id, pending);
   }
   return pending;
 }
 
-/** The choices in an ACP model option (grouped or not), or `models`. */
-export function choicesFrom(result: Record<string, unknown>): ModelChoice[] {
-  const options = Array.isArray(result["configOptions"]) ? (result["configOptions"] as Json[]) : [];
+/** The model choices in ACP config options (grouped or not). */
+export function choicesFrom(options: Json[]): ModelChoice[] {
   const model = options.find((o) => o["category"] === "model" || o["id"] === "model");
   const flat = (items: unknown): ModelChoice[] =>
     (Array.isArray(items) ? (items as Json[]) : []).flatMap((item) =>
@@ -113,23 +104,60 @@ export function choicesFrom(result: Record<string, unknown>): ModelChoice[] {
           ? [{ value: item["value"], name: String(item["name"] ?? item["value"]) }]
           : [],
     );
-  if (model) return flat(model["options"]);
-  const models = result["models"] as Json | undefined;
-  return ((models?.["availableModels"] as Json[] | undefined) ?? []).flatMap((m) =>
-    typeof m["modelId"] === "string"
-      ? [{ value: m["modelId"], name: String(m["name"] ?? m["modelId"]) }]
-      : [],
-  );
+  return model ? flat(model["options"]) : [];
 }
 
-type Json = Record<string, unknown>;
+/** Without the agent's own word: Claude Code's aliases, Pi's catalog. */
+async function fallback(agent: string): Promise<Json[]> {
+  const models =
+    agent === "claude" || agent === "claude-code"
+      ? CLAUDE
+      : agent === "pi"
+        ? await listPiModels()
+        : [];
+  return models.length ? [modelOption(models, null)] : [];
+}
 
-export async function modelsFor(agent: string): Promise<ModelChoice[]> {
+/**
+ * A pane agent's settings the phone can change, as the agent gives them;
+ * null while it is still being asked (they follow, from [paneOptionsLater]).
+ */
+export function paneOptions(agent: string): Json[] | null {
+  return told.get(agentId(agent)) ?? null;
+}
+
+export async function paneOptionsLater(agent: string): Promise<Json[]> {
   const own = await fromAgent(agent);
-  if (own.length) return own;
-  if (agent === "claude" || agent === "claude-code") return CLAUDE;
-  if (agent === "pi") return listPiModels();
-  return [];
+  return own.length ? own : fallback(agent);
+}
+
+/** [options] with the values chosen here, or found in the record, as current. */
+export function withCurrent(options: Json[], chosen: Record<string, string>): Json[] {
+  return options.map((o) => {
+    const id = String(o["id"]);
+    const value = chosen[id] ?? chosen[String(o["category"])];
+    return value ? { ...o, currentValue: value } : o;
+  });
+}
+
+/** What the agent's TUI is typed to change [option] to [value]. */
+export function optionCommand(agent: string, option: Json, value: string): string | null {
+  const category = String(option["category"] ?? option["id"]);
+  if (category === "model") return `/model ${value}`;
+  if (category === "thought_level") {
+    if (agent === "pi") return `/thinking ${value}`;
+    if (agent === "claude" || agent === "claude-code") return `/effort ${value}`;
+  }
+  return null;
+}
+
+/** Whether [value] is one of [option]'s choices. */
+export function offers(option: Json, value: string): boolean {
+  const flat = (items: unknown): boolean =>
+    (Array.isArray(items) ? (items as Json[]) : []).some((item) =>
+      Array.isArray(item["options"]) ? flat(item["options"]) : item["value"] === value,
+    );
+  return flat(option["options"]);
 }
 
 /** The context [model] (`provider/id`) holds, once Pi's catalog is read. */

@@ -335,6 +335,16 @@ void main() {
     await tester.pumpAndSettle();
     // No keyboard until asked for.
     expect(tester.testTextInput.isVisible, isFalse);
+    // A tap on the terminal asks: the line's field takes it.
+    await tester.tapAt(tester.getCenter(find.byType(TerminalView)));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('terminal-compose')))
+          .focusNode
+          ?.hasFocus,
+      isTrue,
+    );
     await tester.enterText(
       find.byKey(const Key('terminal-compose')),
       'git status',
