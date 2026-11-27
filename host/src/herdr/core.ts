@@ -197,18 +197,47 @@ export class HerdrCore {
       `${JSON.stringify({ jsonrpc: "2.0", id: 0, method: "hello", params: { framed: true, generation: 1 } })}\n`,
     );
     this.child = child;
+    const helloTimer = setTimeout(() => child.kill(), 15_000);
     try {
       await hello;
     } catch (error) {
       this.lost(child);
       throw error;
+    } finally {
+      clearTimeout(helloTimer);
     }
   }
 
   private request(method: string, params: Json): Promise<Json> {
     const id = this.nextId++;
+    // Typing waits for the program to go quiet (up to a minute); the rest
+    // answer at once. One that doesn't means hc stopped answering here:
+    // the connection starts over rather than leave a phone waiting.
+    const waits =
+      method === "terminal.send" || method === "terminal.keys" || method === "terminal.wait";
+    const limit = waits ? 90_000 : 20_000;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        if (!this.pending.delete(id)) return;
+        reject(
+          new HerdrError(`herdr-core did not answer ${method} in ${limit / 1000} s.`, "timeout"),
+        );
+        if (!waits) {
+          console.error(`[baya] herdr-core did not answer ${method}: reconnecting`);
+          this.child?.kill();
+        }
+      }, limit);
+      timer.unref?.();
+      this.pending.set(id, {
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      });
       this.send(0, FRAME.data, Buffer.from(JSON.stringify({ jsonrpc: "2.0", id, method, params })));
     });
   }

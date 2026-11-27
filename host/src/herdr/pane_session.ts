@@ -11,8 +11,15 @@ import { BAYA_META, type PromptResponse } from "../acp/schema.ts";
 import type { SessionRecord } from "../session/registry.ts";
 import { folderName } from "../session/registry.ts";
 import type { PaneAgent, PaneHost } from "./app.ts";
-import { knownModels, modelOption, modelsFor } from "./models.ts";
-import { agentFamily, locateRecord, readRecord, recordsIn, type Update } from "./records.ts";
+import { knownModels, modelOption, modelsFor, piContext } from "./models.ts";
+import {
+  agentFamily,
+  locateRecord,
+  type RecordUsage,
+  readRecord,
+  recordsIn,
+  type Update,
+} from "./records.ts";
 
 /** How much of a long conversation a phone is sent when it opens it. */
 const REPLAY = 800;
@@ -45,6 +52,8 @@ export class PaneSession {
   private updatedAt = Date.now();
   /** The model last picked from a phone; null until one is. */
   private model: string | null = null;
+  /** How full its context is, as its record last said. */
+  private usage: Update | null = null;
   /** Prompts waiting for the agent to finish the turn they started. */
   private readonly waiting: ((response: PromptResponse) => void)[] = [];
 
@@ -180,6 +189,8 @@ export class PaneSession {
       for (const update of updates.slice(-REPLAY)) this.send(phone, update);
       this.sent = updates.length;
     }
+    if (!replay) this.load();
+    if (this.usage) this.send(phone, this.usage);
     this.watch();
     const models = knownModels(this.pane.agent);
     // Still being read (Pi's catalog): sent once it is.
@@ -329,7 +340,16 @@ export class PaneSession {
     if (!this.recordPath) return { updates: [], title: null };
     const result = readRecord(this.pane.agent, this.recordPath);
     if (result.title) this.recordTitle = result.title;
+    this.usage = this.usageUpdate(result.usage ?? null) ?? this.usage;
     return result;
+  }
+
+  /** The phone's context ring: `usage_update` from the record's last reply. */
+  private usageUpdate(usage: RecordUsage | null): Update | null {
+    if (!usage || usage.used <= 0) return null;
+    const size = usage.size || piContext(usage.model);
+    if (!size) return null;
+    return { sessionUpdate: "usage_update", used: usage.used, size } as Update;
   }
 
   private watch(): void {
@@ -341,7 +361,11 @@ export class PaneSession {
 
   /** What the agent wrote since: sent to every phone watching. */
   private read(): void {
+    const before = JSON.stringify(this.usage);
     const { updates } = this.load();
+    if (this.usage && JSON.stringify(this.usage) !== before) {
+      for (const phone of this.attached) this.send(phone, this.usage);
+    }
     if (updates.length <= this.sent) return;
     const fresh = updates.slice(this.sent);
     this.sent = updates.length;
