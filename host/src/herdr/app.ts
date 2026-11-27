@@ -45,6 +45,11 @@ export interface PaneHost {
   /** Types [text] without pressing Enter. */
   sendText(paneId: string, text: string): Promise<unknown>;
   screen(paneId: string): Promise<{ text: string; rows: number }>;
+  /**
+   * herdr-core's terminal behind [paneId], for the phone to attach to and
+   * stream (colours, live): null when the pane is not one.
+   */
+  terminal(paneId: string): Promise<Record<string, unknown> | null>;
   /** A new tab in [cwd]'s workspace running [kind] with [args]: its pane. */
   start(kind: string, cwd: string, args?: string[], label?: string): Promise<string>;
   /** Integrations that make panes report their agent's session. */
@@ -210,6 +215,11 @@ export class HerdrApp implements PaneHost {
   }
 
   /** What [paneId] shows now, with its colours, and how many rows it has. */
+  /** herdr's own panes are not herdr-core terminals. */
+  async terminal(_paneId: string): Promise<null> {
+    return null;
+  }
+
   async screen(paneId: string): Promise<{ text: string; rows: number }> {
     const read = await this.call("pane.read", {
       pane_id: paneId,

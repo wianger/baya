@@ -114,6 +114,12 @@ export class HerdrWindow implements PaneHost {
     return { text, rows: text.split("\n").length };
   }
 
+  async terminal(paneId: string): Promise<Json | null> {
+    const listed = await this.core.call("terminal.list", {});
+    const terminals = (listed["terminals"] as Json[] | undefined) ?? [];
+    return terminals.find((t) => t["address"] === paneId && t["state"] === "live") ?? null;
+  }
+
   async start(kind: string, cwd: string, args: string[] = []): Promise<string> {
     const labels: Record<string, string> = {
       [SPACE]: await this.spaceFor(cwd),

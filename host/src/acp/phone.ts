@@ -368,9 +368,12 @@ export class PhoneConnection implements HubPhone {
         return {};
       }
       case "_baya/terminal_session": {
-        // Its terminal is its herdr pane: the phone shows the pane's screen.
-        if (this.hub.get(stringParam(params, "sessionId")) instanceof PaneSession) {
-          return { available: true, pane: true };
+        // Its terminal is its pane: a herdr-core terminal streams to the
+        // phone (colours, live); a pane of herdr's own shows its screen.
+        const live = this.hub.get(stringParam(params, "sessionId"));
+        if (live instanceof PaneSession) {
+          const terminal = await live.terminal().catch(() => null);
+          return terminal ? { available: true, terminal } : { available: true, pane: true };
         }
         const { record } = this.session(params);
         const agent = loadConfig().agents.find((a) => a.id === record.agent);

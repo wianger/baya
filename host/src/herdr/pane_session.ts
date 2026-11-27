@@ -236,6 +236,11 @@ export class PaneSession {
     return this.app.screen(this.pane.paneId);
   }
 
+  /** herdr-core's terminal it runs in, to stream to the phone; null for herdr's own panes. */
+  terminal(): Promise<Record<string, unknown> | null> {
+    return this.app.terminal(this.pane.paneId);
+  }
+
   /** Types [text] (no Enter), then presses [keys], into its pane. */
   async input(text: string | undefined, keys: string[]): Promise<void> {
     if (text) await this.app.sendText(this.pane.paneId, text);
