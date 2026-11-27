@@ -157,5 +157,9 @@ abstract class IWorkspaceRepository extends Repository {
     WorkspaceAgent agent, {
     String? agentSessionId,
     String? title,
+
+    /// The phone's workspace it goes in: on the computer, a workspace's
+    /// sessions share one herdr space.
+    String? space,
   });
 }

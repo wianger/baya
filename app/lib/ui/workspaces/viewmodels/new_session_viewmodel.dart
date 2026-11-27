@@ -252,6 +252,7 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
         current.directory!.path,
         current.agent,
         agentSessionId: agentSessionId,
+        space: _spaceName(current),
       );
       return _disposed
           ? null
@@ -295,6 +296,7 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
           hostId,
           worktree?.path ?? folder,
           agent,
+          space: _spaceName(current),
         );
         return RunMember(
           sessionId: opened.sessionId,
@@ -347,6 +349,12 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
     ++_generation;
     super.dispose();
   }
+
+  /// The selected workspace's name, which its computer's space takes.
+  String? _spaceName(NewSessionReady current) => current.workspacesForHost
+      .where((entry) => entry.workspaceKey == current.selectedWorkspace)
+      .firstOrNull
+      ?.label;
 
   WorkspaceGroup? _workspaceForHost(String hostId) {
     final choices = _workspaces

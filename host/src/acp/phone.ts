@@ -181,7 +181,9 @@ export class PhoneConnection implements HubPhone {
         const title = typeof meta["title"] === "string" ? meta["title"].trim() : "";
         // A new conversation runs in a herdr pane where it can: the agent's
         // own TUI, visible on the computer, the chat read from its record.
-        const inPane = adopted ? null : await this.hub.startInPane(cwd, agent);
+        // The phone's workspace: its sessions share one space on the computer.
+        const space = typeof meta["space"] === "string" ? meta["space"].trim() : "";
+        const inPane = adopted ? null : await this.hub.startInPane(cwd, agent, space || undefined);
         if (inPane) {
           const setup = await inPane.attach(this, false);
           return { sessionId: inPane.id, ...setup };

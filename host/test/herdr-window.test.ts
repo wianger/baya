@@ -90,4 +90,16 @@ describe("HerdrWindow", () => {
     expect((await window.terminal("t3"))?.["address"]).toBe("t3");
     expect(await window.terminal("t4")).toBeNull();
   });
+
+  it("puts a workspace's sessions in one space, whatever their folders", async () => {
+    const { core, calls } = fakeCore([]);
+    const window = new HerdrWindow(core);
+    await window.start("pi", "C:\\code\\a", [], "Shop");
+    await window.start("pi", "C:\\code\\b", [], "Shop");
+    const spaces = calls
+      .filter((c) => c.method === "terminal.run")
+      .map((c) => (c.params["labels"] as Record<string, string>)["herdr.space"]);
+    expect(spaces[0]).toMatch(/^baya-ws-[0-9a-f]{12}$/u);
+    expect(spaces[1]).toBe(spaces[0]);
+  });
 });

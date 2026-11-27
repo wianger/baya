@@ -164,12 +164,12 @@ export class SessionHub {
    * with [agent]'s own TUI started in it, visible on the computer. Null
    * when herdr isn't running or can't start that agent.
    */
-  async startInPane(cwd: string, agent?: string): Promise<PaneSession | null> {
+  async startInPane(cwd: string, agent?: string, space?: string): Promise<PaneSession | null> {
     const id = agent ?? defaultAgentId();
     const kind = id ? HERDR_KINDS[id] : undefined;
     if (!this.followPanes || !kind) return null;
     const since = Date.now();
-    const started = await this.startAgent(kind, cwd);
+    const started = await this.startAgent(kind, cwd, [], undefined, space);
     if (!started) return null;
     const { pane, host } = started;
     const session = new PaneSession(pane, host, (changed) => this.paneChanged(changed), since);
@@ -217,12 +217,13 @@ export class SessionHub {
     cwd: string,
     args: string[] = [],
     alias?: string,
+    space?: string,
   ): Promise<{ pane: PaneAgent; host: PaneHost } | null> {
     if (await herdrWindow.available()) {
-      const terminal = await herdrWindow.start(kind, cwd, args);
+      const terminal = await herdrWindow.start(kind, cwd, args, space);
       if (alias) setSessionForPane(terminal, alias);
       if (await herdrApp.available()) {
-        const mirror = await herdrApp.openMirror(cwd, terminal, kind).catch(() => null);
+        const mirror = await herdrApp.openMirror(cwd, terminal, kind, space).catch(() => null);
         if (mirror) setMirror(terminal, mirror);
       }
       const pane = (await herdrWindow.agents()).find((p) => p.paneId === terminal);

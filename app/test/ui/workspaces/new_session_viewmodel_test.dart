@@ -61,6 +61,7 @@ class FakeWorkspaces extends IWorkspaceRepository {
   final requestedHosts = <String>[];
   final opened = <WorkspaceAgent>[];
   final continued = <String?>[];
+  final spaces = <String?>[];
   @override
   Future<WorkspaceDirectory> browse(
     String hostId, {
@@ -110,6 +111,7 @@ class FakeWorkspaces extends IWorkspaceRepository {
     WorkspaceAgent agent, {
     String? agentSessionId,
     String? title,
+    String? space,
   }) async {
     if (failing.contains(agent.id)) {
       throw const WorkspaceFailure('npx failed');
@@ -117,6 +119,7 @@ class FakeWorkspaces extends IWorkspaceRepository {
     opened.add(agent);
     openedPaths.add(path);
     continued.add(agentSessionId);
+    spaces.add(space);
     return OpenedWorkspace(
       hostId: hostId,
       hostLabel: host.label,
@@ -353,6 +356,8 @@ void main() {
     final opened = await vm.open(agentSessionId: earlier.single.sessionId);
     expect(opened, isNotNull);
     expect(repo.continued, ['old-1']);
+    // The computer files it in the workspace's own space.
+    expect(repo.spaces, ['Web']);
   });
 
   group('parallel runs', () {

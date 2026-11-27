@@ -277,6 +277,49 @@ void main() {
     expect(link.notes.where((n) => n.$1 == '_baya/terminal_resize'), isEmpty);
   });
 
+  testWidgets('a fixed terminal still scrolls up and down', (tester) async {
+    final link = _Link();
+    await tester.pumpWidget(
+      _app(
+        TerminalPage(
+          repository: TerminalsRepository(link),
+          terminal: HerdrTerminal.fromJson({
+            ..._t('t1'),
+            'cols': 142,
+            'rows': 20,
+          }),
+          fixed: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final lines = [for (var i = 0; i < 200; i++) 'line $i'].join('\r\n');
+    link.paint(lines);
+    await tester.pumpAndSettle();
+    final scrollable = find.descendant(
+      of: find.byType(TerminalView),
+      matching: find.byType(Scrollable),
+    );
+    final state = tester.state<ScrollableState>(scrollable.first);
+    final end = state.position.pixels;
+    // From a point on screen: the terminal is wider than the phone.
+    final on =
+        tester.getTopLeft(find.byType(TerminalView)) + const Offset(100, 200);
+    await tester.dragFrom(on, const Offset(0, 300));
+    await tester.pumpAndSettle();
+    expect(state.position.pixels, lessThan(end));
+
+    // A full-screen program that takes the wheel (pi): drags are wheel turns.
+    link.paint(
+      '\x1b[?1049h\x1b[?1000h\x1b[?1006h',
+      offset: utf8.encode(lines).length,
+    );
+    await tester.pumpAndSettle();
+    await tester.dragFrom(on, const Offset(0, 300));
+    await tester.pumpAndSettle();
+    expect(link.typed.join(), contains('\x1b[<64;'));
+  });
+
   testWidgets('it opens to read; a line is composed, then sent', (
     tester,
   ) async {

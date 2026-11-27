@@ -120,9 +120,15 @@ export class HerdrWindow implements PaneHost {
     return terminals.find((t) => t["address"] === paneId && t["state"] === "live") ?? null;
   }
 
-  async start(kind: string, cwd: string, args: string[] = []): Promise<string> {
+  /**
+   * Starts [kind] in [cwd], in the window's space named [space] (the
+   * phone's workspace, so a workspace's sessions share one space), else
+   * its folder's.
+   */
+  async start(kind: string, cwd: string, args: string[] = [], space?: string): Promise<string> {
+    const spaceId = space ? await this.namedSpace(space) : await this.spaceFor(cwd);
     const labels: Record<string, string> = {
-      [SPACE]: await this.spaceFor(cwd),
+      [SPACE]: spaceId,
       [AGENT]: kind,
     };
     let argv = args;
@@ -146,7 +152,30 @@ export class HerdrWindow implements PaneHost {
       outlive_parent: true,
       no_notify: true,
     });
+    // A space the window made for it is named after the folder: given the
+    // workspace's name instead.
+    if (space) void this.nameSpace(spaceId, space);
     return String(run["address"] ?? (run["terminal"] as Json | undefined)?.["address"] ?? "");
+  }
+
+  /** The window's space called [name], else the id of one made for it. */
+  private async namedSpace(name: string): Promise<string> {
+    const found = (await this.spaceList(true)).find((s) => s.name === name);
+    if (found) return found.id;
+    return `baya-ws-${createHash("sha256").update(name).digest("hex").slice(0, 12)}`;
+  }
+
+  /** Names space [id] [name] once the window shows it (it may be closed). */
+  private async nameSpace(id: string, name: string): Promise<void> {
+    for (let tries = 0; tries < 5; tries++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const space = (await this.spaceList(true)).find((s) => s.id === id);
+      if (space?.name === name) return;
+      if (space) {
+        await windowDo("space.rename", { id, name }).catch(() => {});
+        return;
+      }
+    }
   }
 
   /** The window's space for [cwd]: the one there, else one of its own. */
@@ -166,9 +195,9 @@ export class HerdrWindow implements PaneHost {
   }
 }
 
-/** `herdr-app ls`: the open window's spaces. */
-async function windowLs(): Promise<SpaceInfo[]> {
-  const app =
+/** The herdr-app command, where it is installed. */
+async function windowApp(): Promise<string | null> {
+  return (
     (await findExecutable("herdr-app")) ??
     (process.platform === "win32"
       ? join(
@@ -177,13 +206,34 @@ async function windowLs(): Promise<SpaceInfo[]> {
           "herdr-app",
           "herdr-app.exe",
         )
-      : null);
-  if (!app) return [];
-  const out = await new Promise<string>((resolve, reject) =>
-    execFile(app, ["ls"], { timeout: 10_000, windowsHide: true }, (error, stdout) =>
-      error ? reject(error) : resolve(`${stdout}`),
-    ),
+      : null)
   );
+}
+
+function runWindow(args: string[]): Promise<string> {
+  return windowApp().then(
+    (app) =>
+      new Promise<string>((resolve, reject) => {
+        if (!app) {
+          reject(new Error("herdr-app is not installed"));
+          return;
+        }
+        execFile(app, args, { timeout: 10_000, windowsHide: true }, (error, stdout) =>
+          error ? reject(error) : resolve(`${stdout}`),
+        );
+      }),
+  );
+}
+
+/** `herdr-app do <command> <json>`: a command for the open window. */
+function windowDo(command: string, args: Json): Promise<string> {
+  return runWindow(["do", command, JSON.stringify(args)]);
+}
+
+/** `herdr-app ls`: the open window's spaces. */
+async function windowLs(): Promise<SpaceInfo[]> {
+  const out = await runWindow(["ls"]).catch(() => null);
+  if (!out) return [];
   const parsed = JSON.parse(out) as Json;
   return ((parsed["spaces"] as Json[] | undefined) ?? []).map((space) => ({
     id: String(space["id"] ?? ""),
