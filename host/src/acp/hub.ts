@@ -3,7 +3,7 @@ import { type AgentDefinition, defaultAgentId, loadConfig } from "../config.ts";
 import { resumeArgs, sessionForPane, setSessionForPane } from "../herdr/aliases.ts";
 import { herdrApp, type PaneAgent, type PaneHost } from "../herdr/app.ts";
 import { isMirror, mirrorList, setMirror } from "../herdr/mirrors.ts";
-import { choicesFrom, type ModelChoice, useModelFetcher } from "../herdr/models.ts";
+import { useModelFetcher } from "../herdr/models.ts";
 import { PaneSession, paneSessionId } from "../herdr/pane_session.ts";
 import { locateRecord } from "../herdr/records.ts";
 import { herdrWindow } from "../herdr/window.ts";
@@ -74,7 +74,7 @@ export class SessionHub {
     this.followPanes = options.panes ?? false;
     // A pane's agent offers the models it gives Baya over ACP.
     if (this.followPanes) {
-      useModelFetcher((id) => (this.definition(id) ? this.agentModels(id) : Promise.resolve([])));
+      useModelFetcher((id) => (this.definition(id) ? this.agentOptions(id) : Promise.resolve([])));
     }
   }
 
@@ -172,15 +172,34 @@ export class SessionHub {
    * with [agent]'s own TUI started in it, visible on the computer. Null
    * when herdr isn't running or can't start that agent.
    */
-  async startInPane(cwd: string, agent?: string, space?: string): Promise<PaneSession | null> {
+  /** Conversations run in herdr (the host); not in tests of the ACP side. */
+  get followsPanes(): boolean {
+    return this.followPanes;
+  }
+
+  async startInPane(
+    cwd: string,
+    agent?: string,
+    space?: string,
+    resume?: string,
+  ): Promise<PaneSession | null> {
     const id = agent ?? defaultAgentId();
     const kind = id ? HERDR_KINDS[id] : undefined;
-    if (!this.followPanes || !kind) return null;
-    const since = Date.now();
-    const started = await this.startAgent(kind, cwd, [], undefined, space);
+    if (!this.followPanes || !kind || !id) return null;
+    // One of the agent's own conversations, reopened in its TUI.
+    const args = resume ? resumeArgs(id, resume, locateRecord(id, resume, cwd) !== null) : [];
+    if (!args) return null;
+    const since = resume ? 0 : Date.now();
+    const started = await this.startAgent(kind, cwd, args, undefined, space);
     if (!started) return null;
     const { pane, host } = started;
-    const session = new PaneSession(pane, host, (changed) => this.paneChanged(changed), since);
+    const session = new PaneSession(
+      pane,
+      host,
+      (changed) => this.paneChanged(changed),
+      since,
+      resume ? { record: resume } : {},
+    );
     this.panes.set(session.id, session);
     this.paneChanged(session);
     return session;
@@ -222,17 +241,20 @@ export class SessionHub {
    * stay, and why is logged.
    */
   private async moveAllToPanes(): Promise<void> {
+    // Without herdr here, nothing can move and nothing is dropped.
+    const here = (await herdrWindow.available()) || (await herdrApp.available());
+    if (!here) return;
     for (const [id, hosted] of [...this.sessions]) {
       const { agent, title } = hosted.record;
-      if (!HERDR_KINDS[agent]) continue;
       const moved = await this.moveToPane(id).catch((error: unknown) => {
         console.error(`[baya] could not move "${title}" into herdr: ${String(error)}`);
         return undefined;
       });
+      // Conversations run only in herdr now: one that never can (an agent
+      // herdr can't run, nothing of its agent's to resume) goes.
       if (moved === null) {
-        console.error(
-          `[baya] "${title}" (${agent}) stays in Baya: nothing of its agent's to resume`,
-        );
+        console.error(`[baya] "${title}" (${agent}) can't run in herdr: removed`);
+        this.delete(id);
       }
     }
   }
@@ -396,11 +418,14 @@ export class SessionHub {
     }
   }
 
-  /** Agent [id]'s models, from a session of it started for the asking. */
-  agentModels(id: string): Promise<ModelChoice[]> {
+  /** Agent [id]'s settings (`configOptions`), from a session of it started for the asking. */
+  agentOptions(id: string): Promise<Json[]> {
     return this.withAgent(id, undefined, async (agent) => {
-      const result = await agent.request("session/new", { cwd: homedir(), mcpServers: [] });
-      return choicesFrom(result as Json);
+      const result = (await agent.request("session/new", {
+        cwd: homedir(),
+        mcpServers: [],
+      })) as Json;
+      return Array.isArray(result["configOptions"]) ? (result["configOptions"] as Json[]) : [];
     });
   }
 

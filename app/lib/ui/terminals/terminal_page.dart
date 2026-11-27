@@ -348,6 +348,24 @@ class _TerminalPageState extends State<TerminalPage> {
     _toBottom();
   }
 
+  /// A tap on the terminal is for typing: the keyboard comes up, for the
+  /// line composed or (keys mode) straight into the terminal. After the
+  /// terminal's own tap handling, which would take the focus back.
+  void _tapped() {
+    if (_ended != null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_input == _Input.compose) {
+        _lineFocus.requestFocus();
+      } else {
+        _focus.requestFocus();
+        unawaited(
+          SystemChannels.textInput.invokeMethod<void>('TextInput.show'),
+        );
+      }
+    });
+  }
+
   void _toggleInput() {
     unawaited(HapticFeedback.selectionClick());
     setState(() {
@@ -375,8 +393,14 @@ class _TerminalPageState extends State<TerminalPage> {
     return (points[0] - points[1]).distance;
   }
 
+  /// Where and when a one-finger touch began, to tell a tap from a drag.
+  (Offset, Duration)? _touch;
+
   void _down(PointerDownEvent event) {
     _pointers[event.pointer] = event.localPosition;
+    _touch = _pointers.length == 1
+        ? (event.localPosition, event.timeStamp)
+        : null;
     if (_pointers.length == 2) {
       _pinchStart = _spread;
       _pinchFrom = _fontSize;
@@ -452,6 +476,15 @@ class _TerminalPageState extends State<TerminalPage> {
 
   void _up(PointerEvent event) {
     _pointers.remove(event.pointer);
+    final touch = _touch;
+    _touch = null;
+    if (event is PointerUpEvent &&
+        touch != null &&
+        _pointers.isEmpty &&
+        (event.localPosition - touch.$1).distance < 12 &&
+        event.timeStamp - touch.$2 < const Duration(milliseconds: 350)) {
+      _tapped();
+    }
     if (_pointers.length < 2 && _pinchFrom != null) {
       if (_fontSize != _pinchFrom) {
         unawaited(HapticFeedback.selectionClick());

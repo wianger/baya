@@ -59,3 +59,21 @@ describe("how full a pane conversation's context is", () => {
     expect(model?.context).toBe(1_000_000);
   });
 });
+
+describe("settings typed into a pane's TUI", () => {
+  it("types each agent's own command", async () => {
+    const { optionCommand, offers } = await import("../src/herdr/models.ts");
+    const effort = {
+      id: "effort",
+      category: "thought_level",
+      options: [{ value: "high", name: "High" }],
+    };
+    expect(optionCommand("claude-code", effort, "high")).toBe("/effort high");
+    expect(optionCommand("pi", { id: "thought_level", category: "thought_level" }, "low")).toBe(
+      "/thinking low",
+    );
+    expect(optionCommand("pi", { id: "model", category: "model" }, "a/b")).toBe("/model a/b");
+    expect(offers(effort, "high")).toBe(true);
+    expect(offers(effort, "max")).toBe(false);
+  });
+});

@@ -152,7 +152,9 @@ export class ControlServer {
       case "open": {
         if (typeof params["cwd"] !== "string") throw new Error("cwd is required.");
         const agent = typeof params["agent"] === "string" ? params["agent"] : undefined;
-        return sessionStatus(this.hub.create(await resolveDirectory(params["cwd"]), agent));
+        const session = await this.hub.startInPane(await resolveDirectory(params["cwd"]), agent);
+        if (!session) throw new Error("That agent can't run in herdr on this computer.");
+        return sessionStatus(session);
       }
       case "remove": {
         if (typeof params["id"] !== "string") throw new Error("id is required.");

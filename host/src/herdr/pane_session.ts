@@ -11,7 +11,14 @@ import { BAYA_META, type PromptResponse } from "../acp/schema.ts";
 import type { SessionRecord } from "../session/registry.ts";
 import { folderName } from "../session/registry.ts";
 import type { PaneAgent, PaneHost } from "./app.ts";
-import { knownModels, modelOption, modelsFor, piContext } from "./models.ts";
+import {
+  offers,
+  optionCommand,
+  paneOptions,
+  paneOptionsLater,
+  piContext,
+  withCurrent,
+} from "./models.ts";
 import {
   agentFamily,
   locateRecord,
@@ -50,14 +57,17 @@ export class PaneSession {
   private sent = 0;
   private recordTitle: string | null = null;
   private updatedAt = Date.now();
-  /** The model last picked from a phone; null until one is. */
-  private model: string | null = null;
+  /** Settings picked from a phone (model, thinking), by option id. */
+  private chosen: Record<string, string> = {};
   /** How full its context is, as its record last said. */
   private usage: Update | null = null;
   /** The model its record says last replied (Pi names it as its picker does). */
   private recordModel: string | null = null;
   /** Prompts waiting for the agent to finish the turn they started. */
   private readonly waiting: ((response: PromptResponse) => void)[] = [];
+  /** The turn the phone started: when, what the record held, whether it was seen working. */
+  private turn: { at: number; sent: number; sawWorking: boolean; timer: NodeJS.Timeout } | null =
+    null;
 
   /** Started by Baya just now: no record older than this is its own. */
   private readonly since: number;
@@ -162,6 +172,7 @@ export class PaneSession {
     ]);
     const wasWorking = this.working || this.pane.status === "blocked";
     this.pane = pane;
+    if (this.turn && (this.working || this.blocked)) this.turn.sawWorking = true;
     if (JSON.stringify([pane.status, pane.title, pane.session, pane.workspace]) === before) return;
     this.updatedAt = Date.now();
     if (!this.recordPath || pane.session) {
@@ -174,10 +185,7 @@ export class PaneSession {
       }
     }
     // A turn the phone started has ended: its prompt is answered.
-    if (wasWorking && (pane.status === "idle" || pane.status === "done")) {
-      this.read();
-      for (const resolve of this.waiting.splice(0)) resolve({ stopReason: "end_turn" });
-    }
+    if (wasWorking && (pane.status === "idle" || pane.status === "done")) this.endTurn();
     this.onChange(this);
   }
 
@@ -194,21 +202,19 @@ export class PaneSession {
     if (!replay) this.load();
     if (this.usage) this.send(phone, this.usage);
     this.watch();
-    const models = knownModels(this.pane.agent);
-    // Still being read (Pi's catalog): sent once it is.
-    if (models === null) {
-      void modelsFor(this.pane.agent).then((later) => {
+    const options = paneOptions(this.pane.agent);
+    // Still being asked of the agent: sent once it answers.
+    if (options === null) {
+      void paneOptionsLater(this.pane.agent).then((later) => {
         if (!later.length || !this.attached.has(phone)) return;
         this.send(phone, {
           sessionUpdate: "config_option_update",
-          configOptions: [modelOption(later, this.model ?? this.recordModel)],
+          configOptions: this.current(later),
         } as Update);
       });
     }
     return {
-      ...(models?.length
-        ? { configOptions: [modelOption(models, this.model ?? this.recordModel)] }
-        : {}),
+      ...(options?.length ? { configOptions: this.current(options) } : {}),
       _meta: {
         [BAYA_META]: {
           agent: this.pane.agent,
@@ -258,7 +264,41 @@ export class PaneSession {
     }
     await this.app.prompt(this.pane.paneId, text);
     this.watch();
+    this.startTurn();
     return new Promise((resolve) => this.waiting.push(resolve));
+  }
+
+  /**
+   * Follows the turn just typed in. herdr's status is read every couple of
+   * seconds, so a quick turn may never be seen working: it is also over
+   * once the agent is not working and its record has its reply, or, seen
+   * neither way, half a minute on.
+   */
+  private startTurn(): void {
+    if (this.turn) return;
+    const turn = {
+      at: Date.now(),
+      sent: this.sent,
+      sawWorking: this.working,
+      timer: setInterval(() => {
+        if (this.working || this.blocked) {
+          turn.sawWorking = true;
+          return;
+        }
+        this.read();
+        const answered = this.sent >= turn.sent + 2 && Date.now() - turn.at > 3000;
+        if (turn.sawWorking || answered || Date.now() - turn.at > 30_000) this.endTurn();
+      }, 1500),
+    };
+    turn.timer.unref?.();
+    this.turn = turn;
+  }
+
+  private endTurn(): void {
+    if (this.turn) clearInterval(this.turn.timer);
+    this.turn = null;
+    this.read();
+    for (const resolve of this.waiting.splice(0)) resolve({ stopReason: "end_turn" });
   }
 
   /** What its pane shows now. */
@@ -288,22 +328,36 @@ export class PaneSession {
     void this.app.sendKeys(this.pane.paneId, ["esc"]).catch(() => {});
   }
 
-  /** A model picked on the phone: `/model <name>` typed into its TUI. */
+  /** Its options with what was picked here, or its record says, as current. */
+  private current(options: Json[]): Json[] {
+    return withCurrent(options, {
+      ...(this.recordModel ? { model: this.recordModel } : {}),
+      ...this.chosen,
+    });
+  }
+
+  /**
+   * A model or thinking level picked on the phone: typed into its TUI as
+   * the agent's own command (`/model`, `/effort`, `/thinking`).
+   */
   async setConfigOption(_phone: PhoneLink, params: Json): Promise<Json> {
+    const id = params["configId"];
     const value = params["value"];
-    if (params["configId"] !== "model" || typeof value !== "string" || !value) {
+    const options = await paneOptionsLater(this.pane.agent);
+    const option = options.find((o) => o["id"] === id);
+    const command =
+      option && typeof value === "string" && value && offers(option, value)
+        ? optionCommand(this.pane.agent, option, value)
+        : null;
+    if (!option || typeof value !== "string" || !command) {
       throw RpcError.invalidParams("This agent runs in herdr: change that in its terminal.");
     }
-    const models = await modelsFor(this.pane.agent);
-    if (!models.some((m) => m.value === value)) {
-      throw RpcError.invalidParams(`${value} is not one of its models.`);
-    }
     if (this.working || this.pane.status === "blocked") {
-      throw RpcError.invalidParams("Change the model once its turn is over.");
+      throw RpcError.invalidParams("Change it once its turn is over.");
     }
-    await this.app.prompt(this.pane.paneId, `/model ${value}`);
-    this.model = value;
-    const configOptions = [modelOption(models, value)];
+    await this.app.prompt(this.pane.paneId, command);
+    this.chosen[String(id)] = value;
+    const configOptions = this.current(options);
     for (const phone of this.attached)
       this.send(phone, { sessionUpdate: "config_option_update", configOptions } as Update);
     return { configOptions };
@@ -316,6 +370,7 @@ export class PaneSession {
   rename(_title: string): void {}
 
   stop(): void {
+    if (this.turn) clearInterval(this.turn.timer);
     if (this.recordPath) unwatchFile(this.recordPath);
   }
 
