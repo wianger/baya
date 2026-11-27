@@ -10,7 +10,7 @@ import { type Json, RpcError } from "../acp/jsonrpc.ts";
 import { BAYA_META, type PromptResponse } from "../acp/schema.ts";
 import type { SessionRecord } from "../session/registry.ts";
 import { folderName } from "../session/registry.ts";
-import type { HerdrApp, PaneAgent } from "./app.ts";
+import type { PaneAgent, PaneHost } from "./app.ts";
 import { agentFamily, locateRecord, readRecord, recordsIn, type Update } from "./records.ts";
 
 /** How much of a long conversation a phone is sent when it opens it. */
@@ -35,7 +35,7 @@ export const paneSessionId = (paneId: string): string => `herdr-${paneId.replace
 
 export class PaneSession {
   private pane: PaneAgent;
-  private readonly app: HerdrApp;
+  private readonly app: PaneHost;
   private readonly onChange: (session: PaneSession) => void;
   private readonly attached = new Set<PhoneLink>();
   private recordPath: string | null = null;
@@ -55,7 +55,7 @@ export class PaneSession {
 
   constructor(
     pane: PaneAgent,
-    app: HerdrApp,
+    app: PaneHost,
     onChange: (session: PaneSession) => void,
     since = 0,
     known: { id?: string; record?: string } = {},
@@ -229,6 +229,17 @@ export class PaneSession {
     await this.app.prompt(this.pane.paneId, text);
     this.watch();
     return new Promise((resolve) => this.waiting.push(resolve));
+  }
+
+  /** What its pane shows now. */
+  screen(): Promise<{ text: string; rows: number }> {
+    return this.app.screen(this.pane.paneId);
+  }
+
+  /** Types [text] (no Enter), then presses [keys], into its pane. */
+  async input(text: string | undefined, keys: string[]): Promise<void> {
+    if (text) await this.app.sendText(this.pane.paneId, text);
+    if (keys.length) await this.app.sendKeys(this.pane.paneId, keys);
   }
 
   /** Esc, as its TUI stops a turn. */

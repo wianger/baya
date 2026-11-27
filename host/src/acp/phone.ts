@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { loadConfig } from "../config.ts";
-import { herdrApp } from "../herdr/app.ts";
 import { PaneSession } from "../herdr/pane_session.ts";
 import { PhoneTerminals, resumeCommand } from "../herdr/phone_terminals.ts";
 import { adbConnect, adbDisconnect, adbPair, adbStatus } from "../integrations/adb.ts";
@@ -360,15 +359,12 @@ export class PhoneConnection implements HubPhone {
         });
       }
       case "_baya/pane_screen":
-        return herdrApp.screen(this.pane(params).paneId);
+        return this.pane(params).screen();
       case "_baya/pane_input": {
-        const pane = this.pane(params).paneId;
-        const text = optionalString(params, "text");
-        if (text) await herdrApp.sendText(pane, text);
         const keys = Array.isArray(params["keys"])
           ? params["keys"].filter((key): key is string => typeof key === "string")
           : [];
-        if (keys.length) await herdrApp.sendKeys(pane, keys);
+        await this.pane(params).input(optionalString(params, "text"), keys);
         return {};
       }
       case "_baya/terminal_session": {
