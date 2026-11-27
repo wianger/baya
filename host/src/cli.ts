@@ -48,7 +48,7 @@ import { getOrCreateEd25519Keypair, listPeers, removePeers } from "./pairing/sto
 import { issuePendingPairToken, type PendingPairToken } from "./pairing/token_store.ts";
 import { packaged, selfCommand } from "./runtime/self.ts";
 import { packageVersion } from "./runtime/version.ts";
-import { sunshineLogin, sunshineState } from "./screen/sunshine.ts";
+import { installSunshine, sunshineLogin, sunshineState } from "./screen/sunshine.ts";
 import { installStartup, uninstallStartup } from "./service.ts";
 import { findSession, folderName, listSessions, removeSession } from "./session/registry.ts";
 import {
@@ -636,21 +636,7 @@ async function remote(args: ParsedArgs): Promise<void> {
     }
     case "install": {
       if (process.platform !== "win32") throw new Error(SUNSHINE_HINT["not_windows"]);
-      const { spawnSync } = await import("node:child_process");
-      const run = spawnSync(
-        "winget",
-        [
-          "install",
-          "--source",
-          "winget",
-          "--id",
-          "LizardByte.Sunshine",
-          "--accept-package-agreements",
-          "--accept-source-agreements",
-        ],
-        { stdio: "inherit" },
-      );
-      if (run.status !== 0) throw new Error("winget could not install Sunshine.");
+      await installSunshine();
       const state = await sunshineState();
       return out(
         state.ready

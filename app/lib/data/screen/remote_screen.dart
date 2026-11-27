@@ -149,7 +149,18 @@ class RemoteScreenSession extends ChangeNotifier {
   }) async {
     _events = _bridge.events.listen(_event);
     try {
-      final info = await _host.call('_baya/screen_info');
+      var info = await _host.call('_baya/screen_info');
+      // No Sunshine on the computer yet: it is put in now (Windows asks
+      // the person there to allow it once), then the stream goes on.
+      if (info['reason'] == 'not_installed') {
+        _set(stage: 'install');
+        await _host.call(
+          '_baya/screen_install',
+          const {},
+          const Duration(minutes: 10),
+        );
+        info = await _host.call('_baya/screen_info');
+      }
       final address = info['address'] as String?;
       if (info['ready'] != true || address == null) {
         throw StateError(

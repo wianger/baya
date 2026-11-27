@@ -7,7 +7,7 @@ import { adbConnect, adbDisconnect, adbPair, adbStatus } from "../integrations/a
 import { logOnce } from "../log_once.ts";
 import { pairPhone } from "../pairing/service.ts";
 import { packageVersion } from "../runtime/version.ts";
-import { sunshinePin, sunshineState } from "../screen/sunshine.ts";
+import { installSunshine, sunshinePin, sunshineState } from "../screen/sunshine.ts";
 import { tailnetSelf } from "../tailnet/pairing_server.ts";
 import type { DataFrame } from "../transport/noise.ts";
 import { browseDirectory, resolveDirectory } from "../workspace/directories.ts";
@@ -434,6 +434,9 @@ export class PhoneConnection implements HubPhone {
         const [state, self] = await Promise.all([sunshineState(), tailnetSelf()]);
         return { ...state, address: self?.dnsName ?? null };
       }
+      case "_baya/screen_install":
+        // Remote control asked for and Sunshine not here yet: put it in.
+        return installSunshine();
       case "_baya/screen_pair":
         await sunshinePin(stringParam(params, "pin"), optionalString(params, "name") ?? "Baya");
         return {};
