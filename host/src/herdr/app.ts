@@ -157,8 +157,14 @@ export class HerdrApp implements PaneHost {
 
   /** Every pane with a recognized agent, and its session where known. */
   async agents(): Promise<PaneAgent[]> {
+    return (await this.list()).agents;
+  }
+
+  /** Every pane's id, and the agents among them. */
+  async list(): Promise<{ ids: Set<string>; agents: PaneAgent[] }> {
     const result = await this.call("pane.list", {});
     const panes = (result["panes"] as Json[] | undefined) ?? [];
+    const ids = new Set(panes.map((pane) => String(pane["pane_id"])));
     const spaces = await this.call("workspace.list", {}).catch(() => ({}) as Json);
     const label = new Map(
       ((spaces["workspaces"] as Json[] | undefined) ?? []).map((w) => [
@@ -166,7 +172,7 @@ export class HerdrApp implements PaneHost {
         String(w["label"] ?? ""),
       ]),
     );
-    return panes.flatMap((pane) => {
+    const agents = panes.flatMap((pane): PaneAgent[] => {
       const agent = pane["agent"];
       if (typeof agent !== "string" || !agent) return [];
       const session = pane["agent_session"] as Json | null | undefined;
@@ -187,6 +193,7 @@ export class HerdrApp implements PaneHost {
         },
       ];
     });
+    return { ids, agents };
   }
 
   /** Types [text] into the agent in [paneId] and presses Enter. */
@@ -214,8 +221,39 @@ export class HerdrApp implements PaneHost {
     return { text, rows: text.split("\n").length };
   }
 
-  /** The workspace for [cwd], made when there is none. */
-  async workspaceFor(cwd: string): Promise<string> {
+  /**
+   * A tab in [cwd]'s workspace showing herdr-core's terminal [terminal]
+   * (`hc attach`): an agent that runs in the herdr-app window, seen and
+   * typed into here too. Its pane.
+   */
+  async openMirror(cwd: string, terminal: string, label: string): Promise<string> {
+    const pane = await this.tabFor(cwd, label);
+    await this.call("pane.send_text", { pane_id: pane, text: `hc attach ${terminal}` });
+    await this.call("pane.send_keys", { pane_id: pane, keys: ["enter"] });
+    return pane;
+  }
+
+  /** Tells herdr [paneId] holds [agent] in [state], as an integration would. */
+  reportAgent(paneId: string, agent: string, state: string, sessionId?: string): Promise<Json> {
+    return this.call("pane.report_agent", {
+      pane_id: paneId,
+      source: "baya",
+      agent,
+      state,
+      seq: Date.now(),
+      ...(sessionId ? { agent_session_id: sessionId } : {}),
+    });
+  }
+
+  closePane(paneId: string): Promise<Json> {
+    return this.call("pane.close", { pane_id: paneId });
+  }
+
+  /**
+   * A fresh pane for [cwd]: a new tab in its folder's workspace, or the
+   * first tab of a workspace made for it (no empty shell left beside it).
+   */
+  private async tabFor(cwd: string, label?: string): Promise<string> {
     // Workspaces don't say their folder; their panes do.
     const list = await this.call("pane.list", {});
     const panes = (list["panes"] as Json[] | undefined) ?? [];
@@ -224,9 +262,17 @@ export class HerdrApp implements PaneHost {
         .replace(/[\\/]+$/u, "")
         .toLowerCase();
     const found = panes.find((p) => norm(p["cwd"]) === norm(cwd));
-    if (found) return String(found["workspace_id"]);
-    const made = await this.call("workspace.create", { cwd, focus: false });
-    return String((made["workspace"] as Json)["workspace_id"]);
+    if (!found) {
+      const made = await this.call("workspace.create", { cwd, focus: false });
+      return String((made["root_pane"] as Json)["pane_id"]);
+    }
+    const tab = await this.call("tab.create", {
+      workspace_id: String(found["workspace_id"]),
+      cwd,
+      focus: false,
+      ...(label ? { label } : {}),
+    });
+    return String((tab["root_pane"] as Json)["pane_id"]);
   }
 
   /**
@@ -234,14 +280,7 @@ export class HerdrApp implements PaneHost {
    * started in it, [args] passed to the agent. Its pane.
    */
   async start(kind: string, cwd: string, args: string[] = [], label?: string): Promise<string> {
-    const workspace = await this.workspaceFor(cwd);
-    const tab = await this.call("tab.create", {
-      workspace_id: workspace,
-      cwd,
-      focus: false,
-      ...(label ? { label } : {}),
-    });
-    const pane = String((tab["root_pane"] as Json)["pane_id"]);
+    const pane = await this.tabFor(cwd, label);
     await this.call(
       "agent.start",
       { name: `baya-${pane.replace(/[^a-z0-9]/giu, "").toLowerCase()}`, kind, pane_id: pane, args },
@@ -301,6 +340,23 @@ function cliArgs(method: string, params: Json): string[] {
       return ["integration", "install", str("target")];
     case "pane.send_text":
       return ["pane", "send-text", str("pane_id"), str("text")];
+    case "pane.report_agent":
+      return [
+        "pane",
+        "report-agent",
+        "--source",
+        str("source"),
+        "--agent",
+        str("agent"),
+        "--state",
+        str("state"),
+        "--seq",
+        str("seq"),
+        ...(params["agent_session_id"] ? ["--agent-session-id", str("agent_session_id")] : []),
+        str("pane_id"),
+      ];
+    case "pane.close":
+      return ["pane", "close", str("pane_id")];
     case "pane.read":
       return ["pane", "read", str("pane_id"), "--source", "visible", "--ansi"];
     default:
