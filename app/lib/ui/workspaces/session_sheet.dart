@@ -1,6 +1,7 @@
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
+import 'package:app/ui/core/widgets/baya_popover.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -13,16 +14,15 @@ Future<void> showSessionSheet(
   required String agent,
   required String computer,
   required String? folder,
-  VoidCallback? onFind,
   VoidCallback? onTerminal,
   VoidCallback? onFiles,
   VoidCallback? onChanges,
   required VoidCallback onRename,
   required Future<void> Function() onDelete,
 }) {
-  return showBayaSheet<void>(
+  return showBayaPopover<void>(
     context,
-    sheetKey: const Key('session-sheet'),
+    popoverKey: const Key('session-sheet'),
     title: title,
     subtitle: '$agent · $computer',
     builder: (_) => _SessionSheet(
@@ -30,7 +30,6 @@ Future<void> showSessionSheet(
       agent: agent,
       computer: computer,
       folder: folder,
-      onFind: onFind,
       onTerminal: onTerminal,
       onFiles: onFiles,
       onChanges: onChanges,
@@ -46,7 +45,6 @@ class _SessionSheet extends StatefulWidget {
     required this.agent,
     required this.computer,
     required this.folder,
-    required this.onFind,
     required this.onTerminal,
     required this.onFiles,
     required this.onChanges,
@@ -58,7 +56,6 @@ class _SessionSheet extends StatefulWidget {
   final String agent;
   final String computer;
   final String? folder;
-  final VoidCallback? onFind;
   final VoidCallback? onTerminal;
   final VoidCallback? onFiles;
   final VoidCallback? onChanges;
@@ -119,13 +116,6 @@ class _SessionSheetState extends State<_SessionSheet> {
           ),
         BayaGroup(
           children: [
-            if (widget.onFind case final find?)
-              BayaRow(
-                key: const ValueKey('session-action-find'),
-                icon: LucideIcons.search,
-                label: l10n.findInChat,
-                onTap: () => _then(find),
-              ),
             if (widget.onTerminal case final terminal?)
               BayaRow(
                 key: const ValueKey('session-action-terminal'),

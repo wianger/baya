@@ -320,6 +320,24 @@ void main() {
     expect(link.typed.join(), contains('\x1b[<64;'));
   });
 
+  testWidgets('a first paint that comes before the attach answers is shown', (
+    tester,
+  ) async {
+    final link = _EarlyLink();
+    await tester.pumpWidget(
+      _app(
+        TerminalPage(
+          repository: TerminalsRepository(link),
+          terminal: HerdrTerminal.fromJson(_t('t1')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    Terminal screen() =>
+        tester.widget<TerminalView>(find.byType(TerminalView)).terminal;
+    expect(screen().buffer.lines[0].toString(), contains('painted early'));
+  });
+
   testWidgets('it opens to read; a line is composed, then sent', (
     tester,
   ) async {
@@ -446,4 +464,24 @@ void main() {
       expect(find.text('line 1'), findsNothing);
     },
   );
+}
+
+/// A computer whose first paint arrives before its answer to the attach.
+class _EarlyLink extends _Link {
+  @override
+  Future<Json> call(String method, Json params) async {
+    if (method == '_baya/terminal_attach') {
+      calls.add((method, params));
+      frames.add(
+        DataFrame(
+          params['stream'] as int,
+          0,
+          Uint8List.fromList(utf8.encode('painted early\r\n')),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      return {'terminal': _t(params['terminal'] as String)};
+    }
+    return super.call(method, params);
+  }
 }

@@ -5,6 +5,7 @@ import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_dialog.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
+import 'package:app/ui/core/widgets/baya_popover.dart';
 import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -13,9 +14,9 @@ import 'package:provider/provider.dart';
 /// How full the agent's context is, from the header's ring.
 Future<void> showContextUsage(BuildContext context) {
   final session = context.read<SessionController>();
-  return showBayaSheet<void>(
+  return showBayaPopover<void>(
     context,
-    sheetKey: const Key('context-sheet'),
+    popoverKey: const Key('context-sheet'),
     title: context.l10n.contextUsage,
     builder: (_) => ChangeNotifierProvider<SessionController>.value(
       value: session,
@@ -306,12 +307,15 @@ class _UsageBar extends StatelessWidget {
                 letterSpacing: -.8,
               ),
             ),
-            const Spacer(),
-            Text(
-              context.l10n.tokensOf(_count(usage.used), _count(usage.size)),
-              style: context.typo.monoSmall.copyWith(
-                fontSize: BayaType.caption,
-                color: colors.muted,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                context.l10n.tokensOf(_count(usage.used), _count(usage.size)),
+                textAlign: TextAlign.end,
+                style: context.typo.monoSmall.copyWith(
+                  fontSize: BayaType.caption,
+                  color: colors.muted,
+                ),
               ),
             ),
           ],

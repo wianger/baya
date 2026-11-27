@@ -9,7 +9,6 @@ import 'package:app/routing/adaptive.dart';
 import 'package:app/ui/changes/changes_page.dart';
 import 'package:app/ui/chat/attachment/states/attachment_state.dart';
 import 'package:app/ui/chat/attachment/viewmodels/attachment_viewmodel.dart';
-import 'package:app/ui/chat/chat_find.dart';
 import 'package:app/ui/chat/chat_message_list.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/chat/widgets/attach_sheet.dart';
@@ -42,7 +41,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
-export 'package:app/ui/chat/chat_find.dart';
 export 'package:app/ui/chat/chat_message_list.dart';
 
 class ChatPage extends StatelessWidget {
@@ -64,14 +62,8 @@ class ChatPage extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => ChangeNotifierProvider(
-    create: (_) => ChatFind(),
-    child: Builder(builder: _page),
-  );
-
-  Widget _page(BuildContext context) {
+  Widget build(BuildContext context) {
     final session = context.watch<SessionController>();
-    final find = context.watch<ChatFind>();
     // The agent's prompt capabilities decide whether images can be attached.
     final vision = session.loaded ? session.acceptsImages : null;
     final attachment = context.read<AttachmentViewModel>();
@@ -82,72 +74,58 @@ class ChatPage extends StatelessWidget {
     }
     return _TurnHaptics(
       session: session,
-      // Back closes the search before it leaves the chat.
-      child: PopScope(
-        canPop: !find.open,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) find.close();
-        },
-        child: Scaffold(
-          backgroundColor: context.colors.bg,
-          body: BayaBackdrop(
-            child: SafeArea(
-              bottom: false,
-              child: ChatFrame(
-                topBar: AnimatedSwitcher(
-                  duration: BayaMotion.standard,
-                  switchInCurve: BayaMotion.enter,
-                  switchOutCurve: BayaMotion.enter,
-                  child: find.open
-                      ? ChatFindBar(find: find, messages: session.messages)
-                      : _buildTopBar(context, session),
-                ),
-                revoked: session.host.status.name == 'unpaired'
-                    ? _RevokedBanner(onRePair: () => context.go('/pair'))
-                    : null,
-                body: _buildBody(context, session),
-                composer: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (session.permission case final request?)
-                      PermissionCard(
-                        key: ValueKey('permission-${request.requestId}'),
-                        request: request,
-                        tool: session.messages
-                            .whereType<ToolEvent>()
-                            .where((t) => t.toolCallId == request.toolCall.id)
-                            .lastOrNull,
-                        onAnswer: session.answerPermission,
-                      ),
-                    if (session.elicitation case final request?)
-                      ElicitationCard(
-                        key: ValueKey('elicitation-${request.requestId}'),
-                        request: request,
-                        onAnswer: session.answerElicitation,
-                      ),
-                    // Its agent waits in its herdr pane for an answer.
-                    if (session.summary?.waitingForAnswer == true)
-                      PaneQuestionCard(
-                        key: ValueKey('pane-question-${session.sessionId}'),
+      child: Scaffold(
+        backgroundColor: context.colors.bg,
+        body: BayaBackdrop(
+          child: SafeArea(
+            bottom: false,
+            child: ChatFrame(
+              topBar: _buildTopBar(context, session),
+              revoked: session.host.status.name == 'unpaired'
+                  ? _RevokedBanner(onRePair: () => context.go('/pair'))
+                  : null,
+              body: _buildBody(context, session),
+              composer: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (session.permission case final request?)
+                    PermissionCard(
+                      key: ValueKey('permission-${request.requestId}'),
+                      request: request,
+                      tool: session.messages
+                          .whereType<ToolEvent>()
+                          .where((t) => t.toolCallId == request.toolCall.id)
+                          .lastOrNull,
+                      onAnswer: session.answerPermission,
+                    ),
+                  if (session.elicitation case final request?)
+                    ElicitationCard(
+                      key: ValueKey('elicitation-${request.requestId}'),
+                      request: request,
+                      onAnswer: session.answerElicitation,
+                    ),
+                  // Its agent waits in its herdr pane for an answer.
+                  if (session.summary?.waitingForAnswer == true)
+                    PaneQuestionCard(
+                      key: ValueKey('pane-question-${session.sessionId}'),
+                      host: session.host,
+                      sessionId: session.sessionId,
+                      onOpenTerminal: () => openSessionTerminal(
+                        context,
                         host: session.host,
                         sessionId: session.sessionId,
-                        onOpenTerminal: () => openSessionTerminal(
-                          context,
-                          host: session.host,
-                          sessionId: session.sessionId,
-                          title: session.title,
-                        ),
+                        title: session.title,
                       ),
-                    if (session.authAgent != null)
-                      SignInCard(
-                        key: ValueKey('sign-in-${session.authAgent}'),
-                        session: session,
-                      ),
-                    if (session.attachedFiles.isNotEmpty)
-                      _AttachedFiles(session: session),
-                    _buildInput(context, session),
-                  ],
-                ),
+                    ),
+                  if (session.authAgent != null)
+                    SignInCard(
+                      key: ValueKey('sign-in-${session.authAgent}'),
+                      session: session,
+                    ),
+                  if (session.attachedFiles.isNotEmpty)
+                    _AttachedFiles(session: session),
+                  _buildInput(context, session),
+                ],
               ),
             ),
           ),
@@ -270,7 +248,6 @@ class ChatPage extends StatelessWidget {
           : session.agentName,
       computer: session.host.host.label,
       folder: session.summary?.cwd,
-      onFind: context.read<ChatFind>().show,
       onTerminal: session.host.isOnline
           ? () => openSessionTerminal(
               context,
@@ -344,11 +321,9 @@ class ChatPage extends StatelessWidget {
     final visible = hideToolCalls
         ? messages.where((m) => m is! ToolEvent || m.awaitingApproval).toList()
         : messages;
-    final find = context.watch<ChatFind>();
     return ChatMessageList(
       key: const ValueKey('chat-message-list'),
       messages: visible,
-      focus: find.current(messages),
       working: working,
       live: session.loaded && !session.loading,
       onEdit: (message) => _edit(context, session, message),

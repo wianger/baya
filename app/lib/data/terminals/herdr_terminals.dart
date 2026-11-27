@@ -197,9 +197,11 @@ class TerminalStream {
   StreamSubscription<({String method, Json params})>? _news;
   StreamSubscription<void>? _online;
 
-  final _bytes = StreamController<Uint8List>.broadcast();
-  final _resets = StreamController<void>.broadcast();
-  final _sizes = StreamController<(int, int)>.broadcast();
+  // Held until the page listens: the first paint (and its size) can come
+  // in before the attach's answer does, and must not be lost.
+  final _bytes = StreamController<Uint8List>();
+  final _resets = StreamController<void>();
+  final _sizes = StreamController<(int, int)>();
   final _ended = Completer<String>();
 
   /// The program's output, starting with a paint of the screen.
