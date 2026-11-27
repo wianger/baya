@@ -264,7 +264,8 @@ void main() {
     final item = vm.allItems.firstWhere((i) => i.sessionId == 'herdr-w1-p2');
     expect(vm.workspaceLabel(vm.workspaceKeyFor(item)), 'carve');
     final own = vm.allItems.firstWhere((i) => i.sessionId == 'own');
-    expect(vm.workspaceLabel(vm.workspaceKeyFor(own)), 'Inbox');
+    // Nobody filed it: its folder's workspace.
+    expect(vm.workspaceLabel(vm.workspaceKeyFor(own)), 'app');
 
     vm.dispose();
     hosts.dispose();

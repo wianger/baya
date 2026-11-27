@@ -254,9 +254,10 @@ class NewSessionViewModel extends ViewModel<NewSessionState> {
         agentSessionId: agentSessionId,
         space: _spaceName(current),
       );
-      return _disposed
-          ? null
-          : result.withWorkspace(current.selectedWorkspace!);
+      if (_disposed) return null;
+      // No workspace chosen: it lands in its folder's.
+      final workspace = current.selectedWorkspace;
+      return workspace == null ? result : result.withWorkspace(workspace);
     } catch (error) {
       if (!_disposed) {
         emit(

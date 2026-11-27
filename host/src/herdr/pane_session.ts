@@ -11,6 +11,7 @@ import { BAYA_META, type PromptResponse } from "../acp/schema.ts";
 import type { SessionRecord } from "../session/registry.ts";
 import { folderName } from "../session/registry.ts";
 import type { PaneAgent, PaneHost } from "./app.ts";
+import { knownModels, modelOption, modelsFor } from "./models.ts";
 import { agentFamily, locateRecord, readRecord, recordsIn, type Update } from "./records.ts";
 
 /** How much of a long conversation a phone is sent when it opens it. */
@@ -42,6 +43,8 @@ export class PaneSession {
   private sent = 0;
   private recordTitle: string | null = null;
   private updatedAt = Date.now();
+  /** The model last picked from a phone; null until one is. */
+  private model: string | null = null;
   /** Prompts waiting for the agent to finish the turn they started. */
   private readonly waiting: ((response: PromptResponse) => void)[] = [];
 
@@ -178,7 +181,19 @@ export class PaneSession {
       this.sent = updates.length;
     }
     this.watch();
+    const models = knownModels(this.pane.agent);
+    // Still being read (Pi's catalog): sent once it is.
+    if (models === null) {
+      void modelsFor(this.pane.agent).then((later) => {
+        if (!later.length || !this.attached.has(phone)) return;
+        this.send(phone, {
+          sessionUpdate: "config_option_update",
+          configOptions: [modelOption(later, this.model)],
+        } as Update);
+      });
+    }
     return {
+      ...(models?.length ? { configOptions: [modelOption(models, this.model)] } : {}),
       _meta: {
         [BAYA_META]: {
           agent: this.pane.agent,
@@ -252,10 +267,25 @@ export class PaneSession {
     void this.app.sendKeys(this.pane.paneId, ["esc"]).catch(() => {});
   }
 
-  setConfigOption(_phone: PhoneLink, _params: Json): Promise<Json> {
-    return Promise.reject(
-      RpcError.invalidParams("This agent runs in herdr: change its settings in its terminal."),
-    );
+  /** A model picked on the phone: `/model <name>` typed into its TUI. */
+  async setConfigOption(_phone: PhoneLink, params: Json): Promise<Json> {
+    const value = params["value"];
+    if (params["configId"] !== "model" || typeof value !== "string" || !value) {
+      throw RpcError.invalidParams("This agent runs in herdr: change that in its terminal.");
+    }
+    const models = await modelsFor(this.pane.agent);
+    if (!models.some((m) => m.value === value)) {
+      throw RpcError.invalidParams(`${value} is not one of its models.`);
+    }
+    if (this.working || this.pane.status === "blocked") {
+      throw RpcError.invalidParams("Change the model once its turn is over.");
+    }
+    await this.app.prompt(this.pane.paneId, `/model ${value}`);
+    this.model = value;
+    const configOptions = [modelOption(models, value)];
+    for (const phone of this.attached)
+      this.send(phone, { sessionUpdate: "config_option_update", configOptions } as Update);
+    return { configOptions };
   }
 
   setMode(phone: PhoneLink, params: Json): Promise<Json> {

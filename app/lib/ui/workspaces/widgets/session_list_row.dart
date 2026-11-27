@@ -13,6 +13,29 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+/// [items] as herdr-app lists sessions: those working (or waiting for an
+/// answer), then the idle ones, finished and not yet seen first.
+(List<HomeItem>, List<HomeItem>) splitByActivity(
+  HomeViewModel vm,
+  List<HomeItem> items,
+  Preferences? prefs,
+) {
+  final working = <HomeItem>[];
+  final unseen = <HomeItem>[];
+  final idle = <HomeItem>[];
+  for (final item in items) {
+    if (vm.isRoomWorking(item.peer.remoteEpk, item.sessionId) ||
+        item.session.waitingForAnswer) {
+      working.add(item);
+    } else if (prefs?.isUnread(item.peer.remoteEpk, item.session) ?? false) {
+      unseen.add(item);
+    } else {
+      idle.add(item);
+    }
+  }
+  return (working, [...unseen, ...idle]);
+}
+
 /// A place the drawer leads to, or a session: its icon and name.
 class DrawerLine extends StatelessWidget {
   const DrawerLine({

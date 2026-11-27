@@ -134,7 +134,7 @@ class FakeWorkspaces extends IWorkspaceRepository {
 Future<void> tick() => Future<void>.delayed(Duration.zero);
 
 void main() {
-  test('a workspace is required before opening a session', () async {
+  test('with no workspace chosen, a session opens in its folder\'s', () async {
     final repo = FakeWorkspaces();
     final vm = NewSessionViewModel(repo);
     await tick();
@@ -142,9 +142,9 @@ void main() {
     final state = vm.state as NewSessionReady;
     expect(state.workspacesForHost, isEmpty);
     expect(state.selectedWorkspace, isNull);
-    expect(state.canOpen, isFalse);
-    expect(await vm.open(), isNull);
-    expect(repo.opened, isEmpty);
+    final opened = await vm.open();
+    expect(opened?.workspaceKey, isNull);
+    expect(repo.spaces, [null]);
     vm.dispose();
   });
 
