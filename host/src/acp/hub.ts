@@ -1,7 +1,8 @@
 import { homedir } from "node:os";
 import { type AgentDefinition, defaultAgentId, loadConfig } from "../config.ts";
 import { resumeArgs, sessionForPane, setSessionForPane } from "../herdr/aliases.ts";
-import { herdrApp, type PaneHost } from "../herdr/app.ts";
+import { herdrApp, type PaneAgent, type PaneHost } from "../herdr/app.ts";
+import { isMirror, mirrorList, setMirror } from "../herdr/mirrors.ts";
 import { PaneSession, paneSessionId } from "../herdr/pane_session.ts";
 import { locateRecord } from "../herdr/records.ts";
 import { herdrWindow } from "../herdr/window.ts";
@@ -64,11 +65,8 @@ export class SessionHub {
 
   /** Follows herdr's panes (the host does; tests don't). */
   private readonly followPanes: boolean;
-  /**
-   * Where agents live in panes here: the herdr-app window on Windows (herdr's
-   * server runs there with no window), herdr's server and its TUI elsewhere.
-   */
-  private readonly paneHost: PaneHost = process.platform === "win32" ? herdrWindow : herdrApp;
+  /** What each mirror tab last told herdr, so it is told only changes. */
+  private readonly mirrorStates = new Map<string, string>();
 
   constructor(options: { persist?: boolean; panes?: boolean } = {}) {
     this.persist = options.persist ?? true;
@@ -91,10 +89,24 @@ export class SessionHub {
   private async watchPanes(first = false): Promise<void> {
     let running = true;
     try {
-      if (first) await this.paneHost.prepare();
-      const agents = await this.paneHost.agents();
+      if (first) await herdrApp.prepare().catch(() => {});
+      // Agents run in two places: the herdr-app window (over herdr-core) and
+      // herdr's server (its TUI). A tab that only mirrors a window agent in
+      // the TUI is not a conversation of its own.
+      const [inWindow, server] = await Promise.all([
+        herdrWindow.agents().catch(() => null),
+        herdrApp.list().catch(() => null),
+      ]);
+      if (!inWindow && !server) throw new Error("no herdr");
+      if (inWindow && server) await this.syncMirrors(inWindow, server.ids);
+      const agents: [PaneAgent, PaneHost][] = [
+        ...(inWindow ?? []).map((pane): [PaneAgent, PaneHost] => [pane, herdrWindow]),
+        ...(server?.agents ?? [])
+          .filter((pane) => !isMirror(pane.paneId))
+          .map((pane): [PaneAgent, PaneHost] => [pane, herdrApp]),
+      ];
       const live = new Set<string>();
-      for (const pane of agents) {
+      for (const [pane, host] of agents) {
         // A conversation Baya ran before keeps the id the phone knows.
         const alias = sessionForPane(pane.paneId);
         const id = alias ?? paneSessionId(pane.paneId);
@@ -114,7 +126,7 @@ export class SessionHub {
             : undefined;
           const session = new PaneSession(
             pane,
-            this.paneHost,
+            host,
             (changed) => this.paneChanged(changed),
             0,
             alias
@@ -155,17 +167,12 @@ export class SessionHub {
   async startInPane(cwd: string, agent?: string): Promise<PaneSession | null> {
     const id = agent ?? defaultAgentId();
     const kind = id ? HERDR_KINDS[id] : undefined;
-    if (!this.followPanes || !kind || !(await this.paneHost.available())) return null;
+    if (!this.followPanes || !kind) return null;
     const since = Date.now();
-    const paneId = await this.paneHost.start(kind, cwd);
-    const pane = (await this.paneHost.agents()).find((p) => p.paneId === paneId);
-    if (!pane) return null;
-    const session = new PaneSession(
-      pane,
-      this.paneHost,
-      (changed) => this.paneChanged(changed),
-      since,
-    );
+    const started = await this.startAgent(kind, cwd);
+    if (!started) return null;
+    const { pane, host } = started;
+    const session = new PaneSession(pane, host, (changed) => this.paneChanged(changed), since);
     this.panes.set(session.id, session);
     this.paneChanged(session);
     return session;
@@ -182,29 +189,74 @@ export class SessionHub {
     const record = hosted?.record;
     const kind = record ? HERDR_KINDS[record.agent] : undefined;
     if (!this.followPanes || !hosted || !record || !kind || !record.agentSessionId) return null;
-    if (hosted.working || !(await this.paneHost.available())) return null;
+    if (hosted.working) return null;
     const exists = locateRecord(record.agent, record.agentSessionId, record.cwd) !== null;
     const args = resumeArgs(record.agent, record.agentSessionId, exists);
     if (!args) return null;
-    const paneId = await this.paneHost.start(kind, record.cwd, args);
-    setSessionForPane(paneId, id);
-    const pane = (await this.paneHost.agents()).find((p) => p.paneId === paneId);
-    if (!pane) return null;
+    const started = await this.startAgent(kind, record.cwd, args, id);
+    if (!started) return null;
+    const { pane, host } = started;
     hosted.stop();
     this.sessions.delete(id);
-    const session = new PaneSession(
-      pane,
-      this.paneHost,
-      (changed) => this.paneChanged(changed),
-      0,
-      {
-        id,
-        record: record.agentSessionId,
-      },
-    );
+    const session = new PaneSession(pane, host, (changed) => this.paneChanged(changed), 0, {
+      id,
+      record: record.agentSessionId,
+    });
     this.panes.set(id, session);
     this.paneChanged(session);
     return session;
+  }
+
+  /**
+   * Starts [kind] in [cwd]: in herdr-core, shown in the herdr-app window,
+   * with a tab in herdr's TUI showing the same terminal; in herdr's server
+   * alone where herdr-core isn't here. Null when neither is.
+   */
+  private async startAgent(
+    kind: string,
+    cwd: string,
+    args: string[] = [],
+    alias?: string,
+  ): Promise<{ pane: PaneAgent; host: PaneHost } | null> {
+    if (await herdrWindow.available()) {
+      const terminal = await herdrWindow.start(kind, cwd, args);
+      if (alias) setSessionForPane(terminal, alias);
+      if (await herdrApp.available()) {
+        const mirror = await herdrApp.openMirror(cwd, terminal, kind).catch(() => null);
+        if (mirror) setMirror(terminal, mirror);
+      }
+      const pane = (await herdrWindow.agents()).find((p) => p.paneId === terminal);
+      return pane ? { pane, host: herdrWindow } : null;
+    }
+    if (!(await herdrApp.available())) return null;
+    const paneId = await herdrApp.start(kind, cwd, args);
+    if (alias) setSessionForPane(paneId, alias);
+    const pane = (await herdrApp.agents()).find((p) => p.paneId === paneId);
+    return pane ? { pane, host: herdrApp } : null;
+  }
+
+  /**
+   * Keeps herdr's TUI tabs that mirror window agents in step: each shows
+   * its agent's status there; a tab whose agent ended closes; a tab closed
+   * by hand is forgotten (the agent stays in the window).
+   */
+  private async syncMirrors(inWindow: PaneAgent[], serverPanes: Set<string>): Promise<void> {
+    for (const [terminal, mirror] of mirrorList()) {
+      const agent = inWindow.find((p) => p.paneId === terminal);
+      if (!serverPanes.has(mirror) || !agent) {
+        if (!agent && serverPanes.has(mirror)) await herdrApp.closePane(mirror).catch(() => {});
+        setMirror(terminal, null);
+        this.mirrorStates.delete(mirror);
+        continue;
+      }
+      const state = agent.status === "done" ? "idle" : agent.status;
+      if (this.mirrorStates.get(mirror) === state) continue;
+      const reported = await herdrApp
+        .reportAgent(mirror, agent.agent, state, agent.session?.value)
+        .then(() => true)
+        .catch(() => false);
+      if (reported) this.mirrorStates.set(mirror, state);
+    }
   }
 
   private paneChanged(session: PaneSession): void {
