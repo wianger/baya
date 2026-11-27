@@ -28,6 +28,11 @@ export function mirrorList(): [string, string][] {
   return Object.entries(all());
 }
 
+/** The herdr pane mirroring [terminal], if one does. */
+export function mirrorFor(terminal: string): string | undefined {
+  return all()[terminal];
+}
+
 export function isMirror(paneId: string): boolean {
   return Object.values(all()).includes(paneId);
 }

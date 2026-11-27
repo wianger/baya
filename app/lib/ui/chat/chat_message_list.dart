@@ -322,8 +322,15 @@ class _ChatMessageListState extends State<ChatMessageList> {
         notification.dragDetails != null) {
       _keyboardDismissTriggered = false;
     }
-    if (notification is ScrollUpdateNotification ||
-        notification is OverscrollNotification) {
+    // Only a finger dragging this chat, on top, puts the keyboard away: the
+    // list also moves when a keyboard opens over it, for another page's
+    // field (a terminal pushed on top) as much as for the composer.
+    final dragged = switch (notification) {
+      ScrollUpdateNotification(:final dragDetails) => dragDetails != null,
+      OverscrollNotification(:final dragDetails) => dragDetails != null,
+      _ => false,
+    };
+    if (dragged && (ModalRoute.of(context)?.isCurrent ?? true)) {
       if (!_keyboardDismissTriggered) {
         _keyboardDismissTriggered = true;
         FocusManager.instance.primaryFocus?.unfocus();

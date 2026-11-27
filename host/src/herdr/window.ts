@@ -11,8 +11,9 @@ import { join } from "node:path";
 import type { Json } from "../acp/jsonrpc.ts";
 import { folderName } from "../session/registry.ts";
 import { findExecutable } from "../workspace/directories.ts";
-import type { PaneAgent, PaneHost } from "./app.ts";
+import { herdrApp, type PaneAgent, type PaneHost } from "./app.ts";
 import { type HerdrCore, herdr } from "./core.ts";
+import { mirrorFor } from "./mirrors.ts";
 
 /** Labels Baya puts on the terminals it starts. */
 const AGENT = "baya.agent";
@@ -101,6 +102,13 @@ export class HerdrWindow implements PaneHost {
   }
 
   async screen(paneId: string): Promise<{ text: string; rows: number }> {
+    // herdr-core reads text alone; the tab mirroring it in herdr's TUI
+    // shows the same screen with its colours.
+    const mirror = mirrorFor(paneId);
+    if (mirror) {
+      const coloured = await herdrApp.screen(mirror).catch(() => null);
+      if (coloured?.text.trim()) return coloured;
+    }
     const read = await this.core.call("terminal.read", { terminal: paneId, lines: 0 });
     const text = String(read["text"] ?? "");
     return { text, rows: text.split("\n").length };
