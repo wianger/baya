@@ -49,6 +49,7 @@ class DeviceSwitcher extends StatelessWidget {
             subtitle: null,
             rename: enabled && onRename != null,
             delete: enabled && onDelete != null,
+            working: false,
           ),
       ],
     );
@@ -100,9 +101,13 @@ class WorkspaceSwitcher extends StatelessWidget {
     this.canDelete,
     this.onDelete,
     this.enabled = true,
+    this.working = const {},
   });
 
   final Map<String, String> workspaces;
+
+  /// Workspaces with a session working or waiting for an answer.
+  final Set<String> working;
   final Map<String, String> labels;
   final String? selected;
   final bool hasDevice;
@@ -137,6 +142,7 @@ class WorkspaceSwitcher extends StatelessWidget {
                 enabled &&
                 onDelete != null &&
                 (canDelete?.call(entry.key) ?? true),
+            working: working.contains(entry.key),
           ),
       ],
     );
@@ -167,10 +173,31 @@ class WorkspaceSwitcher extends StatelessWidget {
       interactionKey: const Key('workspace-switch'),
       label: context.l10n.workspace,
       value: title,
-      leading: Icon(
-        LucideIcons.layoutDashboard,
-        size: 20,
-        color: canOpen ? context.colors.accent : context.colors.muted,
+      // Another workspace has a session at work: a dot says so.
+      leading: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Icon(
+            LucideIcons.layoutDashboard,
+            size: 20,
+            color: canOpen ? context.colors.accent : context.colors.muted,
+          ),
+          if (working.any((key) => key != selected))
+            Positioned(
+              right: -3,
+              top: -3,
+              child: Container(
+                key: const Key('workspace-working-elsewhere'),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: context.colors.working,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: context.colors.bg, width: 1.5),
+                ),
+              ),
+            ),
+        ],
       ),
       enabled: canOpen,
       onTap: () => _pick(context),
@@ -219,6 +246,7 @@ typedef _ScopeRow = ({
   String? subtitle,
   bool rename,
   bool delete,
+  bool working,
 });
 
 /// The sheet both switchers open: a title with a "New" button, then one row
@@ -279,6 +307,19 @@ Future<({_ScopeAction action, String? key})?> _showScopeSheet(
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // A session in it is at work.
+                  if (row.working)
+                    Padding(
+                      key: ValueKey('$prefix-working-${row.key}'),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: SizedBox.square(
+                        dimension: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.4,
+                          color: colors.working,
+                        ),
+                      ),
+                    ),
                   if (row.rename)
                     IconButton(
                       key: ValueKey('$prefix-rename-${row.key}'),

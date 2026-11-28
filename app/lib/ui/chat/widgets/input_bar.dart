@@ -277,11 +277,9 @@ class _InputBarState extends State<InputBar>
     widget.onSend(text);
   }
 
-  /// Hardware-keyboard behaviour (iPad keyboard case, etc.): plain Enter
-  /// SENDS, Shift+Enter inserts a newline. On a touch soft-keyboard the
-  /// newline arrives via `performAction` (not a key event), so this never
-  /// fires there — the field keeps growing and the user sends with the
-  /// composer button, exactly as before.
+  /// Enter is a new line, from any keyboard (many phone keyboards send it
+  /// as a key press): only the send button sends, or Ctrl/⌘+Enter on a
+  /// hardware keyboard.
   KeyEventResult _onComposerKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final isEnter =
@@ -293,14 +291,12 @@ class _InputBarState extends State<InputBar>
     if (widget.disabled || !_controller.value.composing.isCollapsed) {
       return KeyEventResult.ignored;
     }
-    if (HardwareKeyboard.instance.isShiftPressed) {
-      // Shift+Enter → newline. Inserted explicitly (and consumed) so the
-      // behaviour is identical on every platform instead of depending on
-      // the framework's default multiline key handling.
-      _insertNewlineAtCursor();
+    final keys = HardwareKeyboard.instance;
+    if (keys.isControlPressed || keys.isMetaPressed) {
+      _submit();
       return KeyEventResult.handled;
     }
-    _submit();
+    _insertNewlineAtCursor();
     return KeyEventResult.handled;
   }
 

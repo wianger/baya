@@ -252,6 +252,16 @@ class HomeViewModel extends ViewModel<HomeState> {
     await host.call('session/delete', {'sessionId': item.sessionId});
   }
 
+  /// The selected computer's workspaces with a session at work or waiting
+  /// for an answer.
+  Set<String> get workingWorkspaces => {
+    for (final item in allItems)
+      if (toStandardB64(item.peer.remoteEpk) == selectedDevice &&
+          (isRoomWorking(item.peer.remoteEpk, item.sessionId) ||
+              item.session.waitingForAnswer))
+        workspaceKeyFor(item),
+  };
+
   /// `true` when the session's agent is mid-turn: the blue dot.
   bool isRoomWorking(String epk, String sessionId) =>
       _hosts.find(epk, sessionId)?.session.working ?? false;

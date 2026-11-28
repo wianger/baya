@@ -54,7 +54,6 @@ Future<void> openSessionTerminal(
                 fontSize: prefs.terminalFontSize,
                 onFontSize: (size) =>
                     unawaited(prefs.setTerminalFontSize(size)),
-                engine: prefs.terminalEngine,
                 // A pane shown on the computer too keeps its size there.
                 fixed: result?['observe'] == true,
               );

@@ -106,9 +106,6 @@ class _TerminalsPageState extends State<TerminalsPage> {
             _fontSize = size;
             widget.onFontSize?.call(size);
           },
-          engine:
-              context.read<Preferences?>()?.terminalEngine ??
-              TerminalEngine.xterm,
         ),
       ),
     );

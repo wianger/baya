@@ -234,6 +234,9 @@ export class PhoneTerminals {
     if (!entry.size && cols && rows) entry.size = { cols, rows };
     // Detached while the reply was on its way.
     if (this.streams.get(stream) !== entry) this.core.closeChannel(entry.channel);
+    // Ready to type (and turn the wheel) before the first key: opening it
+    // then made the first drag wait half a second.
+    else if (observe) this.openTyping(entry);
     return { terminal: result["terminal"] };
   }
 
@@ -255,14 +258,23 @@ export class PhoneTerminals {
     }
     // An observer can't type: keys go through a second attach that asks
     // for the size the terminal already has, so typing never resizes it.
-    entry.typing ??= { channel: -1, queued: [] };
-    const typing = entry.typing;
+    const typing = this.openTyping(entry);
     if (typing.channel >= 0) {
       this.core.send(typing.channel, FRAME.data, bytes);
       return;
     }
     typing.queued.push(bytes);
-    if (typing.queued.length > 1 || !entry.size) return;
+  }
+
+  /** An observer's attach for keys, at the size the terminal has. */
+  private openTyping(entry: Stream): { channel: number; queued: Buffer[] } {
+    if (entry.typing) return entry.typing;
+    const typing = { channel: -1, queued: [] as Buffer[] };
+    entry.typing = typing;
+    if (!entry.size) {
+      entry.typing = undefined;
+      return typing;
+    }
     void this.core
       .open(
         "terminal.attach",
@@ -291,6 +303,7 @@ export class PhoneTerminals {
       .catch(() => {
         if (entry.typing === typing) entry.typing = undefined;
       });
+    return typing;
   }
 
   resize(stream: unknown, cols: unknown, rows: unknown): void {

@@ -127,18 +127,6 @@ class SettingsPage extends StatelessWidget {
                             onTap: () =>
                                 prefs.setHideToolCalls(!prefs.hideToolCalls),
                           ),
-                          _ChoiceRow<TerminalEngine>(
-                            key: const Key('settings-terminal-engine'),
-                            icon: LucideIcons.squareTerminal,
-                            label: context.l10n.terminalEngine,
-                            value: prefs.terminalEngine,
-                            choices: {
-                              TerminalEngine.xterm: 'xterm',
-                              TerminalEngine.ghostty:
-                                  context.l10n.terminalEngineGhostty,
-                            },
-                            onChanged: prefs.setTerminalEngine,
-                          ),
                         ],
                       ),
                       const SizedBox(height: 22),

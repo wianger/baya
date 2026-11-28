@@ -343,12 +343,8 @@ void main() {
     expectCollapsed(tester);
   });
 
-  // Hardware keyboard (iPad keyboard case): plain Enter SENDS, Shift+Enter
-  // inserts a newline. Touch behaviour is unaffected (soft Enter = newline via
-  // performAction, send via the button).
-  testWidgets('hardware Enter sends; Shift+Enter inserts a newline', (
-    tester,
-  ) async {
+  // Enter is a new line from any keyboard; Ctrl+Enter sends, as the button.
+  testWidgets('Enter inserts a newline; Ctrl+Enter sends', (tester) async {
     final sent = <String>[];
     await tester.pumpWidget(
       MaterialApp(
@@ -359,39 +355,21 @@ void main() {
     );
 
     final field = find.byType(TextField);
-    await tester.enterText(field, 'hello');
-    // The composer opens into its card.
-    for (var i = 0; i < 5; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-    await tester.pump();
-
-    // Plain Enter → send + clear.
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.pump();
-    expect(sent, ['hello']);
-    expect(
-      tester.widget<TextField>(field).controller!.text,
-      isEmpty,
-      reason: 'submit clears the field',
-    );
-
-    // Shift+Enter → newline, NOT a send.
     await tester.enterText(field, 'line1');
     // The composer opens into its card.
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pump();
-    expect(sent, ['hello'], reason: 'shift+enter must not send');
-    expect(
-      tester.widget<TextField>(field).controller!.text,
-      'line1\n',
-      reason: 'shift+enter inserts a newline at the caret',
-    );
+    expect(sent, isEmpty, reason: 'Enter must not send');
+    expect(tester.widget<TextField>(field).controller!.text, 'line1\n');
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(sent, ['line1']);
   });
 
   // While there is no content, hardware Enter does nothing while streaming.
