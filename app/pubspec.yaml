@@ -60,8 +60,7 @@ dependencies:
   share_plus: ^13.3.1
   video_player: ^2.14.1
   flutter_svg: ^2.3.2
-  xterm: ^4.0.0
-  # Trial terminal engine: Ghostty's libghostty-vt (MIT), prebuilt per ABI.
+  # The terminal engine: Ghostty's libghostty-vt (MIT), prebuilt per ABI.
   libghostty: ^0.0.13
 dev_dependencies:
   flutter_test:

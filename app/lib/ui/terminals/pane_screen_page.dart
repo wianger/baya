@@ -15,6 +15,7 @@ import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/terminals/ghostty_view.dart';
+import 'package:app/ui/terminals/wheel_driver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -64,7 +65,7 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
   // One finger: a tap, or a drag that turns the wheel. Two: a pinch.
   final _pointers = <int, Offset>{};
   (Offset, Duration)? _touch;
-  double _wheel = 0;
+  late final _wheel = WheelDriver(onTurns: _turn, every: const Duration(milliseconds: 80));
   double? _pinchStart;
   double? _pinchFrom;
   Timer? _poll;
@@ -85,7 +86,7 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
   @override
   void dispose() {
     _poll?.cancel();
-    _turnsTimer?.cancel();
+    _wheel.dispose();
     _screen.dispose();
     _line.dispose();
     _lineFocus.dispose();
@@ -144,6 +145,7 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
   }
 
   void _down(PointerDownEvent event) {
+    _wheel.stop();
     _pointers[event.pointer] = event.localPosition;
     _touch = _pointers.length == 1
         ? (event.localPosition, event.timeStamp)
@@ -166,33 +168,21 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
       return;
     }
     // Mostly sideways is seeing the rest of a wide screen.
-    if (_pointers.length != 1 || event.delta.dy.abs() < event.delta.dx.abs()) {
+    if (_pointers.length != 1 ||
+        event.delta.dy.abs() < event.delta.dx.abs()) {
       return;
     }
-    _wheel += event.delta.dy;
-    final line = _font * 1.25;
-    final x = _screen.cols ~/ 2 + 1;
-    final y = _screen.rows ~/ 2 + 1;
-    while (_wheel.abs() >= line) {
-      // Finger down: back to older output.
-      final up = _wheel > 0;
-      _wheel -= up ? line : -line;
-      _turns.write('\x1b[<${up ? 64 : 65};$x;${y}M');
-    }
-    // Sent together every 80 ms: each is a trip to herdr on the computer.
-    if (_turns.isNotEmpty) _turnsTimer ??= Timer(_turnsEvery, _sendTurns);
+    _wheel
+      ..line = _font * 1.25
+      ..drag(event.delta.dy, event.timeStamp);
   }
 
-  final _turns = StringBuffer();
-  Timer? _turnsTimer;
-  static const _turnsEvery = Duration(milliseconds: 80);
-
-  void _sendTurns() {
-    _turnsTimer = null;
-    if (_turns.isEmpty) return;
-    final turns = _turns.toString();
-    _turns.clear();
-    unawaited(_input(text: turns, haptic: false));
+  /// [turns] of the program's wheel (up when positive), in one trip to herdr.
+  void _turn(int turns) {
+    final x = _screen.cols ~/ 2 + 1;
+    final y = _screen.rows ~/ 2 + 1;
+    final one = '\x1b[<${turns > 0 ? 64 : 65};$x;${y}M';
+    unawaited(_input(text: one * turns.abs(), haptic: false));
   }
 
   void _up(PointerEvent event) {
@@ -210,7 +200,7 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
         event.timeStamp - touch.$2 < const Duration(milliseconds: 350)) {
       _lineFocus.requestFocus();
     }
-    if (_pointers.isEmpty) _wheel = 0;
+    if (_pointers.isEmpty) _wheel.release();
   }
 
   void _submit() {
@@ -306,8 +296,11 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
                       key: const Key('pane-screen-input'),
                       controller: _line,
                       focusNode: _lineFocus,
-                      onSubmitted: (_) => _submit(),
-                      textInputAction: TextInputAction.send,
+                      // Enter is a new line; the send button sends.
+                      minLines: 1,
+                      maxLines: 4,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
                       decoration: InputDecoration(
                         hintText: l10n.paneScreenType,
                       ),

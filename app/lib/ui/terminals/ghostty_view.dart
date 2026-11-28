@@ -1,4 +1,4 @@
-/// The trial terminal engine: Ghostty's libghostty-vt keeps the screen
+/// The terminal engine: Ghostty's libghostty-vt keeps the screen
 /// (parsing, scrollback, modes), and this view paints it.
 ///
 /// Painting follows the research notes: rows the engine reports unchanged
@@ -96,37 +96,73 @@ class GhosttyController extends ChangeNotifier {
     _repaint();
   }
 
+  /// Lines scrolled back from the newest, as far as this view knows.
+  int get scrolledBack => _back;
+  int _back = 0;
+
   /// Scrolls the view [lines] up (negative) or down.
   void scroll(int lines) {
     if (lines == 0) return;
     terminal.scrollViewport(lines);
+    _back = math.max(0, _back - lines);
     _repaint();
   }
 
   void toBottom() {
     terminal.scrollToBottom();
+    _back = 0;
     _repaint();
   }
 
   /// A fresh screen: the computer paints it again after a reconnect.
   void reset() {
     terminal.reset();
+    _back = 0;
     _repaint();
   }
 
+  /// The screen as text, a line per row (what a reader or a test sees).
+  String get text {
+    final state = vt.RenderState();
+    final rows = vt.RowIterator();
+    final cells = vt.CellIterator();
+    try {
+      state.update(terminal);
+      rows.reset(state);
+      final lines = <String>[];
+      while (rows.next()) {
+        cells.reset(rows);
+        final line = StringBuffer();
+        while (cells.next()) {
+          if (cells.wide == vt.CellWidth.spacerTail) continue;
+          line.write(cells.hasText ? cells.content : ' ');
+        }
+        lines.add(line.toString().trimRight());
+      }
+      return lines.join('\n');
+    } finally {
+      cells.dispose();
+      rows.dispose();
+      state.dispose();
+    }
+  }
+
+  bool _disposed = false;
+
   /// At most one paint per frame, however many writes came in.
   void _repaint() {
-    if (_scheduled) return;
+    if (_scheduled || _disposed) return;
     _scheduled = true;
     SchedulerBinding.instance.scheduleFrameCallback((_) {
       _scheduled = false;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     });
     SchedulerBinding.instance.scheduleFrame();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     terminal.dispose();
     stats.dispose();
     super.dispose();
@@ -160,7 +196,6 @@ class _GhosttyViewState extends State<GhosttyView> {
   final _state = vt.RenderState();
   final _rows = vt.RowIterator();
   final _cells = vt.CellIterator();
-  double _drag = 0;
 
   @override
   void dispose() {
@@ -209,30 +244,20 @@ class _GhosttyViewState extends State<GhosttyView> {
             widget.onResize(cols, rows);
           });
         }
-        return GestureDetector(
-          // Dragging scrolls the scrollback, a line at a time.
-          onVerticalDragUpdate: (details) {
-            _drag += details.delta.dy;
-            final lines = (_drag / metrics.height).truncate();
-            if (lines != 0) {
-              _drag -= lines * metrics.height;
-              widget.controller.scroll(-lines);
-            }
-          },
-          onVerticalDragEnd: (_) => _drag = 0,
-          child: RepaintBoundary(
-            child: CustomPaint(
-              size: Size(constraints.maxWidth, constraints.maxHeight),
-              painter: _GhosttyPainter(
-                controller: widget.controller,
-                state: _state,
-                rows: _rows,
-                cells: _cells,
-                metrics: metrics,
-                foreground: colors.text,
-                background: colors.bg,
-                cursor: colors.text,
-              ),
+        // Drags are the page's: they turn the program's wheel, or scroll
+        // this view's history.
+        return RepaintBoundary(
+          child: CustomPaint(
+            size: Size(constraints.maxWidth, constraints.maxHeight),
+            painter: _GhosttyPainter(
+              controller: widget.controller,
+              state: _state,
+              rows: _rows,
+              cells: _cells,
+              metrics: metrics,
+              foreground: colors.text,
+              background: colors.bg,
+              cursor: colors.text,
             ),
           ),
         );
@@ -248,10 +273,15 @@ class _CellMetrics {
   factory _CellMetrics.of(BuildContext context, double fontSize) {
     final style = TextStyle(
       fontFamily: kMonoFamily,
+      // Icons from Nerd Fonts, CJK, emoji, then the symbol blocks TUIs
+      // draw with (Claude Code's ⏵⏵ mode marks, arrows, boxes).
       fontFamilyFallback: const [
         'Symbols Nerd Font Mono',
         'Noto Sans Mono CJK SC',
         'Noto Color Emoji',
+        'Noto Sans Symbols',
+        'Noto Sans Symbols 2',
+        'Noto Sans Math',
       ],
       fontSize: fontSize,
       height: 1.2,

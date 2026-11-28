@@ -1,31 +1,33 @@
-/// One of the computer's terminals, full screen, made for a phone.
+/// One of the computer's terminals, full screen, made for a phone, drawn
+/// by Ghostty's terminal engine (libghostty-vt: the computer's own widths
+/// for CJK, emoji and icons).
 ///
-/// It opens for reading: no keyboard over half the screen. Pinch to change
-/// the text size, which changes the terminal's columns too, so the program
-/// on the computer lays itself out for this screen. Typing goes through a
-/// composer by default (the phone's own keyboard, with autocorrect, voice
-/// and paste), sent as one line; "keys" mode types straight into the
-/// terminal. When the program waits for an answer, the answers are buttons.
-/// The terminal outlives this page and every connection; coming back paints
-/// it as it is now.
+/// It opens for reading: no keyboard over half the screen until asked for
+/// (a tap). Pinch to change the text size, which changes the terminal's
+/// columns too, so the program on the computer lays itself out for this
+/// screen. Dragging scrolls: a full-screen program's own history through
+/// its wheel, a shell's scrollback here; a flick keeps going. Hold to read
+/// and copy the history as text. Typing goes through a composer by default
+/// (the phone's own keyboard, with autocorrect, voice and paste), sent with
+/// the send button; "keys" mode types straight into the terminal. When the
+/// program waits for an answer, the answers are buttons. The terminal
+/// outlives this page and every connection; coming back paints it as it is
+/// now.
 library;
 
 import 'dart:async';
-import 'dart:convert';
-import 'dart:math' as math;
 
-import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/terminals/ghostty_view.dart';
+import 'package:app/ui/terminals/wheel_driver.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:xterm/xterm.dart';
 
 class TerminalPage extends StatefulWidget {
   const TerminalPage({
@@ -35,7 +37,6 @@ class TerminalPage extends StatefulWidget {
     this.online,
     this.fontSize = 13,
     this.onFontSize,
-    this.engine = TerminalEngine.xterm,
     this.fixed = false,
   });
 
@@ -49,9 +50,6 @@ class TerminalPage extends StatefulWidget {
   final double fontSize;
   final ValueChanged<double>? onFontSize;
 
-  /// What draws it: xterm.dart, or the Ghostty trial.
-  final TerminalEngine engine;
-
   /// Shown at its own size, which the computer keeps (a pane shown there
   /// too): wider than the phone, it is dragged sideways to see all of it.
   final bool fixed;
@@ -60,18 +58,16 @@ class TerminalPage extends StatefulWidget {
   State<TerminalPage> createState() => _TerminalPageState();
 }
 
-/// Lines kept above the screen on the phone.
-const _scrollback = 10000;
 const _minFont = 7.0;
 const _maxFont = 24.0;
 
 enum _Input { compose, keys }
 
 class _TerminalPageState extends State<TerminalPage> {
-  late Terminal _terminal = _newTerminal();
-  final _controller = TerminalController();
-  final _focus = FocusNode();
-  final _scroll = ScrollController();
+  late final _ghostty = GhosttyController(
+    onOutput: (data) => _stream?.input(data),
+  );
+  final _keysFocus = FocusNode();
   final _line = TextEditingController();
   final _lineFocus = FocusNode();
   late HerdrTerminal _info = widget.terminal;
@@ -86,26 +82,15 @@ class _TerminalPageState extends State<TerminalPage> {
     widget.terminal.cols ?? 80,
     widget.terminal.rows ?? 24,
   );
-  late ByteConversionSink _decoder = _newDecoder();
 
-  /// The Ghostty trial engine, when it draws this terminal.
-  late final GhosttyController? _ghostty =
-      widget.engine == TerminalEngine.ghostty
-      ? GhosttyController(onOutput: (data) => _stream?.input(data))
-      : null;
-
-  /// How fast xterm takes the bytes, beside Ghostty's numbers.
-  final _xtermStats = TerminalStats();
   bool _attaching = false;
   String? _ended;
   String? _error;
   late double _fontSize = widget.fontSize.clamp(_minFont, _maxFont);
   _Input _input = _Input.compose;
-  bool _atBottom = true;
 
-  /// Scrolled to the oldest line the phone holds: older ones are a read
-  /// away.
-  bool _atTop = false;
+  /// Scrolled back from the newest output: the way back down shows.
+  bool _scrolledBack = false;
 
   /// While pinching: the size it started at, and the grid to show.
   double? _pinchFrom;
@@ -116,27 +101,19 @@ class _TerminalPageState extends State<TerminalPage> {
   bool _ctrl = false;
   bool _alt = false;
 
-  Terminal _newTerminal() {
-    final terminal = Terminal(maxLines: _scrollback)
-      ..onOutput = _output
-      ..onResize = _resized
-      ..onBell = () => unawaited(HapticFeedback.heavyImpact());
-    if (widget.fixed) terminal.resize(_size.$1, _size.$2);
-    return terminal;
-  }
-
-  ByteConversionSink _newDecoder() => const Utf8Decoder(allowMalformed: true)
-      .startChunkedConversion(_TerminalSink((text) => _terminal.write(text)));
+  /// What the program asked of the screen, read from its bytes: what a
+  /// drag means, how keys and pastes are sent.
+  final _modes = ScreenModes();
 
   @override
   void initState() {
     super.initState();
-    _scroll.addListener(_scrolled);
+    _ghostty.addListener(_scrolled);
     // Its status (waiting for an answer, working) as hc reports it.
     _changes = widget.repository.changes.listen((_) => _refresh());
     // At its own size: no layout to wait for.
     if (widget.fixed) {
-      _ghostty?.resize(_size.$1, _size.$2, 8, 16);
+      _ghostty.resize(_size.$1, _size.$2, 8, 16);
       unawaited(_attach(_size.$1, _size.$2));
     }
   }
@@ -149,13 +126,12 @@ class _TerminalPageState extends State<TerminalPage> {
     unawaited(_changes?.cancel());
     unawaited(_stream?.close());
     _gridHide?.cancel();
-    _turnsTimer?.cancel();
-    _decoder.close();
-    _ghostty?.dispose();
-    _xtermStats.dispose();
-    _controller.dispose();
-    _focus.dispose();
-    _scroll.dispose();
+    _hold?.cancel();
+    _wheel.dispose();
+    _ghostty
+      ..removeListener(_scrolled)
+      ..dispose();
+    _keysFocus.dispose();
     _line.dispose();
     _lineFocus.dispose();
     super.dispose();
@@ -174,45 +150,17 @@ class _TerminalPageState extends State<TerminalPage> {
   }
 
   void _scrolled() {
-    if (!_scroll.hasClients) return;
-    final position = _scroll.position;
-    final atBottom = position.pixels >= position.maxScrollExtent - 4;
-    final atTop =
-        position.maxScrollExtent > 0 &&
-        position.pixels <= position.minScrollExtent + 4;
-    if (atBottom != _atBottom || atTop != _atTop) {
-      setState(() {
-        _atBottom = atBottom;
-        _atTop = atTop;
-      });
-    }
+    final back = _ghostty.scrolledBack > 0;
+    if (back != _scrolledBack && mounted) setState(() => _scrolledBack = back);
   }
 
-  void _toBottom() {
-    if (_ghostty case final ghostty?) {
-      ghostty.toBottom();
-      return;
-    }
-    if (!_scroll.hasClients) return;
-    unawaited(
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent,
-        duration: BayaMotion.scroll,
-        curve: BayaMotion.enter,
-      ),
-    );
-  }
+  void _toBottom() => _ghostty.toBottom();
 
   /// The view laid out, rotated or zoomed: the first size attaches.
-  void _resized(int cols, int rows, int _, int _) {
+  void _resized(int cols, int rows) {
     // Its size is the computer's.
     if (widget.fixed) return;
-    // Called during layout: show the new grid once this frame is done.
-    if (_pinchFrom != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showGrid(cols, rows);
-      });
-    }
+    if (_pinchFrom != null) _showGrid(cols, rows);
     final stream = _stream;
     if (stream != null) {
       stream.resize(cols, rows);
@@ -244,18 +192,11 @@ class _TerminalPageState extends State<TerminalPage> {
         return;
       }
       _stream = stream;
-      final ghostty = _ghostty;
       _bytes = stream.bytes.listen((bytes) {
         _modes.feed(bytes);
-        if (ghostty != null) {
-          ghostty.write(bytes);
-          return;
-        }
-        final watch = Stopwatch()..start();
-        _decoder.add(bytes);
-        _xtermStats.wrote(bytes.length, watch.elapsed);
+        _ghostty.write(bytes);
       });
-      _resets = stream.resets.listen((_) => _fresh());
+      _resets = stream.resets.listen((_) => _ghostty.reset());
       _sizes = stream.sizes.listen(_sized);
       unawaited(
         stream.ended.then((reason) {
@@ -277,25 +218,11 @@ class _TerminalPageState extends State<TerminalPage> {
   void _sized((int, int) size) {
     if (size == _size) return;
     setState(() => _size = size);
-    _terminal.resize(size.$1, size.$2);
-    _ghostty?.resize(size.$1, size.$2, 8, 16);
+    _ghostty.resize(size.$1, size.$2, 8, 16);
   }
 
-  /// The computer paints the whole screen again after a reconnect.
-  void _fresh() {
-    if (_ghostty case final ghostty?) {
-      ghostty.reset();
-      return;
-    }
-    _decoder.close();
-    final cols = _terminal.viewWidth;
-    final rows = _terminal.viewHeight;
-    setState(() {
-      _terminal = _newTerminal()..resize(cols, rows);
-      _decoder = _newDecoder();
-    });
-  }
-
+  /// Text typed straight into the terminal, with the key bar's one-shot
+  /// Ctrl or Alt on its first character.
   void _output(String data) {
     var out = data;
     if (_ctrl && out.length == 1) {
@@ -311,19 +238,14 @@ class _TerminalPageState extends State<TerminalPage> {
     if (_alt) out = '\x1b$out';
     if (_ctrl || _alt) setState(() => _ctrl = _alt = false);
     _stream?.input(out);
+    _toBottom();
   }
 
-  void _key(TerminalKey key) {
+  void _key(_Key key) {
     unawaited(HapticFeedback.selectionClick());
-    final (ctrl, alt) = (_ctrl, _alt);
-    if (ctrl || alt) setState(() => _ctrl = _alt = false);
-    if (_ghostty != null) {
-      _stream?.input(_keySequence(key, alt: alt));
-      _toBottom();
-      return;
-    }
-    // The terminal encodes the modifiers itself (and the cursor mode).
-    _terminal.keyInput(key, ctrl: ctrl, alt: alt);
+    final alt = _alt;
+    if (_ctrl || _alt) setState(() => _ctrl = _alt = false);
+    _stream?.input(key.sequence(alt: alt, application: _modes.cursorKeys));
     _toBottom();
   }
 
@@ -333,16 +255,12 @@ class _TerminalPageState extends State<TerminalPage> {
     _toBottom();
   }
 
-  /// The composer's line, as the program would take a paste, then Enter.
+  /// The composer's line, as the program takes a paste, then Enter.
   void _submit() {
     final text = _line.text;
     unawaited(HapticFeedback.lightImpact());
     if (text.isNotEmpty) {
-      if (_ghostty != null) {
-        _stream?.input(text);
-      } else {
-        _terminal.paste(text);
-      }
+      _stream?.input(_modes.bracketedPaste ? '\x1b[200~$text\x1b[201~' : text);
     }
     _stream?.input('\r');
     _line.clear();
@@ -350,21 +268,13 @@ class _TerminalPageState extends State<TerminalPage> {
   }
 
   /// A tap on the terminal is for typing: the keyboard comes up, for the
-  /// line composed or (keys mode) straight into the terminal. After the
-  /// terminal's own tap handling, which would take the focus back.
+  /// line composed or (keys mode) straight into the terminal.
   void _tapped() {
     if (_ended != null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (_input == _Input.compose) {
-        _lineFocus.requestFocus();
-      } else {
-        _focus.requestFocus();
-        unawaited(
-          SystemChannels.textInput.invokeMethod<void>('TextInput.show'),
-        );
-      }
-    });
+    (_input == _Input.compose ? _lineFocus : _keysFocus).requestFocus();
+    if (_input == _Input.keys) {
+      unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.show'));
+    }
   }
 
   void _toggleInput() {
@@ -372,19 +282,14 @@ class _TerminalPageState extends State<TerminalPage> {
     setState(() {
       _input = _input == _Input.compose ? _Input.keys : _Input.compose;
     });
-    // Once the view has rebuilt for the new mode (the raw keyboard only
-    // attaches when the terminal takes soft input).
+    // Once the view has rebuilt for the new mode.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (_input == _Input.keys) {
-        _focus.requestFocus();
-      } else {
-        _lineFocus.requestFocus();
-      }
+      (_input == _Input.keys ? _keysFocus : _lineFocus).requestFocus();
     });
   }
 
-  // ── pinch ──────────────────────────────────────────────────────────────
+  // ── touch: tap, hold, drag, pinch ─────────────────────────────────────
 
   final _pointers = <int, Offset>{};
   double? _pinchStart;
@@ -397,100 +302,63 @@ class _TerminalPageState extends State<TerminalPage> {
   /// Where and when a one-finger touch began, to tell a tap from a drag.
   (Offset, Duration)? _touch;
 
+  /// Holding still opens the history as text, to select and copy.
+  Timer? _hold;
+
+  /// A drag turns the program's wheel (a full-screen program keeps its own
+  /// history) or scrolls the scrollback here, flicks included.
+  late final _wheel = WheelDriver(onTurns: _turn);
+
   void _down(PointerDownEvent event) {
+    _wheel.stop();
     _pointers[event.pointer] = event.localPosition;
     _touch = _pointers.length == 1
         ? (event.localPosition, event.timeStamp)
         : null;
+    _hold?.cancel();
+    if (_pointers.length == 1) {
+      _hold = Timer(const Duration(milliseconds: 550), () {
+        _touch = null;
+        unawaited(HapticFeedback.mediumImpact());
+        unawaited(_openHistory());
+      });
+    }
     if (_pointers.length == 2) {
+      _hold?.cancel();
       _pinchStart = _spread;
       _pinchFrom = _fontSize;
     }
   }
 
-  /// A one-finger drag over a full-screen program (pi, vim): xterm's own
-  /// scroll view takes the gesture before its wheel handling sees it, so
-  /// the drag turns into wheel turns here, a line's height each.
-  double _wheel = 0;
-
-  /// What the program asked of the screen, read from its bytes: either
-  /// engine draws it, this tells drags what they mean.
-  final _modes = ScreenModes();
-
-  void _wheelDrag(PointerMoveEvent event) {
-    if (_pointers.length != 1) {
-      _wheel = 0;
-      return;
-    }
-    // Mostly sideways is dragging a wide terminal, not scrolling it.
-    if (event.delta.dy.abs() < event.delta.dx.abs()) return;
-    final ghostty = _ghostty;
-    // The main screen: xterm scrolls its own scrollback; Ghostty's is
-    // scrolled here.
-    if (!_modes.alt && ghostty == null) {
-      _wheel = 0;
-      return;
-    }
-    _wheel += event.delta.dy;
-    final line = _fontSize * 1.25;
-    final (cols, rows) = ghostty != null
-        ? (ghostty.cols, ghostty.rows)
-        : (_terminal.viewWidth, _terminal.viewHeight);
-    // The middle of the screen, 1-based, where the program's main view is.
-    final x = cols ~/ 2 + 1;
-    final y = rows ~/ 2 + 1;
-    while (_wheel.abs() >= line) {
-      // Finger down: back to older output.
-      final up = _wheel > 0;
-      _wheel -= up ? line : -line;
-      if (!_modes.alt) {
-        ghostty?.scroll(up ? -1 : 1);
-        continue;
-      }
-      final button = up ? 64 : 65;
-      if (!_modes.mouse) {
-        _turns.write(up ? '\x1b[A' : '\x1b[B');
-      } else if (_modes.sgr) {
-        _turns.write('\x1b[<$button;$x;${y}M');
-      } else {
-        _turns.write(
-          '\x1b[M${String.fromCharCodes([32 + button, 32 + x, 32 + y])}',
-        );
-      }
-    }
-    // Sent together a few times a frame-pair, not one round trip a line:
-    // each turn makes the program paint its screen again.
-    if (_turns.isNotEmpty) _turnsTimer ??= Timer(_turnsEvery, _sendTurns);
-  }
-
-  final _turns = StringBuffer();
-  Timer? _turnsTimer;
-  static const _turnsEvery = Duration(milliseconds: 40);
-
-  void _sendTurns() {
-    _turnsTimer = null;
-    if (_turns.isEmpty) return;
-    _stream?.input(_turns.toString());
-    _turns.clear();
-  }
-
   void _move(PointerMoveEvent event) {
     if (!_pointers.containsKey(event.pointer)) return;
     _pointers[event.pointer] = event.localPosition;
-    _wheelDrag(event);
+    final touch = _touch;
+    if (touch != null && (event.localPosition - touch.$1).distance > 12) {
+      _hold?.cancel();
+    }
     final start = _pinchStart;
     final from = _pinchFrom;
-    if (_pointers.length < 2 || start == null || from == null || start < 8) {
+    if (_pointers.length == 2 && start != null && from != null && start > 8) {
+      final size = (from * _spread / start).clamp(_minFont, _maxFont);
+      // Half-point steps: each one changes the grid, so not every frame.
+      final stepped = (size * 2).roundToDouble() / 2;
+      if (stepped != _fontSize) setState(() => _fontSize = stepped);
       return;
     }
-    final size = (from * _spread / start).clamp(_minFont, _maxFont);
-    // Half-point steps: each one changes the grid, so not every frame.
-    final stepped = (size * 2).roundToDouble() / 2;
-    if (stepped != _fontSize) setState(() => _fontSize = stepped);
+    // One finger, mostly up or down (sideways sees a wide terminal).
+    if (_pointers.length != 1 || event.delta.dy.abs() < event.delta.dx.abs()) {
+      return;
+    }
+    _wheel
+      ..line = _fontSize * 1.25
+      ..drag(event.delta.dy, event.timeStamp);
   }
 
   void _up(PointerEvent event) {
     _pointers.remove(event.pointer);
+    _hold?.cancel();
+    if (_pointers.isEmpty) _wheel.release();
     final touch = _touch;
     _touch = null;
     if (event is PointerUpEvent &&
@@ -510,6 +378,26 @@ class _TerminalPageState extends State<TerminalPage> {
     }
   }
 
+  /// [turns] of the wheel, up when positive: to a full-screen program, or
+  /// this view's scrollback on the main screen.
+  void _turn(int turns) {
+    if (!_modes.alt) {
+      _ghostty.scroll(-turns);
+      return;
+    }
+    final up = turns > 0;
+    // The middle of the screen, 1-based, where the program's main view is.
+    final x = _ghostty.cols ~/ 2 + 1;
+    final y = _ghostty.rows ~/ 2 + 1;
+    final button = up ? 64 : 65;
+    final one = !_modes.mouse
+        ? (up ? '\x1b[A' : '\x1b[B')
+        : _modes.sgr
+        ? '\x1b[<$button;$x;${y}M'
+        : '\x1b[M${String.fromCharCodes([32 + button, 32 + x, 32 + y])}';
+    _stream?.input(one * turns.abs());
+  }
+
   Future<void> _openHistory() => Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => TerminalHistoryPage(
@@ -520,83 +408,18 @@ class _TerminalPageState extends State<TerminalPage> {
     ),
   );
 
-  TerminalStyle get _textStyle => TerminalStyle(
-    fontSize: _fontSize,
-    fontFamily: kMonoFamily,
-    // Prompts (starship, powerline) and TUIs draw icons from Nerd Fonts'
-    // private-use glyphs.
-    fontFamilyFallback: const [
-      'Symbols Nerd Font Mono',
-      'Noto Sans Mono CJK SC',
-      'Noto Color Emoji',
-      'Noto Sans Symbols',
-      'Noto Sans Symbols 2',
-    ],
-  );
-
-  /// A fixed terminal at its own width, dragged sideways when wider than
-  /// the phone; otherwise the view as it is.
+  /// A fixed terminal at its own size: wider than the phone, it is dragged
+  /// sideways; taller, its bottom (where an agent asks) shows.
   Widget _fit(Widget view) {
     if (!widget.fixed) return view;
-    if (_ghostty != null) {
-      // Ghostty draws the grid at its natural size: dragged both ways,
-      // the bottom (where an agent asks) first.
-      return SingleChildScrollView(
-        key: const Key('terminal-sideways'),
-        scrollDirection: Axis.horizontal,
-        child: SingleChildScrollView(reverse: true, child: view),
-      );
-    }
-    final probe = TextPainter(
-      text: TextSpan(text: 'M' * 20, style: _textStyle.toTextStyle()),
-      textDirection: TextDirection.ltr,
-      textScaler: MediaQuery.textScalerOf(context),
-    )..layout();
-    final cell = probe.width / 20;
-    probe.dispose();
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        key: const Key('terminal-sideways'),
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          // Its columns, the view's padding, and a little slack so the
-          // last column never wraps.
-          width: math.max(constraints.maxWidth, _size.$1 * cell + 12 + cell),
-          height: constraints.maxHeight,
-          child: view,
-        ),
+    return SingleChildScrollView(
+      key: const Key('terminal-sideways'),
+      scrollDirection: Axis.horizontal,
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        reverse: true,
+        child: view,
       ),
-    );
-  }
-
-  TerminalTheme _theme(AppColors colors, Brightness brightness) {
-    final base = brightness == Brightness.dark
-        ? TerminalThemes.defaultTheme
-        : _lightAnsi;
-    return TerminalTheme(
-      cursor: colors.text,
-      selection: colors.text.withValues(alpha: .22),
-      foreground: colors.text,
-      background: colors.bg,
-      black: base.black,
-      red: base.red,
-      green: base.green,
-      yellow: base.yellow,
-      blue: base.blue,
-      magenta: base.magenta,
-      cyan: base.cyan,
-      white: base.white,
-      brightBlack: base.brightBlack,
-      brightRed: base.brightRed,
-      brightGreen: base.brightGreen,
-      brightYellow: base.brightYellow,
-      brightBlue: base.brightBlue,
-      brightMagenta: base.brightMagenta,
-      brightCyan: base.brightCyan,
-      brightWhite: base.brightWhite,
-      searchHitBackground: colors.muted,
-      searchHitBackgroundCurrent: colors.text,
-      searchHitForeground: colors.bg,
     );
   }
 
@@ -605,7 +428,6 @@ class _TerminalPageState extends State<TerminalPage> {
     final colors = context.colors;
     final l10n = context.l10n;
     final info = _info;
-    final brightness = Theme.of(context).brightness;
     final live = _ended == null;
     return Scaffold(
       backgroundColor: colors.bg,
@@ -628,64 +450,18 @@ class _TerminalPageState extends State<TerminalPage> {
                     onPointerUp: _up,
                     onPointerCancel: _up,
                     child: _fit(
-                      _ghostty != null
-                          ? GhosttyView(
-                              controller: _ghostty,
-                              fontSize: _fontSize,
-                              fixed: widget.fixed,
-                              onResize: (cols, rows) =>
-                                  _resized(cols, rows, 0, 0),
-                            )
-                          : TerminalView(
-                              autoResize: !widget.fixed,
-                              // Drags over a full-screen program are wheel
-                              // turns sent from [_wheelDrag].
-                              simulateScroll: false,
-                              _terminal,
-                              key: ObjectKey(_terminal),
-                              controller: _controller,
-                              scrollController: _scroll,
-                              focusNode: _focus,
-                              readOnly: !live,
-                              // Composing: a tap selects or scrolls, it does not
-                              // bring the raw keyboard up.
-                              hardwareKeyboardOnly: _input == _Input.compose,
-                              theme: _theme(colors, brightness),
-                              keyboardAppearance: brightness,
-                              keyboardType: TextInputType.visiblePassword,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                              ),
-                              textStyle: _textStyle,
-                            ),
-                    ),
-                  ),
-                  // While engines are compared: how fast this one parses,
-                  // and (Ghostty) how long a frame takes to paint.
-                  Positioned(
-                    left: 10,
-                    bottom: 8,
-                    child: IgnorePointer(
-                      child: ListenableBuilder(
-                        listenable: _ghostty?.stats ?? _xtermStats,
-                        builder: (context, _) {
-                          final stats = _ghostty?.stats ?? _xtermStats;
-                          return Text(
-                            _ghostty != null
-                                ? 'Ghostty · $stats'
-                                : 'xterm · '
-                                      '${stats.mbPerSecond.toStringAsFixed(1)}'
-                                      ' MB/s',
-                            key: const Key('terminal-engine-stats'),
-                            style: context.typo.monoSmall.copyWith(
-                              fontSize: 10,
-                              color: colors.muted.withValues(alpha: .7),
-                            ),
-                          );
-                        },
+                      GhosttyView(
+                        key: const Key('terminal-screen'),
+                        controller: _ghostty,
+                        fontSize: _fontSize,
+                        fixed: widget.fixed,
+                        onResize: _resized,
                       ),
                     ),
                   ),
+                  // Keys mode: what the phone's keyboard types goes in.
+                  if (live && _input == _Input.keys)
+                    _RawKeys(focus: _keysFocus, onText: _output, onKey: _key),
                   // The grid while pinching: the program's new size.
                   Positioned(
                     top: 12,
@@ -704,15 +480,15 @@ class _TerminalPageState extends State<TerminalPage> {
                       ),
                     ),
                   ),
-                  // Further back than the attach sent: the whole history as
-                  // text, on its own page.
+                  // Back in the scrollback: further back is the whole
+                  // history as text, on its own page.
                   Positioned(
                     top: 10,
                     left: 0,
                     right: 0,
                     child: Center(
                       child: AnimatedScale(
-                        scale: _atTop ? 1 : 0,
+                        scale: _scrolledBack ? 1 : 0,
                         duration: BayaMotion.standard,
                         curve: BayaMotion.spring,
                         child: ActionChip(
@@ -729,7 +505,7 @@ class _TerminalPageState extends State<TerminalPage> {
                     right: 14,
                     bottom: 12,
                     child: AnimatedScale(
-                      scale: _atBottom ? 0 : 1,
+                      scale: _scrolledBack ? 1 : 0,
                       duration: BayaMotion.standard,
                       curve: BayaMotion.spring,
                       child: FloatingActionButton.small(
@@ -776,6 +552,118 @@ class _TerminalPageState extends State<TerminalPage> {
       ),
     );
   }
+}
+
+/// Keys mode: the phone's keyboard typing straight into the terminal. An
+/// invisible field holds a marker the keyboard edits: what is added goes in
+/// as typed, what is taken away as Backspace; hardware keys go as their
+/// sequences.
+class _RawKeys extends StatefulWidget {
+  const _RawKeys({
+    required this.focus,
+    required this.onText,
+    required this.onKey,
+  });
+
+  final FocusNode focus;
+  final ValueChanged<String> onText;
+  final ValueChanged<_Key> onKey;
+
+  @override
+  State<_RawKeys> createState() => _RawKeysState();
+}
+
+class _RawKeysState extends State<_RawKeys> {
+  /// What the field holds between keys: something to delete.
+  static const _marker = '  ';
+  final _field = TextEditingController(text: _marker);
+
+  @override
+  void dispose() {
+    _field.dispose();
+    super.dispose();
+  }
+
+  void _changed(String value) {
+    if (_field.value.composing.isValid && !_field.value.composing.isCollapsed) {
+      return;
+    }
+    if (value.length < _marker.length) {
+      for (var i = value.length; i < _marker.length; i++) {
+        widget.onKey(_Key.backspace);
+      }
+    } else if (value.length > _marker.length) {
+      final typed = value.substring(_marker.length).replaceAll('\n', '\r');
+      widget.onText(typed);
+    }
+    _field.value = const TextEditingValue(
+      text: _marker,
+      selection: TextSelection.collapsed(offset: _marker.length),
+    );
+  }
+
+  KeyEventResult _hardware(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = switch (event.logicalKey) {
+      LogicalKeyboardKey.escape => _Key.escape,
+      LogicalKeyboardKey.tab => _Key.tab,
+      LogicalKeyboardKey.enter || LogicalKeyboardKey.numpadEnter => _Key.enter,
+      LogicalKeyboardKey.backspace => _Key.backspace,
+      LogicalKeyboardKey.arrowUp => _Key.up,
+      LogicalKeyboardKey.arrowDown => _Key.down,
+      LogicalKeyboardKey.arrowLeft => _Key.left,
+      LogicalKeyboardKey.arrowRight => _Key.right,
+      LogicalKeyboardKey.home => _Key.home,
+      LogicalKeyboardKey.end => _Key.end,
+      LogicalKeyboardKey.pageUp => _Key.pageUp,
+      LogicalKeyboardKey.pageDown => _Key.pageDown,
+      LogicalKeyboardKey.delete => _Key.delete,
+      _ => null,
+    };
+    if (key == null) {
+      // Ctrl+letter from a hardware keyboard.
+      final char = event.character;
+      if (HardwareKeyboard.instance.isControlPressed &&
+          char != null &&
+          char.length == 1) {
+        final code = char.toLowerCase().codeUnitAt(0);
+        if (code >= 0x61 && code <= 0x7a) {
+          widget.onText(String.fromCharCode(code - 0x60));
+          return KeyEventResult.handled;
+        }
+      }
+      return KeyEventResult.ignored;
+    }
+    widget.onKey(key);
+    return KeyEventResult.handled;
+  }
+
+  @override
+  Widget build(BuildContext context) => Positioned(
+    left: 0,
+    bottom: 0,
+    width: 1,
+    height: 1,
+    child: Opacity(
+      opacity: 0,
+      child: Focus(
+        onKeyEvent: _hardware,
+        skipTraversal: true,
+        child: TextField(
+          key: const Key('terminal-raw-keys'),
+          controller: _field,
+          focusNode: widget.focus,
+          autocorrect: false,
+          enableSuggestions: false,
+          keyboardType: TextInputType.visiblePassword,
+          maxLines: null,
+          onChanged: _changed,
+        ),
+      ),
+    ),
+  );
 }
 
 /// When the program waits: what it asks, and answers as buttons.
@@ -909,8 +797,9 @@ class _Composer extends StatelessWidget {
                       focusNode: focus,
                       minLines: 1,
                       maxLines: 4,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => onSubmit(),
+                      // Enter is a new line; the send button sends.
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
                       style: context.typo.sansBody.copyWith(
                         fontSize: BayaType.body,
                       ),
@@ -1064,7 +953,7 @@ class _KeyBar extends StatelessWidget {
   final bool alt;
   final VoidCallback onCtrl;
   final VoidCallback onAlt;
-  final ValueChanged<TerminalKey> onKey;
+  final ValueChanged<_Key> onKey;
   final ValueChanged<String> onText;
 
   @override
@@ -1116,7 +1005,7 @@ class _KeyBar extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           children: [
-            key('esc', onTap: () => onKey(TerminalKey.escape)),
+            key('esc', onTap: () => onKey(_Key.escape)),
             key(
               'ctrl',
               id: const Key('terminal-key-ctrl'),
@@ -1124,7 +1013,7 @@ class _KeyBar extends StatelessWidget {
               onTap: onCtrl,
             ),
             key('alt', on: alt, onTap: onAlt),
-            key('tab', onTap: () => onKey(TerminalKey.tab)),
+            key('tab', onTap: () => onKey(_Key.tab)),
             key(
               '^C',
               id: const Key('terminal-key-interrupt'),
@@ -1133,71 +1022,31 @@ class _KeyBar extends StatelessWidget {
             key(
               '←',
               icon: LucideIcons.arrowLeft,
-              onTap: () => onKey(TerminalKey.arrowLeft),
+              onTap: () => onKey(_Key.left),
             ),
-            key(
-              '↑',
-              icon: LucideIcons.arrowUp,
-              onTap: () => onKey(TerminalKey.arrowUp),
-            ),
+            key('↑', icon: LucideIcons.arrowUp, onTap: () => onKey(_Key.up)),
             key(
               '↓',
               icon: LucideIcons.arrowDown,
-              onTap: () => onKey(TerminalKey.arrowDown),
+              onTap: () => onKey(_Key.down),
             ),
             key(
               '→',
               icon: LucideIcons.arrowRight,
-              onTap: () => onKey(TerminalKey.arrowRight),
+              onTap: () => onKey(_Key.right),
             ),
             for (final symbol in const ['/', '-', '|', '~', '*', r'$'])
               key(symbol, onTap: () => onText(symbol)),
-            key('home', onTap: () => onKey(TerminalKey.home)),
-            key('end', onTap: () => onKey(TerminalKey.end)),
-            key('pgup', onTap: () => onKey(TerminalKey.pageUp)),
-            key('pgdn', onTap: () => onKey(TerminalKey.pageDown)),
+            key('home', onTap: () => onKey(_Key.home)),
+            key('end', onTap: () => onKey(_Key.end)),
+            key('pgup', onTap: () => onKey(_Key.pageUp)),
+            key('pgdn', onTap: () => onKey(_Key.pageDown)),
           ],
         ),
       ),
     );
   }
 }
-
-class _TerminalSink implements Sink<String> {
-  _TerminalSink(this._write);
-  final void Function(String) _write;
-  @override
-  void add(String data) => _write(data);
-  @override
-  void close() {}
-}
-
-/// ANSI colors that read on white.
-const _lightAnsi = TerminalTheme(
-  cursor: Color(0xFF000000),
-  selection: Color(0x33000000),
-  foreground: Color(0xFF0A0A0A),
-  background: Color(0xFFFFFFFF),
-  black: Color(0xFF000000),
-  red: Color(0xFFC62A22),
-  green: Color(0xFF1E7B34),
-  yellow: Color(0xFF8A6A00),
-  blue: Color(0xFF1F5FBF),
-  magenta: Color(0xFF8E3FB5),
-  cyan: Color(0xFF0F7A80),
-  white: Color(0xFFBFBFBF),
-  brightBlack: Color(0xFF6B6B6B),
-  brightRed: Color(0xFFE0443B),
-  brightGreen: Color(0xFF2E9E4A),
-  brightYellow: Color(0xFFA88400),
-  brightBlue: Color(0xFF3B7BE0),
-  brightMagenta: Color(0xFFA858D0),
-  brightCyan: Color(0xFF1A9AA0),
-  brightWhite: Color(0xFF5A5A5A),
-  searchHitBackground: Color(0xFFBFBFBF),
-  searchHitBackgroundCurrent: Color(0xFF000000),
-  searchHitForeground: Color(0xFFFFFFFF),
-);
 
 /// A terminal's history as far back as the computer keeps it, as plain
 /// text: read-only, selectable, opening at the newest line.
@@ -1280,26 +1129,43 @@ class _TerminalHistoryPageState extends State<TerminalHistoryPage> {
   }
 }
 
-/// What the key bar's keys send, for the Ghostty trial (xterm encodes its
-/// own). Normal cursor mode, as shells and most TUIs expect.
-String _keySequence(TerminalKey key, {required bool alt}) {
-  final sequence = switch (key) {
-    TerminalKey.escape => '\x1b',
-    TerminalKey.tab => '\t',
-    TerminalKey.enter => '\r',
-    TerminalKey.backspace => '\x7f',
-    TerminalKey.arrowUp => '\x1b[A',
-    TerminalKey.arrowDown => '\x1b[B',
-    TerminalKey.arrowRight => '\x1b[C',
-    TerminalKey.arrowLeft => '\x1b[D',
-    TerminalKey.home => '\x1b[H',
-    TerminalKey.end => '\x1b[F',
-    TerminalKey.pageUp => '\x1b[5~',
-    TerminalKey.pageDown => '\x1b[6~',
-    TerminalKey.delete => '\x1b[3~',
-    _ => '',
-  };
-  return alt && sequence.isNotEmpty ? '\x1b$sequence' : sequence;
+/// The keys a phone keyboard lacks, as the key bar and keys mode send them.
+enum _Key {
+  escape,
+  tab,
+  enter,
+  backspace,
+  up,
+  down,
+  right,
+  left,
+  home,
+  end,
+  pageUp,
+  pageDown,
+  delete;
+
+  /// Its bytes; arrows in the program's cursor mode (`application`: SS3,
+  /// as vim and less ask for), [alt] as a leading Esc.
+  String sequence({required bool alt, bool application = false}) {
+    final arrow = application ? '\x1bO' : '\x1b[';
+    final out = switch (this) {
+      escape => '\x1b',
+      tab => '\t',
+      enter => '\r',
+      backspace => '\x7f',
+      up => '${arrow}A',
+      down => '${arrow}B',
+      right => '${arrow}C',
+      left => '${arrow}D',
+      home => '${arrow}H',
+      end => '${arrow}F',
+      pageUp => '\x1b[5~',
+      pageDown => '\x1b[6~',
+      delete => '\x1b[3~',
+    };
+    return alt ? '\x1b$out' : out;
+  }
 }
 
 /// The private modes a program set that change what a drag means: the
@@ -1309,6 +1175,12 @@ class ScreenModes {
   bool alt = false;
   bool mouse = false;
   bool sgr = false;
+
+  /// Arrows in application mode (DECCKM).
+  bool cursorKeys = false;
+
+  /// Pastes wrapped so the program takes them as one (2004).
+  bool bracketedPaste = false;
 
   static final _set = RegExp(r'\x1b\[\?([\d;]+)([hl])');
   String _tail = '';
@@ -1326,6 +1198,10 @@ class ScreenModes {
             mouse = on;
           case '1006':
             sgr = on;
+          case '1':
+            cursorKeys = on;
+          case '2004':
+            bracketedPaste = on;
         }
       }
     }

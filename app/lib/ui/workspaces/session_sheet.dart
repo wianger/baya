@@ -15,6 +15,7 @@ Future<void> showSessionSheet(
   required String computer,
   required String? folder,
   VoidCallback? onTerminal,
+  VoidCallback? onNewTerminal,
   VoidCallback? onFiles,
   VoidCallback? onChanges,
   required VoidCallback onRename,
@@ -31,6 +32,7 @@ Future<void> showSessionSheet(
       computer: computer,
       folder: folder,
       onTerminal: onTerminal,
+      onNewTerminal: onNewTerminal,
       onFiles: onFiles,
       onChanges: onChanges,
       onRename: onRename,
@@ -46,6 +48,7 @@ class _SessionSheet extends StatefulWidget {
     required this.computer,
     required this.folder,
     required this.onTerminal,
+    this.onNewTerminal,
     required this.onFiles,
     required this.onChanges,
     required this.onRename,
@@ -57,6 +60,9 @@ class _SessionSheet extends StatefulWidget {
   final String computer;
   final String? folder;
   final VoidCallback? onTerminal;
+
+  /// A shell of its own beside the agent, in the session's folder.
+  final VoidCallback? onNewTerminal;
   final VoidCallback? onFiles;
   final VoidCallback? onChanges;
   final VoidCallback onRename;
@@ -123,6 +129,14 @@ class _SessionSheetState extends State<_SessionSheet> {
                 label: l10n.sessionTerminal,
                 chevron: true,
                 onTap: () => _then(terminal),
+              ),
+            if (widget.onNewTerminal case final shell?)
+              BayaRow(
+                key: const ValueKey('session-action-new-terminal'),
+                icon: LucideIcons.squarePlus,
+                label: l10n.newTerminalHere,
+                chevron: true,
+                onTap: () => _then(shell),
               ),
             if (widget.onChanges case final changes?)
               BayaRow(

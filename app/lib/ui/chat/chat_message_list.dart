@@ -231,6 +231,9 @@ class ChatMessageList extends StatefulWidget {
   /// Words selected in an answer, to ask about in the composer.
   final ValueChanged<String>? onAsk;
 
+  /// A queued prompt asked to go now: the turn it waits behind stops.
+  final VoidCallback? onSendNow;
+
   const ChatMessageList({
     super.key,
     required this.messages,
@@ -238,6 +241,7 @@ class ChatMessageList extends StatefulWidget {
     this.live = true,
     this.onEdit,
     this.onAsk,
+    this.onSendNow,
   });
 
   @override
@@ -555,6 +559,7 @@ class _ChatMessageListState extends State<ChatMessageList> {
                             onEdit: widget.onEdit == null
                                 ? null
                                 : () => widget.onEdit?.call(msg),
+                            onSendNow: widget.working ? widget.onSendNow : null,
                           ),
                         ),
                         AssistantMsg() => _once(

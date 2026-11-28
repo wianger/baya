@@ -54,7 +54,10 @@ void main() {
     expect(field.controller!.text, 'Add a dark mode toggle');
 
     await tester.enterText(find.byType(TextField), 'Add a dark mode switch');
+    // Enter is a new line; Ctrl+Enter sends, as the button does.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump(const Duration(milliseconds: 600));
     expect(sent, ['Add a dark mode switch']);
   });

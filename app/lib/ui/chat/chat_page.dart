@@ -231,6 +231,13 @@ class ChatPage extends StatelessWidget {
               title: displayName,
             )
           : null,
+      onNewTerminal: session.host.isOnline
+          ? () => openNewTerminal(
+              context,
+              host: session.host,
+              sessionId: session.sessionId,
+            )
+          : null,
       onFiles: () => context.push('/session-files'),
       onChanges: () => openChanges(context, session),
       onRename: () async {
@@ -303,6 +310,8 @@ class ChatPage extends StatelessWidget {
       live: session.loaded && !session.loading,
       onEdit: session.editAgain,
       onAsk: session.askAbout,
+      // The agent's TUI takes Esc as "stop", and sends what was queued.
+      onSendNow: session.cancel,
     );
   }
 
@@ -370,6 +379,22 @@ class ChatPage extends StatelessWidget {
       onSend: (text) {
         final image = context.read<AttachmentViewModel>().takeImageForSend();
         session.prompt(text, image: image);
+        // A command (`/usage`, `/status`) answers in the agent's TUI, not
+        // its record: the terminal opens to show it.
+        if (text.trimLeft().startsWith('/') &&
+            (session.summary?.inPane ?? false)) {
+          unawaited(
+            Future<void>.delayed(const Duration(milliseconds: 400), () async {
+              if (!context.mounted) return;
+              await openSessionTerminal(
+                context,
+                host: session.host,
+                sessionId: session.sessionId,
+                title: session.title,
+              );
+            }),
+          );
+        }
       },
     );
   }

@@ -7,11 +7,11 @@ import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/data/transport/noise.dart';
 import 'package:app/l10n/app_localizations.dart';
 import 'package:app/ui/core/themes/themes.dart';
+import 'package:app/ui/terminals/ghostty_view.dart';
 import 'package:app/ui/terminals/terminal_page.dart';
 import 'package:app/ui/terminals/terminals_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xterm/xterm.dart';
 
 Map<String, dynamic> _t(
   String address, {
@@ -201,13 +201,14 @@ void main() {
 
     link.paint('hello from herdr\r\n');
     await tester.pumpAndSettle();
-    Terminal screen() =>
-        tester.widget<TerminalView>(find.byType(TerminalView)).terminal;
-    expect(screen().buffer.lines[0].toString(), contains('hello from herdr'));
+    GhosttyController screen() => tester
+        .widget<GhosttyView>(find.byKey(const Key('terminal-screen')))
+        .controller;
+    expect(screen().text.split('\n')[0], contains('hello from herdr'));
     // A frame out of order (a stale stream's) is not painted.
     link.paint('stale', offset: 999);
     await tester.pumpAndSettle();
-    expect(screen().buffer.lines[1].toString().trim(), isEmpty);
+    expect(screen().text.split('\n')[1].trim(), isEmpty);
 
     await tester.tap(find.byKey(const Key('terminal-key-interrupt')));
     // Straight into the terminal: ctrl applies to the next key typed.
@@ -215,7 +216,8 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('terminal-key-ctrl')));
     await tester.pump();
-    tester.testTextInput.enterText('d');
+    // The keys field holds a marker; what follows it is typed.
+    tester.testTextInput.enterText('  d');
     await tester.pump();
     expect(link.typed, ['\x03', '\x04']);
 
@@ -226,10 +228,10 @@ void main() {
     expect(link.attaches.last['resumed'], true);
     expect(link.attaches.last['stream'], isNot(attach['stream']));
     // A fresh screen for the paint that follows.
-    expect(screen().buffer.lines[0].toString().trim(), isEmpty);
+    expect(screen().text.split('\n')[0].trim(), isEmpty);
     link.paint('repainted');
     await tester.pumpAndSettle();
-    expect(screen().buffer.lines[0].toString(), contains('repainted'));
+    expect(screen().text.split('\n')[0], contains('repainted'));
 
     link.events.add((
       method: '_baya/terminal_closed',
@@ -261,9 +263,10 @@ void main() {
     final attach = link.attaches.single;
     expect(attach['observe'], true);
     expect((attach['cols'], attach['rows']), (142, 39));
-    Terminal screen() =>
-        tester.widget<TerminalView>(find.byType(TerminalView)).terminal;
-    expect((screen().viewWidth, screen().viewHeight), (142, 39));
+    GhosttyController screen() => tester
+        .widget<GhosttyView>(find.byKey(const Key('terminal-screen')))
+        .controller;
+    expect((screen().cols, screen().rows), (142, 39));
     // Wider than the phone: dragged sideways.
     expect(find.byKey(const Key('terminal-sideways')), findsOneWidget);
 
@@ -273,7 +276,7 @@ void main() {
       params: {'stream': attach['stream'], 'cols': 160, 'rows': 40},
     ));
     await tester.pumpAndSettle();
-    expect((screen().viewWidth, screen().viewHeight), (160, 40));
+    expect((screen().cols, screen().rows), (160, 40));
     expect(link.notes.where((n) => n.$1 == '_baya/terminal_resize'), isEmpty);
   });
 
@@ -296,18 +299,18 @@ void main() {
     final lines = [for (var i = 0; i < 200; i++) 'line $i'].join('\r\n');
     link.paint(lines);
     await tester.pumpAndSettle();
-    final scrollable = find.descendant(
-      of: find.byType(TerminalView),
-      matching: find.byType(Scrollable),
-    );
-    final state = tester.state<ScrollableState>(scrollable.first);
-    final end = state.position.pixels;
+    GhosttyController screen() => tester
+        .widget<GhosttyView>(find.byKey(const Key('terminal-screen')))
+        .controller;
     // From a point on screen: the terminal is wider than the phone.
     final on =
-        tester.getTopLeft(find.byType(TerminalView)) + const Offset(100, 200);
+        tester.getTopLeft(find.byKey(const Key('terminal-screen'))) +
+        const Offset(100, 200);
     await tester.dragFrom(on, const Offset(0, 300));
     await tester.pumpAndSettle();
-    expect(state.position.pixels, lessThan(end));
+    // The shell's scrollback, here on the phone.
+    expect(screen().scrolledBack, greaterThan(0));
+    expect(find.byKey(const Key('terminal-to-bottom')), findsOneWidget);
 
     // A full-screen program that takes the wheel (pi): drags are wheel turns.
     link.paint(
@@ -333,9 +336,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    Terminal screen() =>
-        tester.widget<TerminalView>(find.byType(TerminalView)).terminal;
-    expect(screen().buffer.lines[0].toString(), contains('painted early'));
+    GhosttyController screen() => tester
+        .widget<GhosttyView>(find.byKey(const Key('terminal-screen')))
+        .controller;
+    expect(screen().text.split('\n')[0], contains('painted early'));
   });
 
   testWidgets('it opens to read; a line is composed, then sent', (
@@ -354,7 +358,9 @@ void main() {
     // No keyboard until asked for.
     expect(tester.testTextInput.isVisible, isFalse);
     // A tap on the terminal asks: the line's field takes it.
-    await tester.tapAt(tester.getCenter(find.byType(TerminalView)));
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('terminal-screen'))),
+    );
     await tester.pumpAndSettle();
     expect(
       tester
@@ -414,7 +420,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     final cols = link.attaches.single['cols'] as int;
-    final center = tester.getCenter(find.byType(TerminalView));
+    final center = tester.getCenter(find.byKey(const Key('terminal-screen')));
     final a = await tester.startGesture(center - const Offset(40, 0));
     final b = await tester.startGesture(center + const Offset(40, 0));
     await a.moveTo(center - const Offset(20, 0));

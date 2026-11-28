@@ -957,5 +957,13 @@
   "@askAboutSelection": {
     "description": "Selection toolbar: quote the selected words in the composer to ask about them"
   },
-  "remoteControlInstalling": "Installing Sunshine on the computer. If Windows asks there, allow it."
+  "remoteControlInstalling": "Installing Sunshine on the computer. If Windows asks there, allow it.",
+  "sendNow": "Send now",
+  "@sendNow": {
+    "description": "On a queued message: stop the agent's turn so this message goes now"
+  },
+  "newTerminalHere": "New terminal",
+  "@newTerminalHere": {
+    "description": "Session menu: open a shell in the session's folder beside its agent"
+  }
 }

@@ -47,6 +47,9 @@ function agentLabel(agent: string): string {
   }
 }
 
+/** The same words, whatever the spacing and line breaks. */
+const words = (text: string) => text.replace(/\s+/gu, " ").trim();
+
 /** Baya's id for the conversation in [paneId]. */
 export const paneSessionId = (paneId: string): string => `herdr-${paneId.replace(":", "-")}`;
 
@@ -432,11 +435,11 @@ export class PaneSession {
           const content = u["content"] as Json | undefined;
           return u["sessionUpdate"] === "user_message_chunk" &&
             typeof content?.["text"] === "string"
-            ? [content["text"].trim()]
+            ? [words(content["text"])]
             : [];
         }),
       );
-      this.queued = this.queued.filter((q) => !said.has(q.text.trim()));
+      this.queued = this.queued.filter((q) => !said.has(words(q.text)));
     }
     if (result.usage?.model) this.recordModel = result.usage.model;
     return result;
@@ -475,8 +478,8 @@ export class PaneSession {
       ) {
         continue;
       }
-      const said = content["text"].trim();
-      const at = this.queued.findIndex((q) => q.text.trim() === said);
+      const said = words(content["text"]);
+      const at = this.queued.findIndex((q) => words(q.text) === said);
       if (at >= 0) this.queued.splice(at, 1);
     }
     this.sent = updates.length;

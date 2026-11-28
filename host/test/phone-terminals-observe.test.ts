@@ -33,22 +33,28 @@ describe("watching a terminal as it is", () => {
     await terminals.attach({ terminal: "t3", stream: 7, observe: true, cols: 40, rows: 20 });
     expect(opened[0]!.params).toMatchObject({ observe: true, resize_notifications: true });
 
+    // Ready to type at once, at the size the terminal has.
+    await new Promise((r) => setTimeout(r, 0));
+    const typing = opened[1]!;
+    expect(typing.params).toMatchObject({ terminal: "t3", cols: 142, rows: 39 });
+    expect(typing.params["observe"]).toBeUndefined();
+
     opened[0]!.handler.resize?.(150, 40);
     await new Promise((r) => setTimeout(r, 0));
     expect(notes).toContainEqual({
       method: "_baya/terminal_size",
       params: { stream: 7, cols: 150, rows: 40 },
     });
+    // The typing attach follows the computer's size…
+    const resized = sent.filter((f) => f.channel === typing.channel && f.kind === 3);
+    expect(resized.at(-1)?.payload.readUInt16LE(0)).toBe(150);
 
-    // The phone's own size never reaches an observer.
+    // …and the phone's own size never reaches either.
+    const before = sent.length;
     terminals.resize(7, 40, 20);
-    expect(sent).toHaveLength(0);
+    expect(sent).toHaveLength(before);
 
     terminals.input(7, "a");
-    await new Promise((r) => setTimeout(r, 0));
-    const typing = opened[1]!;
-    expect(typing.params).toMatchObject({ terminal: "t3", cols: 150, rows: 40 });
-    expect(typing.params["observe"]).toBeUndefined();
     expect(sent.filter((f) => f.channel === typing.channel && f.kind === 0)).toHaveLength(1);
   });
 });

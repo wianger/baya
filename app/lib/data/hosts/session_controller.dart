@@ -211,6 +211,8 @@ class SessionController extends ChangeNotifier {
           'baya': {'messageId': id},
         },
       }, Duration.zero);
+      // Taken: shown as sent even when its echo reads differently.
+      _transcript.confirmPending(id);
       if (result['stopReason'] == 'refusal') {
         _transcript.apply(const NoticeUpdate('warning', 'The agent refused.'));
       }

@@ -5,7 +5,6 @@ library;
 
 import 'dart:async';
 
-import 'package:app/data/preferences/preferences.dart';
 import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/l10n/l10n.dart';
 import 'package:app/ui/core/themes/themes.dart';
@@ -19,7 +18,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:provider/provider.dart';
 
 class TerminalsLaunch {
   const TerminalsLaunch({required this.hostId, required this.label});
@@ -106,9 +104,6 @@ class _TerminalsPageState extends State<TerminalsPage> {
             _fontSize = size;
             widget.onFontSize?.call(size);
           },
-          engine:
-              context.read<Preferences?>()?.terminalEngine ??
-              TerminalEngine.xterm,
         ),
       ),
     );

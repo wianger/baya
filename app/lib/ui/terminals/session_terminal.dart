@@ -54,7 +54,6 @@ Future<void> openSessionTerminal(
                 fontSize: prefs.terminalFontSize,
                 onFontSize: (size) =>
                     unawaited(prefs.setTerminalFontSize(size)),
-                engine: prefs.terminalEngine,
                 // A pane shown on the computer too keeps its size there.
                 fixed: result?['observe'] == true,
               );
@@ -66,6 +65,45 @@ Future<void> openSessionTerminal(
                   context.l10n.herdrMissing,
                 _ => null,
               },
+            );
+          },
+        ),
+      ),
+    ),
+  );
+}
+
+/// A shell of its own beside [sessionId]'s agent: in its folder, shown in
+/// its herdr-app space on the computer too.
+Future<void> openNewTerminal(
+  BuildContext context, {
+  required HostConnection host,
+  required String sessionId,
+}) {
+  final repository = TerminalsRepository(HostTerminalLink(host));
+  final started = repository
+      .run(fromSession: sessionId)
+      .then((terminal) => <String, dynamic>{'terminal': terminal});
+  final prefs = context.read<Preferences>();
+  return Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => HostTerminal(
+        host: host,
+        build: (online) => FutureBuilder<Map<String, dynamic>>(
+          future: started,
+          builder: (context, snapshot) {
+            if (snapshot.data?['terminal'] case final HerdrTerminal terminal) {
+              return TerminalPage(
+                repository: repository,
+                terminal: terminal,
+                online: online,
+                fontSize: prefs.terminalFontSize,
+                onFontSize: (size) =>
+                    unawaited(prefs.setTerminalFontSize(size)),
+              );
+            }
+            return _Opening(
+              error: snapshot.hasError ? '${snapshot.error}' : null,
             );
           },
         ),

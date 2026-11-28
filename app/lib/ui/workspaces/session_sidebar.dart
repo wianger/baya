@@ -284,6 +284,7 @@ class _SessionSidebarState extends State<SessionSidebar> {
                               onRename: (key, currentName) =>
                                   _renameWorkspace(vm, key, currentName),
                               canDelete: vm.canDeleteWorkspace,
+                              working: vm.workingWorkspaces,
                               onDelete: (key) => _deleteWorkspace(vm, key),
                             ),
                           ),
