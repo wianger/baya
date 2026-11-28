@@ -8,17 +8,10 @@ import { PaneSession, paneSessionId } from "../herdr/pane_session.ts";
 import { locateRecord } from "../herdr/records.ts";
 import { herdrWindow } from "../herdr/window.ts";
 import { isPairedKey, listPeers, markSeen, type PeerRecord } from "../pairing/storage.ts";
-import {
-  addSession,
-  listSessions,
-  removeSession,
-  type SessionRecord,
-  type TitleSource,
-} from "../session/registry.ts";
 import { findExecutable } from "../workspace/directories.ts";
 import { AgentProcess } from "./agent_process.ts";
-import { HostedSession, type PhoneLink } from "./hosted_session.ts";
 import { type Json, RpcError } from "./jsonrpc.ts";
+import type { PhoneLink } from "./phone_link.ts";
 import type { InitializeResponse } from "./schema.ts";
 
 interface AgentInfo {
@@ -52,25 +45,22 @@ const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 /**
- * Every session on this computer and every connected phone. Sessions load
- * from the registry at start; their agents start only when used.
+ * Every conversation on this computer (an agent in herdr, each in its own
+ * pane) and every connected phone.
  */
 export class SessionHub {
-  private readonly sessions = new Map<string, HostedSession>();
   /** Agents running in herdr panes, each a conversation of its own. */
   private readonly panes = new Map<string, PaneSession>();
   private paneTimer: NodeJS.Timeout | undefined;
   private readonly phones = new Set<HubPhone>();
   private peers: PeerRecord[] = [];
-  private readonly persist: boolean;
 
   /** Follows herdr's panes (the host does; tests don't). */
   private readonly followPanes: boolean;
   /** What each mirror tab last told herdr, so it is told only changes. */
   private readonly mirrorStates = new Map<string, string>();
 
-  constructor(options: { persist?: boolean; panes?: boolean } = {}) {
-    this.persist = options.persist ?? true;
+  constructor(options: { panes?: boolean } = {}) {
     this.followPanes = options.panes ?? false;
     // A pane's agent offers the models it gives Baya over ACP.
     if (this.followPanes) {
@@ -80,7 +70,6 @@ export class SessionHub {
 
   async start(): Promise<void> {
     this.peers = await listPeers();
-    for (const record of listSessions()) this.adopt(record);
     if (this.followPanes) void this.watchPanes(true);
   }
 
@@ -94,10 +83,7 @@ export class SessionHub {
   private async watchPanes(first = false): Promise<void> {
     let running = true;
     try {
-      if (first) {
-        await herdrApp.prepare().catch(() => {});
-        void this.moveAllToPanes();
-      }
+      if (first) await herdrApp.prepare().catch(() => {});
       // Agents run in two places: the herdr-app window (over herdr-core) and
       // herdr's server (its TUI). A tab that only mirrors a window agent in
       // the TUI is not a conversation of its own.
@@ -115,7 +101,7 @@ export class SessionHub {
       ];
       const live = new Set<string>();
       for (const [pane, host] of agents) {
-        // A conversation Baya ran before keeps the id the phone knows.
+        // A conversation the phone knew by another id keeps it.
         const alias = sessionForPane(pane.paneId);
         const id = alias ?? paneSessionId(pane.paneId);
         live.add(id);
@@ -123,23 +109,12 @@ export class SessionHub {
         if (known) {
           known.update(pane);
         } else {
-          const hosted = alias ? this.sessions.get(alias) : undefined;
-          if (hosted) {
-            // It lives in herdr now: Baya's own process for it goes.
-            hosted.stop();
-            this.sessions.delete(alias!);
-          }
-          const record = alias
-            ? (hosted?.record ?? listSessions().find((r) => r.id === alias))
-            : undefined;
           const session = new PaneSession(
             pane,
             host,
             (changed) => this.paneChanged(changed),
             0,
-            alias
-              ? { id: alias, ...(record?.agentSessionId ? { record: record.agentSessionId } : {}) }
-              : {},
+            alias ? { id: alias } : {},
           );
           this.panes.set(id, session);
           this.paneChanged(session);
@@ -150,14 +125,7 @@ export class SessionHub {
         this.panes.delete(id);
         session.destroy();
         setSessionForPane(session.paneId, null);
-        // A conversation Baya knows stays on the phone when its pane closes:
-        // the next open moves it into a pane again.
-        const record = listSessions().find((r) => r.id === id);
-        if (record) {
-          this.changed(this.adopt(record));
-        } else {
-          this.push("_baya/session_removed", { sessionId: id });
-        }
+        this.push("_baya/session_removed", { sessionId: id });
       }
     } catch {
       running = false;
@@ -169,14 +137,10 @@ export class SessionHub {
 
   /**
    * A new conversation as alma runs one: a tab in [cwd]'s herdr workspace
-   * with [agent]'s own TUI started in it, visible on the computer. Null
-   * when herdr isn't running or can't start that agent.
+   * with [agent]'s own TUI started in it, visible on the computer, or
+   * [resume] (one of the agent's own) reopened there. Null when herdr isn't
+   * running or can't start that agent.
    */
-  /** Conversations run in herdr (the host); not in tests of the ACP side. */
-  get followsPanes(): boolean {
-    return this.followPanes;
-  }
-
   async startInPane(
     cwd: string,
     agent?: string,
@@ -203,60 +167,6 @@ export class SessionHub {
     this.panes.set(session.id, session);
     this.paneChanged(session);
     return session;
-  }
-
-  /**
-   * Moves a conversation Baya has been running into a herdr pane: the
-   * agent's TUI reopens that same conversation in a tab of its folder's
-   * workspace, and the phone keeps its id. Null when it can't (herdr not
-   * running, an agent herdr can't start, nothing of the agent's to resume).
-   */
-  async moveToPane(id: string): Promise<PaneSession | null> {
-    const hosted = this.sessions.get(id);
-    const record = hosted?.record;
-    const kind = record ? HERDR_KINDS[record.agent] : undefined;
-    if (!this.followPanes || !hosted || !record || !kind || !record.agentSessionId) return null;
-    if (hosted.working) return null;
-    const exists = locateRecord(record.agent, record.agentSessionId, record.cwd) !== null;
-    const args = resumeArgs(record.agent, record.agentSessionId, exists);
-    if (!args) return null;
-    const started = await this.startAgent(kind, record.cwd, args, id);
-    if (!started) return null;
-    const { pane, host } = started;
-    hosted.stop();
-    this.sessions.delete(id);
-    const session = new PaneSession(pane, host, (changed) => this.paneChanged(changed), 0, {
-      id,
-      record: record.agentSessionId,
-    });
-    this.panes.set(id, session);
-    this.paneChanged(session);
-    return session;
-  }
-
-  /**
-   * Every conversation Baya still runs itself whose agent herdr can run
-   * moves into a pane, without waiting to be opened: one place for them
-   * all. Those it can't (DeepSeek, none of the agent's own to resume)
-   * stay, and why is logged.
-   */
-  private async moveAllToPanes(): Promise<void> {
-    // Without herdr here, nothing can move and nothing is dropped.
-    const here = (await herdrWindow.available()) || (await herdrApp.available());
-    if (!here) return;
-    for (const [id, hosted] of [...this.sessions]) {
-      const { agent, title } = hosted.record;
-      const moved = await this.moveToPane(id).catch((error: unknown) => {
-        console.error(`[baya] could not move "${title}" into herdr: ${String(error)}`);
-        return undefined;
-      });
-      // Conversations run only in herdr now: one that never can (an agent
-      // herdr can't run, nothing of its agent's to resume) goes.
-      if (moved === null) {
-        console.error(`[baya] "${title}" (${agent}) can't run in herdr: removed`);
-        this.delete(id);
-      }
-    }
   }
 
   /**
@@ -335,60 +245,30 @@ export class SessionHub {
   // ── sessions ────────────────────────────────────────────────────────────
 
   list(cwd?: string): Conversation[] {
-    return [...this.sessions.values(), ...this.panes.values()]
+    return [...this.panes.values()]
       .filter((session) => !cwd || session.record.cwd === cwd)
       .toSorted((a, b) => b.record.updatedAt - a.record.updatedAt);
   }
 
   get(id: string): Conversation | undefined {
-    return this.sessions.get(id) ?? this.panes.get(id);
-  }
-
-  /** A conversation Baya runs itself (not one in a herdr pane). */
-  hosted(id: string): HostedSession | undefined {
-    return this.sessions.get(id);
-  }
-
-  create(
-    cwd: string,
-    agent?: string,
-    options: { title?: string; titleSource?: TitleSource; agentSessionId?: string } = {},
-  ): HostedSession {
-    const id = agent ?? defaultAgentId();
-    if (!id) throw new Error("No agent is set up on this computer. Add one: baya agents add");
-    if (!this.definition(id)) throw new Error(`No agent named "${id}" is set up on this computer.`);
-    const session = this.adopt(addSession({ cwd, agent: id, ...options }));
-    this.changed(session);
-    return session;
+    return this.panes.get(id);
   }
 
   /**
-   * Closes a conversation: one in a pane ends there (its tab or window
-   * pane closes on the computer, the agent's own history stays); one Baya
-   * runs stops and leaves the list.
+   * Closes a conversation: its agent ends and its tab or window pane
+   * closes on the computer; the agent's own history stays.
    */
   async close(id: string): Promise<boolean> {
     const pane = this.panes.get(id);
-    if (!pane) return this.delete(id);
+    if (!pane) return false;
     await pane.close();
     this.panes.delete(id);
     this.push("_baya/session_removed", { sessionId: id });
     return true;
   }
 
-  delete(id: string): boolean {
-    const session = this.sessions.get(id);
-    if (!session) return false;
-    this.sessions.delete(id);
-    session.destroy();
-    removeSession(id);
-    this.push("_baya/session_removed", { sessionId: id });
-    return true;
-  }
-
   stop(): void {
     clearTimeout(this.paneTimer);
-    for (const session of this.sessions.values()) session.stop();
     for (const session of this.panes.values()) session.stop();
   }
 
@@ -444,7 +324,6 @@ export class SessionHub {
     if (typeof methodId !== "string") throw RpcError.invalidParams("methodId is required.");
     return this.withAgent(id, undefined, async (agent) => {
       await agent.request("authenticate", { methodId });
-      this.restartAgent(String(id));
       return {};
     });
   }
@@ -452,18 +331,15 @@ export class SessionHub {
   logout(id: unknown): Promise<Json> {
     return this.withAgent(id, undefined, async (agent) => {
       await agent.request("logout", {});
-      this.restartAgent(String(id));
       return {};
     });
   }
 
-  /** The agent's own conversations in [cwd] that Baya has not adopted. */
+  /** The agent's own conversations in [cwd] not open in a pane already. */
   agentSessions(id: unknown, cwd: string): Promise<Json> {
     return this.withAgent(id, cwd, async (agent, info) => {
       if (!info.agentCapabilities?.sessionCapabilities?.list) return { sessions: [] };
-      const adopted = new Set(
-        [...this.sessions.values()].map((session) => session.record.agentSessionId),
-      );
+      const adopted = new Set([...this.panes.values()].map((session) => session.agentSessionId));
       const listed = await agent.request<{ sessions?: Json[] }>("session/list", { cwd });
       return {
         sessions: (listed.sessions ?? []).filter(
@@ -475,15 +351,15 @@ export class SessionHub {
   }
 
   /**
-   * Every agent's own conversations on this computer, in any folder, that
-   * Baya has not adopted: started in a terminal, an editor or anywhere else.
+   * Every agent's own conversations on this computer, in any folder, not
+   * open in a pane already: started in a terminal, an editor or anywhere else.
    * Newest first; an agent that cannot list, or fails to, is named in
    * `failed` and the others still answer.
    */
   async computerSessions(): Promise<Json> {
     const adopted = new Set(
-      [...this.sessions.values()].map(
-        (session) => `${session.record.agent}\n${session.record.agentSessionId}`,
+      [...this.panes.values()].map(
+        (session) => `${session.record.agent}\n${session.agentSessionId}`,
       ),
     );
     const agents = (await this.agents()).filter((agent) => agent.available);
@@ -539,59 +415,6 @@ export class SessionHub {
     return { sessions, failed };
   }
 
-  /**
-   * The agent's copy of [source]'s conversation up to [point], an agent
-   * message (ACP's `session/fork` with the JetBrains AIR fork point Claude
-   * Code and Codex read). It runs in a process of its own that exits after,
-   * so nothing holds the branch open when its session loads it: Codex lets
-   * one process write a conversation at a time.
-   */
-  fork(
-    source: HostedSession,
-    point: { messageId: string; messageFingerprint?: string; messageOccurrence?: number },
-  ): Promise<string> {
-    const { agent: id, cwd, agentSessionId } = source.record;
-    return this.withAgent(id, cwd, async (agent, info) => {
-      const caps = info.agentCapabilities?.sessionCapabilities as Json | undefined;
-      if (!caps?.["fork"] || !agentSessionId) {
-        throw RpcError.invalidParams(`${agent.definition.name} cannot branch this conversation.`);
-      }
-      const forked = await agent.request<{ sessionId?: unknown }>("session/fork", {
-        sessionId: agentSessionId,
-        cwd,
-        mcpServers: agent.definition.mcpServers ?? [],
-        _meta: { jetbrains: { air: { fork: { version: 1, ...point } } } },
-      });
-      if (typeof forked?.sessionId !== "string") {
-        throw new Error(`${agent.definition.name} did not branch.`);
-      }
-      return forked.sessionId;
-    });
-  }
-
-  /** Running sessions of agent [id] pick up new sign-in state on next use. */
-  private restartAgent(id: string): void {
-    for (const session of this.sessions.values()) {
-      if (session.record.agent === id && !session.working) session.stop();
-    }
-  }
-
-  private adopt(record: SessionRecord): HostedSession {
-    const session = new HostedSession(
-      record,
-      () => this.definition(record.agent),
-      { changed: (changed) => this.changed(changed) },
-      this.persist,
-    );
-    this.sessions.set(record.id, session);
-    return session;
-  }
-
-  private changed(session: HostedSession): void {
-    if (this.sessions.get(session.id) !== session) return;
-    this.push("_baya/session_changed", { session: session.info() });
-  }
-
   // ── phones ──────────────────────────────────────────────────────────────
 
   connect(phone: HubPhone): void {
@@ -600,7 +423,6 @@ export class SessionHub {
 
   disconnect(phone: HubPhone): void {
     this.phones.delete(phone);
-    for (const session of this.sessions.values()) session.detach(phone);
     for (const session of this.panes.values()) session.detach(phone);
     this.seen(phone.key);
   }
@@ -657,5 +479,5 @@ const HERDR_KINDS: Record<string, string> = {
   agy: "agy",
 };
 
-/** A conversation the phone can open: Baya's own, or an agent in a herdr pane. */
-export type Conversation = HostedSession | PaneSession;
+/** A conversation the phone can open: an agent in a herdr pane. */
+export type Conversation = PaneSession;

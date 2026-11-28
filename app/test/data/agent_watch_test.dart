@@ -141,54 +141,6 @@ void main() {
     expect(notifier.shown, isNull);
   });
 
-  test('a permission question is answered from its notification', () async {
-    working(true);
-    await settle();
-    watch.foreground = false;
-    final answer = host.askPermission({
-      'sessionId': 'a',
-      'toolCall': {'toolCallId': 't1', 'title': 'npm test -- auth'},
-      'options': [
-        {'optionId': 'yes', 'name': 'Allow', 'kind': 'allow_once'},
-        {'optionId': 'always', 'name': 'Always', 'kind': 'allow_always'},
-        {'optionId': 'no', 'name': 'Reject', 'kind': 'reject_once'},
-      ],
-    });
-    await settle();
-    expect(notifier.shown!.chip, 'Approve');
-    expect(notifier.shown!.busy, isFalse);
-    final ask = notifier.alerts.values.single;
-    expect(ask.title, 'Claude Code needs your approval');
-    expect(ask.text, 'npm test -- auth\nFix the login redirect');
-    expect([for (final a in ask.actions) a.label], ['Reject', 'Allow']);
-
-    notifier.tap(ask.actions.last);
-    expect(await answer, {
-      'outcome': {'outcome': 'selected', 'optionId': 'yes'},
-    });
-    await settle();
-    expect(notifier.alerts, isEmpty);
-    expect(notifier.shown!.chip, isNull);
-  });
-
-  test('coming back withdraws the questions; the app shows them', () async {
-    working(true);
-    await settle();
-    watch.foreground = false;
-    // The question is still open when the test ends.
-    host.askPermission({
-      'sessionId': 'a',
-      'toolCall': {'toolCallId': 't1', 'title': 'rm -rf build'},
-      'options': [
-        {'optionId': 'yes', 'name': 'Allow', 'kind': 'allow_once'},
-      ],
-    }).ignore();
-    await settle();
-    expect(notifier.alerts, hasLength(1));
-    watch.foreground = true;
-    expect(notifier.alerts, isEmpty);
-  });
-
   test('Stop on the live notification interrupts the turn', () async {
     working(true);
     await settle();

@@ -163,17 +163,4 @@ void main() {
     expect(compaction.summary, 'Summary');
     expect(compaction.done, isTrue);
   });
-
-  test('awaiting marks only the tool a question waits on', () {
-    final t = Transcript()
-      ..apply(
-        u({'sessionUpdate': 'tool_call', 'toolCallId': 'a', 'title': 'A'}),
-      )
-      ..apply(
-        u({'sessionUpdate': 'tool_call', 'toolCallId': 'b', 'title': 'B'}),
-      )
-      ..markAwaiting({'b'});
-    final tools = t.messages.cast<ToolEvent>();
-    expect(tools.map((tool) => tool.awaitingApproval), [false, true]);
-  });
 }

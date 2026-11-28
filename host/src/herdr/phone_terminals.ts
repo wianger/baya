@@ -1,15 +1,4 @@
-/**
- * herdr-core's terminals, for one phone: list them, start a shell or an
- * agent in one, and attach to watch and type.
- *
- * An attached terminal's bytes travel to the phone as data frames on a
- * stream the phone picked, as downloads do; keys and sizes come back as
- * notifications. hc gets credit for bytes as the phone's link takes them,
- * so a slow link means a fresh paint later, not a pile-up.
- */
-import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
 import { FRAME, type HerdrCore, HerdrError, herdr } from "./core.ts";
 
 type Json = Record<string, unknown>;
@@ -320,58 +309,6 @@ export class PhoneTerminals {
   }
 
   /**
-   * A session's terminal in herdr: the one kept for it, else one where its
-   * agent already runs in its folder, else its agent's own TUI resumed on
-   * the same conversation ([resume]: the command line), else a shell there.
-   */
-  async forSession(options: {
-    session: string;
-    cwd: string;
-    agent: string;
-    resume: string | null;
-  }): Promise<Json> {
-    if (!(await this.core.available())) return { available: false };
-    const listed = (await this.core.call("terminal.list", {}))["terminals"];
-    const terminals = (Array.isArray(listed) ? listed : []) as Json[];
-    const live = terminals.filter((t) => t["state"] === "live");
-    const labels = (t: Json) => (t["labels"] ?? {}) as Json;
-    const folder = (path: unknown) => String(path ?? "").replace(/[\\/]+$/u, "");
-    const program = (t: Json) => {
-      const status = t["status"] as Json | undefined;
-      const foreground = t["foreground"] as Json | undefined;
-      return String(status?.["app"] ?? foreground?.["name"] ?? t["agent"] ?? "").toLowerCase();
-    };
-    const agent = options.agent.toLowerCase();
-    const own = live.filter((t) => labels(t)["baya.session"] === options.session);
-    // Its own terminal with the agent in it. One whose agent has exited is
-    // back at a shell: the agent is started again in it, not in another.
-    const ownAgent = own.find((t) => program(t) === agent);
-    if (ownAgent) return { available: true, terminal: ownAgent };
-    if (own[0]) {
-      if (options.resume) {
-        await this.core.call("terminal.send", {
-          terminal: String(own[0]["address"]),
-          text: options.resume,
-        });
-      }
-      return { available: true, terminal: own[0] };
-    }
-    const running = live.find(
-      (t) =>
-        program(t) === agent &&
-        folder((t["foreground"] as Json | undefined)?.["cwd"] ?? t["cwd"]) === folder(options.cwd),
-    );
-    if (running) return { available: true, terminal: running };
-    const started = await this.run({
-      cwd: options.cwd,
-      session: options.session,
-      keep: true,
-      ...(options.resume ? { line: options.resume } : {}),
-    });
-    return { available: true, terminal: started };
-  }
-
-  /**
    * Its screen and up to [lines] of history as plain text, for reading
    * further back than the phone was sent on attach.
    */
@@ -403,52 +340,4 @@ function isDisplay(value: unknown): value is Json {
   const color = (c: unknown) =>
     c === undefined || (typeof c === "string" && /^#[0-9a-f]{6}$/iu.test(c));
   return color(bg) && color(fg);
-}
-
-/**
- * A command line's word, quoted for cmd.exe (hc's shell on Windows),
- * PowerShell and POSIX shells alike: double quotes.
- */
-function quote(word: string): string {
-  return /^[\w@%+=:,./\\-]+$/u.test(word) ? word : `"${word.replaceAll('"', '\\"')}"`;
-}
-
-/**
- * The command that reopens an agent's own conversation in its TUI, for the
- * agents whose CLI can: Claude Code, Codex, Pi. [env] is the agent's
- * configured environment, which may name the CLI's path; [cwd] is the
- * session's folder.
- */
-export function resumeCommand(
-  agent: string,
-  sessionId: string | null,
-  env: Record<string, string> = {},
-  cwd = "",
-): string | null {
-  if (!sessionId) return null;
-  const id = quote(sessionId);
-  switch (agent) {
-    case "claude": {
-      const claude = quote(env["CLAUDE_CODE_EXECUTABLE"] ?? "claude");
-      // A conversation with nothing said yet has no file: start it under
-      // the same id instead of failing to resume it.
-      return claudeConversationExists(cwd, sessionId)
-        ? `${claude} --resume ${id}`
-        : `${claude} --session-id ${id}`;
-    }
-    case "codex":
-      return `${quote(env["CODEX_PATH"] ?? "codex")} resume ${id}`;
-    case "pi":
-      // Opens the folder's session with this id, or starts it.
-      return `pi --session-id ${id}`;
-    default:
-      return null;
-  }
-}
-
-/** Claude Code keeps a conversation in ~/.claude/projects/<folder>/<id>.jsonl. */
-function claudeConversationExists(cwd: string, sessionId: string): boolean {
-  if (!cwd) return true;
-  const folder = cwd.replace(/[^A-Za-z0-9]/gu, "-");
-  return existsSync(join(homedir(), ".claude", "projects", folder, `${sessionId}.jsonl`));
 }

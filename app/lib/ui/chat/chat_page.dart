@@ -13,19 +13,15 @@ import 'package:app/ui/chat/chat_message_list.dart';
 import 'package:app/ui/chat/voice/viewmodels/voice_input_viewmodel.dart';
 import 'package:app/ui/chat/widgets/attach_sheet.dart';
 import 'package:app/ui/chat/widgets/context_usage_button.dart';
-import 'package:app/ui/chat/widgets/elicitation_card.dart';
 import 'package:app/ui/chat/widgets/file_picker_sheet.dart';
 import 'package:app/ui/chat/widgets/input_bar.dart';
 import 'package:app/ui/chat/widgets/pane_question_card.dart';
-import 'package:app/ui/chat/widgets/permission_card.dart';
 import 'package:app/ui/chat/widgets/session_settings_sheet.dart';
-import 'package:app/ui/chat/widgets/sign_in_card.dart';
 import 'package:app/ui/core/branding/app_brand.dart';
 import 'package:app/ui/core/themes/themes.dart';
 import 'package:app/ui/core/widgets/baya_header.dart';
 import 'package:app/ui/core/widgets/baya_motion.dart';
 import 'package:app/ui/core/widgets/baya_notice.dart';
-import 'package:app/ui/core/widgets/baya_sheet.dart';
 import 'package:app/ui/core/widgets/baya_surface.dart';
 import 'package:app/ui/home/viewmodels/home_viewmodel.dart';
 import 'package:app/ui/terminals/session_terminal.dart';
@@ -88,22 +84,6 @@ class ChatPage extends StatelessWidget {
               composer: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (session.permission case final request?)
-                    PermissionCard(
-                      key: ValueKey('permission-${request.requestId}'),
-                      request: request,
-                      tool: session.messages
-                          .whereType<ToolEvent>()
-                          .where((t) => t.toolCallId == request.toolCall.id)
-                          .lastOrNull,
-                      onAnswer: session.answerPermission,
-                    ),
-                  if (session.elicitation case final request?)
-                    ElicitationCard(
-                      key: ValueKey('elicitation-${request.requestId}'),
-                      request: request,
-                      onAnswer: session.answerElicitation,
-                    ),
                   // Its agent waits in its herdr pane for an answer.
                   if (session.summary?.waitingForAnswer == true)
                     PaneQuestionCard(
@@ -116,11 +96,6 @@ class ChatPage extends StatelessWidget {
                         sessionId: session.sessionId,
                         title: session.title,
                       ),
-                    ),
-                  if (session.authAgent != null)
-                    SignInCard(
-                      key: ValueKey('sign-in-${session.authAgent}'),
-                      session: session,
                     ),
                   if (session.attachedFiles.isNotEmpty)
                     _AttachedFiles(session: session),
@@ -319,68 +294,16 @@ class ChatPage extends StatelessWidget {
       );
     }
     final visible = hideToolCalls
-        ? messages.where((m) => m is! ToolEvent || m.awaitingApproval).toList()
+        ? messages.where((m) => m is! ToolEvent).toList()
         : messages;
     return ChatMessageList(
       key: const ValueKey('chat-message-list'),
       messages: visible,
       working: working,
       live: session.loaded && !session.loading,
-      onEdit: (message) => _edit(context, session, message),
+      onEdit: session.editAgain,
       onAsk: session.askAbout,
     );
-  }
-
-  /// Edit a sent message: here, or (when the agent can) in a branch that
-  /// holds the conversation before it.
-  static Future<void> _edit(
-    BuildContext context,
-    SessionController session,
-    UserMsg message,
-  ) async {
-    if (!session.canFork || !session.online) {
-      session.editAgain(message);
-      return;
-    }
-    final branch = await showBayaSheet<bool>(
-      context,
-      title: context.l10n.editAndResend,
-      builder: (sheetContext) => BayaGroup(
-        children: [
-          BayaRow(
-            key: const Key('edit-here'),
-            icon: LucideIcons.pencil,
-            label: context.l10n.editHere,
-            subtitle: context.l10n.editHereHint,
-            onTap: () => Navigator.of(sheetContext).pop(false),
-          ),
-          BayaRow(
-            key: const Key('edit-branch'),
-            icon: LucideIcons.gitBranch,
-            label: context.l10n.branchFromHere,
-            subtitle: context.l10n.branchFromHereHint,
-            onTap: () => Navigator.of(sheetContext).pop(true),
-          ),
-        ],
-      ),
-    );
-    if (branch == null || !context.mounted) return;
-    if (!branch) {
-      session.editAgain(message);
-      return;
-    }
-    try {
-      final id = await session.branchBefore(message);
-      if (!context.mounted) return;
-      await openBranch(context, session.host.key, session.sessionId, id);
-    } catch (error) {
-      if (!context.mounted) return;
-      await showBayaNotice(
-        context,
-        title: context.l10n.couldNotBranch,
-        message: '$error',
-      );
-    }
   }
 
   Widget _buildInput(BuildContext context, SessionController session) {
@@ -706,7 +629,7 @@ class _TurnHapticsState extends State<_TurnHaptics>
   late bool _asking = _asks(widget.session);
 
   static bool _asks(SessionController s) =>
-      s.permission != null || s.elicitation != null;
+      s.summary?.waitingForAnswer ?? false;
 
   @override
   void initState() {

@@ -5,8 +5,8 @@
  * So the chat and the terminal are two views of one conversation.
  */
 import { unwatchFile, watchFile } from "node:fs";
-import type { PhoneLink } from "../acp/hosted_session.ts";
 import { type Json, RpcError } from "../acp/jsonrpc.ts";
+import type { PhoneLink } from "../acp/phone_link.ts";
 import { BAYA_META, type PromptResponse } from "../acp/schema.ts";
 import type { SessionRecord } from "../session/registry.ts";
 import { folderName } from "../session/registry.ts";

@@ -132,13 +132,8 @@ class _ToolRowState extends State<ToolRow> {
     final running =
         tool.status == ToolEventStatus.running ||
         tool.status == ToolEventStatus.pending;
-    final approval = tool.awaitingApproval;
     final failed = tool.status == ToolEventStatus.failed;
-    final color = failed
-        ? colors.error
-        : approval
-        ? colors.accent
-        : colors.muted2;
+    final color = failed ? colors.error : colors.muted2;
     final style = context.typo.sansBody.copyWith(
       fontSize: BayaType.subhead,
       color: color,
@@ -165,7 +160,7 @@ class _ToolRowState extends State<ToolRow> {
                 children: [
                   SizedBox.square(
                     dimension: 15,
-                    child: running && !approval
+                    child: running
                         ? CircularProgressIndicator(
                             strokeWidth: 1.5,
                             color: colors.muted2,
@@ -173,12 +168,12 @@ class _ToolRowState extends State<ToolRow> {
                         : Icon(
                             failed ? LucideIcons.circleX : _icon(content),
                             size: 16,
-                            color: failed || approval ? color : colors.muted,
+                            color: failed ? color : colors.muted,
                           ),
                   ),
                   const SizedBox(width: 8),
                   Flexible(
-                    child: running && !approval
+                    child: running
                         ? ShimmerText(content.title, style: style)
                         : Text(
                             content.title,
@@ -216,16 +211,6 @@ class _ToolRowState extends State<ToolRow> {
                       style: context.typo.monoSmall.copyWith(
                         fontSize: BayaType.caption,
                         color: colors.error,
-                      ),
-                    ),
-                  ],
-                  if (approval) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      context.l10n.approval,
-                      style: context.typo.sansBody.copyWith(
-                        fontSize: BayaType.caption,
-                        color: colors.accent,
                       ),
                     ),
                   ],

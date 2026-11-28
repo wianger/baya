@@ -1,9 +1,8 @@
 // One open conversation: loads it from the computer (`session/load` replays
 // the history), keeps it current from `session/update`, and sends prompts,
-// cancels, setting changes and permission answers.
+// cancels and setting changes.
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:app/acp/acp.dart';
 import 'package:app/acp/json_rpc.dart';
@@ -13,7 +12,6 @@ import 'package:app/data/transfer/file_transfer.dart';
 import 'package:app/domain/session_state.dart';
 import 'package:app/domain/transcript.dart';
 import 'package:app/protocol/uuid7.dart';
-import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 
 class SessionController extends ChangeNotifier {
@@ -21,7 +19,6 @@ class SessionController extends ChangeNotifier {
   /// first session opened after it.
   SessionController(this.host, this.sessionId, {this._shared}) {
     _updates = host.updates.listen(_onUpdate);
-    _questions = host.questions.listen((_) => _syncPermissions());
     _terminals = host.terminals.listen((event) {
       if (event.sessionId != sessionId) return;
       if (_held case final held?) return held.add(event);
@@ -32,7 +29,6 @@ class SessionController extends ChangeNotifier {
     _online = host.onOnline.listen((_) => unawaited(_load()));
     host.addListener(_onHostChanged);
     _restore();
-    _syncPermissions();
     unawaited(_load());
   }
 
@@ -41,7 +37,6 @@ class SessionController extends ChangeNotifier {
 
   late final Transcript _transcript;
   late final StreamSubscription<SessionEvent> _updates;
-  late final StreamSubscription<QuestionEvent> _questions;
   late final StreamSubscription<TerminalEvent> _terminals;
   late final StreamSubscription<void> _online;
 
@@ -64,10 +59,7 @@ class SessionController extends ChangeNotifier {
   SessionModes? _modes;
   List<AgentCommandInfo> _commands = const [];
   Usage? _usage;
-  List<PermissionRequest> _openPermissions = const [];
-  List<ElicitationRequest> _openElicitations = const [];
   List<ResourceLinkContent> _files = const [];
-  String? _authAgent;
 
   // ── state ───────────────────────────────────────────────────────────────
 
@@ -95,12 +87,6 @@ class SessionController extends ChangeNotifier {
   List<AgentCommandInfo> get commands => _commands;
   Usage? get usage => _usage;
   bool get acceptsImages => _setup.acceptsImages;
-
-  /// The oldest open permission question for this session.
-  PermissionRequest? get permission => _openPermissions.firstOrNull;
-
-  /// The oldest open elicitation (form or link) for this session.
-  ElicitationRequest? get elicitation => _openElicitations.firstOrNull;
 
   /// Files from the computer to send with the next prompt.
   List<ResourceLinkContent> get attachedFiles => _files;
@@ -138,9 +124,6 @@ class SessionController extends ChangeNotifier {
       _drafts.add(UserMsg(id: askDraftId, text: '$quote\n\n'));
     }
   }
-
-  /// Messages waiting for the composer of a branch that is opening.
-  static final _handoff = <String, UserMsg>{};
 
   /// Conversations left most recently, newest last, with where each was in
   /// its live notifications: opening one again shows it at once and only
@@ -189,58 +172,12 @@ class SessionController extends ChangeNotifier {
   @visibleForTesting
   static void forgetKept() => _kept.clear();
 
-  bool get canFork => _setup.canFork;
-
-  /// A new session on this computer with this conversation up to the reply
-  /// before [message], which waits in its composer. Returns its id.
-  Future<String> branchBefore(UserMsg message) async {
-    final result = await host.call('_baya/fork', {
-      'sessionId': sessionId,
-      ...?forkPoint(messages, message),
-    }, const Duration(minutes: 2));
-    final id = (result['session'] as Map)['sessionId'] as String;
-    _handoff['${host.key}/$id'] = message;
-    return id;
-  }
-
-  /// Where a branch before [message] ends: the agent's last reply before
-  /// it, by id and, for agents that lost the id, by its text's SHA-256 and
-  /// which match of that text it is. Null before the first reply.
-  static Json? forkPoint(List<ChatMessage> messages, UserMsg message) {
-    final at = messages.indexWhere((m) => m.id == message.id);
-    final replies = messages
-        .take(at < 0 ? 0 : at)
-        .whereType<AssistantMsg>()
-        .where((m) => !m.startup)
-        .toList();
-    if (replies.isEmpty) return null;
-    String fingerprint(String text) {
-      final digest = Sha256().toSync().hashSync(utf8.encode(text)).bytes;
-      return 'sha256:${digest.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}';
-    }
-
-    final last = replies.last;
-    final target = fingerprint(last.text);
-    var occurrence = 0;
-    for (final reply in replies) {
-      if (fingerprint(reply.text) == target) occurrence++;
-    }
-    return {
-      'messageId': last.id,
-      'messageFingerprint': target,
-      'messageOccurrence': occurrence,
-    };
-  }
-
   /// Files between the phone and this session's folder.
   FileTransfer get transfer => FileTransfer(HostTransferLink(host, sessionId));
 
   /// Lists a folder of the session's computer (for attaching files).
   Future<Map<String, dynamic>> browseFiles([String? path]) =>
       host.call('_baya/files', {'sessionId': sessionId, 'path': ?path});
-
-  /// The agent that last asked to be signed in, until it works again.
-  String? get authAgent => _authAgent;
 
   // ── commands ────────────────────────────────────────────────────────────
 
@@ -274,16 +211,11 @@ class SessionController extends ChangeNotifier {
           'baya': {'messageId': id},
         },
       }, Duration.zero);
-      _authAgent = null;
       if (result['stopReason'] == 'refusal') {
         _transcript.apply(const NoticeUpdate('warning', 'The agent refused.'));
       }
     } catch (error) {
       _transcript.dropPending(id);
-      if (error is RpcError && error.reason == 'auth_required') {
-        _authAgent =
-            (error.data as Map?)?['agent'] as String? ?? summary?.agent;
-      }
       // A turn that failed on the computer already left a notice there.
       final reported =
           error is RpcError && error.code != RpcError.invalidParams;
@@ -319,38 +251,6 @@ class SessionController extends ChangeNotifier {
     _changed();
   }
 
-  void answerElicitation(String action, [Map<String, dynamic>? content]) {
-    final open = elicitation;
-    if (open == null) return;
-    host.answerElicitation(open.requestId, action, content);
-    _syncPermissions();
-  }
-
-  /// How the session's agent signs in.
-  Future<(List<AuthMethod>, bool)> authMethods() async {
-    final result = await host.call('_baya/agent_auth', {
-      'agent': _authAgent ?? summary?.agent,
-    }, const Duration(minutes: 2));
-    return (
-      [
-        for (final method in (result['authMethods'] as List? ?? const []))
-          if (method is Map)
-            AuthMethod.fromJson(method.cast<String, dynamic>()),
-      ],
-      result['logout'] == true,
-    );
-  }
-
-  /// Signs the agent in with [methodId]; the next prompt uses it.
-  Future<void> authenticate(String methodId) async {
-    await host.call('_baya/authenticate', {
-      'agent': _authAgent ?? summary?.agent,
-      'methodId': methodId,
-    }, const Duration(minutes: 5));
-    _authAgent = null;
-    _changed();
-  }
-
   // Reviewing the agent's work in the session's git repository.
 
   Future<Map<String, dynamic>> gitStatus() =>
@@ -381,24 +281,6 @@ class SessionController extends ChangeNotifier {
         'title': title,
         'body': body,
       }, const Duration(minutes: 2));
-
-  /// Signs the agent out on the computer; every session with it needs a
-  /// new sign-in, which the sign-in card offers.
-  Future<void> logout() async {
-    final agent = _authAgent ?? summary?.agent;
-    await host.call('_baya/logout', {
-      'agent': agent,
-    }, const Duration(minutes: 2));
-    _authAgent = agent;
-    _changed();
-  }
-
-  void answerPermission(String? optionId) {
-    final open = permission;
-    if (open == null) return;
-    host.answerPermission(open.requestId, optionId);
-    _syncPermissions();
-  }
 
   /// Reload after an error.
   Future<void> retry() => _load();
@@ -461,10 +343,9 @@ class SessionController extends ChangeNotifier {
       _modes = _setup.modes;
       _loaded = true;
       final shared = _shared?.take();
-      final waiting =
-          _handoff.remove('${host.key}/$sessionId') ??
-          (shared == null ? null : UserMsg(id: 'shared', text: shared));
-      if (waiting != null) scheduleMicrotask(() => editAgain(waiting));
+      if (shared != null) {
+        scheduleMicrotask(() => editAgain(UserMsg(id: 'shared', text: shared)));
+      }
     } catch (error) {
       _error = _describe(error);
       // A failed catch-up keeps what is shown.
@@ -524,22 +405,6 @@ class SessionController extends ChangeNotifier {
     _changed();
   }
 
-  void _syncPermissions() {
-    _openPermissions = [
-      for (final request in host.openPermissions)
-        if (request.sessionId == sessionId) request,
-    ];
-    _openElicitations = [
-      for (final request in host.openElicitations)
-        if (request.sessionId == null || request.sessionId == sessionId)
-          request,
-    ];
-    _transcript.markAwaiting({
-      for (final request in _openPermissions) request.toolCall.id,
-    });
-    _changed();
-  }
-
   /// At most one rebuild per frame: the first change shows at once, and
   /// what streams in during the next 16 ms follows in one more.
   void _changed() {
@@ -572,11 +437,9 @@ class SessionController extends ChangeNotifier {
   void dispose() {
     _keepForLater();
     _disposed = true;
-    _handoff.remove('${host.key}/$sessionId');
     _throttle?.cancel();
     unawaited(_drafts.close());
     unawaited(_updates.cancel());
-    unawaited(_questions.cancel());
     unawaited(_terminals.cancel());
     unawaited(_online.cancel());
     host.removeListener(_onHostChanged);

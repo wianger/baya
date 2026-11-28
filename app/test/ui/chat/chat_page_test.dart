@@ -3,7 +3,6 @@
 
 import 'dart:async';
 
-import 'package:app/acp/json_rpc.dart';
 import 'package:app/data/hosts/hosts.dart';
 import 'package:app/data/hosts/session_controller.dart';
 import 'package:app/data/images/image_picker_service.dart';
@@ -156,32 +155,6 @@ void main() {
     await _finish(tester, chat);
   });
 
-  testWidgets('editing a sent message offers a branch when the agent can', (
-    tester,
-  ) async {
-    final computer = _computer()
-      ..setup = {
-        '_meta': {
-          'baya': {'agentName': 'Claude Code', 'canFork': true},
-        },
-      };
-    final chat = await _pump(tester, computer: computer);
-    await tester.tap(find.byKey(const Key('user-edit')));
-    await tester.pumpAndSettle();
-    expect(find.text('Branch from here'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('edit-here')));
-    await tester.pumpAndSettle();
-    final field = tester.widget<TextField>(
-      find.descendant(
-        of: find.byKey(const ValueKey('chat-floating-composer')),
-        matching: find.byType(TextField),
-      ),
-    );
-    expect(field.controller!.text, 'Why does login fail?');
-    expect(chat.host.calls.any((c) => c.method == '_baya/fork'), isFalse);
-    await _finish(tester, chat);
-  });
-
   testWidgets('without branching, edit goes straight to the composer', (
     tester,
   ) async {
@@ -224,40 +197,6 @@ void main() {
     await _finish(tester, chat);
   });
 
-  testWidgets('a permission question is answered from the card', (
-    tester,
-  ) async {
-    final chat = await _pump(tester);
-    Object? answer;
-    unawaited(
-      chat.host
-          .askPermission({
-            'sessionId': 's1',
-            'toolCall': {
-              'toolCallId': 't1',
-              'title': 'rm -rf build',
-              'kind': 'execute',
-            },
-            'options': [
-              {'optionId': 'once', 'name': 'Allow', 'kind': 'allow_once'},
-              {'optionId': 'no', 'name': 'Reject', 'kind': 'reject_once'},
-            ],
-          })
-          .then((value) => answer = value),
-    );
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('permission-card')), findsOneWidget);
-    expect(find.text('rm -rf build'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('permission-once')));
-    await tester.pumpAndSettle();
-    expect(answer, {
-      'outcome': {'outcome': 'selected', 'optionId': 'once'},
-    });
-    expect(find.byKey(const Key('permission-card')), findsNothing);
-    await _finish(tester, chat);
-  });
-
   testWidgets('session settings change the model', (tester) async {
     final chat = await _pump(tester);
     await _openComposer(tester);
@@ -276,92 +215,6 @@ void main() {
       'configId': 'model',
       'value': 'sonnet',
     });
-    await _finish(tester, chat);
-  });
-
-  testWidgets('an elicitation form is filled in and submitted', (tester) async {
-    final chat = await _pump(tester);
-    Object? answer;
-    unawaited(
-      chat.host
-          .askElicitation({
-            'sessionId': 's1',
-            'mode': 'form',
-            'message': 'Which branch?',
-            'requestedSchema': {
-              'type': 'object',
-              'properties': {
-                'branch': {'type': 'string', 'title': 'Branch'},
-                'push': {'type': 'boolean', 'title': 'Push'},
-              },
-              'required': ['branch'],
-            },
-          })
-          .then((value) => answer = value),
-    );
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('elicitation-card')), findsOneWidget);
-    expect(find.text('Which branch?'), findsOneWidget);
-    final submit = find.byKey(const Key('elicitation-accept'));
-    expect(tester.widget<FilledButton>(submit).onPressed, isNull);
-
-    await tester.enterText(find.byKey(const ValueKey('field-branch')), 'main');
-    // The composer opens into its card.
-    for (var i = 0; i < 5; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-    await tester.tap(find.byKey(const ValueKey('field-push')));
-    await tester.pump();
-    await tester.tap(submit);
-    await tester.pumpAndSettle();
-    expect(answer, {
-      'action': 'accept',
-      'content': {'branch': 'main', 'push': true},
-    });
-    expect(find.byKey(const Key('elicitation-card')), findsNothing);
-    await _finish(tester, chat);
-  });
-
-  testWidgets('an agent that needs a sign-in offers its methods', (
-    tester,
-  ) async {
-    final computer = _computer();
-    computer.handlers['session/prompt'] = (_) => throw const RpcError(
-      -32000,
-      'Authentication required',
-      {'reason': 'auth_required', 'agent': 'claude'},
-    );
-    computer.handlers['_baya/agent_auth'] = (_) => {
-      'authMethods': [
-        {'id': 'key', 'name': 'API key'},
-        {
-          'id': 'login',
-          'name': 'Claude login',
-          'type': 'terminal',
-          'args': ['--login'],
-        },
-      ],
-    };
-    computer.handlers['_baya/authenticate'] = (_) => const <String, dynamic>{};
-    final chat = await _pump(tester, computer: computer);
-    await tester.enterText(find.byType(TextField), 'Fix it');
-    // The composer opens into its card.
-    for (var i = 0; i < 5; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('input-bar-action')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('sign-in-card')), findsOneWidget);
-    expect(find.text('--login'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('sign-in-key')));
-    await tester.pumpAndSettle();
-    final call = computer.calls.lastWhere(
-      (c) => c.method == '_baya/authenticate',
-    );
-    expect(call.params, {'agent': 'claude', 'methodId': 'key'});
-    expect(find.byKey(const Key('sign-in-card')), findsNothing);
     await _finish(tester, chat);
   });
 
@@ -408,42 +261,6 @@ void main() {
       'uri': 'file:///home/me/web/app.ts',
     });
     expect(chat.session.attachedFiles, isEmpty);
-    await _finish(tester, chat);
-  });
-
-  testWidgets('the agent can be signed out from session settings', (
-    tester,
-  ) async {
-    final computer = _computer();
-    computer.handlers['_baya/agent_auth'] = (_) => {
-      'authMethods': [
-        {'id': 'key', 'name': 'API key'},
-      ],
-      'logout': true,
-    };
-    computer.handlers['_baya/logout'] = (_) => const <String, dynamic>{};
-    final chat = await _pump(tester, computer: computer);
-    await _openComposer(tester);
-    await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('sign-out')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('sign-out-confirm')));
-    await tester.pumpAndSettle();
-    expect(
-      computer.calls.where((c) => c.method == '_baya/logout').single.params,
-      {'agent': 'claude'},
-    );
-    expect(find.byKey(const Key('sign-in-card')), findsOneWidget);
-    await _finish(tester, chat);
-  });
-
-  testWidgets('no sign-out for agents without logout', (tester) async {
-    final chat = await _pump(tester);
-    await _openComposer(tester);
-    await tester.tap(find.byKey(const Key('input-bar-quick-actions')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('sign-out')), findsNothing);
     await _finish(tester, chat);
   });
 

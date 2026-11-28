@@ -31,8 +31,6 @@ class ToolContent {
   /// Reasoning and other prose read better in the body font.
   bool get usesProseDetails => tool.kind == ToolKind.think;
 
-  bool get awaitingApproval => tool.awaitingApproval;
-
   String get toolName => switch (tool.kind) {
     ToolKind.read => appL10n.toolRead,
     ToolKind.edit => appL10n.toolEdit,
