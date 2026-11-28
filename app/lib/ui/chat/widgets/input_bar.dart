@@ -54,12 +54,6 @@ class InputBar extends StatefulWidget {
   final bool agentCommandsLoading;
   final String? agentCommandsError;
 
-  /// Built-in command ids the active host explicitly cannot execute.
-  ///
-  /// The host reports this alongside agent commands. Keeping unavailable
-  /// entries out of the palette prevents a harmless but confusing round-trip
-  /// that ends in an "unsupported action" error.
-  final Set<String> hiddenSlashCommandIds;
   final VoidCallback? onStartAudio;
   final String agentLabel;
   final String modelLabel;
@@ -95,7 +89,6 @@ class InputBar extends StatefulWidget {
     this.agentCommands = const [],
     this.agentCommandsLoading = false,
     this.agentCommandsError,
-    this.hiddenSlashCommandIds = const {},
     this.onStartAudio,
     this.agentLabel = 'your agent',
     this.modelLabel = 'Session',
@@ -655,7 +648,6 @@ class _InputBarState extends State<InputBar>
                       agentCommands: widget.agentCommands,
                       loading: widget.agentCommandsLoading,
                       error: widget.agentCommandsError,
-                      hiddenCommandIds: widget.hiddenSlashCommandIds,
                       onSelected: (id, raw) {
                         _controller.clear();
                         widget.onSlashCommand?.call(id, raw);
@@ -1162,7 +1154,6 @@ class _SlashPalette extends StatelessWidget {
     required this.agentCommands,
     required this.loading,
     required this.error,
-    required this.hiddenCommandIds,
     required this.onSelected,
   });
 
@@ -1170,7 +1161,6 @@ class _SlashPalette extends StatelessWidget {
   final List<AgentCommand> agentCommands;
   final bool loading;
   final String? error;
-  final Set<String> hiddenCommandIds;
   final void Function(String id, String raw) onSelected;
 
   static final _commands = [
@@ -1180,25 +1170,6 @@ class _SlashPalette extends StatelessWidget {
       appL10n.newWorkspace,
       '/workspace',
       LucideIcons.folderPlus,
-    ),
-    _SlashCommand('model', appL10n.switchModel, '/model', LucideIcons.cpu),
-    _SlashCommand(
-      'thinking',
-      appL10n.thinkingLevel,
-      '/thinking',
-      LucideIcons.brain,
-    ),
-    _SlashCommand(
-      'compact',
-      appL10n.compactContext,
-      '/compact',
-      LucideIcons.shrink,
-    ),
-    _SlashCommand(
-      'context',
-      appL10n.contextUsage,
-      '/context',
-      LucideIcons.activity,
     ),
     _SlashCommand(
       'attach',
@@ -1222,17 +1193,11 @@ class _SlashPalette extends StatelessWidget {
     final matches = _commands
         .where(
           (c) =>
-              !hiddenCommandIds.contains(c.id) &&
               (normalized.isEmpty ||
-                  c.id.startsWith(normalized) ||
-                  c.label.toLowerCase().contains(normalized)),
+              c.id.startsWith(normalized) ||
+              c.label.toLowerCase().contains(normalized)),
         )
         .toList();
-    final hiddenExactCommand = _commands.any(
-      (command) =>
-          hiddenCommandIds.contains(command.id) &&
-          (normalized.isEmpty || command.id.startsWith(normalized)),
-    );
     final agentMatches = agentCommands
         .where(
           (command) =>
@@ -1333,7 +1298,7 @@ class _SlashPalette extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (!hiddenExactCommand) ...[
+                ...[
                   Divider(height: 1, color: colors.border),
                   ListTile(
                     dense: true,

@@ -85,6 +85,7 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
   @override
   void dispose() {
     _poll?.cancel();
+    _turnsTimer?.cancel();
     _screen.dispose();
     _line.dispose();
     _lineFocus.dispose();
@@ -172,14 +173,26 @@ class _PaneScreenPageState extends State<PaneScreenPage> {
     final line = _font * 1.25;
     final x = _screen.cols ~/ 2 + 1;
     final y = _screen.rows ~/ 2 + 1;
-    var turns = '';
     while (_wheel.abs() >= line) {
       // Finger down: back to older output.
       final up = _wheel > 0;
       _wheel -= up ? line : -line;
-      turns += '\x1b[<${up ? 64 : 65};$x;${y}M';
+      _turns.write('\x1b[<${up ? 64 : 65};$x;${y}M');
     }
-    if (turns.isNotEmpty) unawaited(_input(text: turns, haptic: false));
+    // Sent together every 80 ms: each is a trip to herdr on the computer.
+    if (_turns.isNotEmpty) _turnsTimer ??= Timer(_turnsEvery, _sendTurns);
+  }
+
+  final _turns = StringBuffer();
+  Timer? _turnsTimer;
+  static const _turnsEvery = Duration(milliseconds: 80);
+
+  void _sendTurns() {
+    _turnsTimer = null;
+    if (_turns.isEmpty) return;
+    final turns = _turns.toString();
+    _turns.clear();
+    unawaited(_input(text: turns, haptic: false));
   }
 
   void _up(PointerEvent event) {

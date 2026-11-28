@@ -617,12 +617,20 @@ class FontSizePage extends StatelessWidget {
               Text('A', style: context.typo.sansBody.copyWith(fontSize: 26)),
             ],
           ),
-          Slider(
-            key: const Key('font-scale-selector'),
-            value: index.toDouble(),
-            max: (scales.length - 1).toDouble(),
-            divisions: scales.length - 1,
-            onChanged: (value) => prefs.setFontScale(scales[value.round()]),
+          // A tick for each size, so the steps show.
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              tickMarkShape: const RoundSliderTickMarkShape(tickMarkRadius: 3),
+              activeTickMarkColor: colors.bg,
+              inactiveTickMarkColor: colors.muted,
+            ),
+            child: Slider(
+              key: const Key('font-scale-selector'),
+              value: index.toDouble(),
+              max: (scales.length - 1).toDouble(),
+              divisions: scales.length - 1,
+              onChanged: (value) => prefs.setFontScale(scales[value.round()]),
+            ),
           ),
         ],
       ),

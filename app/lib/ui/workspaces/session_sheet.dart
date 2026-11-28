@@ -121,7 +121,6 @@ class _SessionSheetState extends State<_SessionSheet> {
                 key: const ValueKey('session-action-terminal'),
                 icon: LucideIcons.squareTerminal,
                 label: l10n.sessionTerminal,
-                subtitle: l10n.sessionTerminalHint,
                 chevron: true,
                 onTap: () => _then(terminal),
               ),

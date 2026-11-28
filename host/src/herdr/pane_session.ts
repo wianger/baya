@@ -14,6 +14,8 @@ import type { PaneAgent, PaneHost } from "./app.ts";
 import {
   offers,
   optionCommand,
+  paneCommands,
+  paneCommandsLater,
   paneOptions,
   paneOptionsLater,
   piContext,
@@ -204,6 +206,18 @@ export class PaneSession {
     if (!replay) this.load();
     if (this.usage) this.send(phone, this.usage);
     this.watch();
+    // The agent's own slash commands, for the phone's `/` list.
+    const commands = paneCommands(this.pane.agent);
+    const sendCommands = (list: Json[]) =>
+      this.send(phone, {
+        sessionUpdate: "available_commands_update",
+        availableCommands: list,
+      } as Update);
+    if (commands) sendCommands(commands);
+    else
+      void paneCommandsLater(this.pane.agent).then((later) => {
+        if (later.length && this.attached.has(phone)) sendCommands(later);
+      });
     const options = paneOptions(this.pane.agent);
     // Still being asked of the agent: sent once it answers.
     if (options === null) {
