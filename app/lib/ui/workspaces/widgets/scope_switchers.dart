@@ -293,10 +293,15 @@ Future<({_ScopeAction action, String? key})?> _showScopeSheet(
                   if (row.delete)
                     IconButton(
                       key: ValueKey('$prefix-delete-${row.key}'),
-                      tooltip: sheetContext.l10n.delete,
+                      // A workspace closes, as a space in herdr does.
+                      tooltip: prefix == 'workspace'
+                          ? sheetContext.l10n.closeSessionConfirm
+                          : sheetContext.l10n.delete,
                       onPressed: () => close(_ScopeAction.delete, row.key),
                       icon: Icon(
-                        LucideIcons.trash2,
+                        prefix == 'workspace'
+                            ? LucideIcons.circleX
+                            : LucideIcons.trash2,
                         size: 16,
                         color: colors.muted2,
                       ),

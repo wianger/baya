@@ -6,7 +6,7 @@
  * results, in order. The agent in its herdr pane is the only one writing;
  * Baya only reads, so the chat and the terminal never disagree.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { closeSync, existsSync, openSync, readdirSync, readSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { isObject, type Json } from "../acp/jsonrpc.ts";
@@ -115,27 +115,97 @@ function findFile(root: string, match: (name: string) => boolean, depth = 4): st
   return null;
 }
 
+/** What has been read of a record: its lines so far, and where to go on. */
+interface Read {
+  bytes: number;
+  partial: string;
+  lines: Json[];
+}
+
+const reads = new Map<string, Read>();
+
+/** Past this, a tool's output keeps its start and end only. */
+const KEEP = 20_000;
+
+const cutText = (text: string): string =>
+  text.length <= KEEP ? text : `${text.slice(0, KEEP / 2)}\n…\n${text.slice(-KEEP / 2)}`;
+
+/**
+ * A line as the chat needs it: tool output cut to its start and end, and
+ * images without their data (they are what makes records huge).
+ */
+function slim(line: Json): Json {
+  const message = line["message"];
+  if (!isObject(message) || !Array.isArray(message["content"])) return line;
+  const shrink = (block: unknown): unknown => {
+    if (!isObject(block)) return block;
+    if (block["type"] === "image") return { type: "image" };
+    if (typeof block["text"] === "string") return { ...block, text: cutText(block["text"]) };
+    if (block["type"] === "tool_result") {
+      const content = block["content"];
+      return {
+        ...block,
+        content:
+          typeof content === "string"
+            ? cutText(content)
+            : Array.isArray(content)
+              ? content.map(shrink)
+              : content,
+      };
+    }
+    return block;
+  };
+  return { ...line, message: { ...message, content: message["content"].map(shrink) } };
+}
+
+/**
+ * A record's lines, parsed once each: an agent only appends to its record,
+ * so each read takes in what was added since the last (a long Claude
+ * conversation's record runs to hundreds of megabytes).
+ */
+export function recordLines(path: string): Json[] {
+  let size: number;
+  try {
+    size = statSync(path).size;
+  } catch {
+    reads.delete(path);
+    return [];
+  }
+  let read = reads.get(path);
+  // Rewritten, not appended to: start over.
+  if (!read || size < read.bytes) read = { bytes: 0, partial: "", lines: [] };
+  if (size > read.bytes) {
+    const fd = openSync(path, "r");
+    try {
+      const buffer = Buffer.alloc(size - read.bytes);
+      const got = readSync(fd, buffer, 0, buffer.length, read.bytes);
+      read.bytes += got;
+      const text = read.partial + buffer.subarray(0, got).toString("utf8");
+      const cut = text.lastIndexOf("\n");
+      read.partial = cut < 0 ? text : text.slice(cut + 1);
+      for (const line of cut < 0 ? [] : text.slice(0, cut).split("\n")) {
+        if (!line.trim()) continue;
+        try {
+          const value: unknown = JSON.parse(line);
+          if (isObject(value)) read.lines.push(slim(value));
+        } catch {
+          // A line still being written is skipped; whole ones always parse.
+        }
+      }
+    } finally {
+      closeSync(fd);
+    }
+  }
+  reads.set(path, read);
+  return read.lines;
+}
+
 /** The record's conversation as chat updates, and the title it gives. */
 export function readRecord(
   agent: string,
   path: string,
 ): { updates: Update[]; title: string | null; usage?: RecordUsage | null } {
-  let lines: Json[];
-  try {
-    lines = readFileSync(path, "utf8")
-      .split("\n")
-      .filter((line) => line.trim())
-      .flatMap((line) => {
-        try {
-          const value: unknown = JSON.parse(line);
-          return isObject(value) ? [value] : [];
-        } catch {
-          return [];
-        }
-      });
-  } catch {
-    return { updates: [], title: null };
-  }
+  const lines = recordLines(path);
   const usage = usageOf(agent, lines);
   switch (agentFamily(agent)) {
     case "claude":

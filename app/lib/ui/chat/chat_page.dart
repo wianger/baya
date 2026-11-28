@@ -309,7 +309,6 @@ class ChatPage extends StatelessWidget {
   Widget _buildInput(BuildContext context, SessionController session) {
     final online = session.online;
     final commands = session.commands;
-    bool hasCommand(String name) => commands.any((c) => c.name == name);
     return InputBar(
       key: const ValueKey('chat-floating-composer'),
       agentLabel: session.agentName.isEmpty
@@ -332,22 +331,6 @@ class ChatPage extends StatelessWidget {
               context,
               workspaceKey: context.read<HomeViewModel>().selectedWorkspace,
             );
-          case 'model':
-            showSessionSettings(context, focus: 'model');
-          case 'thinking':
-            showSessionSettings(context, focus: 'thought_level');
-          case 'compact':
-            if (!hasCommand('compact')) {
-              showBayaNotice(
-                context,
-                title: context.l10n.compactUnavailable,
-                message: context.l10n.compactUnavailableHint,
-              );
-              return;
-            }
-            session.prompt('/compact');
-          case 'context':
-            showContextUsage(context);
           case 'attach':
             _openAttach(context, context.read<AttachmentViewModel>());
           case 'settings':
@@ -370,9 +353,6 @@ class ChatPage extends StatelessWidget {
             description: command.description,
           ),
       ],
-      hiddenSlashCommandIds: hasCommand('compact')
-          ? const {}
-          : const {'compact'},
       voice: context.read<VoiceInputViewModel>(),
       onVoiceHint: (hint) => _handleVoiceHint(context, hint),
       attachment: context.read<AttachmentViewModel>(),

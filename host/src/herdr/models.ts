@@ -57,11 +57,18 @@ function listPiModels(): Promise<ModelChoice[]> {
 
 type Json = Record<string, unknown>;
 
-/** Asks agent [id] (Baya's name for it) for its settings over ACP: `configOptions`. */
-type Fetch = (id: string) => Promise<Json[]>;
+/** What an agent says of itself over ACP: its settings and its commands. */
+export interface AgentSettings {
+  options: Json[];
+  commands: Json[];
+}
+
+/** Asks agent [id] (Baya's name for it) for its settings over ACP. */
+type Fetch = (id: string) => Promise<AgentSettings>;
 let fetcher: Fetch | null = null;
 const asked = new Map<string, Promise<Json[]>>();
 const told = new Map<string, Json[]>();
+const toldCommands = new Map<string, Json[]>();
 
 export function useModelFetcher(fetch: Fetch): void {
   fetcher = fetch;
@@ -79,8 +86,9 @@ function fromAgent(agent: string): Promise<Json[]> {
   let pending = asked.get(id);
   if (!pending) {
     pending = fetcher(id)
-      .catch(() => [] as Json[])
-      .then((all) => {
+      .catch((): AgentSettings => ({ options: [], commands: [] }))
+      .then(({ options: all, commands }) => {
+        if (commands.length) toldCommands.set(id, commands);
         const options = all.filter(
           (o) => o["type"] === "select" && TYPED.has(String(o["category"] ?? o["id"])),
         );
@@ -122,6 +130,16 @@ async function fallback(agent: string): Promise<Json[]> {
  * A pane agent's settings the phone can change, as the agent gives them;
  * null while it is still being asked (they follow, from [paneOptionsLater]).
  */
+/** The agent's own slash commands, once it has said them. */
+export function paneCommands(agent: string): Json[] | null {
+  return toldCommands.get(agentId(agent)) ?? null;
+}
+
+export async function paneCommandsLater(agent: string): Promise<Json[]> {
+  await fromAgent(agent);
+  return toldCommands.get(agentId(agent)) ?? [];
+}
+
 export function paneOptions(agent: string): Json[] | null {
   return told.get(agentId(agent)) ?? null;
 }

@@ -3,7 +3,7 @@ import { type AgentDefinition, defaultAgentId, loadConfig } from "../config.ts";
 import { resumeArgs, sessionForPane, setSessionForPane } from "../herdr/aliases.ts";
 import { herdrApp, type PaneAgent, type PaneHost } from "../herdr/app.ts";
 import { isMirror, mirrorList, setMirror } from "../herdr/mirrors.ts";
-import { useModelFetcher } from "../herdr/models.ts";
+import { type AgentSettings, useModelFetcher } from "../herdr/models.ts";
 import { PaneSession, paneSessionId } from "../herdr/pane_session.ts";
 import { locateRecord } from "../herdr/records.ts";
 import { herdrWindow } from "../herdr/window.ts";
@@ -64,7 +64,11 @@ export class SessionHub {
     this.followPanes = options.panes ?? false;
     // A pane's agent offers the models it gives Baya over ACP.
     if (this.followPanes) {
-      useModelFetcher((id) => (this.definition(id) ? this.agentOptions(id) : Promise.resolve([])));
+      useModelFetcher((id) =>
+        this.definition(id)
+          ? this.agentOptions(id)
+          : Promise.resolve({ options: [], commands: [] }),
+      );
     }
   }
 
@@ -282,6 +286,7 @@ export class SessionHub {
     id: unknown,
     cwd: string | undefined,
     work: (agent: AgentProcess, info: InitializeResponse) => Promise<T>,
+    onNotification: (method: string, params: Json) => void = () => {},
   ): Promise<T> {
     const definition = typeof id === "string" ? this.definition(id) : null;
     if (!definition) throw RpcError.invalidParams(`No agent named "${String(id)}" is set up.`);
@@ -289,7 +294,7 @@ export class SessionHub {
     try {
       const info = await agent.start(cwd ?? homedir(), {
         onRequest: (method) => Promise.reject(RpcError.methodNotFound(method)),
-        onNotification: () => {},
+        onNotification,
         onExit: () => {},
       });
       return await work(agent, info);
@@ -299,14 +304,42 @@ export class SessionHub {
   }
 
   /** Agent [id]'s settings (`configOptions`), from a session of it started for the asking. */
-  agentOptions(id: string): Promise<Json[]> {
-    return this.withAgent(id, undefined, async (agent) => {
-      const result = (await agent.request("session/new", {
-        cwd: homedir(),
-        mcpServers: [],
-      })) as Json;
-      return Array.isArray(result["configOptions"]) ? (result["configOptions"] as Json[]) : [];
+  agentOptions(id: string): Promise<AgentSettings> {
+    let commands: Json[] = [];
+    let told: (() => void) | null = null;
+    const heard = new Promise<void>((resolve) => {
+      told = resolve;
     });
+    return this.withAgent(
+      id,
+      undefined,
+      async (agent) => {
+        const result = (await agent.request("session/new", {
+          cwd: homedir(),
+          mcpServers: [],
+        })) as Json;
+        // Its commands follow the session's answer, as a notification.
+        await Promise.race([heard, new Promise((resolve) => setTimeout(resolve, 3000))]);
+        return {
+          options: Array.isArray(result["configOptions"])
+            ? (result["configOptions"] as Json[])
+            : [],
+          commands,
+        };
+      },
+      (method, params) => {
+        const update = params["update"] as Json | undefined;
+        if (
+          method === "session/update" &&
+          update?.["sessionUpdate"] === "available_commands_update"
+        ) {
+          commands = Array.isArray(update["availableCommands"])
+            ? (update["availableCommands"] as Json[])
+            : [];
+          told?.();
+        }
+      },
+    );
   }
 
   /** How the agent signs in, and whether it can sign out. */

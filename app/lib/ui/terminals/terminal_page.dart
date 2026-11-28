@@ -149,6 +149,7 @@ class _TerminalPageState extends State<TerminalPage> {
     unawaited(_changes?.cancel());
     unawaited(_stream?.close());
     _gridHide?.cancel();
+    _turnsTimer?.cancel();
     _decoder.close();
     _ghostty?.dispose();
     _xtermStats.dispose();
@@ -448,15 +449,29 @@ class _TerminalPageState extends State<TerminalPage> {
       }
       final button = up ? 64 : 65;
       if (!_modes.mouse) {
-        _stream?.input(up ? '\x1b[A' : '\x1b[B');
+        _turns.write(up ? '\x1b[A' : '\x1b[B');
       } else if (_modes.sgr) {
-        _stream?.input('\x1b[<$button;$x;${y}M');
+        _turns.write('\x1b[<$button;$x;${y}M');
       } else {
-        _stream?.input(
+        _turns.write(
           '\x1b[M${String.fromCharCodes([32 + button, 32 + x, 32 + y])}',
         );
       }
     }
+    // Sent together a few times a frame-pair, not one round trip a line:
+    // each turn makes the program paint its screen again.
+    if (_turns.isNotEmpty) _turnsTimer ??= Timer(_turnsEvery, _sendTurns);
+  }
+
+  final _turns = StringBuffer();
+  Timer? _turnsTimer;
+  static const _turnsEvery = Duration(milliseconds: 40);
+
+  void _sendTurns() {
+    _turnsTimer = null;
+    if (_turns.isEmpty) return;
+    _stream?.input(_turns.toString());
+    _turns.clear();
   }
 
   void _move(PointerMoveEvent event) {

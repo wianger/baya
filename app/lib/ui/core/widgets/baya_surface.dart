@@ -168,7 +168,16 @@ class BayaButton extends StatelessWidget {
                 child: icon!,
               ),
               const SizedBox(width: 8),
-              Flexible(child: label),
+              // Its line's leading split evenly above and below, so the
+              // words sit level with the icon (CJK fonts lean low).
+              Flexible(
+                child: DefaultTextStyle.merge(
+                  textHeightBehavior: const TextHeightBehavior(
+                    leadingDistribution: TextLeadingDistribution.even,
+                  ),
+                  child: label,
+                ),
+              ),
             ],
           );
     return prominent

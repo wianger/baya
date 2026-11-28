@@ -94,7 +94,7 @@ Future<bool> showWorkspaceDeleteDialog(
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
           child: Text(
-            context.l10n.delete,
+            context.l10n.closeSessionConfirm,
             style: TextStyle(color: dialogContext.colors.error),
           ),
         ),

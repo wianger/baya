@@ -163,3 +163,29 @@ describe("an agent's own record, read as the chat", () => {
     expect(claudeFolder("/home/me/my.app")).toBe("-home-me-my-app");
   });
 });
+
+describe("reading a record as it grows", () => {
+  it("takes in only what was appended, and cuts huge tool output", async () => {
+    const { mkdtempSync, writeFileSync, appendFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { recordLines } = await import("../src/herdr/records.ts");
+    const path = join(mkdtempSync(join(tmpdir(), "rec-")), "r.jsonl");
+    writeFileSync(path, `${JSON.stringify({ type: "user", n: 1 })}\n{"type":"assi`);
+    expect(recordLines(path)).toHaveLength(1);
+    const big = "x".repeat(50_000);
+    appendFileSync(
+      path,
+      `stant","n":2}\n${JSON.stringify({
+        type: "user",
+        message: { content: [{ type: "tool_result", content: big }] },
+      })}\n`,
+    );
+    const lines = recordLines(path);
+    expect(lines.map((l) => l["type"])).toEqual(["user", "assistant", "user"]);
+    const result = (
+      (lines[2]!["message"] as Record<string, unknown>)["content"] as Record<string, unknown>[]
+    )[0]!;
+    expect(String(result["content"]).length).toBeLessThan(21_000);
+  });
+});
