@@ -90,9 +90,14 @@ class HomeViewModel extends ViewModel<HomeState> {
   /// Closing a workspace closes its sessions on the computer, as closing a
   /// space in herdr closes its terminals; then the workspace goes.
   Future<void> deleteWorkspace(String key) async {
-    for (final item in _itemsInWorkspace(key)) {
-      await deleteSession(item);
+    // The sidebar moves to another workspace at once, not after its
+    // sessions are gone one by one.
+    if (selectedWorkspace == key) {
+      final next = workspaces.keys.where((k) => k != key).firstOrNull;
+      if (next != null) await _prefs.setSelectedWorkspace(next);
     }
+    final items = _itemsInWorkspace(key);
+    await Future.wait(items.map(deleteSession));
     if (_prefs.isCustomWorkspace(key)) await _prefs.deleteWorkspace(key);
   }
 

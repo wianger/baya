@@ -355,12 +355,15 @@ class TerminalsRepository {
     String? cwd,
     String? line,
     String? session,
+    String? fromSession,
     int? cols,
     int? rows,
   }) async {
     final result = await _link.call('_baya/terminal_run', {
       'cwd': ?cwd,
       'session': ?session,
+      // Its folder and its herdr-app space.
+      'sessionId': ?fromSession,
       if (line != null && line.trim().isNotEmpty) 'line': line.trim(),
       'cols': ?cols,
       'rows': ?rows,

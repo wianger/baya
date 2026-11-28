@@ -331,10 +331,19 @@ export class PhoneConnection implements HubPhone {
       case "_baya/terminal_list":
         return this.terminals.list();
       case "_baya/terminal_run": {
-        const cwd = optionalString(params, "cwd");
+        // Opened from a session: in its folder, in its herdr-app space.
+        const from = optionalString(params, "sessionId");
+        const session = from ? this.hub.get(from) : undefined;
+        const space = session
+          ? ((await session.terminal().catch(() => null))?.["labels"] as Json | undefined)?.[
+              "herdr.space"
+            ]
+          : undefined;
+        const cwd = optionalString(params, "cwd") ?? session?.record.cwd;
         return this.terminals.run({
           ...params,
           ...(cwd ? { cwd: await resolveDirectory(cwd) } : {}),
+          ...(typeof space === "string" ? { space } : {}),
         });
       }
       case "_baya/pane_screen":

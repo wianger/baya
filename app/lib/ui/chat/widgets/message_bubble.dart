@@ -23,7 +23,10 @@ class UserBubble extends StatelessWidget {
 
   /// Puts this message back in the composer; null hides the actions.
   final VoidCallback? onEdit;
-  const UserBubble(this.message, {super.key, this.onEdit});
+
+  /// Queued behind a turn: stop that turn so this goes now.
+  final VoidCallback? onSendNow;
+  const UserBubble(this.message, {super.key, this.onEdit, this.onSendNow});
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +104,23 @@ class UserBubble extends StatelessWidget {
                           fontSize: BayaType.caption,
                         ),
                       ),
+                      if (onSendNow case final now?) ...[
+                        const SizedBox(width: 8),
+                        TextButton(
+                          key: ValueKey('send-now-${message.id}'),
+                          onPressed: now,
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(0, 28),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            visualDensity: VisualDensity.compact,
+                            textStyle: typo.sansBody.copyWith(
+                              fontSize: BayaType.caption,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          child: Text(context.l10n.sendNow),
+                        ),
+                      ],
                     ],
                   ),
                 ),

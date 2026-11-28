@@ -247,19 +247,19 @@ class _GhosttyViewState extends State<GhosttyView> {
         // Drags are the page's: they turn the program's wheel, or scroll
         // this view's history.
         return RepaintBoundary(
-            child: CustomPaint(
-              size: Size(constraints.maxWidth, constraints.maxHeight),
-              painter: _GhosttyPainter(
-                controller: widget.controller,
-                state: _state,
-                rows: _rows,
-                cells: _cells,
-                metrics: metrics,
-                foreground: colors.text,
-                background: colors.bg,
-                cursor: colors.text,
-              ),
+          child: CustomPaint(
+            size: Size(constraints.maxWidth, constraints.maxHeight),
+            painter: _GhosttyPainter(
+              controller: widget.controller,
+              state: _state,
+              rows: _rows,
+              cells: _cells,
+              metrics: metrics,
+              foreground: colors.text,
+              background: colors.bg,
+              cursor: colors.text,
             ),
+          ),
         );
       },
     );
@@ -273,10 +273,15 @@ class _CellMetrics {
   factory _CellMetrics.of(BuildContext context, double fontSize) {
     final style = TextStyle(
       fontFamily: kMonoFamily,
+      // Icons from Nerd Fonts, CJK, emoji, then the symbol blocks TUIs
+      // draw with (Claude Code's ⏵⏵ mode marks, arrows, boxes).
       fontFamilyFallback: const [
         'Symbols Nerd Font Mono',
         'Noto Sans Mono CJK SC',
         'Noto Color Emoji',
+        'Noto Sans Symbols',
+        'Noto Sans Symbols 2',
+        'Noto Sans Math',
       ],
       fontSize: fontSize,
       height: 1.2,

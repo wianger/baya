@@ -480,5 +480,7 @@
   "sessionsIdle": "空闲",
   "closeSessionConfirm": "关闭",
   "askAboutSelection": "提问",
-  "remoteControlInstalling": "正在电脑上安装 Sunshine。如果电脑上弹出 Windows 的授权提示，请点允许。"
+  "remoteControlInstalling": "正在电脑上安装 Sunshine。如果电脑上弹出 Windows 的授权提示，请点允许。",
+  "sendNow": "立即发送",
+  "newTerminalHere": "新终端"
 }

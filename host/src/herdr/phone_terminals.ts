@@ -167,6 +167,10 @@ export class PhoneTerminals {
         ...(typeof params["session"] === "string" && params["session"]
           ? { "baya.session": params["session"] }
           : {}),
+        // Beside a session's agent in the herdr-app window: its space.
+        ...(typeof params["space"] === "string" && params["space"]
+          ? { "herdr.space": params["space"] }
+          : {}),
       },
     });
   }

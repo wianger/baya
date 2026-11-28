@@ -16,7 +16,6 @@
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:app/data/terminals/herdr_terminals.dart';
 import 'package:app/l10n/l10n.dart';
@@ -65,7 +64,9 @@ const _maxFont = 24.0;
 enum _Input { compose, keys }
 
 class _TerminalPageState extends State<TerminalPage> {
-  late final _ghostty = GhosttyController(onOutput: (data) => _stream?.input(data));
+  late final _ghostty = GhosttyController(
+    onOutput: (data) => _stream?.input(data),
+  );
   final _keysFocus = FocusNode();
   final _line = TextEditingController();
   final _lineFocus = FocusNode();
@@ -259,9 +260,7 @@ class _TerminalPageState extends State<TerminalPage> {
     final text = _line.text;
     unawaited(HapticFeedback.lightImpact());
     if (text.isNotEmpty) {
-      _stream?.input(
-        _modes.bracketedPaste ? '\x1b[200~$text\x1b[201~' : text,
-      );
+      _stream?.input(_modes.bracketedPaste ? '\x1b[200~$text\x1b[201~' : text);
     }
     _stream?.input('\r');
     _line.clear();
@@ -348,8 +347,7 @@ class _TerminalPageState extends State<TerminalPage> {
       return;
     }
     // One finger, mostly up or down (sideways sees a wide terminal).
-    if (_pointers.length != 1 ||
-        event.delta.dy.abs() < event.delta.dx.abs()) {
+    if (_pointers.length != 1 || event.delta.dy.abs() < event.delta.dx.abs()) {
       return;
     }
     _wheel
@@ -463,11 +461,7 @@ class _TerminalPageState extends State<TerminalPage> {
                   ),
                   // Keys mode: what the phone's keyboard types goes in.
                   if (live && _input == _Input.keys)
-                    _RawKeys(
-                      focus: _keysFocus,
-                      onText: _output,
-                      onKey: _key,
-                    ),
+                    _RawKeys(focus: _keysFocus, onText: _output, onKey: _key),
                   // The grid while pinching: the program's new size.
                   Positioned(
                     top: 12,
@@ -1030,11 +1024,7 @@ class _KeyBar extends StatelessWidget {
               icon: LucideIcons.arrowLeft,
               onTap: () => onKey(_Key.left),
             ),
-            key(
-              '↑',
-              icon: LucideIcons.arrowUp,
-              onTap: () => onKey(_Key.up),
-            ),
+            key('↑', icon: LucideIcons.arrowUp, onTap: () => onKey(_Key.up)),
             key(
               '↓',
               icon: LucideIcons.arrowDown,

@@ -313,7 +313,10 @@ void main() {
       findsOneWidget,
       reason: 'Stop remains reachable while the main action queues a follow-up',
     );
+    // Enter is a new line; Ctrl+Enter sends, as the button does.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
     expect(sent, 'quick follow-up');
   });

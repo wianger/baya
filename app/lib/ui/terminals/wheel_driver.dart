@@ -1,6 +1,6 @@
 /// Turns a finger on a full-screen program into its wheel: a line's height
 /// of drag is one turn; the first turn goes at once, the rest together
-/// every [every] (each makes the program paint its screen again); and a
+/// every `every` (each makes the program paint its screen again); and a
 /// flick keeps turning after the finger lifts, slowing as a list does.
 library;
 

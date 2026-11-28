@@ -40,6 +40,25 @@ class Transcript {
     _pending.removeWhere((m) => m.id == id);
   }
 
+  /// The computer took prompt [id]: no longer queued. Its echo may already
+  /// be shown (then it just goes), or still to come in other words.
+  void confirmPending(String id) {
+    final sent = _pending.where((m) => m.id == id).firstOrNull;
+    if (sent == null) return;
+    _messages = null;
+    _pending.remove(sent);
+    final echoed = _rows.reversed
+        .take(40)
+        .whereType<UserMsg>()
+        .any((m) => _same(m.text, sent.text));
+    if (!echoed) _rows.add(sent.copyWith(status: UserMsgStatus.confirmed));
+  }
+
+  /// The same words, whatever the spacing and line breaks.
+  static bool _same(String a, String b) =>
+      a.replaceAll(RegExp(r'\s+'), ' ').trim() ==
+      b.replaceAll(RegExp(r'\s+'), ' ').trim();
+
   /// Ends a turn: nothing is still being written.
   void settle() {
     _messages = null;
@@ -188,7 +207,7 @@ class Transcript {
     // prompt is known by its words.
     final byText = _pending.any((m) => m.id == messageId)
         ? null
-        : _pending.where((m) => m.text.trim() == text.trim()).firstOrNull;
+        : _pending.where((m) => _same(m.text, text)).firstOrNull;
     final id = byText?.id ?? messageId ?? _nextId('user');
     final sent = _pending.where((m) => m.id == id).firstOrNull;
     _pending.removeWhere((m) => m.id == id);
